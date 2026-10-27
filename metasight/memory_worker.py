@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import queue
 import time
 from pathlib import Path
@@ -17,12 +18,14 @@ from .providers import make_finder
 def run(in_q, out_q, settings: Settings, session: str, new_needed: int = 4) -> None:
     from ultralytics import YOLO
 
+    default_every = 2 if settings.finder == "sam31" else 1
+    sam_every = int(os.environ.get("METASIGHT_SAM_EVERY", default_every))
     engine = MemoryEngine(
         settings,
         MapAnythingRunner(),
         make_finder(settings),
         YOLO(str(settings.weights_dir / "yolo26n.pt")),
-        sam_every=2 if settings.finder == "sam31" else 1,
+        sam_every=sam_every,
     )
     if settings.mode != "home":
         engine.set_mode(settings.mode)

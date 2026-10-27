@@ -15,3 +15,6 @@ sessions/
 .pytest_cache/
 .ruff_cache/
 mobileclip*.ts
+showcase/raw/
+showcase/*.mp4
+showcase/rec/audio/
