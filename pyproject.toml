@@ -1,0 +1,31 @@
+[project]
+name = "metasight"
+version = "0.1.0"
+description = "A persistent metric 3D memory of your home, built from a camera on your face, with a fast safety loop."
+requires-python = ">=3.12"
+dependencies = [
+  "numpy",
+  "opencv-python-headless",
+  "torch",
+  "transformers",
+  "ultralytics",
+  "mapanything",
+  "fastapi",
+  "uvicorn[standard]",
+  "websockets",
+  "httpx",
+]
+
+[dependency-groups]
+dev = ["pytest", "ruff"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+extend-exclude = ["third_party", "bench", "web", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]

@@ -8,3 +8,9 @@ shots/proximity_frames/
 __pycache__/
 bench/*.log
 bench/*.pid
+web/node_modules/
+web/dist/
+certs/
+sessions/
+.pytest_cache/
+.ruff_cache/
