@@ -1,9 +1,9 @@
 # One-line provider switches. Environment variables METASIGHT_LANGUAGE / METASIGHT_FINDER win.
 [providers]
 # language: "openai" (stand-in until the Meta key exists) | "meta" (Muse Spark) | "template" (no model)
-language = "openai"
+language = "meta"
 # finder: "yoloe" (local open-vocabulary) | "sam31" (SAM 3.1 on the Meta Model API)
-finder = "yoloe"
+finder = "sam31"
 
 [models]
 openai_model = "gpt-4.1-mini"

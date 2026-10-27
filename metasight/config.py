@@ -27,6 +27,11 @@ def secret(*names: str) -> str | None:
             return out.stdout.strip()
     return None
 
+# Meta Model API: OpenAI-compatible, so the OpenAI SDK is the documented client.
+META_BASE_URL = "https://api.meta.ai/v1"
+META_TEAM_ID = "1009485265518211"
+META_PROJECT_ID = "1741493303586631"
+
 
 @dataclass
 class Settings:

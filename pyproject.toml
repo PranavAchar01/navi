@@ -13,7 +13,8 @@ dependencies = [
   "fastapi",
   "uvicorn[standard]",
   "websockets",
-  "httpx",
+  "openai",
+  "meta-sam-parser",
 ]
 
 [dependency-groups]

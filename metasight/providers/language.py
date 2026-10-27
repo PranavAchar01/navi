@@ -1,16 +1,16 @@
 """The language step (the Muse Spark role): phrase an answer, pick the object a question is about.
 
 `openai` is the stand-in until the Meta key exists. `meta` is Muse Spark on the Meta Model API,
-which speaks the same chat-completions protocol, so switching is one config line and no code.
+reached with the OpenAI SDK (Meta ships no client of its own), so switching is one config line.
 """
 
 from __future__ import annotations
 
 from typing import Protocol
 
-import httpx
+from openai import OpenAI
 
-from ..config import Settings, secret
+from ..config import META_BASE_URL, Settings, secret
 
 
 class LanguageModel(Protocol):
@@ -28,39 +28,30 @@ class TemplateLanguage:
         return ""
 
 
-class ChatCompletionsLanguage:
+class OpenAICompatLanguage:
+    """Chat completions through the OpenAI SDK; `base_url` picks OpenAI or the Meta Model API."""
+
     def __init__(
         self,
         name: str,
-        base_url: str,
         model: str,
         api_key: str,
+        base_url: str | None = None,
         timeout: float = 20.0,
         extra: dict | None = None,
     ):
         self.name, self.model, self.extra = name, model, extra or {}
-        self._client = httpx.Client(
-            base_url=base_url,
-            headers={"Authorization": f"Bearer {api_key}"},
-            timeout=timeout,
-        )
+        self._client = OpenAI(base_url=base_url, api_key=api_key, timeout=timeout)
 
     def complete(self, system: str, user: str, max_tokens: int = 120) -> str:
-        r = self._client.post(
-            "/chat/completions",
-            json={
-                "model": self.model,
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
-                "max_tokens": max_tokens + (300 if self.extra else 0),
-                "temperature": 0.2,
-                **self.extra,
-            },
+        r = self._client.chat.completions.create(
+            model=self.model,
+            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+            max_tokens=max_tokens + (300 if self.extra else 0),
+            temperature=0.2,
+            extra_body=self.extra,
         )
-        r.raise_for_status()
-        return (r.json()["choices"][0]["message"]["content"] or "").strip()
+        return (r.choices[0].message.content or "").strip()
 
 
 def make_language(s: Settings) -> LanguageModel:
@@ -69,18 +60,16 @@ def make_language(s: Settings) -> LanguageModel:
         if not key:
             raise RuntimeError("language = meta but no META_API_KEY / MODEL_API_KEY found")
         # Muse Spark reasons before it answers; without this the token budget goes to reasoning.
-        return ChatCompletionsLanguage(
+        return OpenAICompatLanguage(
             "muse-spark",
-            "https://api.meta.ai/v1",
             s.meta_model,
             key,
+            base_url=META_BASE_URL,
             timeout=30.0,
             extra={"reasoning_effort": "minimal"},
         )
     if s.language == "openai":
         key = secret("OPENAI_API_KEY")
         if key:
-            return ChatCompletionsLanguage(
-                "openai", "https://api.openai.com/v1", s.openai_model, key
-            )
+            return OpenAICompatLanguage("openai", s.openai_model, key)
     return TemplateLanguage()

@@ -1,23 +1,22 @@
 """Small-object finding (the SAM 3.1 role): boxes for the watch-list in one keyframe.
 
 `yoloe` is local open-vocabulary YOLOE-26 (free, weak on small things like keys). `sam31` is
-SAM 3.1 on the Meta Model API: one request per concept, boxes parsed from the token stream.
+SAM 3.1 on the Meta Model API: one request per concept, boxes parsed by meta-sam-parser.
 """
 
 from __future__ import annotations
 
+import asyncio
 import base64
-import json
-import re
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Protocol
 
 import cv2
-import httpx
 import numpy as np
+from meta_sam_parser import image_segmentation_format, parse_responses_stream
+from openai import AsyncOpenAI
 
-from ..config import Settings, secret
+from ..config import META_BASE_URL, Settings, secret
 
 # Furniture the pins can be described against ("near the dining table"). COCO class -> spoken name.
 LANDMARKS = {
@@ -75,44 +74,21 @@ class YoloeFinder:
         ]
 
 
-_BOX = re.compile(r"<\|box;x1=(\d+);y1=(\d+);x2=(\d+);y2=(\d+);w=(\d+);h=(\d+)(?:;c=([0-9.]+))?\|>")
-
-
-def parse_sam_boxes(text: str, label: str, frame_w: int, frame_h: int) -> list[Detection]:
-    """Boxes from SAM's special-token output, scaled from the reported w/h to our frame."""
-    out = []
-    for x1, y1, x2, y2, w, h, c in _BOX.findall(text):
-        sx, sy = frame_w / int(w), frame_h / int(h)
-        out.append(
-            Detection(
-                label,
-                float(c) if c else 1.0,
-                (int(x1) * sx, int(y1) * sy, (int(x2) + 1) * sx, (int(y2) + 1) * sy),
-            )
-        )
-    return out
-
-
 class Sam31Finder:
+    """SAM 3.1 via the OpenAI SDK on the Meta Model API; `meta-sam-parser` reads the stream."""
+
     name = "sam-3.1"
 
     def __init__(self, s: Settings, api_key: str, min_conf: float = 0.4):
         self._model, self._min_conf = s.sam_model, min_conf
-        self._client = httpx.Client(
-            base_url="https://api.meta.ai/v1",
-            headers={"Authorization": f"Bearer {api_key}", "Accept": "text/event-stream"},
-            timeout=30.0,
-        )
-        self._pool = ThreadPoolExecutor(max_workers=6)
+        self._api_key = api_key
 
-    def _one(self, data_url: str, label: str, w: int, h: int) -> list[Detection]:
-        body = {
-            "model": self._model,
-            "stream": True,
-            "metadata": {"include_confidence": "true"},
-            "input": [
+    async def _one(self, client: AsyncOpenAI, data_url: str, label: str) -> list[Detection]:
+        async with client.responses.stream(
+            model=self._model,
+            metadata={"include_confidence": "true"},
+            input=[
                 {
-                    "type": "message",
                     "role": "user",
                     "content": [
                         {"type": "input_text", "text": label},
@@ -120,27 +96,27 @@ class Sam31Finder:
                     ],
                 }
             ],
-        }
-        text = ""
-        with self._client.stream("POST", "/responses", json=body) as r:
-            r.raise_for_status()
-            for line in r.iter_lines():
-                if not line.startswith("data:"):
-                    continue
-                try:
-                    ev = json.loads(line[5:].strip())
-                except json.JSONDecodeError:
-                    continue
-                if ev.get("type") == "response.output_text.delta":
-                    text += ev.get("delta", "")
-        return [d for d in parse_sam_boxes(text, label, w, h) if d.score >= self._min_conf]
+        ) as stream:
+            parsed = parse_responses_stream(stream, image_segmentation_format())
+            result = await parsed.final_result()
+        return [
+            Detection(label, r.confidence if r.confidence is not None else 1.0, box)
+            for r in result.records
+            if r.kind == "box"
+            and (box := (r.left, r.top, r.right, r.bottom))
+            and (r.confidence is None or r.confidence >= self._min_conf)
+        ]
 
-    def find(self, bgr: np.ndarray, labels: list[str]) -> list[Detection]:
-        h, w = bgr.shape[:2]
+    async def _all(self, bgr: np.ndarray, labels: list[str]) -> list[Detection]:
         ok, jpg = cv2.imencode(".jpg", bgr, [cv2.IMWRITE_JPEG_QUALITY, 85])
         url = "data:image/jpeg;base64," + base64.b64encode(jpg.tobytes()).decode()
-        results = self._pool.map(lambda lb: self._one(url, lb, w, h), labels)
+        # A fresh client per call: each find() runs in its own event loop.
+        async with AsyncOpenAI(base_url=META_BASE_URL, api_key=self._api_key, timeout=30.0) as c:
+            results = await asyncio.gather(*(self._one(c, url, lb) for lb in labels))
         return [d for r in results for d in r]
+
+    def find(self, bgr: np.ndarray, labels: list[str]) -> list[Detection]:
+        return asyncio.run(self._all(bgr, labels))
 
 
 def make_finder(s: Settings) -> Finder:

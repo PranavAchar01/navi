@@ -1,5 +1,8 @@
+/** Automated runs (Playwright sets navigator.webdriver) and ?mute stay silent. */
+const muted = navigator.webdriver || new URLSearchParams(location.search).has("mute");
+
 export function speak(text: string): void {
-  if (!("speechSynthesis" in window)) return;
+  if (muted || !("speechSynthesis" in window)) return;
   window.speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
   u.rate = 1.02;
