@@ -1,0 +1,17 @@
+{
+  "model": "MapAnything-apache",
+  "size": [
+    1274,
+    714
+  ],
+  "views": 2,
+  "latency_s": 4.712,
+  "views_per_s": 0.42,
+  "peak_mps_gb": 12.33,
+  "peak_rss_gb": 0.63,
+  "times": [
+    5.305,
+    4.712,
+    4.158
+  ]
+}
