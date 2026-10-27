@@ -71,7 +71,9 @@ class PinStore:
 
     def latest(self, label: str, kind: str = "object") -> Pin | None:
         cands = [p for p in self.pins.values() if p.label == label and p.kind == kind]
-        return max(cands, key=lambda p: p.ts) if cands else None
+        firm = [p for p in cands if p.seen >= 2 or p.score >= 0.5]
+        pool = firm or cands
+        return max(pool, key=lambda p: p.ts) if pool else None
 
     def labels(self, kind: str = "object") -> list[str]:
         return sorted({p.label for p in self.pins.values() if p.kind == kind})
