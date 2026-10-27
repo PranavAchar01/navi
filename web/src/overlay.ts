@@ -47,6 +47,7 @@ export function drawOverlay(canvas: HTMLCanvasElement, video: HTMLVideoElement, 
 export function drawRing(canvas: HTMLCanvasElement, s: Safety | null) {
   const dpr = window.devicePixelRatio || 1;
   const size = canvas.clientWidth;
+  if (size < 20) return;
   if (canvas.width !== size * dpr) {
     canvas.width = size * dpr;
     canvas.height = size * dpr;
