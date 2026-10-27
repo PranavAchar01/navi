@@ -49,7 +49,7 @@ else:
 
     def run(imgs):
         """Causal streaming: one frame at a time with cached past tokens (the real-time mode)."""
-        frames = [{"img": imgs[i]} for i in range(imgs.shape[0])]
+        frames = [{"img": imgs[i : i + 1]} for i in range(imgs.shape[0])]
         with torch.no_grad(), torch.autocast("mps", dtype=torch.float16):
             return model.inference(frames)
 

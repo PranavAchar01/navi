@@ -1,0 +1,18 @@
+{
+  "model": "StreamVGGT",
+  "size": [
+    518,
+    294
+  ],
+  "views": 32,
+  "latency_s": 54.544,
+  "views_per_s": 0.59,
+  "per_frame_ms": 1704.5,
+  "peak_mps_gb": 13.28,
+  "peak_rss_gb": 0.14,
+  "times": [
+    50.265,
+    60.215,
+    54.544
+  ]
+}

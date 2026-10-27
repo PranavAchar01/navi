@@ -1,0 +1,18 @@
+{
+  "model": "VGGT-1B",
+  "size": [
+    1274,
+    714
+  ],
+  "views": 2,
+  "latency_s": 6.39,
+  "views_per_s": 0.31,
+  "per_frame_ms": 3195.1,
+  "peak_mps_gb": 12.85,
+  "peak_rss_gb": 0.47,
+  "times": [
+    6.561,
+    6.39,
+    5.816
+  ]
+}
