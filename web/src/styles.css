@@ -224,7 +224,10 @@ p { margin: 0; }
 .alert-card .primary { font-size: 17px; min-height: 48px; padding: 0 26px; }
 
 @media (max-width: 900px) {
-  .brand-sub, .chips .chip:nth-child(n + 2) { display: none; }
+  .brand-sub, .chips { display: none; }
+  .brand { font-size: 17px; }
+  .topbar { justify-content: space-between; }
+  .readout { max-width: calc(100vw - 150px); white-space: normal; font-size: 10px; }
   .tabs { display: inline-flex; }
   .topbar { gap: 8px; padding: 0 8px 0 16px; margin: 8px 8px 0; height: 52px; }
   .seg button { padding: 5px 11px; }

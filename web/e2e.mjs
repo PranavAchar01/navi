@@ -4,7 +4,7 @@ const file = process.argv[3];
 const ask = process.argv[4] ?? "where is the remote?";
 const wait = Number(process.argv[5] ?? 45);
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1440, height: 860 } });
+const page = await browser.newPage({ viewport: { width: Number(process.env.W ?? 1440), height: Number(process.env.H ?? 860) }, deviceScaleFactor: Number(process.env.DPR ?? 1) });
 page.on("console", (m) => m.type() === "error" && console.log("console error:", m.text()));
 page.on("pageerror", (e) => console.log("page error:", e.message));
 await page.goto(url);
