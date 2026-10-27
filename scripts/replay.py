@@ -1,6 +1,6 @@
 """Stream a recorded video to the server like a phone would, then ask a question.
 
-python scripts/replay.py data/walk30_720p.mp4 --url ws://127.0.0.1:8444/ws --ask "where is the remote"
+python scripts/replay.py data/walk30_720p.mp4 --ask "where is the remote"
 """
 
 import argparse
