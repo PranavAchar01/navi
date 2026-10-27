@@ -14,3 +14,4 @@ certs/
 sessions/
 .pytest_cache/
 .ruff_cache/
+mobileclip*.ts

@@ -1,0 +1,376 @@
+"""The memory loop: MapAnything windows become one metric house map with pinned objects.
+
+Keyframes arrive at about 1 to 2 per second. Each window re-sees the last `overlap` keyframes of
+the previous one, so a similarity transform fitted on those shared pixels stitches the windows
+into a single map. Everything here works on plain arrays; the models are injected so the same
+engine runs inside the server's worker process and in offline scripts.
+"""
+
+from __future__ import annotations
+
+import base64
+import time
+from dataclasses import dataclass, field
+
+import cv2
+import numpy as np
+
+from .align import (
+    VoxelSet,
+    apply_sim3,
+    pose_through_sim3,
+    robust_similarity,
+)
+from .config import Settings
+from .geometry import gravity_alignment, map_sector_distances
+from .pins import PinStore
+from .providers.finder import LANDMARKS, Finder
+
+
+@dataclass
+class Keyframe:
+    seq: int
+    ts: float
+    bgr: np.ndarray  # already at the models' working resolution
+    depth: np.ndarray | None = None  # safety-loop metric depth, float16, same size as bgr
+    depth_scale: float = 1.0  # scale that had been applied to `depth`
+    gravity: np.ndarray | None = None  # gravity axis in OpenCV camera axes, sign unknown
+    taps: list[tuple[str, float, float]] = field(default_factory=list)  # (label, nx, ny)
+
+
+@dataclass
+class _Placed:
+    kf: Keyframe
+    pts: np.ndarray  # (H, W, 3) global
+    mask: np.ndarray  # (H, W) bool
+    pose: np.ndarray  # 4x4 global
+
+
+def _thumb(bgr: np.ndarray, box: tuple[float, float, float, float], size: int = 96) -> str:
+    h, w = bgr.shape[:2]
+    x0, y0, x1, y1 = box
+    pw, ph = 0.3 * (x1 - x0) + 12, 0.3 * (y1 - y0) + 12
+    crop = bgr[
+        max(0, int(y0 - ph)) : min(h, int(y1 + ph)), max(0, int(x0 - pw)) : min(w, int(x1 + pw))
+    ]
+    if crop.size == 0:
+        return ""
+    s = size / max(crop.shape[:2])
+    crop = cv2.resize(crop, (max(1, int(crop.shape[1] * s)), max(1, int(crop.shape[0] * s))))
+    ok, jpg = cv2.imencode(".jpg", crop, [cv2.IMWRITE_JPEG_QUALITY, 80])
+    return base64.b64encode(jpg.tobytes()).decode() if ok else ""
+
+
+class MapAnythingRunner:
+    """Thin wrapper over the model so the engine can be tested with a fake."""
+
+    def __init__(self, device: str = "mps"):
+        import torch
+        from mapanything.models import MapAnything
+        from uniception.models.encoders.image_normalizations import IMAGE_NORMALIZATION_DICT
+
+        self._torch = torch
+        self.device = torch.device(device)
+        self.model = MapAnything.from_pretrained("facebook/map-anything-apache").to(self.device)
+        self.model.eval()
+        norm = IMAGE_NORMALIZATION_DICT["dinov2"]
+        self._mean = np.array(norm.mean, np.float32)
+        self._std = np.array(norm.std, np.float32)
+
+    def infer(self, frames_bgr: list[np.ndarray]) -> list[dict]:
+        """Per frame: pts (H,W,3), mask (H,W), pose 4x4, depth_z (H,W), rgb (H,W,3) 0..1."""
+        torch = self._torch
+        views = []
+        for i, bgr in enumerate(frames_bgr):
+            rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB).astype(np.float32) / 255
+            x = torch.from_numpy((rgb - self._mean) / self._std).permute(2, 0, 1)[None]
+            views.append(
+                dict(
+                    img=x,
+                    true_shape=np.int32([bgr.shape[:2]]),
+                    idx=i,
+                    instance=str(i),
+                    data_norm_type=["dinov2"],
+                )
+            )
+        with torch.no_grad():
+            preds = self.model.infer(
+                views,
+                memory_efficient_inference=False,
+                use_amp=True,
+                amp_dtype="fp16",
+                apply_mask=True,
+                mask_edges=True,
+                apply_confidence_mask=True,
+                confidence_percentile=20,
+            )
+        torch.mps.synchronize()
+        out = []
+        for p, bgr in zip(preds, frames_bgr, strict=True):
+            out.append(
+                dict(
+                    pts=p["pts3d"][0].float().cpu().numpy(),
+                    mask=p["mask"][0].squeeze(-1).cpu().numpy().astype(bool),
+                    pose=p["camera_poses"][0].float().cpu().numpy(),
+                    depth_z=p["depth_z"][0].squeeze(-1).float().cpu().numpy(),
+                    rgb=cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB).astype(np.float32) / 255,
+                )
+            )
+        torch.mps.empty_cache()
+        return out
+
+
+class MemoryEngine:
+    def __init__(
+        self,
+        s: Settings,
+        runner,
+        finder: Finder,
+        landmarks=None,
+        sam_every: int = 1,
+    ):
+        self.s, self.runner, self.finder, self.landmarks = s, runner, finder, landmarks
+        self.sam_every = sam_every
+        self.pins = PinStore()
+        self.voxels = VoxelSet(s.voxel_m)
+        self._tail: list[_Placed] = []
+        self._align_rot: np.ndarray | None = None
+        self._map_pts = np.empty((0, 3), np.float32)
+        self._map_cols = np.empty((0, 3), np.uint8)
+        self.trail: list[list[float]] = []
+        self.last_pose: np.ndarray | None = None
+        self._windows = 0
+        self._prev_sim: tuple[float, np.ndarray, np.ndarray] | None = None
+
+    # ------------------------------------------------------------------ helpers
+    def _gravity_rot(self, kf: Keyframe) -> np.ndarray:
+        """Rotation world(first camera) -> map (y up). Level-camera default if no usable gravity."""
+        default = np.diag([1.0, -1.0, -1.0])
+        if kf.gravity is None:
+            return default
+        rot = gravity_alignment(kf.gravity)
+        pitch = np.degrees(np.arcsin(np.clip((rot @ np.array([0.0, 0.0, 1.0]))[1], -1, 1)))
+        return rot if abs(pitch) < 65 else default
+
+    def _fit(self, new: list[dict], old: list[_Placed], first: Keyframe):
+        """Similarity taking this window's local frame into the global map frame."""
+        if not old:
+            if self._prev_sim is not None:  # no overlap survived: carry the last transform
+                return self._prev_sim
+            rot = self._gravity_rot(first)
+            return 1.0, rot, np.zeros(3)
+        src, dst = [], []
+        rng = np.random.default_rng(0)
+        for j, placed in enumerate(old):
+            n = new[j]  # the first len(old) frames of the window are the overlap
+            ok = n["mask"] & placed.mask
+            a, b = n["pts"][ok], placed.pts[ok]
+            if len(a) > 4000:
+                pick = rng.choice(len(a), 4000, replace=False)
+                a, b = a[pick], b[pick]
+            src.append(a)
+            dst.append(b)
+        fit = robust_similarity(np.concatenate(src), np.concatenate(dst))
+        if fit is not None and fit[3] < 0.25:
+            return fit[:3]
+        # Fall back to the camera poses of the overlap frames (rigid, scale 1).
+        rots, trans = [], []
+        for j, placed in enumerate(old):
+            rel = placed.pose @ np.linalg.inv(new[j]["pose"])
+            rots.append(rel[:3, :3])
+            trans.append(rel[:3, 3])
+        u, _, vt = np.linalg.svd(np.sum(rots, axis=0))
+        return 1.0, u @ vt, np.mean(trans, axis=0)
+
+    def _locate(self, placed: _Placed, box: tuple[float, float, float, float]):
+        """Median map position of the central half of a box (pixels of the keyframe)."""
+        x0, y0, x1, y1 = box
+        qx, qy = 0.25 * (x1 - x0), 0.25 * (y1 - y0)
+        rows = slice(max(0, int(y0 + qy)), int(y1 - qy) + 1)
+        cols = slice(max(0, int(x0 + qx)), int(x1 - qx) + 1)
+        pts = placed.pts[rows, cols][placed.mask[rows, cols]]
+        return np.median(pts, axis=0) if len(pts) >= 6 else None
+
+    def _pin_detections(self, placed: _Placed, run_finder: bool) -> int:
+        kf = placed.kf
+        ts = kf.ts
+        count = 0
+        if self.landmarks is not None:
+            r = self.landmarks.predict(kf.bgr, imgsz=320, device="mps", verbose=False, conf=0.4)[0]
+            for b, c, p in zip(
+                r.boxes.xyxy.cpu().numpy(),
+                r.boxes.cls.cpu().numpy(),
+                r.boxes.conf.cpu().numpy(),
+                strict=True,
+            ):
+                name = LANDMARKS.get(r.names[int(c)])
+                pos = self._locate(placed, tuple(b)) if name else None
+                if pos is not None:
+                    self.pins.observe(
+                        name, "landmark", [float(v) for v in pos], ts, float(p), source="yolo26n"
+                    )
+        if run_finder:
+            for det in self.finder.find(kf.bgr, self.s.watchlist):
+                pos = self._locate(placed, det.box)
+                if pos is None:
+                    continue
+                pos_l = [float(v) for v in pos]
+                near = self._near_landmarks(pos_l)
+                self.pins.observe(
+                    det.label,
+                    "object",
+                    pos_l,
+                    ts,
+                    det.score,
+                    near,
+                    _thumb(kf.bgr, det.box),
+                    self.finder.name,
+                )
+                count += 1
+        for label, nx, ny in kf.taps:
+            h, w = kf.bgr.shape[:2]
+            half = 0.04
+            box = ((nx - half) * w, (ny - half) * h, (nx + half) * w, (ny + half) * h)
+            pos = self._locate(placed, box)
+            if pos is not None:
+                pos_l = [float(v) for v in pos]
+                self.pins.observe(
+                    label,
+                    "object",
+                    pos_l,
+                    ts,
+                    1.0,
+                    self._near_landmarks(pos_l),
+                    _thumb(kf.bgr, box),
+                    "tap",
+                )
+                count += 1
+        return count
+
+    def _near_landmarks(self, pos: list[float], radius: float = 1.6) -> list[str]:
+        cands = []
+        for p in self.pins.pins.values():
+            if p.kind == "landmark":
+                d = float(np.linalg.norm(np.array(p.pos) - np.array(pos)))
+                if d <= radius:
+                    cands.append((d, p.label))
+        return [lb for _, lb in sorted(cands)[:2]]
+
+    # ------------------------------------------------------------------ main entry
+    def process_window(self, frames: list[Keyframe]) -> list[dict]:
+        """Run MapAnything on [overlap tail] + frames; return events for the clients."""
+        t0 = time.perf_counter()
+        old = self._tail[-self.s.overlap :] if self._tail else []
+        batch = [p.kf for p in old] + frames
+        preds = self.runner.infer([k.bgr for k in batch])
+        t_infer = time.perf_counter()
+        sim = self._fit(preds, old, frames[0])
+        self._prev_sim = sim
+        s_, rot, trans = sim
+
+        placed_new: list[_Placed] = []
+        for j, (kf, pr) in enumerate(zip(batch, preds, strict=True)):
+            if j < len(old):
+                continue
+            placed_new.append(
+                _Placed(
+                    kf,
+                    apply_sim3(pr["pts"].reshape(-1, 3), s_, rot, trans).reshape(pr["pts"].shape),
+                    pr["mask"],
+                    pose_through_sim3(pr["pose"], s_, rot, trans),
+                )
+            )
+
+        # Points -> map, only voxels not yet occupied.
+        pts = np.concatenate([p.pts[p.mask] for p in placed_new])
+        cols = np.concatenate(
+            [
+                (pr["rgb"][pr["mask"]] * 255).astype(np.uint8)
+                for pr, k in zip(preds[len(old) :], frames, strict=True)
+            ]
+        )
+        events: list[dict] = []
+        if len(pts):
+            fresh = self.voxels.add_new(pts)
+            new_pts, new_cols = pts[fresh].astype(np.float32), cols[fresh]
+            self._map_pts = np.concatenate([self._map_pts, new_pts])
+            self._map_cols = np.concatenate([self._map_cols, new_cols])
+            events.append(
+                {
+                    "type": "map_chunk",
+                    "n": len(new_pts),
+                    "points": new_pts.tobytes(),
+                    "colors": new_cols.tobytes(),
+                    "total": len(self._map_pts),
+                }
+            )
+
+        # Camera trail and pose.
+        for p in placed_new:
+            pos = p.pose[:3, 3]
+            self.trail.append([float(pos[0]), float(pos[1]), float(pos[2]), p.kf.ts])
+        self.last_pose = placed_new[-1].pose
+        events.append({"type": "trail", "points": self.trail[-len(placed_new) :]})
+
+        # Objects and landmarks.
+        found = 0
+        for p in placed_new:
+            found += self._pin_detections(p, run_finder=(p.kf.seq % self.sam_every == 0))
+        events.append({"type": "pins", "pins": [p.to_json() for p in self.pins.pins.values()]})
+
+        # Scale hint for the fast depth: map depth vs. the depth the safety loop produced.
+        ratios = []
+        for pr, kf in zip(preds[len(old) :], frames, strict=True):
+            if kf.depth is None or pr["depth_z"].shape != kf.depth.shape:
+                continue
+            raw = kf.depth.astype(np.float32) / max(kf.depth_scale, 1e-3)
+            ok = pr["mask"] & (raw > 0.2) & (pr["depth_z"] > 0.2)
+            if ok.sum() > 2000:
+                ratios.append(float(np.median(pr["depth_z"][ok] * s_ / raw[ok])))
+        if ratios:
+            events.append({"type": "scale_hint", "ratio": float(np.median(ratios))})
+
+        # Side and rear sectors from the map around the newest pose.
+        near = self._map_pts[
+            np.linalg.norm(self._map_pts[:, [0, 2]] - self.last_pose[[0, 2], 3], axis=1) < 4.0
+        ]
+        floor = float(np.percentile(near[:, 1], 3)) if len(near) > 200 else None
+        events.append(
+            {
+                "type": "pose",
+                "pos": self.last_pose[:3, 3].tolist(),
+                "fwd": self.last_pose[:3, 2].tolist(),
+                "up": (-self.last_pose[:3, 1]).tolist(),
+                "ts": frames[-1].ts,
+                "map_sectors": [
+                    None if not np.isfinite(d) else d
+                    for d in map_sector_distances(near, self.last_pose, floor_y=floor)
+                ],
+            }
+        )
+
+        self._tail = (self._tail + placed_new)[-self.s.overlap :]
+        self._windows += 1
+        events.append(
+            {
+                "type": "memory_stats",
+                "window": self._windows,
+                "views": len(batch),
+                "infer_ms": 1000 * (t_infer - t0),
+                "total_ms": 1000 * (time.perf_counter() - t0),
+                "map_points": len(self._map_pts),
+                "pins_found": found,
+                "stitch_scale": float(s_),
+            }
+        )
+        return events
+
+    # ------------------------------------------------------------------ persistence
+    def save(self, path) -> None:
+        np.savez_compressed(
+            path,
+            pts=self._map_pts,
+            cols=self._map_cols,
+            trail=np.array(self.trail, np.float64).reshape(-1, 4),
+            pose=self.last_pose if self.last_pose is not None else np.eye(4),
+        )

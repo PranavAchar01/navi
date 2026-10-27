@@ -30,8 +30,8 @@ class Pin:
 class PinStore:
     """Merges repeat sightings: the same label within `radius` metres is the same thing."""
 
-    def __init__(self, radius: float = 0.6):
-        self.radius = radius
+    def __init__(self, radius: float = 0.5, landmark_radius: float = 1.3):
+        self.radius, self.landmark_radius = radius, landmark_radius
         self.pins: dict[int, Pin] = {}
         self._next = 1
 
@@ -52,7 +52,9 @@ class PinStore:
                 d = math.dist(p.pos, pos)
                 if d < best_d:
                     best, best_d = p, d
-        if best is not None and best_d <= self.radius:
+        if best is not None and best_d <= (
+            self.radius if kind == "object" else self.landmark_radius
+        ):
             k = min(0.5, 1.0 / (best.seen + 1))
             best.pos = [a + k * (b - a) for a, b in zip(best.pos, pos, strict=True)]
             best.ts, best.seen = ts, best.seen + 1
