@@ -79,18 +79,19 @@ def time_ago(seconds: float) -> str:
 
 def template_answer(label: str, pin: Pin | None, pose: np.ndarray | None, now: float) -> str:
     noun = f"your {label}"
+    was = "were" if label.endswith("s") else "was"
     if pin is None:
         return f"I haven't seen {noun} yet. Walk past where you left them and ask again."
     ago = time_ago(now - pin.ts)
     where = f" near the {pin.near[0]}" if pin.near else ""
     if pose is None:
-        return f"{noun.capitalize()} were last seen{where}, {ago}."
+        return f"{noun.capitalize()} {was} last seen{where}, {ago}."
     rel: Relative = relative_to(np.array(pin.pos), pose)
     if rel.horizontal_m < 1.0:
         place = "right next to you"
     else:
         place = f"{distance_phrase(rel.horizontal_m)} {direction_phrase(rel.bearing_deg)}"
-    return f"{noun.capitalize()} were{where}, {place}, seen {ago}."
+    return f"{noun.capitalize()} {was}{where}, {place}, seen {ago}."
 
 
 def facts_for_language(label: str, pin: Pin, pose: np.ndarray | None, now: float) -> str:
@@ -113,7 +114,9 @@ def facts_for_language(label: str, pin: Pin, pose: np.ndarray | None, now: float
 SYSTEM = (
     "You are the voice of a wearable assistant for a blind or low-vision person. Answer in ONE "
     "short spoken sentence using only the facts given. Say where the object is relative to the "
-    "person and how long ago it was seen. No lists, no markdown, no extra advice."
+    "person and how long ago it was seen. Mention at most one nearby landmark. No lists, no "
+    'markdown, no extra advice. Example: "Your keys are near the sofa, about three '
+    'metres behind you to the left; I saw them two minutes ago."'
 )
 
 
