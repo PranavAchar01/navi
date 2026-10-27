@@ -24,21 +24,35 @@ def run(in_q, out_q, settings: Settings, session: str, new_needed: int = 4) -> N
         YOLO(str(settings.weights_dir / "yolo26n.pt")),
         sam_every=2 if settings.finder == "sam31" else 1,
     )
+    if settings.mode != "home":
+        engine.set_mode(settings.mode)
     SESSIONS.mkdir(exist_ok=True)
     save_path = Path(SESSIONS) / f"{session}.npz"
     out_q.put({"type": "ready", "finder": engine.finder.name})
+    out_q.put({"type": "mode", "mode": engine.mode})
     buf: list[Keyframe] = []
     arrived = 0.0
-    per = settings.window - settings.overlap
     while True:
+        per = engine.s.window - engine.s.overlap
+        need = max(2, per // 2 + 1) if engine.mode == "outside" else new_needed
         try:
             msg = in_q.get(timeout=0.25)
         except queue.Empty:
             msg = None
         if msg is not None:
             if msg["cmd"] == "stop":
-                engine.save(save_path)
+                if engine.mode == "home":
+                    engine.save(save_path)
                 return
+            if msg["cmd"] == "mode":
+                if engine.mode == "home" and len(engine._map_pts):
+                    engine.save(save_path)  # leaving home: the house map stays on disk
+                engine.set_mode(msg["mode"])
+                buf = []
+                out_q.put({"type": "map_replace", "n": 0, "points": b"", "colors": b""})
+                out_q.put({"type": "pins", "pins": []})
+                out_q.put({"type": "mode", "mode": engine.mode})
+                continue
             if msg["cmd"] == "kf":
                 if not buf:
                     arrived = time.time()
@@ -54,7 +68,7 @@ def run(in_q, out_q, settings: Settings, session: str, new_needed: int = 4) -> N
                     )
                 )
         stale = buf and len(buf) >= 2 and time.time() - arrived > 4.0
-        if len(buf) < new_needed and not stale:
+        if len(buf) < need and not stale:
             continue
         consumed = len(buf)
         if len(buf) > per:  # backlog: spread the window over the whole backlog, keep the newest
@@ -72,5 +86,5 @@ def run(in_q, out_q, settings: Settings, session: str, new_needed: int = 4) -> N
             if e["type"] == "memory_stats":
                 e["consumed"] = consumed
             out_q.put(e)
-        if engine._windows % 10 == 0:
+        if engine.mode == "home" and engine._windows % 10 == 0:
             engine.save(save_path)

@@ -9,9 +9,10 @@ page.on("console", (m) => m.type() === "error" && console.log("console error:", 
 page.on("pageerror", (e) => console.log("page error:", e.message));
 await page.goto(url);
 await page.screenshot({ path: "/tmp/ms-0-start.png" });
+if (process.env.MODE) await page.click(`#modes [data-mode="${process.env.MODE}"]`);
 await page.setInputFiles("#file", file);
 await page.waitForTimeout(wait * 1000);
-await page.screenshot({ path: "/tmp/ms-1-live.png" });
+await page.screenshot({ path: process.env.SHOT_LIVE ?? "/tmp/ms-1-live.png" });
 await page.fill("#ask-input", ask);
 await page.press("#ask-input", "Enter");
 await page.waitForTimeout(6000);

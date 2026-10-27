@@ -69,7 +69,12 @@ export interface Status {
   finder?: string;
   memory_error?: string;
 }
-export type Message = Safety | Answer | Alert | Pose | MemoryStats | Status | PinsMsg | TrailMsg;
+export type Message = Safety | Answer | Alert | Pose | MemoryStats | Status | PinsMsg | TrailMsg | ModeMsg;
+export type Mode = "home" | "outside";
+export interface ModeMsg {
+  type: "mode";
+  mode: Mode;
+}
 export interface PinsMsg {
   type: "pins";
   pins: PinJson[];

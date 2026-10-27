@@ -42,10 +42,22 @@ class Settings:
     window: int = 8
     overlap: int = 2
     voxel_m: float = 0.05
+    horizon_m: float = 0.0  # outside mode: map points farther than this are forgotten
     watchlist: list[str] = field(
         default_factory=lambda: ["keys", "wallet", "phone", "glasses case", "remote control"]
     )
     weights_dir: Path = ROOT
+    mode: str = "home"
+    # Per-mode overrides of the memory settings; the safety loop is identical in both modes.
+    outside: dict = field(
+        default_factory=lambda: {
+            "keyframe_hz": 2.5,
+            "window": 4,
+            "overlap": 1,
+            "voxel_m": 0.08,
+            "horizon_m": 25.0,
+        }
+    )
 
     @classmethod
     def load(cls, path: Path | None = None) -> Settings:
@@ -64,4 +76,6 @@ class Settings:
             setattr(s, k, saf.get(k, getattr(s, k)))
         for k in ("keyframe_hz", "window", "overlap", "voxel_m", "watchlist"):
             setattr(s, k, mem.get(k, getattr(s, k)))
+        s.mode = os.environ.get("METASIGHT_MODE", raw.get("mode", {}).get("start", s.mode))
+        s.outside = {**s.outside, **raw.get("mode", {}).get("outside", {})}
         return s

@@ -1,0 +1,22 @@
+// Renders the 3D view from a test walk into a still: node hero.mjs <url> <webm> <out.png> [waitSecs]
+import { chromium } from "playwright";
+const [url, file, out, wait = "80"] = process.argv.slice(2);
+const browser = await chromium.launch({ args: ["--use-gl=angle", "--use-angle=metal", "--enable-unsafe-swiftshader"] });
+const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
+page.on("pageerror", (e) => console.log("page error:", e.message));
+await page.goto(url);
+await page.setInputFiles("#file", file);
+await page.waitForTimeout(Number(wait) * 1000);
+await page.fill("#ask-input", "where is the remote?");
+await page.press("#ask-input", "Enter");
+await page.waitForTimeout(6000);
+await page.click("#btn-fit");
+await page.waitForTimeout(3000);
+await page.mouse.move(1000, 400);
+await page.mouse.down();
+await page.mouse.move(1060, 370, { steps: 14 });
+await page.mouse.up();
+await page.waitForTimeout(1500);
+await page.screenshot({ path: out });
+console.log(await page.textContent("#map-count"), await page.textContent("#answer-text"));
+await browser.close();

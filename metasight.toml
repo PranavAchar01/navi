@@ -21,3 +21,15 @@ window = 8
 overlap = 2
 voxel_m = 0.05
 watchlist = ["keys", "wallet", "phone", "glasses case", "remote control", "backpack"]
+
+[mode]
+# home: the full persistent map of the house. outside: a short-horizon map that drops what is
+# behind you, with smaller, faster windows so the safety loop stays first.
+start = "home"
+
+[mode.outside]
+keyframe_hz = 2.5
+window = 4
+overlap = 1
+voxel_m = 0.08
+horizon_m = 25.0

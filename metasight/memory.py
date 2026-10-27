@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import base64
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import cv2
 import numpy as np
@@ -129,6 +129,7 @@ class MemoryEngine:
         landmarks=None,
         sam_every: int = 1,
     ):
+        self.base, self.mode = s, "home"
         self.s, self.runner, self.finder, self.landmarks = s, runner, finder, landmarks
         self.sam_every = sam_every
         self.pins = PinStore()
@@ -141,6 +142,32 @@ class MemoryEngine:
         self.last_pose: np.ndarray | None = None
         self._windows = 0
         self._prev_sim: tuple[float, np.ndarray, np.ndarray] | None = None
+
+    # ------------------------------------------------------------------ modes
+    def set_mode(self, mode: str) -> None:
+        """home keeps the whole house; outside keeps a short horizon. Starts a fresh map."""
+        self.mode = mode
+        self.s = replace(self.base, **self.base.outside) if mode == "outside" else self.base
+        self.pins = PinStore()
+        self.voxels = VoxelSet(self.s.voxel_m)
+        self._tail, self._prev_sim, self._windows = [], None, 0
+        self._map_pts = np.empty((0, 3), np.float32)
+        self._map_cols = np.empty((0, 3), np.uint8)
+        self.trail, self.last_pose = [], None
+
+    def _trim_to_horizon(self) -> tuple[np.ndarray, np.ndarray] | None:
+        """Outside only: forget map points farther than horizon_m from the newest pose."""
+        if self.mode != "outside" or self.last_pose is None:
+            return None
+        d = np.linalg.norm(self._map_pts[:, [0, 2]] - self.last_pose[[0, 2], 3], axis=1)
+        keep = d < self.s.horizon_m
+        if keep.all():
+            return None
+        self._map_pts, self._map_cols = self._map_pts[keep], self._map_cols[keep]
+        self.voxels = VoxelSet(self.s.voxel_m)
+        self.voxels.add_new(self._map_pts)
+        self.trail = self.trail[-60:]
+        return self._map_pts, self._map_cols
 
     # ------------------------------------------------------------------ helpers
     def _gravity_rot(self, kf: Keyframe) -> np.ndarray:
@@ -315,7 +342,9 @@ class MemoryEngine:
         # Objects and landmarks.
         found = 0
         for p in placed_new:
-            found += self._pin_detections(p, run_finder=(p.kf.seq % self.sam_every == 0))
+            found += self._pin_detections(
+                p, run_finder=self.mode == "home" and p.kf.seq % self.sam_every == 0
+            )
         events.append({"type": "pins", "pins": [p.to_json() for p in self.pins.pins.values()]})
 
         # Scale hint for the fast depth: map depth vs. the depth the safety loop produced.
@@ -329,6 +358,17 @@ class MemoryEngine:
                 ratios.append(float(np.median(pr["depth_z"][ok] * s_ / raw[ok])))
         if ratios:
             events.append({"type": "scale_hint", "ratio": float(np.median(ratios))})
+
+        trimmed = self._trim_to_horizon()
+        if trimmed is not None:
+            events.append(
+                {
+                    "type": "map_replace",
+                    "n": len(trimmed[0]),
+                    "points": trimmed[0].tobytes(),
+                    "colors": trimmed[1].tobytes(),
+                }
+            )
 
         # Side and rear sectors from the map around the newest pose.
         near = self._map_pts[

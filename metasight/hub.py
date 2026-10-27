@@ -45,6 +45,12 @@ class Hub:
             self.map_total += n
         await asyncio.gather(*(self._send(c, data=data) for c in list(self.clients)))
 
+    async def map_replace(self, n: int, points: bytes, colors: bytes) -> None:
+        """Replace the whole map (outside mode trims, mode switches clear)."""
+        data = b"R" + struct.pack("<I", n) + points + colors
+        self.map_chunks, self.map_total = [data], n
+        await asyncio.gather(*(self._send(c, data=data) for c in list(self.clients)))
+
     async def join(self, ws: WebSocket) -> None:
         self.clients.add(ws)
         for chunk in self.map_chunks:

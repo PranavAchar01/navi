@@ -2,10 +2,11 @@ import "./styles.css";
 import { AudioCues } from "./audio";
 import { Source } from "./camera";
 import { MapView } from "./map3d";
+import { setupGlass } from "./glass";
 import { Net } from "./net";
 import { BeltCells, drawOverlay, drawRing } from "./overlay";
 import { listen, speak } from "./speech";
-import type { Answer, PinJson, Safety } from "./types";
+import type { Answer, Mode, PinJson, Safety } from "./types";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -87,6 +88,7 @@ $("btn-audio").addEventListener("click", async (ev) => {
 
 // ---------------------------------------------------------------- map
 net.onMapChunk((n, p, c) => map.addChunk(n, p, c));
+net.onMapReplace((n, p, c) => map.replaceMap(n, p, c));
 map.onCount = (n) => ($("map-count").textContent = `${n.toLocaleString()} points`);
 net.on("trail", (m) => map.setTrail(m.points));
 net.on("pose", (m) => map.setPose(m));
@@ -215,6 +217,24 @@ $("alert-ok").addEventListener("click", () => {
 $("alert-dismiss").addEventListener("click", closeAlert);
 $("btn-test-fall").addEventListener("click", () => void fetch("/api/test_fall", { method: "POST" }));
 
+// ---------------------------------------------------------------- mode
+let mode: Mode = "home";
+function showMode(m: Mode) {
+  mode = m;
+  document.documentElement.dataset.mode = m;
+  document.querySelectorAll<HTMLButtonElement>("#modes button").forEach((b) => {
+    b.setAttribute("aria-pressed", String(b.dataset.mode === m));
+  });
+  map.setFollow(m === "outside");
+  $("brand-sub").textContent = m === "home" ? "a memory for your home" : "short-horizon map, safety first";
+}
+net.on("mode", (m) => showMode(m.mode));
+document.querySelectorAll<HTMLButtonElement>("#modes button").forEach((b) => {
+  b.addEventListener("click", () => {
+    if (b.dataset.mode !== mode) net.send({ type: "mode", mode: b.dataset.mode });
+  });
+});
+
 // ---------------------------------------------------------------- tabs
 function setTab(tab: string) {
   document.querySelector(".grid")!.setAttribute("data-tab", tab);
@@ -226,5 +246,6 @@ document.querySelectorAll<HTMLButtonElement>("#tabs button").forEach((b) => {
   b.addEventListener("click", () => setTab(b.dataset.tab!));
 });
 
+setupGlass();
 renderChips();
 net.connect();

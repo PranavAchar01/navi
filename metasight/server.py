@@ -73,6 +73,7 @@ class Server:
         self.pending_kf = 0
         self.last_kf = 0.0
         self.fps = 0.0
+        self.mode = settings.mode
         self.last_done = 0.0
         self.memory_ready = False
         self.memory_stats: dict = {}
@@ -114,6 +115,14 @@ class Server:
         if t == "ready":
             self.memory_ready = True
             await self.hub.json({"type": "status", "memory": "ready", "finder": ev["finder"]}, True)
+        elif t == "map_replace":
+            await self.hub.map_replace(ev["n"], ev["points"], ev["colors"])
+            if ev["n"] == 0:
+                self.trail = []
+                await self.hub.json({"type": "trail", "points": []}, True)
+        elif t == "mode":
+            self.mode = ev["mode"]
+            await self.hub.json({"type": "mode", "mode": self.mode}, True)
         elif t == "map_chunk":
             await self.hub.map_chunk(ev["n"], ev["points"], ev["colors"])
         elif t == "trail":
@@ -207,7 +216,8 @@ class Server:
     def _maybe_keyframe(self, now: float, ts: float, seq: int, small, res) -> None:
         if not self.memory_ready or self.pending_kf >= MAX_PENDING_KEYFRAMES:
             return
-        if now - self.last_kf < 1.0 / self.s.keyframe_hz:
+        hz = self.s.outside["keyframe_hz"] if self.mode == "outside" else self.s.keyframe_hz
+        if now - self.last_kf < 1.0 / hz:
             return
         self.last_kf = now
         g = None
@@ -316,6 +326,7 @@ def create_app(settings: Settings | None = None, session: str | None = None) -> 
                 "finder": settings.finder,
                 "fps": round(srv.fps, 1),
                 "pins": [p.to_json(False) for p in srv.pins.pins.values()],
+                "mode": srv.mode,
                 "map_points": srv.hub.map_total,
                 "memory": srv.memory_stats,
             }
@@ -352,6 +363,8 @@ def create_app(settings: Settings | None = None, session: str | None = None) -> 
                         await srv.on_motion(m["s"])
                     elif kind == "ask":
                         asyncio.create_task(srv.answer(m["text"]))
+                    elif kind == "mode" and m.get("mode") in ("home", "outside"):
+                        srv.in_q.put({"cmd": "mode", "mode": m["mode"]})
                     elif kind == "tap":
                         srv.pending_taps.append((m["label"], float(m["x"]), float(m["y"])))
                     elif kind == "fall_ok":

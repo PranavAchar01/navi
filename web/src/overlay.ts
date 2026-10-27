@@ -1,6 +1,6 @@
 import { SECTOR_NAMES, type Safety } from "./types";
 
-const COLORS = { ok: "#2e9e5b", warn: "#e0a030", near: "#d64545" };
+const COLORS = { ok: "#5ee6a0", warn: "#ffd166", near: "#ff6b6b" };
 
 function toneFor(d: number | null): string {
   if (d === null) return COLORS.ok;
@@ -38,7 +38,7 @@ export function drawOverlay(canvas: HTMLCanvasElement, video: HTMLVideoElement, 
     const ty = Math.max(oy + 20, oy + y0 * h);
     ctx.fillStyle = col;
     ctx.fillRect(ox + x0 * w, ty - 20, tw, 20);
-    ctx.fillStyle = "#fff";
+    ctx.fillStyle = "#0b1020";
     ctx.fillText(text, ox + x0 * w + 5, ty - 5);
   }
 }
@@ -57,7 +57,7 @@ export function drawRing(canvas: HTMLCanvasElement, s: Safety | null) {
   ctx.clearRect(0, 0, size, size);
   const c = size / 2;
   const rMax = c - 6;
-  ctx.strokeStyle = "#dddddd";
+  ctx.strokeStyle = "rgba(255,255,255,0.22)";
   ctx.lineWidth = 1;
   for (const f of [0.35, 0.7, 1]) {
     ctx.beginPath();
@@ -74,12 +74,12 @@ export function drawRing(canvas: HTMLCanvasElement, s: Safety | null) {
     ctx.moveTo(c, c);
     ctx.arc(c, c, Math.max(6, rMax * reach), a0, a1);
     ctx.closePath();
-    ctx.fillStyle = d === null ? "#f0f0ee" : toneFor(d) + "55";
+    ctx.fillStyle = d === null ? "rgba(255,255,255,0.07)" : toneFor(d) + "66";
     ctx.fill();
-    ctx.strokeStyle = d === null ? "#dddddd" : toneFor(d);
+    ctx.strokeStyle = d === null ? "rgba(255,255,255,0.22)" : toneFor(d);
     ctx.stroke();
   }
-  ctx.fillStyle = "#161616";
+  ctx.fillStyle = "#ffffff";
   ctx.beginPath();
   ctx.arc(c, c, 3.5, 0, Math.PI * 2);
   ctx.fill();

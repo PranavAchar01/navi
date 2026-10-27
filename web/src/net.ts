@@ -6,6 +6,7 @@ export class Net {
   private ws: WebSocket | null = null;
   private handlers = new Map<string, Handler<never>[]>();
   private onChunk: ((n: number, pts: Float32Array, cols: Uint8Array) => void) | null = null;
+  private onReplace: ((n: number, pts: Float32Array, cols: Uint8Array) => void) | null = null;
   private onState: ((up: boolean) => void) | null = null;
 
   on<K extends Message["type"]>(type: K, fn: Handler<Extract<Message, { type: K }>>): void {
@@ -15,6 +16,9 @@ export class Net {
   }
   onMapChunk(fn: (n: number, pts: Float32Array, cols: Uint8Array) => void): void {
     this.onChunk = fn;
+  }
+  onMapReplace(fn: (n: number, pts: Float32Array, cols: Uint8Array) => void): void {
+    this.onReplace = fn;
   }
   onConnection(fn: (up: boolean) => void): void {
     this.onState = fn;
@@ -35,12 +39,13 @@ export class Net {
         for (const fn of this.handlers.get(msg.type) ?? []) (fn as Handler<Message>)(msg);
       } else {
         const buf = ev.data as ArrayBuffer;
-        if (new Uint8Array(buf, 0, 1)[0] !== 77 /* 'M' */) return;
+        const tag = new Uint8Array(buf, 0, 1)[0];
+        if (tag !== 77 /* 'M' */ && tag !== 82 /* 'R' */) return;
         const n = new DataView(buf).getUint32(1, true);
         // Offsets are not 4-aligned, so copy into aligned views.
         const pts = new Float32Array(buf.slice(5, 5 + n * 12));
         const cols = new Uint8Array(buf.slice(5 + n * 12, 5 + n * 15));
-        this.onChunk?.(n, pts, cols);
+        (tag === 82 ? this.onReplace : this.onChunk)?.(n, pts, cols);
       }
     };
     this.ws = ws;

@@ -29,8 +29,16 @@ class TemplateLanguage:
 
 
 class ChatCompletionsLanguage:
-    def __init__(self, name: str, base_url: str, model: str, api_key: str, timeout: float = 20.0):
-        self.name, self.model = name, model
+    def __init__(
+        self,
+        name: str,
+        base_url: str,
+        model: str,
+        api_key: str,
+        timeout: float = 20.0,
+        extra: dict | None = None,
+    ):
+        self.name, self.model, self.extra = name, model, extra or {}
         self._client = httpx.Client(
             base_url=base_url,
             headers={"Authorization": f"Bearer {api_key}"},
@@ -46,8 +54,9 @@ class ChatCompletionsLanguage:
                     {"role": "system", "content": system},
                     {"role": "user", "content": user},
                 ],
-                "max_tokens": max_tokens,
+                "max_tokens": max_tokens + (300 if self.extra else 0),
                 "temperature": 0.2,
+                **self.extra,
             },
         )
         r.raise_for_status()
@@ -59,7 +68,15 @@ def make_language(s: Settings) -> LanguageModel:
         key = secret("META_API_KEY", "MODEL_API_KEY")
         if not key:
             raise RuntimeError("language = meta but no META_API_KEY / MODEL_API_KEY found")
-        return ChatCompletionsLanguage("muse-spark", "https://api.meta.ai/v1", s.meta_model, key)
+        # Muse Spark reasons before it answers; without this the token budget goes to reasoning.
+        return ChatCompletionsLanguage(
+            "muse-spark",
+            "https://api.meta.ai/v1",
+            s.meta_model,
+            key,
+            timeout=30.0,
+            extra={"reasoning_effort": "minimal"},
+        )
     if s.language == "openai":
         key = secret("OPENAI_API_KEY")
         if key:
