@@ -1,0 +1,11 @@
+{
+  "model": "depth-anything/Depth-Anything-V2-Metric-Indoor-Small-hf",
+  "input": [
+    350,
+    196
+  ],
+  "latency_ms": 34.4,
+  "fps": 29.1,
+  "peak_mps_gb": 0.1,
+  "peak_rss_gb": 0.13
+}

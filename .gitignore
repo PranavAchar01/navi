@@ -1,0 +1,10 @@
+.venv/
+third_party/
+data/
+shots/proximity_frames/
+*.mp4
+*.npz
+*.pt
+__pycache__/
+bench/*.log
+bench/*.pid

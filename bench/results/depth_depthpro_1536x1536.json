@@ -1,0 +1,11 @@
+{
+  "model": "apple/DepthPro-hf",
+  "input": [
+    1536,
+    1536
+  ],
+  "latency_ms": 2236.0,
+  "fps": 0.4,
+  "peak_mps_gb": 6.81,
+  "peak_rss_gb": 0.37
+}

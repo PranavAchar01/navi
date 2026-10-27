@@ -1,0 +1,7 @@
+{
+  "model": "yolo26s",
+  "imgsz": 640,
+  "latency_ms": 60.8,
+  "fps": 16.4,
+  "note": "end-to-end predict() incl. jpeg decode + NMS-free post"
+}

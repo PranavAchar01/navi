@@ -1,0 +1,11 @@
+{
+  "model": "depth-anything/Depth-Anything-V2-Small-hf",
+  "input": [
+    924,
+    518
+  ],
+  "latency_ms": 36.9,
+  "fps": 27.1,
+  "peak_mps_gb": 1.1,
+  "peak_rss_gb": 0.6
+}

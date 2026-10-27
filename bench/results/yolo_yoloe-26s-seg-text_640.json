@@ -1,0 +1,7 @@
+{
+  "model": "yoloe-26s-seg-text",
+  "imgsz": 640,
+  "latency_ms": 48.1,
+  "fps": 20.8,
+  "note": "end-to-end predict() incl. jpeg decode + NMS-free post"
+}

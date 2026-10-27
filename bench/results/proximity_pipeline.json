@@ -1,0 +1,8 @@
+{
+  "frames": 300,
+  "depth_ms": 44.9,
+  "det_ms": 38.0,
+  "total_ms": 113.1,
+  "pipeline_fps": 8.8,
+  "note": "serial depth+det per frame incl. jpeg decode, 518x294 depth, 320 det"
+}
