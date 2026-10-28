@@ -46,3 +46,14 @@ def test_nothing_glimpsed_and_no_sweep_due_costs_nothing():
     h.last_meta = 1e18
     h.find(FRAME, ["bed", "water bottle"])
     assert h.meta.calls == [] and h.meta_images == 0
+
+
+def test_a_cup_on_the_desk_makes_sam_look_for_the_water_bottle():
+    h = hybrid(
+        [Detection("cup", 0.17, (1, 1, 2, 2))],
+        [Detection("water bottle", 0.7, (1, 1, 2, 3), "sam-3.1")],
+    )
+    h.last_meta = 1e18
+    out = h.find(FRAME, ["cup", "water bottle", "keys"])
+    assert h.meta.calls == [["water bottle"]]
+    assert {d.label for d in out} == {"cup", "water bottle"}
