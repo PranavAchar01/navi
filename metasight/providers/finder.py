@@ -133,7 +133,7 @@ class CropCheck:
 class YoloeFinder:
     """YOLOE-26 large at 1024 px, then the crop check. LVIS val AP50 over the watch-list: 0.29
     for the small model at 640, 0.46 for this one (about 165 ms a keyframe on the M5 Pro).
-    With `tiles` it also looks at the four corners of the frame blown up to the same size, one
+    With `tiles` = 2 it also looks at the four corners of the frame blown up to the same size, one
     batch with the full view, so small things get more pixels: 0.50, keys 0.11 to 0.15."""
 
     name = "yoloe-26l-seg"
@@ -146,7 +146,7 @@ class YoloeFinder:
         keep: float = 0.12,
         imgsz: int = 1024,
         check: bool = True,
-        tiles: bool = True,
+        tiles: int = 2,
     ):
         from ultralytics import YOLO
 
@@ -161,10 +161,13 @@ class YoloeFinder:
             self._model.set_classes([PROMPTS.get(lb, lb) for lb in labels])
             self._labels = list(labels)
         h, w = bgr.shape[:2]
-        th, tw = int(0.6 * h), int(0.6 * w)  # quarters with a fifth of overlap
+        n = self._tiles
+        th, tw = int(1.2 * h / max(n, 1)), int(1.2 * w / max(n, 1))  # a grid, a fifth overlap
         views = [(0, 0, bgr)]
-        if self._tiles:
-            views += [(x, y, bgr[y : y + th, x : x + tw]) for y in (0, h - th) for x in (0, w - tw)]
+        if n > 1:
+            ys = np.linspace(0, h - th, n).astype(int)
+            xs = np.linspace(0, w - tw, n).astype(int)
+            views += [(x, y, bgr[y : y + th, x : x + tw]) for y in ys for x in xs]
         rs = self._model.predict(
             [v for _, _, v in views],
             imgsz=self._imgsz,

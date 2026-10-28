@@ -95,12 +95,12 @@ def show(tag, res):
     print(f"{'mean':15s} AP50 {np.mean([r['ap50'] for r in res.values()]):.3f}")
 
 
-def shipped(labels):
+def shipped(labels, tiles=2):
     """The finder as the app runs it (detector plus crop check), with no final cut."""
     from metasight.config import Settings
     from metasight.providers.finder import YoloeFinder
 
-    f = YoloeFinder(Settings.load(), conf=0.05, keep=0.0)
+    f = YoloeFinder(Settings.load(), conf=0.05, keep=0.0, tiles=tiles)
     return lambda bgr: [(d.label, d.score, list(d.box)) for d in f.find(bgr, labels)]
 
 
@@ -136,6 +136,7 @@ def main():
     ap.add_argument("--imgsz", type=int, default=1024)
     ap.add_argument("--prompts", default=None, help="JSON; default: the finder's PROMPTS")
     ap.add_argument("--score-only", action="store_true")
+    ap.add_argument("--tiles", type=int, default=2, help="zoom grid, n by n")
     ap.add_argument("--raw", action="store_true", help="the bare detector, no crop check")
     a = ap.parse_args()
     st = json.load(open(LV / "set.json"))
@@ -144,7 +145,7 @@ def main():
         import cv2
 
         labels = list(st["classes"])
-        find = finder(a, labels) if a.raw else shipped(labels)
+        find = finder(a, labels) if a.raw else shipped(labels, a.tiles)
         dets, t0 = {}, time.time()
         for im in st["images"]:
             bgr = cv2.imread(str(LV / "img" / f"{im['id']}.jpg"))
