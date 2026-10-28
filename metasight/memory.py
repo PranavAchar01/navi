@@ -749,6 +749,9 @@ class MemoryEngine:
                 "fwd": self.last_pose[:3, 2].tolist(),
                 "up": (-self.last_pose[:3, 1]).tolist(),
                 "ts": frames[-1].ts,
+                # What a first-person render of the map needs to match the camera.
+                "hfov": getattr(self.runner, "hfov_deg", None),
+                "aspect": frames[-1].bgr.shape[1] / frames[-1].bgr.shape[0],
                 "map_sectors": [
                     None if not np.isfinite(d) else d
                     for d in map_sector_distances(near, self.last_pose)
