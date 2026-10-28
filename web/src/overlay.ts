@@ -7,7 +7,76 @@ function toneFor(d: number | null): string {
   return d < 1 ? COLORS.near : d < 2 ? COLORS.warn : COLORS.ok;
 }
 
-/** Boxes with metres, drawn over the live video where the server saw them. */
+// Proximity glow: every pixel the depth model puts within 1.6 m lights up, yellow from 1.6 m in,
+// red inside 0.9 m, the floor left out. Values ease between results so the glow breathes rather
+// than flickers, and it is drawn blurred so it reads as light on the scene, not a mask.
+const YELLOW = [255, 196, 64];
+const RED = [255, 64, 72];
+const glow = document.createElement("canvas");
+const rim = document.createElement("canvas");
+let rimEdge: Float32Array | null = null;
+let glowAlpha: Float32Array | null = null;
+let glowRed: Float32Array | null = null;
+let lastProx = "";
+
+function updateGlow(s: Safety) {
+  const [gw, gh] = s.prox_size!;
+  if (glow.width !== gw) {
+    glow.width = gw;
+    glow.height = gh;
+    glowAlpha = new Float32Array(gw * gh);
+    glowRed = new Float32Array(gw * gh);
+    rim.width = gw;
+    rim.height = gh;
+    rimEdge = new Float32Array(gw * gh);
+  }
+  const fresh = s.prox! !== lastProx;
+  lastProx = s.prox!;
+  const raw = Uint8Array.from(atob(s.prox!), (c) => c.charCodeAt(0));
+  const img = glow.getContext("2d")!.createImageData(gw, gh);
+  const pulse = 0.82 + 0.18 * Math.sin(performance.now() / 160);
+  for (let i = 0; i < raw.length; i++) {
+    const d = raw[i] === 255 ? 99 : raw[i] / 50;
+    if (fresh) {
+      // Yellow fades in from 1.6 m, red takes over around 0.9 m (blended over 0.8 to 1.0 m).
+      const y = Math.min(1, Math.max(0, (1.6 - d) / 0.6));
+      const ta = d >= 1.6 ? 0 : d >= 1.0 ? 0.16 + 0.3 * y * y * (3 - 2 * y) : 0.55 + 0.15 * Math.min(1, 1 - d);
+      const tr = d < 0.8 ? 1 : d < 1.0 ? (1.0 - d) / 0.2 : 0;
+      glowAlpha![i] += (ta - glowAlpha![i]) * 0.45;
+      glowRed![i] += (tr - glowRed![i]) * 0.45;
+    }
+    const r = glowRed![i];
+    const al = glowAlpha![i] * (r > 0.5 ? pulse : 1);
+    img.data[i * 4] = YELLOW[0] + (RED[0] - YELLOW[0]) * r;
+    img.data[i * 4 + 1] = YELLOW[1] + (RED[1] - YELLOW[1]) * r;
+    img.data[i * 4 + 2] = YELLOW[2] + (RED[2] - YELLOW[2]) * r;
+    img.data[i * 4 + 3] = Math.min(255, al * 255);
+  }
+  glow.getContext("2d")!.putImageData(img, 0, 0);
+  // Rim: the near side of a depth step (an object's silhouette against what is behind it).
+  const rimImg = rim.getContext("2d")!.createImageData(gw, gh);
+  for (let yy = 1; yy < gh - 1; yy++) {
+    for (let xx = 1; xx < gw - 1; xx++) {
+      const i = yy * gw + xx;
+      const d = raw[i];
+      let e = 0;
+      if (d < 80) {
+        const m = Math.max(raw[i - 1], raw[i + 1], raw[i - gw], raw[i + gw]);
+        e = Math.min(1, Math.max(0, (m - d - 3) / 6)); // a step of 6 cm starts it, 18 cm is full
+      }
+      if (fresh) rimEdge![i] += (e - rimEdge![i]) * 0.5;
+      const a = rimEdge![i] * Math.max(0.6, glowAlpha![i] * 1.8);
+      const r = glowRed![i];
+      rimImg.data[i * 4] = 255;
+      rimImg.data[i * 4 + 1] = 230 + (90 - 230) * r;
+      rimImg.data[i * 4 + 2] = 150 + (90 - 150) * r;
+      rimImg.data[i * 4 + 3] = Math.min(255, a * 255);
+    }
+  }
+  rim.getContext("2d")!.putImageData(rimImg, 0, 0);
+}
+
+/** The proximity glow over the live video. */
 export function drawOverlay(canvas: HTMLCanvasElement, video: HTMLVideoElement, s: Safety | null) {
   const dpr = window.devicePixelRatio || 1;
   const cw = canvas.clientWidth;
@@ -19,28 +88,25 @@ export function drawOverlay(canvas: HTMLCanvasElement, video: HTMLVideoElement, 
   const ctx = canvas.getContext("2d")!;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, cw, ch);
-  if (!s || !video.videoWidth) return;
+  if (!s || !video.videoWidth || !s.prox) return;
   // The video is object-fit: contain, so find where it actually sits in the canvas.
   const scale = Math.min(cw / video.videoWidth, ch / video.videoHeight);
   const w = video.videoWidth * scale;
   const h = video.videoHeight * scale;
   const ox = (cw - w) / 2;
   const oy = (ch - h) / 2;
-  ctx.font = '500 13px "Atkinson Hyperlegible Next", system-ui, sans-serif';
-  ctx.lineWidth = 2.5;
-  for (const o of s.obstacles) {
-    const [x0, y0, x1, y1] = o.box;
-    const col = toneFor(o.dist);
-    ctx.strokeStyle = col;
-    ctx.strokeRect(ox + x0 * w, oy + y0 * h, (x1 - x0) * w, (y1 - y0) * h);
-    const text = `${o.label}${o.dist === null ? "" : " " + o.dist.toFixed(1) + " m"}`;
-    const tw = ctx.measureText(text).width + 10;
-    const ty = Math.max(oy + 20, oy + y0 * h);
-    ctx.fillStyle = col;
-    ctx.fillRect(ox + x0 * w, ty - 20, tw, 20);
-    ctx.fillStyle = "#0b1020";
-    ctx.fillText(text, ox + x0 * w + 5, ty - 5);
-  }
+  updateGlow(s);
+  ctx.imageSmoothingQuality = "high";
+  ctx.filter = `blur(${Math.round(w / 140)}px)`;
+  ctx.drawImage(glow, ox, oy, w, h);
+  // Rim light: a wide soft halo and a thin bright line on top, both from the same edge map.
+  ctx.filter = `blur(${Math.round(w / 220)}px)`;
+  ctx.drawImage(rim, ox, oy, w, h);
+  ctx.filter = `blur(${Math.max(1, Math.round(w / 900))}px)`;
+  ctx.globalCompositeOperation = "lighter";
+  ctx.drawImage(rim, ox, oy, w, h);
+  ctx.filter = "none";
+  ctx.globalCompositeOperation = "source-over";
 }
 
 /** The belt as a ring seen from above, front at the top. Wedge length shrinks as things get close. */

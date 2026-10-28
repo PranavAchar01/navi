@@ -1,0 +1,20 @@
+# HUD profile: METASIGHT_CONFIG=metasight.room.toml. Local open-vocabulary segmentation for the
+# live tints and for the memory bank; Muse Spark still phrases the answers.
+[providers]
+language = "meta"
+finder = "yoloe"
+
+[safety]
+segment = false
+depth_scale = 0.6  # iPhone 0.5x ultra-wide room walk; the map's scale hints refine it
+detector_imgsz = 384
+
+[memory]
+watchlist = [
+  "bed", "dresser", "mirror", "door", "nightstand", "lamp", "mini fridge", "vacuum cleaner",
+  "backpack", "desk", "computer monitor", "laptop", "chair", "armchair", "potted plant",
+  "window", "picture frame", "curtain", "shelf", "pillow", "rug", "tv",
+  "person", "table", "cabinet", "sofa", "stool", "box", "bag", "handbag", "suitcase", "basket",
+  "trash can", "bottle", "cup", "book", "shoe", "clothes", "fan", "speaker", "keyboard", "toy",
+  "wall", "railing", "stairs", "pole", "bench", "car", "bicycle", "sign",
+]

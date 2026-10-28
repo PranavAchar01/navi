@@ -1,11 +1,13 @@
 import type { Net } from "./net";
 
-const TARGET_FPS = 15;
+const TARGET_FPS = 30; // the server keeps only the newest frame, so more is fresher, not slower
 const LONG_SIDE = 640;
 
 /** Frames and device motion from a phone camera or a video file, sent to the server. */
 export class Source {
   private seq = 0;
+  /** When each sent frame was grabbed (performance.now), so results can be drawn on their own frame. */
+  readonly sentAt = new Map<number, number>();
   private running = false;
   private canvas = document.createElement("canvas");
   private motion: number[][] = [];
@@ -69,9 +71,14 @@ export class Source {
           this.canvas.width = Math.round(vw * s);
           this.canvas.height = Math.round(vh * s);
           ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
+          const grabbed = now;
           this.canvas.toBlob(
             async (b) => {
-              if (b) this.net.sendFrame(this.seq++, await b.arrayBuffer());
+              if (!b) return;
+              const seq = this.seq++;
+              this.sentAt.set(seq, grabbed);
+              this.sentAt.delete(seq - 300);
+              this.net.sendFrame(seq, await b.arrayBuffer());
             },
             "image/jpeg",
             0.7,

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import base64
 import json
 import logging
 import math
@@ -40,7 +41,7 @@ from .query import (
     template_answer,
     valid_sentence,
 )
-from .safety import SafetyLoop
+from .safety import SafetyLoop, proximity_grid
 
 MAX_PENDING_KEYFRAMES = 12
 log = logging.getLogger("metasight")
@@ -196,6 +197,8 @@ class Server:
                     "names": SECTORS,
                     "live": [_finite(d) for d in live],
                     "cues": [vars(cue_for_distance(d)) for d in merged],
+                    "prox": base64.b64encode(proximity_grid(res.depth).tobytes()).decode(),
+                    "prox_size": [192, 108],
                     "obstacles": [
                         {
                             "label": o.label,
@@ -204,6 +207,16 @@ class Server:
                             "dist": _finite(o.dist_m),
                         }
                         for o in res.obstacles
+                    ],
+                    "objects": [
+                        {
+                            "label": o.label,
+                            "score": round(o.score, 2),
+                            "poly": o.poly,
+                            "box": [round(v, 4) for v in o.box],
+                            "dist": _finite(o.dist_m),
+                        }
+                        for o in res.objects
                     ],
                     "fps": round(self.fps, 1),
                     "ms": {k: round(v, 1) for k, v in res.timings_ms.items()},

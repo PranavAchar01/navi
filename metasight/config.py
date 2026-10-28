@@ -43,6 +43,8 @@ class Settings:
     depth_width: int = 518
     depth_height: int = 294
     detector_imgsz: int = 320
+    depth_scale: float = 1.0  # starting live-depth scale; ultra-wide lenses read about 0.6
+    segment: bool = False  # HUD: open-vocabulary masks over the watch-list vocabulary
     keyframe_hz: float = 1.5
     window: int = 8
     overlap: int = 2
@@ -67,7 +69,7 @@ class Settings:
     @classmethod
     def load(cls, path: Path | None = None) -> Settings:
         raw = {}
-        p = path or ROOT / "metasight.toml"
+        p = path or Path(os.environ.get("METASIGHT_CONFIG", ROOT / "metasight.toml"))
         if p.exists():
             raw = tomllib.loads(p.read_text())
         s = cls()
@@ -77,7 +79,7 @@ class Settings:
         s.finder = os.environ.get("METASIGHT_FINDER", prov.get("finder", s.finder))
         for k in ("openai_model", "meta_model", "sam_model"):
             setattr(s, k, mod.get(k, getattr(s, k)))
-        for k in ("depth_width", "depth_height", "detector_imgsz"):
+        for k in ("depth_width", "depth_height", "detector_imgsz", "segment", "depth_scale"):
             setattr(s, k, saf.get(k, getattr(s, k)))
         for k in ("keyframe_hz", "window", "overlap", "voxel_m", "watchlist"):
             setattr(s, k, mem.get(k, getattr(s, k)))

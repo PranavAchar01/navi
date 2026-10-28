@@ -9,6 +9,13 @@ export interface Obstacle {
   box: [number, number, number, number];
   dist: number | null;
 }
+export interface SegObject {
+  label: string;
+  score: number;
+  poly: number[]; // normalised x, y pairs
+  box: [number, number, number, number];
+  dist: number | null;
+}
 export interface Safety {
   type: "safety";
   seq: number;
@@ -18,6 +25,9 @@ export interface Safety {
   live: (number | null)[];
   cues: Cue[];
   obstacles: Obstacle[];
+  objects?: SegObject[];
+  prox?: string; // base64 uint8 grid, centimetres / 2, 255 = far or floor
+  prox_size?: [number, number];
   fps: number;
   ms: Record<string, number>;
   scale: number;

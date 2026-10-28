@@ -42,8 +42,49 @@ net.on("status", (m) => {
 });
 
 // ---------------------------------------------------------------- live view
+// Synced display: the video is shown a beat late, frame by frame from a short buffer, so each
+// result is drawn on the very frame it was computed from. The delay tracks the measured lag.
+const stage = $("stage");
+const disp = document.createElement("canvas");
+disp.id = "disp";
+stage.insertBefore(disp, overlay);
+const frames: { t: number; bmp: ImageBitmap }[] = [];
+const results: { t: number; s: Safety }[] = [];
+let lagMs = 150;
+let grabbing = false;
+function syncedFrame(now: number): Safety | null {
+  if (!video.paused && video.readyState >= 2 && !grabbing) {
+    grabbing = true;
+    createImageBitmap(video)
+      .then((bmp) => frames.push({ t: now, bmp }))
+      .finally(() => (grabbing = false));
+  }
+  const target = now - lagMs - 10;
+  let i = -1;
+  while (i + 1 < frames.length && frames[i + 1].t <= target) i++;
+  if (i >= 0) {
+    const f = frames[i];
+    if (disp.width !== f.bmp.width) {
+      disp.width = f.bmp.width;
+      disp.height = f.bmp.height;
+    }
+    disp.getContext("2d")!.drawImage(f.bmp, 0, 0);
+    for (const old of frames.splice(0, i)) old.bmp.close();
+  }
+  const shownAt = i >= 0 ? frames[0].t : target;
+  let r: Safety | null = null;
+  for (const x of results) if (x.t <= shownAt + 20) r = x.s;
+  while (results.length > 1 && results[1].t <= shownAt) results.shift();
+  return r ?? latest;
+}
+
 net.on("safety", (m) => {
   latest = m;
+  const t = source.sentAt.get(m.seq);
+  if (t !== undefined) {
+    lagMs = Math.min(600, lagMs * 0.85 + (performance.now() - t) * 0.15);
+    results.push({ t, s: m });
+  }
   chipState.fps = m.fps;
   belt.update(m);
   audio.update(m);
@@ -52,8 +93,8 @@ net.on("safety", (m) => {
     (m.map_age !== null ? ` · map ${m.map_age.toFixed(0)} s old` : "");
   renderChips();
 });
-function frame() {
-  drawOverlay(overlay, video, latest);
+function frame(now: number) {
+  drawOverlay(overlay, video, syncedFrame(now));
   drawRing(ring, latest);
   requestAnimationFrame(frame);
 }
