@@ -14,6 +14,7 @@ from .config import SESSIONS, Settings
 from .loops import Describer
 from .memory import Keyframe, MapAnythingRunner, MemoryEngine, SolverProcess
 from .providers import make_finder
+from .walk import WALKS
 
 
 def run(in_q, out_q, settings: Settings, session: str, new_needed: int = 4) -> None:
@@ -32,10 +33,14 @@ def run(in_q, out_q, settings: Settings, session: str, new_needed: int = 4) -> N
     )
     if settings.mode != "home":
         engine.set_mode(settings.mode)
+    else:
+        engine.load_home()
     SESSIONS.mkdir(exist_ok=True)
     save_path = Path(SESSIONS) / f"{session}.npz"
     out_q.put({"type": "ready", "finder": engine.finder.name})
     out_q.put({"type": "mode", "mode": engine.mode})
+    if engine._home_prior:
+        out_q.put({"type": "pins", "pins": engine._pins_out()})
     buf: list[Keyframe] = []
     arrived = 0.0
     while True:
@@ -55,7 +60,15 @@ def run(in_q, out_q, settings: Settings, session: str, new_needed: int = 4) -> N
                 engine.solver.stop()
                 if engine.mode == "home":
                     engine.save(save_path)
+                    engine.persist_pins()
                 return
+            if msg["cmd"] == "walk":  # a new walk: the saved house stays, the walk starts clean
+                prev = WALKS / msg["prev"] if msg.get("prev") else None
+                engine.new_walk(prev)
+                buf = []
+                out_q.put({"type": "map_replace", "n": 0, "points": b"", "colors": b""})
+                out_q.put({"type": "pins", "pins": engine._pins_out()})
+                continue
             if msg["cmd"] == "hfov":  # the frame source changed lens (an iPhone, the glasses)
                 if settings.map_intrinsics:
                     engine.runner.hfov_deg = msg["hfov"]
@@ -111,3 +124,4 @@ def run(in_q, out_q, settings: Settings, session: str, new_needed: int = 4) -> N
             engine.global_start()
         if engine.mode == "home" and engine._windows % 10 == 0:
             engine.save(save_path)
+            engine.persist_pins()

@@ -9,6 +9,7 @@ engine runs inside the server's worker process and in offline scripts.
 from __future__ import annotations
 
 import base64
+import json
 import math
 import threading
 import time
@@ -17,6 +18,7 @@ from dataclasses import dataclass, field, replace
 import cv2
 import numpy as np
 
+from . import home as homemod
 from .align import (
     VoxelSet,
     apply_sim3,
@@ -42,7 +44,7 @@ from .loops import (
     shared_matches,
     turn_deg,
 )
-from .pins import PinStore
+from .pins import PinStore, layer_of
 from .providers.finder import LANDMARKS, Finder
 
 
@@ -76,6 +78,15 @@ BANK_STEP_DEG = 15.0
 GLOBAL_EVERY = 4  # new bank views that trigger a re-solve
 ROOF_M = 2.0  # the global map keeps points up to this far above the floor
 GLOBAL_VOXEL_M = 0.02  # voxel of the global map
+HOME_MIN_VIEWS = 6  # walk views a first walk needs before it may become the home map
+HOME_FIT_MAX = 0.12  # relocalization residual, as a share of the scene's spread
+HOME_ID = 100000  # home pins keep their own id range beside the walk's pins
+JOIN_M = {"structure": 0.8, "furniture": 1.0, "carried": 0.6}  # same thing seen again
+MOVED_MAX_M = 6.0  # a lone piece of furniture this far from its old place has been moved
+NEW_MIN_CELLS = 10  # unknown 10 cm cells in one 0.5 m bin that make a new obstacle
+NEW_RANGE_M = (0.8, 3.5)  # how far ahead a new obstacle is flagged
+NEW_LATERAL_M = 1.0  # and how far off the heading line
+NEW_COOLDOWN_S = 20.0
 
 
 @dataclass
@@ -313,6 +324,8 @@ class MemoryEngine:
         self.solver = solver
         self._job: dict | None = None
         self._anchors: tuple[Sim3, np.ndarray, np.ndarray] | None = None  # live frame -> global
+        self.home: homemod.Home | None = None
+        self._reset_home()
 
     # ------------------------------------------------------------------ modes
     def set_mode(self, mode: str) -> None:
@@ -329,6 +342,7 @@ class MemoryEngine:
         self._job = None  # a solve still running finishes into the new map; drop its result
         self._kfs, self._sims, self._obs, self.loops = {}, [], [], []
         self._seq_rel, self._seq_w, self._loop_edges = [], [], []
+        self.load_home()
 
     def _trim_to_horizon(self) -> tuple[np.ndarray, np.ndarray] | None:
         """Outside only: forget map points farther than horizon_m from the newest pose."""
@@ -804,7 +818,14 @@ class MemoryEngine:
                 "stitch_scale": float(s_),
             }
         )
-        return self._to_global(events)
+        out = self._to_global(events)
+        out += self._change_check(placed_new[-1])
+        return out + self._drain_moved()
+
+    def _drain_moved(self) -> list[dict]:
+        out = [{"type": "change", "change": "moved", **m} for m in self._moved]
+        self._moved = []
+        return out
 
     # ------------------------------------------------------------------ global re-solve
     def _bank_far(self, seq: int, pose: np.ndarray, others: list[int]) -> float:
@@ -854,8 +875,15 @@ class MemoryEngine:
         engine's own runner when there is none. `global_poll` picks the result up."""
         self._bank_new = 0
         seqs = sorted(self._bank)
-        frames = [self._bank[q][1] for q in seqs]
-        job: dict = {"seqs": seqs, "ts": [self._bank[q][0] for q in seqs]}
+        bgrs = [self._bank[q][1] for q in seqs]
+        pick = self._pick_home(seqs, bgrs[0].shape)
+        frames = [self._home_bgr[i] for i in pick] + bgrs
+        job: dict = {
+            "seqs": seqs,
+            "ts": [self._bank[q][0] for q in seqs],
+            "pick": pick,
+            "bgrs": bgrs,
+        }
         if self.solver is not None:
             self.solver.submit(frames)
         else:
@@ -883,25 +911,37 @@ class MemoryEngine:
             if preds is None:
                 return None
             self._job = None
-            return self._global_finish(job["seqs"], preds, job["ts"])
+            return self._global_finish(job["seqs"], preds, job["ts"], job["pick"], job["bgrs"])
         if job["thread"].is_alive():
             return None
         self._job = None
         if "error" in job:
             raise job["error"]
-        return self._global_finish(job["seqs"], job["preds"], job["ts"])
+        return self._global_finish(job["seqs"], job["preds"], job["ts"], job["pick"], job["bgrs"])
 
     def global_solve(self) -> list[dict]:
         """The same, waiting for it."""
         self._bank_new = 0
         seqs = sorted(self._bank)
         ts = [self._bank[q][0] for q in seqs]
-        return self._global_finish(seqs, self.runner.infer([self._bank[q][1] for q in seqs]), ts)
+        bgrs = [self._bank[q][1] for q in seqs]
+        pick = self._pick_home(seqs, bgrs[0].shape)
+        preds = self.runner.infer([self._home_bgr[i] for i in pick] + bgrs)
+        return self._global_finish(seqs, preds, ts, pick, bgrs)
 
-    def _global_finish(self, seqs: list[int], preds: list[dict], stamps: list[float]) -> list[dict]:
+    def _global_finish(
+        self,
+        seqs: list[int],
+        preds: list[dict],
+        stamps: list[float],
+        pick: list[int] | None = None,
+        bgrs: list[np.ndarray] | None = None,
+    ) -> list[dict]:
         """A clean map in a gravity-aligned frame, floor at y = 0, roof cropped. Replaces the
         whole map; the live windows keep running in their own frame and are carried over with
         `_to_global`."""
+        pick = pick or []
+        home_preds, preds = preds[: len(pick)], preds[len(pick) :]
         # Old (live) frame -> the new frame, from the pixels both passes saw.
         src, dst = [], []
         sl = (slice(None, None, STRIDE), slice(None, None, STRIDE))
@@ -917,11 +957,12 @@ class MemoryEngine:
             return []
         c: Sim3 = fit[:3]
 
-        down = np.mean([pr["pose"][:3, 1] for pr in preds], axis=0)
+        every = home_preds + preds
+        down = np.mean([pr["pose"][:3, 1] for pr in every], axis=0)
         down /= np.linalg.norm(down)
         rot = _rotation_to(down, np.array([0.0, -1.0, 0.0]))  # down becomes -y: y is up
-        pts = np.concatenate([pr["pts"][pr["mask"]] for pr in preds]) @ rot.T
-        cols = np.concatenate([(pr["rgb"][pr["mask"]] * 255).astype(np.uint8) for pr in preds])
+        pts = np.concatenate([pr["pts"][pr["mask"]] for pr in every]) @ rot.T
+        cols = np.concatenate([(pr["rgb"][pr["mask"]] * 255).astype(np.uint8) for pr in every])
         floor = float(np.percentile(pts[:, 1], 2))
         keep = pts[:, 1] < floor + ROOF_M
         pts, cols = pts[keep] - [0.0, floor, 0.0], cols[keep]
@@ -941,6 +982,8 @@ class MemoryEngine:
             centres.append(carried[:3, 3])
             fixes.append(new @ np.linalg.inv(carried))
         self._anchors = (c, np.array(centres), np.array(fixes))
+        reloc = self._relocalize(pick, home_preds, rot, floor)
+        self._persist_home(seqs, every, bgrs, pick, stamps, g, pts, bool(reloc and reloc["fit"]))
 
         trail = [
             [*map(float, (g @ pr["pose"])[:3, 3]), ts] for ts, pr in zip(stamps, preds, strict=True)
@@ -955,16 +998,30 @@ class MemoryEngine:
             },
             {"type": "trail_replace", "points": trail},
             {"type": "pins", "pins": self._pins_out()},
-            {"type": "global_stats", "views": len(seqs), "points": len(pts), "scale": float(c[0])},
+            {
+                "type": "global_stats",
+                "views": len(seqs),
+                "points": len(pts),
+                "scale": float(c[0]),
+                "home": reloc,
+            },
+            *self._drain_moved(),
         ]
 
     def _pins_out(self) -> list[dict]:
-        out = []
+        """The walk's pins in the output frame, with the home map's pins merged in."""
+        live = []
         for p in self.pins.pins.values():
             d = p.to_json()
             d["pos"] = self._pos_out(np.array(d["pos"])).tolist()
-            out.append(d)
-        return out
+            live.append(d)
+        if not self._home_prior:
+            return live
+        if self._home_tf is None:  # not placed in this walk's frame yet: answers name the place
+            return [
+                {**d, "id": HOME_ID + d["id"], "placed": False} for d in self._home_prior
+            ] + live
+        return self._merge_home(live)
 
     def _fix_for(self, pos_carried: np.ndarray) -> np.ndarray:
         _, centres, fixes = self._anchors
@@ -1015,6 +1072,305 @@ class MemoryEngine:
                 }
             out.append(e)
         return out
+
+    @staticmethod
+    def _cell_keys(cells_: np.ndarray) -> np.ndarray:
+        """Cell coordinates as single sortable integers."""
+        k = cells_.astype(np.int64) + (1 << 19)
+        return (k[:, 0] << 40) | (k[:, 1] << 20) | k[:, 2]
+
+    # ------------------------------------------------------------------ home map
+    def _reset_home(self) -> None:
+        self._home_prior: list[dict] = []  # saved pins, in the saved frame
+        self._home_placed: list[dict] = []  # the same, carried into the output frame
+        self._home_tf: Sim3 | None = None  # saved frame -> output frame
+        self._home_occ = np.empty((0, 3), np.int32)
+        self._home_occ_keys = np.empty(0, np.int64)
+        self._home_bgr: list[np.ndarray] = []
+        self._home_desc: list | None = None
+        self._home_owner = True  # this walk may write the home map
+        self._persist_ok = False
+        self._counted = False
+        self._announce: dict[tuple[int, int], float] = {}
+        self._moved: list[dict] = []
+        self._announced: set[str] = set()
+        self._flags: dict[tuple[int, int], tuple[int, float]] = {}
+
+    def load_home(self) -> None:
+        """Bring the saved house in: its pins (not placed until a solve places them) and views."""
+        self._reset_home()
+        self.home = homemod.load() if self.mode == "home" else None
+        if self.home is None:
+            return
+        self._home_prior = [
+            {**p, "placed": False, "layer": p.get("layer") or layer_of(p["label"], p["kind"])}
+            for p in self.home.pins
+        ]
+        self._home_owner = False  # until a solve places this walk in the house
+        self._home_bgr = [
+            cv2.imdecode(np.frombuffer(v.jpg, np.uint8), cv2.IMREAD_COLOR) for v in self.home.views
+        ]
+
+    def _pick_home(self, seqs: list[int], shape: tuple) -> list[int]:
+        """The saved views that look most like what the walk has seen so far, to carry into the
+        solve; only those of the walk's frame size (a portrait phone and the glasses differ)."""
+        if self.home is None or not self.home.views:
+            return []
+        ok = [i for i, b in enumerate(self._home_bgr) if b.shape == shape]
+        if self.describer is None or not ok:
+            return ok[: homemod.HOME_VIEWS]
+        if self._home_desc is None:
+            self._home_desc = [self.describer(b) for b in self._home_bgr]
+        walk = [self._kfs[q].desc for q in seqs if q in self._kfs and self._kfs[q].desc is not None]
+        if not walk:
+            return ok[: homemod.HOME_VIEWS]
+        w = np.stack(walk)
+        score = {
+            i: float((w @ self._home_desc[i]).max()) if self._home_desc[i] is not None else -1.0
+            for i in ok
+        }
+        return sorted(sorted(ok, key=lambda i: -score[i])[: homemod.HOME_VIEWS])
+
+    def _relocalize(self, pick: list[int], home_preds: list[dict], rot, floor) -> dict | None:
+        """Fit the saved frame onto this solve from the views both contain, then carry the saved
+        pins and occupancy across. None (and the saved house untouched) when the walk is in a
+        part of the house the picked views do not show."""
+        self._home_tf, self._home_placed = None, []
+        self._home_occ = np.empty((0, 3), np.int32)
+        if not pick or self.home is None:
+            return None
+        sl = (slice(None, None, STRIDE), slice(None, None, STRIDE))
+        src, dst = [], []
+        for i, pr in zip(pick, home_preds, strict=True):
+            v = self.home.views[i]
+            m = pr["mask"][sl] & v.mask
+            src.append(v.pts.astype(np.float32)[m])
+            dst.append(pr["pts"][sl][m])
+        fit = robust_similarity(np.concatenate(src), np.concatenate(dst))
+        if fit is None:
+            return None
+        every_dst = np.concatenate(dst)
+        spread = float(np.median(np.linalg.norm(every_dst - every_dst.mean(0), axis=1)))
+        res = float(fit[3]) / max(spread, 1e-6)
+        if res > HOME_FIT_MAX:
+            return {"fit": False, "residual": res, "views": len(pick)}
+        s_, r_, t_ = fit[:3]
+        tf: Sim3 = (s_, rot @ r_, rot @ t_ + np.array([0.0, -floor, 0.0]))
+        self._home_tf, self._home_owner = tf, True
+        for d in self._home_prior:
+            pos = apply_sim3(np.array([d["pos"]], float), *tf)[0].tolist()
+            self._home_placed.append({**d, "id": HOME_ID + d["id"], "pos": pos, "placed": True})
+        if len(self.home.occ):
+            moved = apply_sim3(homemod.cell_centres(self.home.occ), *tf)
+            self._home_occ = homemod.cells(moved)
+        self._home_occ_keys = (
+            np.sort(self._cell_keys(self._home_occ))
+            if len(self._home_occ)
+            else np.empty(0, np.int64)
+        )
+        return {"fit": True, "residual": res, "views": len(pick), "pins": len(self._home_placed)}
+
+    def _merge_home(self, live: list[dict]) -> list[dict]:
+        """Home pins plus the walk's. The same label within a pin's reach is the same thing seen
+        again (it refreshes the date; furniture and carried items take the walk's position, which
+        is the current one). A firm pin of a carried item elsewhere, or of the only piece of its
+        kind in the house, means it moved: the old pin goes."""
+        home = [dict(d) for d in self._home_placed]
+        extra = []
+        for lv in live:
+            same = [h for h in home if h["label"] == lv["label"] and h["kind"] == lv["kind"]]
+            near, dist = None, np.inf
+            for h in same:
+                d = float(np.linalg.norm(np.subtract(h["pos"], lv["pos"])))
+                if d < dist:
+                    near, dist = h, d
+            firm = lv["seen"] >= (3 if lv["kind"] == "landmark" else 2) or lv["score"] >= 0.5
+            layer = lv.get("layer") or layer_of(lv["label"], lv["kind"])
+            if near is not None and dist <= JOIN_M[layer]:
+                near["ts"] = max(near["ts"], lv["ts"])
+                near["seen"] += lv["seen"]
+                if firm and layer != "structure":
+                    near["pos"] = lv["pos"]
+                    near["near"] = lv["near"] or near["near"]
+                    near["thumb"] = lv["thumb"] or near["thumb"]
+                continue
+            if firm and same and layer != "structure":
+                if layer == "carried" or (len(same) == 1 and dist <= MOVED_MAX_M):
+                    for h in same:
+                        home.remove(h)
+                    key = f"{lv['label']}@{round(lv['pos'][0])},{round(lv['pos'][2])}"
+                    if key not in self._announced:
+                        self._announced.add(key)
+                        self._moved.append(
+                            {
+                                "label": lv["label"],
+                                "from": near["pos"],
+                                "to": lv["pos"],
+                                "layer": layer,
+                            }
+                        )
+            extra.append(lv)
+        return home + extra
+
+    def _pts_out(self, pts: np.ndarray, ref: np.ndarray) -> np.ndarray:
+        """Live-frame points into the output frame with the fix of the nearest anchor."""
+        c = apply_sim3(pts, *self._anchors[0])
+        f = self._fix_for(apply_sim3(ref[None], *self._anchors[0])[0])
+        return c @ f[:3, :3].T + f[:3, 3]
+
+    def _known(self, cells_: np.ndarray) -> np.ndarray:
+        """Is each cell, or a neighbour, occupied in the home map."""
+        keys = self._home_occ_keys
+        if not len(keys):
+            return np.zeros(len(cells_), bool)
+        hit = np.zeros(len(cells_), bool)
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                for dz in (-1, 0, 1):
+                    k = self._cell_keys(cells_ + np.array([dx, dy, dz], np.int32))
+                    i = np.clip(np.searchsorted(keys, k), 0, len(keys) - 1)
+                    hit |= keys[i] == k
+        return hit
+
+    def _change_check(self, placed: _Placed) -> list[dict]:
+        """Something ahead on the path that the home map did not have: flagged from the newest
+        view's own depth against the saved occupancy, well before the distance bands would
+        see it. Two windows in a row must agree."""
+        if self._anchors is None or self._home_tf is None or len(self._home_occ) < 300:
+            return []
+        po = self._pose_out(placed.pose)
+        cam, fwd, right = po[:3, 3], po[:3, 2], po[:3, 0]
+        pts = placed.pts[::4, ::4][placed.mask[::4, ::4]]
+        if len(pts) < 200:
+            return []
+        pts = self._pts_out(pts, placed.pose[:3, 3])
+        rel = pts - cam
+        ahead, side = rel @ fwd, rel @ right
+        dist = np.hypot(ahead, side)
+        keep = (
+            (pts[:, 1] > 0.15)
+            & (pts[:, 1] < 1.9)
+            & (dist >= NEW_RANGE_M[0])
+            & (dist <= NEW_RANGE_M[1])
+            & (ahead > 0.3)
+            & (np.abs(side) <= NEW_LATERAL_M)
+        )
+        pts, ahead, side = pts[keep], ahead[keep], side[keep]
+        if len(pts) < 50:
+            return []
+        # The home map must know the surroundings, or everything would look new.
+        centres = homemod.cell_centres(self._home_occ)
+        if np.count_nonzero(np.linalg.norm(centres[:, [0, 2]] - cam[[0, 2]], axis=1) < 5.0) < 300:
+            return []
+        cl = np.floor(pts / homemod.OCC_M).astype(np.int32)
+        cl, first = np.unique(cl, axis=0, return_index=True)
+        new = ~self._known(cl)
+        if not new.any():
+            self._flags = {}
+            return []
+        ahead_c, side_c = ahead[first][new], side[first][new]
+        bins: dict[tuple[int, int], list[int]] = {}
+        for j, (a, b) in enumerate(zip(ahead_c, side_c, strict=True)):
+            bins.setdefault((int(a // 0.5), int(b // 0.5)), []).append(j)
+        key, idx = max(bins.items(), key=lambda kv: len(kv[1]))
+        if len(idx) < NEW_MIN_CELLS:
+            self._flags = {}
+            return []
+        now = placed.kf.ts
+        count, last = self._flags.get(key, (0, 0.0))
+        self._flags = {key: (count + 1, now)}
+        if count + 1 < 2 or now - self._announced_at(key) < NEW_COOLDOWN_S:
+            return []
+        a, b = float(np.mean(ahead_c[idx])), float(np.mean(side_c[idx]))
+        self._announce[key] = now
+        centre = cam + a * fwd + b * right
+        label = None
+        best = 0.9
+        for pin in self._pins_out():
+            if now - pin["ts"] < 8.0 and pin["placed"]:
+                d = float(np.linalg.norm(np.array(pin["pos"]) - centre))
+                if d < best:
+                    label, best = pin["label"], d
+        return [
+            {
+                "type": "change",
+                "change": "new_obstacle",
+                "label": label,
+                "distance_m": float(math.hypot(a, b)),
+                "bearing_deg": float(math.degrees(math.atan2(b, a))),
+                "pos": centre.tolist(),
+                "ts": now,
+            }
+        ]
+
+    def _announced_at(self, key) -> float:
+        return self._announce.get(key, -math.inf)
+
+    def _persist_home(self, seqs, every, bgrs, pick, stamps, g, map_pts, relocalized) -> None:
+        """Write the house after a solve that placed the walk in it (or made it). The views, the
+        occupancy and the pins all come from this one solve, so they share a frame."""
+        self._persist_ok = False
+        if self.mode != "home" or bgrs is None or len(seqs) < HOME_MIN_VIEWS:
+            return
+        if not (relocalized or self.home is None):
+            return
+        sl = (slice(None, None, STRIDE), slice(None, None, STRIDE))
+        poses = [g @ pr["pose"] for pr in every]
+        keep = homemod.thin(poses, homemod.SAVED_VIEWS)
+        views = []
+        for i in keep:
+            pr = every[i]
+            if i < len(pick):
+                v = self.home.views[pick[i]]
+                jpg, ts = v.jpg, v.ts
+            else:
+                ok, buf = cv2.imencode(".jpg", bgrs[i - len(pick)], [cv2.IMWRITE_JPEG_QUALITY, 90])
+                jpg, ts = buf.tobytes(), stamps[i - len(pick)]
+            views.append(
+                homemod.HomeView(
+                    ts,
+                    jpg,
+                    (pr["pts"][sl] @ g[:3, :3].T + g[:3, 3]).astype(np.float16),
+                    pr["mask"][sl],
+                    poses[i],
+                )
+            )
+        occ = homemod.cells(map_pts)
+        if len(self._home_occ):
+            occ = np.unique(np.concatenate([occ, self._home_occ]), axis=0)
+        walks = (self.home.walks if self.home else 0) + (0 if self._counted else 1)
+        homemod.save(homemod.Home(self._pins_for_disk(), views, occ, walks, time.time()))
+        self._counted = True
+        self._persist_ok = True
+
+    def _pins_for_disk(self) -> list[dict]:
+        out = []
+        for n, d in enumerate(self._pins_out(), start=1):
+            out.append({**d, "id": n, "placed": True})
+        return out
+
+    def persist_pins(self) -> None:
+        """Between solves only the pins change, and they are in the frame of the last solve."""
+        if self._persist_ok and self._anchors is not None and self.mode == "home":
+            homemod.save_pins(self._pins_for_disk())
+
+    def snapshot(self, folder) -> None:
+        """What the house looked like at the end of a walk, kept in the walk's own folder."""
+        from pathlib import Path
+
+        f = Path(folder)
+        if self._anchors is None or not f.is_dir():
+            return
+        f.joinpath("home-snapshot.json").write_text(
+            json.dumps({"pins": self._pins_for_disk(), "placed": self._home_tf is not None})
+        )
+
+    def new_walk(self, prev_folder=None) -> None:
+        """The next walk starts from the saved house instead of an empty map."""
+        if prev_folder is not None:
+            self.persist_pins()
+            self.snapshot(prev_folder)
+        self.set_mode(self.mode)
 
     # ------------------------------------------------------------------ persistence
     def save(self, path) -> None:

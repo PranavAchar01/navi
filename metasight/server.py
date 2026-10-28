@@ -172,7 +172,9 @@ class Server:
                 json.dumps([p.to_json(False) for p in self.pins.pins.values()], indent=1)
             )
         self.pins = PinStore()
-        self.in_q.put({"cmd": "mode", "mode": self.mode})
+        # The memory worker keeps the house across walks: it files the old walk and starts the
+        # new one from the saved home map.
+        self.in_q.put({"cmd": "walk", "prev": prev})
 
     def drop_client(self, sock: WebSocket) -> None:
         self.hub.clients.discard(sock)
@@ -215,6 +217,8 @@ class Server:
             await self.hub.json({"type": "mode", "mode": self.mode}, True)
         elif t == "map_chunk":
             await self.hub.map_chunk(ev["n"], ev["points"], ev["colors"])
+        elif t == "change":
+            await self.hub.json({"type": "alert", "kind": ev["change"], **ev}, True)
         elif t == "trail_replace":
             self.trail = ev["points"]
             await self.hub.json({"type": "trail", "points": self.trail}, True)
@@ -375,7 +379,11 @@ class Server:
             self.loop.create_task(self.answer(f"where is my {g['want']}"))
             return None
         pin = self.pins.pins.get(g["pin"])
-        rel = self.heading.to(np.array(pin.pos)) if pin is not None and map_fresh else None
+        rel = (
+            self.heading.to(np.array(pin.pos))
+            if pin is not None and pin.placed and map_fresh
+            else None
+        )
         live = [
             (self.heading.box_bearing(o.box), o.dist_m)
             for o in seen
@@ -493,6 +501,8 @@ class Server:
         now = time.time()
         # A stale pose gives a confident wrong direction; without one the answer names the place.
         pose = self.pose if now - self.map_pose_ts < ANSWER_POSE_S else None
+        if pin is not None and not pin.placed:  # a saved pin not yet placed in this walk's frame
+            pose = None
         text_out = template_answer(label, pin, pose, now, stand_in)
         polished = False
         if pin is not None and not stand_in and self.language.name != "template":

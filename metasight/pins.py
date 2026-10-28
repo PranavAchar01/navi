@@ -5,6 +5,27 @@ from __future__ import annotations
 import math
 from dataclasses import asdict, dataclass, field
 
+STRUCTURE = frozenset(
+    {"door", "window", "stairs", "wall", "railing", "pole", "cabinet", "counter", "sink"}
+    | {"toilet", "oven", "fridge", "refrigerator", "microwave", "shelf", "curtain"}
+)
+FURNITURE = frozenset(
+    {"bed", "dresser", "nightstand", "desk", "table", "dining table", "chair", "armchair"}
+    | {"sofa", "couch", "stool", "bench", "tv", "lamp", "mirror", "rug", "plant", "fan"}
+    | {"speaker", "mini fridge", "picture frame", "computer monitor", "potted plant"}
+)
+
+
+def layer_of(label: str, kind: str) -> str:
+    """structure (walls, doors, stairs, fixed appliances), furniture (moves rarely), or carried
+    (things a person picks up). Doors and the rest of structure are the map's landmarks."""
+    name = label.lower()
+    if name in STRUCTURE:
+        return "structure"
+    if kind == "landmark" or name in FURNITURE:
+        return "furniture"
+    return "carried"
+
 
 @dataclass
 class Pin:
@@ -19,6 +40,8 @@ class Pin:
     near: list[str] = field(default_factory=list)  # landmark labels within ~1.5 m
     thumb: str = ""  # base64 jpeg
     source: str = ""
+    layer: str = ""
+    placed: bool = True  # False: a home-map pin not yet placed in this walk's frame
 
     def to_json(self, include_thumb: bool = True) -> dict:
         d = asdict(self)
@@ -64,7 +87,20 @@ class PinStore:
             if near:
                 best.near = near
             return best
-        pin = Pin(self._next, label, kind, list(pos), ts, ts, 1, score, near or [], thumb, source)
+        pin = Pin(
+            self._next,
+            label,
+            kind,
+            list(pos),
+            ts,
+            ts,
+            1,
+            score,
+            near or [],
+            thumb,
+            source,
+            layer_of(label, kind),
+        )
         self.pins[pin.id] = pin
         self._next += 1
         return pin
@@ -116,4 +152,6 @@ class PinStore:
 
     def replace_all(self, pins: list[dict]) -> None:
         self.pins = {p["id"]: Pin(**p) for p in pins}
+        for p in self.pins.values():
+            p.layer = p.layer or layer_of(p.label, p.kind)
         self._next = max(self.pins, default=0) + 1
