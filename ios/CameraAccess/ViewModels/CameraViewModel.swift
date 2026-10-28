@@ -549,12 +549,31 @@ final class CameraViewModel {
 
   private func handleStreamStateChange(_ state: StreamState) {
     streamState = state
+    if state == .streaming {
+      announceGlassesWalk()
+    }
     if state == .stopped {
+      link.announce(nil)
+      link.send(json: ["type": "camera", "source": "glasses", "walk": NSNull()])
       // Terminal — finalize any recording, then converge teardown. Covers both
       // user-initiated stop and SDK auto-stop (disconnect, error, session end).
       Task { await stopVideoRecording() }
       clearStreamResources()
     }
+  }
+
+  /// Tells the server the glasses are the camera and, when "Save this walk on the Mac"
+  /// is on (shared with the phone camera, default on), opens a walk for this stream.
+  private func announceGlassesWalk() {
+    let save = UserDefaults.standard.object(forKey: "metasight.saveWalk") as? Bool ?? true
+    var walk: Any = NSNull()
+    if save {
+      let f = DateFormatter()
+      f.locale = Locale(identifier: "en_US_POSIX")
+      f.dateFormat = "yyyyMMdd-HHmmss"
+      walk = f.string(from: Date()) + "-glasses"
+    }
+    link.announce(["type": "camera", "source": "glasses", "width": 504, "height": 896, "walk": walk])
   }
 
   /// Single stream-teardown convergence point.
