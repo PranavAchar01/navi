@@ -5,9 +5,9 @@ type Handler<T> = (m: T) => void;
 export class Net {
   private ws: WebSocket | null = null;
   private handlers = new Map<string, Handler<never>[]>();
-  private onChunk: ((n: number, pts: Float32Array, cols: Uint8Array) => void) | null = null;
+  private onChunk: ((n: number, pts: Float32Array, cols: Uint8Array, sizes?: Uint8Array) => void) | null = null;
   private onFrame: ((seq: number, jpeg: Blob) => void) | null = null;
-  private onReplace: ((n: number, pts: Float32Array, cols: Uint8Array) => void) | null = null;
+  private onReplace: ((n: number, pts: Float32Array, cols: Uint8Array, sizes?: Uint8Array) => void) | null = null;
   private onState: ((up: boolean) => void) | null = null;
 
   on<K extends Message["type"]>(type: K, fn: Handler<Extract<Message, { type: K }>>): void {
@@ -15,14 +15,14 @@ export class Net {
     list.push(fn as Handler<never>);
     this.handlers.set(type, list);
   }
-  onMapChunk(fn: (n: number, pts: Float32Array, cols: Uint8Array) => void): void {
+  onMapChunk(fn: (n: number, pts: Float32Array, cols: Uint8Array, sizes?: Uint8Array) => void): void {
     this.onChunk = fn;
   }
   /** Camera frames another client sent, forwarded by the server after analysis. */
   onCameraFrame(fn: (seq: number, jpeg: Blob) => void): void {
     this.onFrame = fn;
   }
-  onMapReplace(fn: (n: number, pts: Float32Array, cols: Uint8Array) => void): void {
+  onMapReplace(fn: (n: number, pts: Float32Array, cols: Uint8Array, sizes?: Uint8Array) => void): void {
     this.onReplace = fn;
   }
   onConnection(fn: (up: boolean) => void): void {
@@ -54,7 +54,9 @@ export class Net {
         // Offsets are not 4-aligned, so copy into aligned views.
         const pts = new Float32Array(buf.slice(5, 5 + n * 12));
         const cols = new Uint8Array(buf.slice(5 + n * 12, 5 + n * 15));
-        (tag === 82 ? this.onReplace : this.onChunk)?.(n, pts, cols);
+        // A solved map also carries one disc-size byte per point.
+        const sizes = buf.byteLength === 5 + n * 16 ? new Uint8Array(buf.slice(5 + n * 15)) : undefined;
+        (tag === 82 ? this.onReplace : this.onChunk)?.(n, pts, cols, sizes);
       }
     };
     this.ws = ws;

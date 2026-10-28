@@ -41,6 +41,7 @@ export class MapView {
   private controls: OrbitControls;
   private pos = new Float32Array(CAP * 3);
   private col = new Uint8Array(CAP * 3);
+  private size = new Uint8Array(CAP); // disc size per point, 0.5 cm steps; 0 = the default
   private geo = new THREE.BufferGeometry();
   private count = 0;
   private trail = new THREE.Line(
@@ -70,16 +71,19 @@ export class MapView {
       uMax: { value: 26 },
       uSolid: { value: 0 },
       uGrow: { value: 0 },
+      uDensity: { value: 0 },
     },
     vertexShader: `
       uniform float uScale; uniform float uSize; uniform float uCeil; uniform float uTint;
-      uniform float uMin; uniform float uMax; uniform float uGrow;
+      uniform float uMin; uniform float uMax; uniform float uGrow; uniform float uDensity;
+      attribute float aSize;
       varying vec3 vC;
       void main() {
         vC = color;
         if (position.y > uCeil) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); gl_PointSize = 0.0; return; }
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
-        gl_PointSize = clamp(max(uSize, uGrow * -mv.z) * uScale / -mv.z, uMin, uMax);
+        float w = (uDensity > 0.5 && aSize > 0.5) ? aSize * 0.005 : uSize;
+        gl_PointSize = clamp(max(w, uGrow * -mv.z) * uScale / -mv.z, uMin, uMax);
         // First person: far points sink toward the sky colour, 20% at 8 m and beyond.
         vC = mix(vC, vec3(0.16, 0.2, 0.32), uTint * clamp(-mv.z / 8.0, 0.0, 1.0));
         gl_Position = projectionMatrix * mv;
@@ -130,6 +134,7 @@ export class MapView {
 
     this.geo.setAttribute("position", new THREE.BufferAttribute(this.pos, 3));
     this.geo.setAttribute("color", new THREE.BufferAttribute(this.col, 3, true));
+    this.geo.setAttribute("aSize", new THREE.BufferAttribute(this.size, 1));
     this.geo.setDrawRange(0, 0);
     // Each map point is drawn as a soft Gaussian disc sized in metres, a cheap splat look that
     // keeps the map streamable and the metric scale intact.
@@ -209,6 +214,7 @@ export class MapView {
     this.splat.uniforms.uMin.value = on ? 3 : 1.5;
     this.splat.uniforms.uMax.value = on ? 20 : 26;
     this.splat.uniforms.uSolid.value = on ? 1 : 0;
+    this.splat.uniforms.uDensity.value = on ? 1 : 0;
     this.splat.uniforms.uGrow.value = on ? 0.012 : 0; // a disc at least as wide as a source pixel
     this.splat.transparent = !on;
     this.splat.depthWrite = on;
@@ -228,11 +234,13 @@ export class MapView {
     return this.fpPose !== null && this.count > 0;
   }
 
-  addChunk(n: number, pts: Float32Array, cols: Uint8Array) {
+  addChunk(n: number, pts: Float32Array, cols: Uint8Array, sizes?: Uint8Array) {
     const take = Math.min(n, CAP - this.count);
     if (take <= 0) return;
     this.pos.set(pts.subarray(0, take * 3), this.count * 3);
     this.col.set(cols.subarray(0, take * 3), this.count * 3);
+    this.size.set(sizes ? sizes.subarray(0, take) : new Uint8Array(take), this.count);
+    this.geo.attributes.aSize.needsUpdate = true;
     this.count += take;
     this.geo.setDrawRange(0, this.count);
     this.geo.attributes.position.needsUpdate = true;
@@ -245,11 +253,11 @@ export class MapView {
   }
 
   /** Replace the whole map (outside mode trims what is behind you; switching modes clears it). */
-  replaceMap(n: number, pts: Float32Array, cols: Uint8Array) {
+  replaceMap(n: number, pts: Float32Array, cols: Uint8Array, sizes?: Uint8Array) {
     this.count = 0;
     this.fitted = 3;
     this.clearHot();
-    this.addChunk(n, pts, cols);
+    this.addChunk(n, pts, cols, sizes);
     if (n === 0) {
       this.geo.setDrawRange(0, 0);
       this.onCount(0);

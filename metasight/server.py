@@ -188,7 +188,7 @@ class Server:
             self.memory_ready = True
             await self.hub.json({"type": "status", "memory": "ready", "finder": ev["finder"]}, True)
         elif t == "map_replace":
-            await self.hub.map_replace(ev["n"], ev["points"], ev["colors"])
+            await self.hub.map_replace(ev["n"], ev["points"], ev["colors"], ev.get("sizes", b""))
             if ev["n"] == 0:
                 self.trail = []
                 await self.hub.json({"type": "trail", "points": []}, True)

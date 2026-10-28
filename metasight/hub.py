@@ -53,9 +53,10 @@ class Hub:
             self.map_total += n
         await asyncio.gather(*(self._send(c, data=data) for c in list(self.clients)))
 
-    async def map_replace(self, n: int, points: bytes, colors: bytes) -> None:
-        """Replace the whole map (outside mode trims, mode switches clear)."""
-        data = b"R" + struct.pack("<I", n) + points + colors
+    async def map_replace(self, n: int, points: bytes, colors: bytes, sizes: bytes = b"") -> None:
+        """Replace the whole map (outside mode trims, mode switches clear). `sizes`, one byte
+        per point, is the disc size the first-person view draws it with."""
+        data = b"R" + struct.pack("<I", n) + points + colors + sizes
         self.map_chunks, self.map_total = [data], n
         await asyncio.gather(*(self._send(c, data=data) for c in list(self.clients)))
 

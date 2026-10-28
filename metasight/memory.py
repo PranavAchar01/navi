@@ -129,6 +129,21 @@ def _thumb(bgr: np.ndarray, box: tuple[float, float, float, float], size: int = 
     return base64.b64encode(jpg.tobytes()).decode() if ok else ""
 
 
+DISC_UNIT_M = 0.005  # one step of a point's disc size, metres
+
+
+def _disc_sizes(pts: np.ndarray) -> np.ndarray:
+    """Per point, the disc diameter that covers its gaps to the neighbours: 1.7 times the
+    distance to its fourth neighbour, so a lone point gets a wide disc and a dense surface a
+    small one. uint8 steps of DISC_UNIT_M."""
+    from scipy.spatial import cKDTree
+
+    if len(pts) < 6:
+        return np.zeros(len(pts), np.uint8)
+    d = cKDTree(pts).query(pts, k=5, workers=-1)[0][:, 4]
+    return np.clip(np.round(1.7 * d / DISC_UNIT_M), 4, 40).astype(np.uint8)
+
+
 def _solver_main(fd: int, hfov_deg: float | None) -> None:
     from multiprocessing.connection import Connection
 
@@ -900,6 +915,7 @@ class MemoryEngine:
         pts, cols = pts[keep] - [0.0, floor, 0.0], cols[keep]
         fresh = VoxelSet(GLOBAL_VOXEL_M).add_new(pts)
         pts, cols = pts[fresh].astype(np.float32), cols[fresh]
+        sizes = _disc_sizes(pts)
 
         g = np.eye(4)
         g[:3, :3], g[:3, 3] = rot, [0.0, -floor, 0.0]
@@ -923,6 +939,7 @@ class MemoryEngine:
                 "n": len(pts),
                 "points": pts.tobytes(),
                 "colors": cols.tobytes(),
+                "sizes": sizes.tobytes(),
             },
             {"type": "trail_replace", "points": trail},
             {"type": "pins", "pins": self._pins_out()},

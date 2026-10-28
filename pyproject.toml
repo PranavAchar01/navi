@@ -5,6 +5,7 @@ description = "A persistent metric 3D memory of your home, built from a camera o
 requires-python = ">=3.12"
 dependencies = [
   "numpy",
+  "scipy",
   "opencv-python-headless",
   "torch",
   "transformers",

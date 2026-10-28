@@ -227,14 +227,14 @@ $("btn-fpv").addEventListener("click", () => {
   showView();
 });
 window.addEventListener("resize", showView);
-net.onMapChunk((n, p, c) => {
-  map.addChunk(n, p, c);
-  fpv.addChunk(n, p, c);
+net.onMapChunk((n, p, c, z) => {
+  map.addChunk(n, p, c, z);
+  fpv.addChunk(n, p, c, z);
   showView();
 });
-net.onMapReplace((n, p, c) => {
-  map.replaceMap(n, p, c);
-  fpv.replaceMap(n, p, c);
+net.onMapReplace((n, p, c, z) => {
+  map.replaceMap(n, p, c, z);
+  fpv.replaceMap(n, p, c, z);
   showView();
 });
 map.onCount = (n) => ($("map-count").textContent = `${n.toLocaleString()} points`);
