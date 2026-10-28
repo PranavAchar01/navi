@@ -23,7 +23,7 @@ def run(in_q, out_q, settings: Settings, session: str, new_needed: int = 4) -> N
     sam_every = int(os.environ.get("METASIGHT_SAM_EVERY", default_every))
     engine = MemoryEngine(
         settings,
-        MapAnythingRunner(),
+        MapAnythingRunner(hfov_deg=settings.hfov_deg if settings.map_intrinsics else None),
         make_finder(settings),
         YOLO(str(settings.weights_dir / "yolo26n.pt")),
         sam_every=sam_every,

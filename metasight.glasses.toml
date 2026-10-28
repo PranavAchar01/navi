@@ -14,6 +14,7 @@ segment = false
 depth_scale = 0.45  # lens prior: gates which plane can be the floor; the floor measures the rest
 eye_height_m = 1.22  # phone held at chest; measured on the global map (floor plane fit)
 hfov_deg = 44.8  # see the note at the top
+map_intrinsics = true  # MapAnything gets the lens: TUM mean error 18.7 -> 12.5 cm
 detector_imgsz = 384
 
 [memory]

@@ -35,14 +35,17 @@ DUP_RADIUS_M = {"object": 1.0, "landmark": 2.5}  # same label this close is very
 class CachedRunner:
     """MapAnything with its outputs kept on disk, keyed by the source and the frame indices."""
 
-    def __init__(self, source: str, cache: Path):
+    def __init__(self, source: str, cache: Path, hfov_deg: float | None = None):
         self.source, self.cache, self._runner = source, cache, None
+        self.hfov_deg = hfov_deg
         self.calls = self.hits = 0
         cache.mkdir(parents=True, exist_ok=True)
 
     def infer(self, frames_bgr: list[np.ndarray]) -> list[dict]:
         self.calls += 1
         h = hashlib.sha1(self.source.encode())
+        if self.hfov_deg:
+            h.update(f"hfov{self.hfov_deg:.2f}".encode())
         for b in frames_bgr:
             h.update(np.ascontiguousarray(b[::8, ::8]).tobytes())
         key = h.hexdigest()[:16]
@@ -63,7 +66,7 @@ class CachedRunner:
         if self._runner is None:
             from metasight.memory import MapAnythingRunner
 
-            self._runner = MapAnythingRunner()
+            self._runner = MapAnythingRunner(hfov_deg=self.hfov_deg)
         out = self._runner.infer(frames_bgr)
         np.savez(
             path,
@@ -93,6 +96,10 @@ def _pick(stamps: list[float], hz: float) -> list[list[int]]:
                 t_end += 1 / hz
         groups[-1].append(i)
     return groups
+
+
+# Horizontal field of view of the three TUM Kinects, from their published fx at 640 px.
+TUM_HFOV = {"freiburg1": 63.48, "freiburg2": 63.13, "freiburg3": 61.73}
 
 
 def load_tum(folder: Path, hz: float, seconds: float):
@@ -177,6 +184,9 @@ def score_poses(est: dict[int, np.ndarray], times: dict[int, float], gt: np.ndar
     s, rot, t = umeyama(e, g)
     al = s * e @ rot.T + t
     err = np.linalg.norm(al - g, axis=1)
+    # The map is meant to be in metres, so also score it with scale held at 1: what a wearer hears.
+    _, rot1, t1 = umeyama(e, g, with_scale=False)
+    err1 = np.linalg.norm(e @ rot1.T + t1 - g, axis=1)
     path = float(np.linalg.norm(np.diff(g, axis=0), axis=1).sum())
     rev = []
     for a in range(len(ids)):
@@ -189,6 +199,7 @@ def score_poses(est: dict[int, np.ndarray], times: dict[int, float], gt: np.ndar
         "ate_pct_path": round(100 * float(np.sqrt((err**2).mean())) / max(path, 1e-6), 2),
         "path_m": round(path, 2),
         "scale": round(float(s), 3),
+        "ate_metric_m": round(float(np.sqrt((err1**2).mean())), 3),
         "revisit_pairs": len(rev),
         "revisit_err_med_m": round(float(np.median(rev)), 3) if rev else None,
         "revisit_err_p90_m": round(float(np.percentile(rev, 90)), 3) if rev else None,
@@ -272,6 +283,9 @@ def main():
     ap.add_argument("--no-loops", action="store_true")
     ap.add_argument("--window", type=int, default=None)
     ap.add_argument("--overlap", type=int, default=None)
+    ap.add_argument(
+        "--intrinsics", action="store_true", help="give MapAnything the lens (TUM: per camera)"
+    )
     ap.add_argument("--mode", default="home", help="home or outside (short-horizon settings)")
     a = ap.parse_args()
 
@@ -300,7 +314,10 @@ def main():
         def find(self, bgr, labels):
             return []
 
-    runner = CachedRunner(f"{src.resolve()}|{a.src_hfov}|{hz}", ROOT / "data" / "cache")
+    hfov = None
+    if a.intrinsics:
+        hfov = next((v for k, v in TUM_HFOV.items() if k in src.name), None) or s.hfov_deg
+    runner = CachedRunner(f"{src.resolve()}|{a.src_hfov}|{hz}", ROOT / "data" / "cache", hfov)
     finder = NoFinder() if a.no_objects else make_finder(s)
     from metasight.loops import Describer
 

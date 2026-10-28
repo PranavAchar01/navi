@@ -47,6 +47,7 @@ class Settings:
     depth_scale: float = 1.0  # starting live-depth scale; ultra-wide lenses read about 0.6
     eye_height_m: float = 1.37  # camera height above the floor; the live depth's ruler
     hfov_deg: float = 105.0  # horizontal field of view of the camera feeding the safety loop
+    map_intrinsics: bool = False  # tell MapAnything the lens (hfov_deg) instead of letting it guess
     belt: str = "emulator"  # emulator: spawn firmware/emulator/belt-emu; udp: a real belt
     belt_addr: str = "127.0.0.1:4210"
     segment: bool = False  # HUD: open-vocabulary masks over the watch-list vocabulary
@@ -104,6 +105,7 @@ class Settings:
             "depth_scale",
             "eye_height_m",
             "hfov_deg",
+            "map_intrinsics",
             "belt",
             "belt_addr",
         ):

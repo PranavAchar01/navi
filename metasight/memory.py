@@ -9,6 +9,7 @@ engine runs inside the server's worker process and in offline scripts.
 from __future__ import annotations
 
 import base64
+import math
 import time
 from dataclasses import dataclass, field, replace
 
@@ -124,7 +125,7 @@ def _thumb(bgr: np.ndarray, box: tuple[float, float, float, float], size: int = 
 class MapAnythingRunner:
     """Thin wrapper over the model so the engine can be tested with a fake."""
 
-    def __init__(self, device: str = "mps"):
+    def __init__(self, device: str = "mps", hfov_deg: float | None = None):
         import torch
         from mapanything.models import MapAnything
         from uniception.models.encoders.image_normalizations import IMAGE_NORMALIZATION_DICT
@@ -136,6 +137,9 @@ class MapAnythingRunner:
         norm = IMAGE_NORMALIZATION_DICT["dinov2"]
         self._mean = np.array(norm.mean, np.float32)
         self._std = np.array(norm.std, np.float32)
+        # Known lens: MapAnything stops guessing the focal length, which is where most of its
+        # metric scale error comes from (a wider guessed view shrinks the room, and the reverse).
+        self.hfov_deg = hfov_deg
 
     def infer(self, frames_bgr: list[np.ndarray]) -> list[dict]:
         """Per frame: pts (H,W,3), mask (H,W), pose 4x4, depth_z (H,W), rgb (H,W,3) 0..1."""
@@ -144,15 +148,19 @@ class MapAnythingRunner:
         for i, bgr in enumerate(frames_bgr):
             rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB).astype(np.float32) / 255
             x = torch.from_numpy((rgb - self._mean) / self._std).permute(2, 0, 1)[None]
-            views.append(
-                dict(
-                    img=x,
-                    true_shape=np.int32([bgr.shape[:2]]),
-                    idx=i,
-                    instance=str(i),
-                    data_norm_type=["dinov2"],
-                )
+            view = dict(
+                img=x,
+                true_shape=np.int32([bgr.shape[:2]]),
+                idx=i,
+                instance=str(i),
+                data_norm_type=["dinov2"],
             )
+            if self.hfov_deg:
+                h, w = bgr.shape[:2]
+                f = 0.5 * w / math.tan(math.radians(self.hfov_deg) / 2)
+                k = np.array([[f, 0, w / 2], [0, f, h / 2], [0, 0, 1]], np.float32)
+                view["intrinsics"] = torch.from_numpy(k)[None]
+            views.append(view)
         with torch.no_grad():
             preds = self.model.infer(
                 views,

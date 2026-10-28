@@ -9,6 +9,7 @@ segment = false
 depth_scale = 0.45  # lens prior: gates which plane can be the floor; the floor measures the rest
 eye_height_m = 1.22  # phone held at chest; measured on the global map (floor plane fit)
 hfov_deg = 105.0  # iPhone 0.5x, measured from the global map's intrinsics
+map_intrinsics = true  # MapAnything gets the lens: TUM mean error 18.7 -> 12.5 cm
 detector_imgsz = 384
 
 [memory]
