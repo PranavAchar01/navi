@@ -251,7 +251,7 @@ class MemoryEngine:
                     det.score,
                     near,
                     _thumb(kf.bgr, det.box),
-                    self.finder.name,
+                    det.source or self.finder.name,
                 )
                 count += 1
         for label, nx, ny in kf.taps:

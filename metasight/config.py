@@ -55,6 +55,18 @@ class Settings:
     overlap: int = 2
     voxel_m: float = 0.05
     horizon_m: float = 0.0  # outside mode: map points farther than this are forgotten
+    # Small personal items that go to SAM 3.1 when finder = "hybrid", and how often.
+    meta_items: list[str] = field(
+        default_factory=lambda: [
+            "water bottle",
+            "keys",
+            "wallet",
+            "phone",
+            "glasses case",
+            "remote control",
+        ]
+    )
+    meta_interval_s: float = 2.0
     watchlist: list[str] = field(
         default_factory=lambda: ["keys", "wallet", "phone", "glasses case", "remote control"]
     )
@@ -96,7 +108,15 @@ class Settings:
             "belt_addr",
         ):
             setattr(s, k, saf.get(k, getattr(s, k)))
-        for k in ("keyframe_hz", "window", "overlap", "voxel_m", "watchlist"):
+        for k in (
+            "keyframe_hz",
+            "window",
+            "overlap",
+            "voxel_m",
+            "watchlist",
+            "meta_items",
+            "meta_interval_s",
+        ):
             setattr(s, k, mem.get(k, getattr(s, k)))
         s.mode = os.environ.get("METASIGHT_MODE", raw.get("mode", {}).get("start", s.mode))
         s.outside = {**s.outside, **raw.get("mode", {}).get("outside", {})}
