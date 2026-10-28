@@ -83,6 +83,7 @@ class Server:
         self.pending_taps: list[tuple[str, float, float]] = []
         self.pending_kf = 0
         self.last_kf = 0.0
+        self.kf_best: dict | None = None  # sharpest frame so far in this keyframe interval
         self.fps = 0.0
         self.mode = settings.mode
         self.last_done = 0.0
@@ -176,7 +177,9 @@ class Server:
             return None
         w, h = map_resolution(bgr.shape[1], bgr.shape[0])
         small = cv2.resize(bgr, (w, h), interpolation=cv2.INTER_AREA)
-        return small, self.safety.process(small), self.heading.shift_gray(small)
+        gray = self.heading.shift_gray(small)
+        sharp = float(cv2.Laplacian(gray, cv2.CV_32F).var())
+        return small, self.safety.process(small), gray, sharp
 
     async def frame_guard(self) -> None:
         """Keep the frame loop alive: log a failure, then carry on with the next frame."""
@@ -198,7 +201,7 @@ class Server:
             done = await self.loop.run_in_executor(self.pool, self._process, ts, seq, jpeg)
             if done is None:
                 continue
-            small, res, gray = done
+            small, res, gray, sharp = done
             now = time.time()
             self.heading.image_turn(gray, now)
             if self.last_done:
@@ -264,7 +267,7 @@ class Server:
                     "map_age": round(now - self.map_pose_ts, 1) if self.map_pose_ts else None,
                 }
             )
-            self._maybe_keyframe(now, ts, seq, small, res)
+            self._maybe_keyframe(now, seq, small, res, sharp)
 
     def _map_sectors_now(self) -> list[float]:
         """The map's sectors turned with the head since their keyframe: turning left by 45
@@ -314,21 +317,19 @@ class Server:
         guide(cmd, bearing, dist)
         return {"label": g["label"], "dist": round(dist, 2), "bearing": round(bearing, 1)}
 
-    def _maybe_keyframe(self, now: float, ts: float, seq: int, small, res) -> None:
-        if not self.memory_ready or self.pending_kf >= MAX_PENDING_KEYFRAMES:
+    def _maybe_keyframe(self, now: float, seq: int, small, res, sharp: float) -> None:
+        """Send memory the sharpest frame of each keyframe interval. Walking and turning blur
+        most frames; a bottle on a desk walked past can be sharp in only one of them, and the
+        map stitches better from sharp views too."""
+        if not self.memory_ready:
             return
-        hz = self.s.outside["keyframe_hz"] if self.mode == "outside" else self.s.keyframe_hz
-        if now - self.last_kf < 1.0 / hz:
-            return
-        self.last_kf = now
-        g = None
-        if self.accel:
-            gd = np.mean(self.accel, axis=0)  # device axes: x right, y up, z out of screen
-            g = np.array([gd[0], -gd[1], -gd[2]])  # -> OpenCV camera axes (rear camera)
-        taps, self.pending_taps = self.pending_taps, []
-        self.pending_kf += 1
-        self.in_q.put(
-            {
+        if self.kf_best is None or sharp > self.kf_best["sharp"]:
+            g = None
+            if self.accel:
+                gd = np.mean(self.accel, axis=0)  # device axes: x right, y up, z out of screen
+                g = np.array([gd[0], -gd[1], -gd[2]])  # -> OpenCV camera axes (rear camera)
+            self.kf_best = {
+                "sharp": sharp,
                 "cmd": "kf",
                 "seq": seq,
                 "ts": now,
@@ -336,9 +337,18 @@ class Server:
                 "depth": res.depth,
                 "depth_scale": self.safety.scale,
                 "gravity": g,
-                "taps": taps,
             }
-        )
+        hz = self.s.outside["keyframe_hz"] if self.mode == "outside" else self.s.keyframe_hz
+        if now - self.last_kf < 1.0 / hz:
+            return
+        self.last_kf = now
+        kf, self.kf_best = self.kf_best, None
+        if self.pending_kf >= MAX_PENDING_KEYFRAMES:
+            return
+        kf.pop("sharp")
+        kf["taps"], self.pending_taps = self.pending_taps, []
+        self.pending_kf += 1
+        self.in_q.put(kf)
 
     # ------------------------------------------------------------ motion
     async def on_motion(self, samples: list[list[float]]) -> None:

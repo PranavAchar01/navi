@@ -129,6 +129,16 @@ class Sam31Finder:
 
 
 LOCAL_KEEP = 0.3  # a local hit on a personal item this sure stands even when SAM misses it
+# What the local model calls a personal item when it is small or blurred: with the whole
+# watch-list as its vocabulary, a water bottle on a desk mostly comes out as "cup".
+LOOKALIKES = {
+    "cup": ["water bottle"],
+    "bottle": ["water bottle"],
+    "remote control": ["phone"],
+    "phone": ["remote control"],
+    "handbag": ["wallet"],
+    "book": ["wallet", "phone"],
+}
 
 
 class HybridFinder:
@@ -144,8 +154,16 @@ class HybridFinder:
 
     def find(self, bgr: np.ndarray, labels: list[str]) -> list[Detection]:
         local = self.local.find(bgr, labels)
-        glimpsed = sorted({d.label for d in local if d.label in self.items})
-        out = [d for d in local if d.label not in self.items]
+        glimpsed = sorted(
+            {d.label for d in local if d.label in self.items}
+            | {
+                item
+                for d in local
+                for item in LOOKALIKES.get(d.label, [])
+                if item in self.items and item in labels
+            }
+        )
+        out = [d for d in local if d.label not in self.items]  # look-alikes stay as themselves
         now = time.monotonic()
         ask = glimpsed
         if now - self.last_meta >= self.interval:
@@ -159,7 +177,7 @@ class HybridFinder:
             except Exception as e:  # the map keeps building on the local finder
                 log.warning("SAM 3.1 failed: %s", e)
         have = {d.label for d in confirmed}
-        keep = [d for d in local if d.label in glimpsed and d.label not in have]
+        keep = [d for d in local if d.label in self.items and d.label not in have]
         return out + confirmed + [d for d in keep if d.score >= LOCAL_KEEP]
 
 
