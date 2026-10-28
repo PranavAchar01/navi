@@ -2,8 +2,10 @@
 
 `yoloe` is local open-vocabulary YOLOE-26 (free, weak on small things like keys). `sam31` is
 SAM 3.1 on the Meta Model API: one request per concept, boxes parsed by meta-sam-parser.
-`hybrid` sends only the small personal items (the things people lose) to SAM 3.1, at most once
-every `meta_interval_s`, and finds furniture locally: SAM is billed per image per concept.
+`hybrid` finds everything locally and sends the small personal items (the things people lose)
+to SAM 3.1: at once when the local model glimpses one, otherwise as a sweep at most once every
+`meta_interval_s`. SAM is billed per image per concept, and a walk past a bottle on a desk can
+show it for half a second, which a timed sweep alone misses.
 """
 
 from __future__ import annotations
@@ -126,8 +128,11 @@ class Sam31Finder:
         return asyncio.run(self._all(bgr, labels))
 
 
+LOCAL_KEEP = 0.3  # a local hit on a personal item this sure stands even when SAM misses it
+
+
 class HybridFinder:
-    """Furniture on the Mac, small personal items on SAM 3.1."""
+    """Everything on the Mac; small personal items confirmed and swept by SAM 3.1."""
 
     name = "yoloe + sam-3.1"
 
@@ -138,17 +143,24 @@ class HybridFinder:
         self.meta_images = 0  # billed images so far this run
 
     def find(self, bgr: np.ndarray, labels: list[str]) -> list[Detection]:
-        small = [lb for lb in labels if lb in self.items]
-        out = self.local.find(bgr, [lb for lb in labels if lb not in self.items])
+        local = self.local.find(bgr, labels)
+        glimpsed = sorted({d.label for d in local if d.label in self.items})
+        out = [d for d in local if d.label not in self.items]
         now = time.monotonic()
-        if small and now - self.last_meta >= self.interval:
+        ask = glimpsed
+        if now - self.last_meta >= self.interval:
             self.last_meta = now
-            self.meta_images += len(small)
+            ask = [lb for lb in labels if lb in self.items]
+        confirmed: list[Detection] = []
+        if ask:
+            self.meta_images += len(ask)
             try:
-                out += self.meta.find(bgr, small)
+                confirmed = self.meta.find(bgr, ask)
             except Exception as e:  # the map keeps building on the local finder
                 log.warning("SAM 3.1 failed: %s", e)
-        return out
+        have = {d.label for d in confirmed}
+        keep = [d for d in local if d.label in glimpsed and d.label not in have]
+        return out + confirmed + [d for d in keep if d.score >= LOCAL_KEEP]
 
 
 def make_finder(s: Settings) -> Finder:

@@ -29,7 +29,7 @@ from .align import map_resolution
 from .belt import FLAG_FOUND, NAMES, BeltLink, guide, plan
 from .config import ROOT, Settings
 from .geometry import CAMERA_SECTORS, SECTORS, merge_sectors
-from .heading import Heading
+from .heading import Heading, wrap
 from .hub import Hub
 from .memory_worker import run as memory_run
 from .motion import FallDetector, Sample, ShakeDetector
@@ -74,6 +74,7 @@ class Server:
         self.heading = Heading(settings.hfov_deg)  # carries the head's turn between map poses
         self.map_sectors: list[float] = [math.inf] * 8
         self.map_pose_ts = 0.0
+        self.map_yaw = 0.0  # heading the map sectors were measured along
         self.trail: list[list[float]] = []
         self.latest: tuple[float, int, bytes] | None = None
         self.latest_arrived = 0.0  # monotonic time the latest camera frame reached the server
@@ -154,6 +155,7 @@ class Server:
             self.pose = pose
             self.heading.anchor(pose[:3, 3], pose[:3, 2], ev.get("ts"))
             self.map_sectors = [math.inf if d is None else d for d in ev["map_sectors"]]
+            self.map_yaw = math.atan2(ev["fwd"][0], ev["fwd"][2])
             self.map_pose_ts = time.time()
             await self.hub.json(
                 {"type": "pose", "pos": ev["pos"], "fwd": ev["fwd"], "up": ev["up"]}, True
@@ -204,7 +206,7 @@ class Server:
                 self.fps = inst if self.fps == 0 else 0.85 * self.fps + 0.15 * inst
             self.last_done = now
             live = res.sectors
-            merged = merge_sectors(live, self.map_sectors)
+            merged = merge_sectors(live, self._map_sectors_now())
             sc = res.scene
             # Side and back sectors come from the map; trust them only while the pose is fresh.
             map_fresh = self.memory_ready and self.map_pose_ts and now - self.map_pose_ts < 3.0
@@ -263,6 +265,15 @@ class Server:
                 }
             )
             self._maybe_keyframe(now, ts, seq, small, res)
+
+    def _map_sectors_now(self) -> list[float]:
+        """The map's sectors turned with the head since their keyframe: turning left by 45
+        degrees moves what was front-left to the front."""
+        yaw = self.heading.yaw
+        if yaw is None:
+            return self.map_sectors
+        k = round(math.degrees(wrap(yaw - self.map_yaw)) / 45.0) % 8
+        return [self.map_sectors[(i - k) % 8] for i in range(8)]
 
     def _guide(
         self, cmd: list[tuple[int, int]], now: float, map_fresh: bool, seen: list

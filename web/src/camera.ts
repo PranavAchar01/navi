@@ -45,7 +45,16 @@ export class Source {
     window.addEventListener("devicemotion", (e) => {
       const a = e.accelerationIncludingGravity;
       if (a && a.x !== null && a.y !== null && a.z !== null) {
-        this.motion.push([e.timeStamp / 1000, a.x, a.y, a.z]);
+        const sample = [e.timeStamp / 1000, a.x, a.y, a.z];
+        // Gyro in rad/s about the device's x (right), y (up), z (out of the screen): the server
+        // carries the head's turn with it between map poses. Spec: beta about x, gamma about y,
+        // alpha about z, in degrees per second.
+        const r = e.rotationRate;
+        if (r && r.alpha !== null && r.beta !== null && r.gamma !== null) {
+          const k = Math.PI / 180;
+          sample.push(r.beta * k, r.gamma * k, r.alpha * k);
+        }
+        this.motion.push(sample);
       }
     });
     this.motionTimer = window.setInterval(() => {

@@ -52,6 +52,30 @@ def sector_index(bearing_deg: float, n: int = 8) -> int:
     return int(((bearing_deg + width / 2) % 360.0) // width)
 
 
+def local_floor(points: np.ndarray, cell: float = 0.3, reach: int = 2) -> np.ndarray:
+    """Floor height under each point: the median, over its 30 cm cell and the cells within
+    `reach`, of each cell's lowest surface (5th percentile). The map's floor is not flat (it
+    tilts with drift), so a single floor level counts the floor itself as an obstacle on one
+    side; a single lowest level also catches the noise below the floor. The median over the
+    neighbours keeps a table top, whose own cell may show no floor, from becoming the floor.
+    """
+    ij = np.floor(points[:, [0, 2]] / cell).astype(int)
+    ij -= ij.min(axis=0)
+    shape = ij.max(axis=0) + 1
+    flat = ij[:, 0] * shape[1] + ij[:, 1]
+    order = np.lexsort((points[:, 1], flat))
+    cells, first, counts = np.unique(flat[order], return_index=True, return_counts=True)
+    low = np.full(shape[0] * shape[1], np.nan)
+    low[cells] = points[order[first + (counts * 0.05).astype(int)], 1]
+    grid = low.reshape(shape)
+    pad = np.pad(grid, reach, constant_values=np.nan)
+    span = 2 * reach + 1
+    neigh = np.nanmedian(
+        [pad[a : a + shape[0], b : b + shape[1]] for a in range(span) for b in range(span)], axis=0
+    )
+    return neigh[ij[:, 0], ij[:, 1]]
+
+
 def map_sector_distances(
     points: np.ndarray,
     pose: np.ndarray,
@@ -65,7 +89,8 @@ def map_sector_distances(
     """Nearest map surface per belt sector around the camera, from the 3D map.
 
     Only points between `min_h` and `max_h` above the floor count (floor and ceiling are not
-    obstacles). This is what drives the side and rear sectors the camera cannot see.
+    obstacles). The floor is `floor_y` when given, otherwise measured locally under each point.
+    This is what drives the side and rear sectors the camera cannot see.
     """
     pos = pose[:3, 3]
     fwd = pose[:3, 2].copy()
@@ -73,9 +98,8 @@ def map_sector_distances(
     norm = np.linalg.norm(fwd)
     fwd = fwd / norm if norm > 1e-6 else np.array([0.0, 0.0, -1.0])
     right = np.cross(fwd, np.array([0.0, 1.0, 0.0]))
-    floor = floor_y if floor_y is not None else pos[1] - 1.4
     rel = points - pos
-    h = points[:, 1] - floor
+    h = points[:, 1] - (floor_y if floor_y is not None else local_floor(points))
     d = np.hypot(rel[:, 0], rel[:, 2])
     keep = (h > min_h) & (h < max_h) & (d < max_range) & (d > 0.15)
     out = [math.inf] * n

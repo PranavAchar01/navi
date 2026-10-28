@@ -123,3 +123,21 @@ def test_gravity_alignment_tilted_down_phone_levels_the_map():
     up_cam = np.array([0.0, -math.cos(t), -math.sin(t)])
     rot = gravity_alignment(up_cam)
     assert np.allclose(rot @ up_cam, [0, 1, 0], atol=1e-6)
+
+
+def test_tilted_floor_is_not_an_obstacle_but_a_table_is():
+    rng = np.random.default_rng(1)
+    xz = rng.uniform(-3, 3, (40000, 2))
+    floor = np.c_[xz[:, 0], 0.15 * xz[:, 0], xz[:, 1]]  # floor tilting 15 cm per metre
+    noise = np.c_[
+        rng.uniform(-3, 3, (400, 1)),
+        rng.uniform(-1.5, -0.6, (400, 1)),
+        rng.uniform(-3, 3, (400, 1)),
+    ]
+    tx, tz = np.meshgrid(np.linspace(-0.5, 0.5, 30), np.linspace(-1.8, -1.2, 20))
+    table = np.c_[tx.ravel(), 0.75 + 0.15 * tx.ravel(), tz.ravel()]
+    pose = level_pose()
+    d = map_sector_distances(np.vstack([floor, noise]), pose)
+    assert all(math.isinf(v) for v in d)
+    d = map_sector_distances(np.vstack([floor, noise, table]), pose)
+    assert 1.1 < d[0] < 1.3 and all(math.isinf(v) for v in d[2:7])

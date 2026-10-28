@@ -67,3 +67,18 @@ def test_camera_sighting_pulls_the_heading_to_agree():
     for _ in range(30):
         h.sight(item, 20.0)  # the camera sees it 20 degrees to the right
     assert abs(h.to(item)[1] - 20.0) < 0.5
+
+
+def test_map_sectors_turn_with_the_head():
+    from metasight.server import Server
+
+    srv = Server.__new__(Server)
+    srv.heading = Heading(90.0)
+    srv.heading.anchor(np.zeros(3), np.array([0.0, 0.0, 1.0]))
+    srv.map_yaw = 0.0
+    srv.map_sectors = [1.0, 2, 3, 4, 5, 6, 7, 8.0]  # front, front-right, ... front-left
+    for _ in range(10):  # turn left 45 degrees
+        srv.heading.gyro(
+            np.array([0.0, math.radians(450), 0.0]), np.array([0.0, 1.0, 0.0]), 0.01, 1
+        )
+    assert srv._map_sectors_now() == [8.0, 1.0, 2, 3, 4, 5, 6, 7]

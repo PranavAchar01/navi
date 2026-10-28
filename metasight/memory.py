@@ -374,7 +374,6 @@ class MemoryEngine:
         near = self._map_pts[
             np.linalg.norm(self._map_pts[:, [0, 2]] - self.last_pose[[0, 2], 3], axis=1) < 4.0
         ]
-        floor = float(np.percentile(near[:, 1], 3)) if len(near) > 200 else None
         events.append(
             {
                 "type": "pose",
@@ -384,7 +383,7 @@ class MemoryEngine:
                 "ts": frames[-1].ts,
                 "map_sectors": [
                     None if not np.isfinite(d) else d
-                    for d in map_sector_distances(near, self.last_pose, floor_y=floor)
+                    for d in map_sector_distances(near, self.last_pose)
                 ],
             }
         )
