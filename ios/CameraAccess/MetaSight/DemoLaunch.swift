@@ -3,7 +3,8 @@
 //
 // Debug-only launch mode for the simulator: `--metasight-demo` pairs a MockDeviceKit
 // pair of glasses, feeds it a video (METASIGHT_DEMO_VIDEO, a file path, or the
-// bundled plant.mp4), and starts the session and preview without any taps.
+// bundled plant.mp4), and starts the session and preview without any taps. The mock camera
+// only plays HEVC (hvc1) files; an H.264 file leaves the preview spinning with no frames.
 //
 //   xcrun simctl launch booted com.pranavachar.metasight --metasight-demo
 //

@@ -88,7 +88,7 @@ final class ServerLink {
     }
   }
 
-  static let defaultURL = "ws://192.168.1.100:8445/ws"
+  static let defaultURL = "ws://Pranavs-Mac-Mini.local:8445/ws"
   private static let urlDefaultsKey = "metasight.serverURL"
   private static let reconnectInterval: Duration = .milliseconds(1500)
   private static let motionFlushInterval: Duration = .milliseconds(100)
