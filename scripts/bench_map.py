@@ -353,6 +353,7 @@ def main():
         "run_s": round(run_s, 1),
         "infer_calls": runner.calls,
         "cache_hits": runner.hits,
+        "win_scale": [round(float(w[0]), 3) for w in engine._sims],
         "loops_closed": sum(r.get("result") == "closed" for r in engine.loops),
         "loop_checks": [r for r in engine.loops if "shift_m" in r][:12],
         "loop_results": {
