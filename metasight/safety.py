@@ -89,6 +89,60 @@ def proximity_grid(
     return out
 
 
+def hazards(grid: np.ndarray, near_cm2: int = 70, keep: int = 2) -> list[dict]:
+    """The obstacles that matter: near surfaces (under 1.4 m, floor already removed) that reach
+    into the walking corridor, nearest first, each as a smooth outline and a distance.
+
+    Walls off to the side are near too, but they are not in the way, so they stay quiet. Each
+    region is cut to a 0.4 m depth band behind its nearest in-path point, so a chair against a
+    wall outlines the chair, not chair and wall together.
+    """
+    h, w = grid.shape
+    k3 = np.ones((3, 3), np.uint8)
+    near = (grid < near_cm2).astype(np.uint8)
+    near = cv2.morphologyEx(near, cv2.MORPH_OPEN, k3)
+    near = cv2.morphologyEx(near, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+    # Corridor: a 0.8 m path seen in perspective, narrow at eye level, wider toward the feet.
+    yy, xx = np.mgrid[0:h, 0:w]
+    corridor = np.abs(xx - w / 2) < (0.08 + 0.16 * yy / h) * w
+    n, lab = cv2.connectedComponents(near, connectivity=8)
+    found = []
+    for i in range(1, n):
+        m = lab == i
+        inpath = m & corridor
+        if inpath.sum() < 0.002 * h * w:
+            continue
+        dist = float(np.percentile(grid[inpath], 5)) / 50
+        band = (m & (grid < (dist + 0.4) * 50)).astype(np.uint8)
+        band = cv2.morphologyEx(band, cv2.MORPH_OPEN, k3)
+        bn, blab = cv2.connectedComponents(band, connectivity=8)
+        if bn < 2:
+            continue
+        # The piece of the band that is actually in the way.
+        hits = np.bincount(blab[corridor], minlength=bn)
+        hits[0] = 0
+        m = blab == int(hits.argmax())
+        if m.sum() < 0.004 * h * w:
+            continue
+        big = cv2.resize(m.astype(np.uint8) * 255, (w * 4, h * 4), interpolation=cv2.INTER_LINEAR)
+        big = cv2.GaussianBlur(big, (0, 0), 4)
+        cs, _ = cv2.findContours(
+            (big > 127).astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE
+        )
+        if not cs:
+            continue
+        c = max(cs, key=cv2.contourArea)
+        c = cv2.approxPolyDP(c, 1.2, True)[:, 0, :].astype(np.float32)
+        poly = (c / [w * 4, h * 4]).round(4).ravel().tolist()
+        ys, xs = np.nonzero(m & corridor)
+        top = (float(xs.mean()) / w, float(ys.min()) / h)
+        found.append(
+            {"poly": poly, "dist": round(dist, 2), "tag": [round(top[0], 3), round(top[1], 3)]}
+        )
+    found.sort(key=lambda f: f["dist"])
+    return found[:keep]
+
+
 class SafetyLoop:
     def __init__(self, s: Settings, device: str = "mps"):
         from transformers import AutoModelForDepthEstimation

@@ -61,12 +61,13 @@ export class MapView {
     transparent: true,
     depthWrite: false,
     vertexColors: true,
-    uniforms: { uScale: { value: 600 }, uSize: { value: 0.075 } },
+    uniforms: { uScale: { value: 600 }, uSize: { value: 0.075 }, uCeil: { value: 1e9 } },
     vertexShader: `
-      uniform float uScale; uniform float uSize;
+      uniform float uScale; uniform float uSize; uniform float uCeil;
       varying vec3 vC;
       void main() {
         vC = color;
+        if (position.y > uCeil) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); gl_PointSize = 0.0; return; }
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
         gl_PointSize = clamp(uSize * uScale / -mv.z, 1.5, 26.0);
         gl_Position = projectionMatrix * mv;
@@ -84,6 +85,13 @@ export class MapView {
   });
   private fitted = 0;
   private follow = false;
+  // Minimap: straight down, roof cut off, one big label per kind of object.
+  private top = false;
+  private labelScale = 1;
+  private view = new THREE.Mesh(
+    new THREE.CircleGeometry(1.1, 24, Math.PI / 2 - 0.62, 1.24),
+    new THREE.MeshBasicMaterial({ color: ACCENT, transparent: true, opacity: 0.28, depthTest: false }),
+  );
   private aim: THREE.Line;
   onCount: (n: number) => void = () => {};
 
@@ -122,6 +130,10 @@ export class MapView {
     );
     cone.rotation.x = -Math.PI / 2; // tip along -z (forward)
     this.rig.add(cone);
+    this.view.rotation.x = -Math.PI / 2;
+    this.view.renderOrder = 9;
+    this.view.visible = false;
+    this.rig.add(this.view);
     this.rig.visible = false;
     this.scene.add(this.rig);
 
@@ -164,7 +176,7 @@ export class MapView {
     this.geo.attributes.position.needsUpdate = true;
     this.geo.attributes.color.needsUpdate = true;
     this.onCount(this.count);
-    if (this.fitted < 3) {
+    if (this.fitted < 3 || this.top) {
       this.fitted++;
       this.fit();
     }
@@ -185,7 +197,35 @@ export class MapView {
   /** Outside mode: the camera trails the wearer instead of framing the whole map. */
   setFollow(on: boolean) {
     this.follow = on;
-    if (on) this.goTo(this.rig.position.clone().add(new THREE.Vector3(2.5, 4.5, 5.5)), this.rig.position.clone(), 0.8);
+    if (on && !this.top) this.goTo(this.rig.position.clone().add(new THREE.Vector3(2.5, 4.5, 5.5)), this.rig.position.clone(), 0.8);
+  }
+
+  /** Minimap mode: a floor plan seen from straight above, the walk's first heading pointing up. */
+  setTopDown(on: boolean) {
+    this.top = on;
+    this.controls.enabled = !on;
+    this.camera.up.set(0, on ? 0 : 1, on ? -1 : 0);
+    this.view.visible = on;
+    this.rig.scale.setScalar(on ? 2.2 : 1);
+    if (!on) this.splat.uniforms.uCeil.value = 1e9;
+    this.styleLabels();
+    this.fit();
+  }
+
+  private styleLabels() {
+    const shown = new Set<string>();
+    for (const [id, g] of this.pinMeshes) {
+      const p = this.pinData.get(id)!;
+      const [dot, sp] = g.children as [THREE.Mesh, THREE.Sprite];
+      const base = sp.userData.base as [number, number];
+      const first = p.kind === "object" && !shown.has(p.label);
+      if (first) shown.add(p.label);
+      g.visible = !this.top || first;
+      const k = this.top ? this.labelScale : 1;
+      sp.scale.set(base[0] * k, base[1] * k, 1);
+      sp.position.y = (p.kind === "object" ? 0.28 : 0.2) * k;
+      dot.scale.setScalar(this.top ? Math.min(k, 3) : 1);
+    }
   }
 
   fit() {
@@ -193,11 +233,27 @@ export class MapView {
     const box = new THREE.Box3();
     const v = new THREE.Vector3();
     const step = Math.max(1, Math.floor(this.count / 6000));
+    const ys: number[] = [];
     for (let i = 0; i < this.count; i += step) {
       v.set(this.pos[i * 3], this.pos[i * 3 + 1], this.pos[i * 3 + 2]);
       box.expandByPoint(v);
+      ys.push(v.y);
     }
     const c = box.getCenter(new THREE.Vector3());
+    if (this.top) {
+      // Floor = low percentile of height; cut 1.5 m above it so walls read as lines, not a lid.
+      ys.sort((a, b) => a - b);
+      const floor = ys[Math.floor(ys.length * 0.03)];
+      this.splat.uniforms.uCeil.value = floor + 1.5;
+      const size = box.getSize(new THREE.Vector3());
+      const half = Math.max(size.z / 2, size.x / 2 / this.camera.aspect, 1.5) * 1.08;
+      const hgt = half / Math.tan((this.camera.fov * Math.PI) / 360);
+      this.labelScale = Math.max(1, (2 * half) / 4.5);
+      this.styleLabels();
+      c.y = floor;
+      this.goTo(new THREE.Vector3(c.x, floor + hgt, c.z), c, 0.6);
+      return;
+    }
     const r = Math.max(2.5, box.getSize(new THREE.Vector3()).length() * 0.5);
     this.goTo(new THREE.Vector3(c.x + r * 0.35, c.y + r * 0.95, c.z + r * 0.95), c, 0.6);
   }
@@ -231,6 +287,7 @@ export class MapView {
           new THREE.MeshBasicMaterial({ color: strong ? ACCENT : 0x9a948a }),
         );
         const sp = label(p.label, strong);
+        sp.userData.base = [sp.scale.x, sp.scale.y];
         sp.position.set(0, strong ? 0.28 : 0.2, 0);
         g.add(dot, sp);
         this.pinGroup.add(g);
@@ -246,6 +303,7 @@ export class MapView {
         this.pinData.delete(id);
       }
     }
+    this.styleLabels();
     if (this.hot !== null) this.showPulse(this.hot);
   }
 
@@ -272,6 +330,7 @@ export class MapView {
   /** Fly the camera to look at a pin, from the side the user is on. */
   flyTo(pin: PinJson) {
     this.showPulse(pin.id);
+    if (this.top) return; // the whole floor plan is already in view
     const target = new THREE.Vector3(...pin.pos);
     const dir = this.rig.visible
       ? this.rig.position.clone().sub(target).setY(0)
@@ -311,7 +370,8 @@ export class MapView {
       this.controls.target.add(d);
       this.camera.position.add(d);
     }
-    this.controls.update();
+    if (this.top) this.camera.lookAt(this.controls.target);
+    else this.controls.update();
     this.renderer.render(this.scene, this.camera);
   };
 }

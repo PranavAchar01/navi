@@ -16,6 +16,10 @@ const overlay = $<HTMLCanvasElement>("overlay");
 const ring = $<HTMLCanvasElement>("ring");
 const belt = new BeltCells($("belt"));
 const map = new MapView($<HTMLCanvasElement>("map3d"));
+// On wide screens the map is the corner minimap: a floor plan, not an orbit view.
+const wide = window.matchMedia("(min-width: 901px)");
+map.setTopDown(wide.matches);
+wide.addEventListener("change", () => map.setTopDown(wide.matches));
 const audio = new AudioCues();
 const source = new Source(video, net);
 let latest: Safety | null = null;

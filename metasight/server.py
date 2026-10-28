@@ -41,7 +41,7 @@ from .query import (
     template_answer,
     valid_sentence,
 )
-from .safety import SafetyLoop, proximity_grid
+from .safety import SafetyLoop, hazards, proximity_grid
 
 MAX_PENDING_KEYFRAMES = 12
 log = logging.getLogger("metasight")
@@ -197,7 +197,10 @@ class Server:
                     "names": SECTORS,
                     "live": [_finite(d) for d in live],
                     "cues": [vars(cue_for_distance(d)) for d in merged],
-                    "prox": base64.b64encode(proximity_grid(res.depth).tobytes()).decode(),
+                    "prox": base64.b64encode(
+                        (grid := proximity_grid(res.depth)).tobytes()
+                    ).decode(),
+                    "hazards": hazards(grid),
                     "prox_size": [192, 108],
                     "obstacles": [
                         {

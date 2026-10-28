@@ -1,4 +1,4 @@
-import { SECTOR_NAMES, type Safety } from "./types";
+import { type Hazard, SECTOR_NAMES, type Safety } from "./types";
 
 const COLORS = { ok: "#5ee6a0", warn: "#ffd166", near: "#ff6b6b" };
 
@@ -7,76 +7,125 @@ function toneFor(d: number | null): string {
   return d < 1 ? COLORS.near : d < 2 ? COLORS.warn : COLORS.ok;
 }
 
-// Proximity glow: every pixel the depth model puts within 1.6 m lights up, yellow from 1.6 m in,
-// red inside 0.9 m, the floor left out. Values ease between results so the glow breathes rather
-// than flickers, and it is drawn blurred so it reads as light on the scene, not a mask.
-const YELLOW = [255, 196, 64];
-const RED = [255, 64, 72];
-const glow = document.createElement("canvas");
-const rim = document.createElement("canvas");
-let rimEdge: Float32Array | null = null;
-let glowAlpha: Float32Array | null = null;
-let glowRed: Float32Array | null = null;
-let lastProx = "";
+// Hazards: only the obstacles in the walking path, nearest first, each a smooth thin contour
+// with a soft inner fade and a small distance tag. Amber when you are approaching (under 1.4 m),
+// red when you are too close (under 0.9 m). Hysteresis on the level, easing on colour and alpha.
+const AMBER: [number, number, number] = [255, 190, 70];
+const RED: [number, number, number] = [255, 72, 72];
+interface Look { level: number; rgb: [number, number, number]; alpha: number; seen: number; x: number; y: number }
+let looks: Look[] = [];
 
-function updateGlow(s: Safety) {
-  const [gw, gh] = s.prox_size!;
-  if (glow.width !== gw) {
-    glow.width = gw;
-    glow.height = gh;
-    glowAlpha = new Float32Array(gw * gh);
-    glowRed = new Float32Array(gw * gh);
-    rim.width = gw;
-    rim.height = gh;
-    rimEdge = new Float32Array(gw * gh);
-  }
-  const fresh = s.prox! !== lastProx;
-  lastProx = s.prox!;
-  const raw = Uint8Array.from(atob(s.prox!), (c) => c.charCodeAt(0));
-  const img = glow.getContext("2d")!.createImageData(gw, gh);
-  const pulse = 0.82 + 0.18 * Math.sin(performance.now() / 160);
-  for (let i = 0; i < raw.length; i++) {
-    const d = raw[i] === 255 ? 99 : raw[i] / 50;
-    if (fresh) {
-      // Yellow fades in from 1.6 m, red takes over around 0.9 m (blended over 0.8 to 1.0 m).
-      const y = Math.min(1, Math.max(0, (1.6 - d) / 0.6));
-      const ta = d >= 1.6 ? 0 : d >= 1.0 ? 0.16 + 0.3 * y * y * (3 - 2 * y) : 0.55 + 0.15 * Math.min(1, 1 - d);
-      const tr = d < 0.8 ? 1 : d < 1.0 ? (1.0 - d) / 0.2 : 0;
-      glowAlpha![i] += (ta - glowAlpha![i]) * 0.45;
-      glowRed![i] += (tr - glowRed![i]) * 0.45;
-    }
-    const r = glowRed![i];
-    const al = glowAlpha![i] * (r > 0.5 ? pulse : 1);
-    img.data[i * 4] = YELLOW[0] + (RED[0] - YELLOW[0]) * r;
-    img.data[i * 4 + 1] = YELLOW[1] + (RED[1] - YELLOW[1]) * r;
-    img.data[i * 4 + 2] = YELLOW[2] + (RED[2] - YELLOW[2]) * r;
-    img.data[i * 4 + 3] = Math.min(255, al * 255);
-  }
-  glow.getContext("2d")!.putImageData(img, 0, 0);
-  // Rim: the near side of a depth step (an object's silhouette against what is behind it).
-  const rimImg = rim.getContext("2d")!.createImageData(gw, gh);
-  for (let yy = 1; yy < gh - 1; yy++) {
-    for (let xx = 1; xx < gw - 1; xx++) {
-      const i = yy * gw + xx;
-      const d = raw[i];
-      let e = 0;
-      if (d < 80) {
-        const m = Math.max(raw[i - 1], raw[i + 1], raw[i - gw], raw[i + gw]);
-        e = Math.min(1, Math.max(0, (m - d - 3) / 6)); // a step of 6 cm starts it, 18 cm is full
-      }
-      if (fresh) rimEdge![i] += (e - rimEdge![i]) * 0.5;
-      const a = rimEdge![i] * Math.max(0.6, glowAlpha![i] * 1.8);
-      const r = glowRed![i];
-      rimImg.data[i * 4] = 255;
-      rimImg.data[i * 4 + 1] = 230 + (90 - 230) * r;
-      rimImg.data[i * 4 + 2] = 150 + (90 - 150) * r;
-      rimImg.data[i * 4 + 3] = Math.min(255, a * 255);
+function look(h: Hazard, now: number): Look {
+  let best: Look | null = null;
+  let bd = 0.15;
+  for (const l of looks) {
+    const dd = Math.hypot(l.x - h.tag[0], l.y - h.tag[1]);
+    if (dd < bd && l.seen !== now) {
+      best = l;
+      bd = dd;
     }
   }
-  rim.getContext("2d")!.putImageData(rimImg, 0, 0);
+  if (!best) {
+    best = { level: 1, rgb: [...AMBER], alpha: 0, seen: now, x: h.tag[0], y: h.tag[1] };
+    looks.push(best);
+  }
+  best.x += (h.tag[0] - best.x) * 0.5;
+  best.y += (h.tag[1] - best.y) * 0.5;
+  best.seen = now;
+  if (best.level === 1 && h.dist < 0.9) best.level = 2;
+  else if (best.level === 2 && h.dist > 1.05) best.level = 1;
+  const target = best.level === 2 ? RED : AMBER;
+  for (let i = 0; i < 3; i++) best.rgb[i] += (target[i] - best.rgb[i]) * 0.2;
+  best.alpha += (1 - best.alpha) * 0.25;
+  return best;
 }
 
-/** The proximity glow over the live video. */
+function smoothPath(ctx: CanvasRenderingContext2D, p: number[], ox: number, oy: number, w: number, h: number) {
+  const n = p.length / 2;
+  const X = (i: number) => ox + p[(i % n) * 2] * w;
+  const Y = (i: number) => oy + p[(i % n) * 2 + 1] * h;
+  ctx.beginPath();
+  ctx.moveTo((X(0) + X(1)) / 2, (Y(0) + Y(1)) / 2);
+  for (let i = 1; i <= n; i++) ctx.quadraticCurveTo(X(i), Y(i), (X(i) + X(i + 1)) / 2, (Y(i) + Y(i + 1)) / 2);
+  ctx.closePath();
+}
+
+// The contour without the stretches that run along the frame edge: the edge of the picture is
+// not the edge of the object, and a line there reads as a border, not an obstacle.
+function edgePath(ctx: CanvasRenderingContext2D, p: number[], ox: number, oy: number, w: number, h: number) {
+  const n = p.length / 2;
+  const px = (i: number) => p[(i % n) * 2];
+  const py = (i: number) => p[(i % n) * 2 + 1];
+  const onEdge = (i: number) => px(i) < 0.006 || px(i) > 0.994 || py(i) < 0.006 || py(i) > 0.994;
+  const X = (i: number) => ox + px(i) * w;
+  const Y = (i: number) => oy + py(i) * h;
+  ctx.beginPath();
+  let pen = false;
+  for (let i = 1; i <= n; i++) {
+    if (onEdge(i)) {
+      pen = false;
+      continue;
+    }
+    if (!pen) ctx.moveTo((X(i - 1) + X(i)) / 2, (Y(i - 1) + Y(i)) / 2);
+    ctx.quadraticCurveTo(X(i), Y(i), (X(i) + X(i + 1)) / 2, (Y(i) + Y(i + 1)) / 2);
+    pen = true;
+  }
+}
+
+function drawHazards(ctx: CanvasRenderingContext2D, hz: Hazard[], ox: number, oy: number, w: number, h: number) {
+  const now = performance.now();
+  const shown = hz.map((x) => [x, look(x, now)] as const);
+  looks = looks.filter((l) => now - l.seen < 400);
+  for (const [x, l] of [...shown].reverse()) {
+    if (x.poly.length < 6) continue;
+    const [r, g, b] = l.rgb.map(Math.round);
+    const red = l.level === 2;
+    const beat = red ? 0.75 + 0.25 * Math.sin(now / 130) : 1;
+    smoothPath(ctx, x.poly, ox, oy, w, h);
+    // Inner fade: clip to the shape and stroke wide and soft, so it is brightest at the edge.
+    ctx.save();
+    ctx.clip();
+    ctx.shadowColor = `rgba(${r},${g},${b},${(0.55 * l.alpha * beat).toFixed(3)})`;
+    ctx.shadowBlur = w / 45;
+    ctx.strokeStyle = `rgba(${r},${g},${b},${(0.22 * l.alpha * beat).toFixed(3)})`;
+    ctx.lineWidth = w / 70;
+    ctx.stroke();
+    ctx.fillStyle = `rgba(${r},${g},${b},${((red ? 0.1 : 0.05) * l.alpha).toFixed(3)})`;
+    ctx.fill();
+    ctx.restore();
+    // Crisp contour.
+    edgePath(ctx, x.poly, ox, oy, w, h);
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.shadowColor = `rgba(${r},${g},${b},0.9)`;
+    ctx.shadowBlur = 10;
+    ctx.strokeStyle = `rgba(${r},${g},${b},${(0.95 * l.alpha).toFixed(3)})`;
+    ctx.lineWidth = red ? 2.6 : 1.8;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    // Distance tag just above the part that is in the way.
+    const tx = ox + x.tag[0] * w;
+    const ty = Math.max(oy + 26, oy + x.tag[1] * h - 14);
+    const text = `${x.dist.toFixed(1)} m`;
+    ctx.font = '600 13px "Atkinson Hyperlegible Mono", ui-monospace, monospace';
+    const tw = ctx.measureText(text).width + 26;
+    ctx.fillStyle = `rgba(10,14,30,${(0.62 * l.alpha).toFixed(3)})`;
+    ctx.beginPath();
+    ctx.roundRect(tx - tw / 2, ty - 13, tw, 24, 12);
+    ctx.fill();
+    ctx.strokeStyle = `rgba(${r},${g},${b},${(0.7 * l.alpha).toFixed(3)})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = `rgb(${r},${g},${b})`;
+    ctx.beginPath();
+    ctx.arc(tx - tw / 2 + 11, ty - 1, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = `rgba(255,255,255,${l.alpha.toFixed(3)})`;
+    ctx.fillText(text, tx - tw / 2 + 19, ty + 4);
+  }
+}
+
+/** The in-path obstacles over the live video. */
 export function drawOverlay(canvas: HTMLCanvasElement, video: HTMLVideoElement, s: Safety | null) {
   const dpr = window.devicePixelRatio || 1;
   const cw = canvas.clientWidth;
@@ -88,25 +137,12 @@ export function drawOverlay(canvas: HTMLCanvasElement, video: HTMLVideoElement, 
   const ctx = canvas.getContext("2d")!;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, cw, ch);
-  if (!s || !video.videoWidth || !s.prox) return;
+  if (!s || !video.videoWidth || !s.hazards) return;
   // The video is object-fit: contain, so find where it actually sits in the canvas.
   const scale = Math.min(cw / video.videoWidth, ch / video.videoHeight);
   const w = video.videoWidth * scale;
   const h = video.videoHeight * scale;
-  const ox = (cw - w) / 2;
-  const oy = (ch - h) / 2;
-  updateGlow(s);
-  ctx.imageSmoothingQuality = "high";
-  ctx.filter = `blur(${Math.round(w / 140)}px)`;
-  ctx.drawImage(glow, ox, oy, w, h);
-  // Rim light: a wide soft halo and a thin bright line on top, both from the same edge map.
-  ctx.filter = `blur(${Math.round(w / 220)}px)`;
-  ctx.drawImage(rim, ox, oy, w, h);
-  ctx.filter = `blur(${Math.max(1, Math.round(w / 900))}px)`;
-  ctx.globalCompositeOperation = "lighter";
-  ctx.drawImage(rim, ox, oy, w, h);
-  ctx.filter = "none";
-  ctx.globalCompositeOperation = "source-over";
+  drawHazards(ctx, s.hazards, (cw - w) / 2, (ch - h) / 2, w, h);
 }
 
 /** The belt as a ring seen from above, front at the top. Wedge length shrinks as things get close. */

@@ -9,6 +9,11 @@ export interface Obstacle {
   box: [number, number, number, number];
   dist: number | null;
 }
+export interface Hazard {
+  poly: number[]; // normalised x, y pairs, smooth outline
+  dist: number;
+  tag: [number, number];
+}
 export interface SegObject {
   label: string;
   score: number;
@@ -28,6 +33,7 @@ export interface Safety {
   objects?: SegObject[];
   prox?: string; // base64 uint8 grid, centimetres / 2, 255 = far or floor
   prox_size?: [number, number];
+  hazards?: Hazard[];
   fps: number;
   ms: Record<string, number>;
   scale: number;
