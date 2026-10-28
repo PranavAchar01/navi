@@ -286,6 +286,7 @@ class Server:
                 {
                     "type": "safety",
                     "seq": seq,
+                    "yaw": self.heading.yaw,
                     "ts": ts,
                     "sectors": [_finite(d) for d in merged],
                     "names": SECTORS,
