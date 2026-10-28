@@ -38,6 +38,14 @@ class Hub:
         text = json.dumps(msg, separators=(",", ":"), default=_plain)
         await asyncio.gather(*(self._send(c, text=text) for c in list(self.clients)))
 
+    async def frame(self, seq: int, jpeg: bytes, source: WebSocket | None) -> None:
+        """The camera frame just analysed, to every screen except the one that sent it, so a
+        laptop can watch what the glasses see with the result drawn on the same frame."""
+        data = b"F" + struct.pack("<I", seq) + jpeg
+        await asyncio.gather(
+            *(self._send(c, data=data) for c in list(self.clients) if c is not source)
+        )
+
     async def map_chunk(self, n: int, points: bytes, colors: bytes) -> None:
         data = b"M" + struct.pack("<I", n) + points + colors
         if self.map_total + n <= MAP_CAP:

@@ -65,6 +65,7 @@ class Server:
         self.motion_t = 0.0
         self.accel: deque[np.ndarray] = deque(maxlen=40)
         self.pose = None
+        self.source_ws = None  # the client sending camera frames (phone, glasses app, browser)
         self.guide: dict | None = None  # the item the belt is pointing to, after a question
         self.found_until = 0.0
         self.map_sectors: list[float] = [math.inf] * 8
@@ -207,6 +208,7 @@ class Server:
             if now < self.found_until:
                 flags |= FLAG_FOUND
             self.belt.send(cmd, flags, arrived)
+            await self.hub.frame(seq, jpeg, self.source_ws)
             await self.hub.json(
                 {
                     "type": "safety",
@@ -420,6 +422,7 @@ def create_app(settings: Settings | None = None, session: str | None = None) -> 
                     ts, seq = struct.unpack("<dI", data[:12])
                     srv.latest = (ts, seq, data[12:])
                     srv.latest_arrived = time.monotonic()
+                    srv.source_ws = sock
                     srv.frame_ready.set()
                 elif msg.get("text"):
                     m = json.loads(msg["text"])

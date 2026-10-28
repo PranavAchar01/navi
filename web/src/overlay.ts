@@ -119,7 +119,7 @@ function drawHazards(ctx: CanvasRenderingContext2D, hz: Hazard[], ox: number, oy
 }
 
 /** The in-path obstacles over the live video. */
-export function drawOverlay(canvas: HTMLCanvasElement, video: HTMLVideoElement, s: Safety | null) {
+export function drawOverlay(canvas: HTMLCanvasElement, vw: number, vh: number, s: Safety | null) {
   const dpr = window.devicePixelRatio || 1;
   const cw = canvas.clientWidth;
   const ch = canvas.clientHeight;
@@ -130,11 +130,11 @@ export function drawOverlay(canvas: HTMLCanvasElement, video: HTMLVideoElement, 
   const ctx = canvas.getContext("2d")!;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, cw, ch);
-  if (!s || !video.videoWidth || !s.hazards) return;
-  // The video is object-fit: contain, so find where it actually sits in the canvas.
-  const scale = Math.min(cw / video.videoWidth, ch / video.videoHeight);
-  const w = video.videoWidth * scale;
-  const h = video.videoHeight * scale;
+  if (!s || !vw || !s.hazards) return;
+  // The picture is object-fit: contain, so find where it actually sits in the canvas.
+  const scale = Math.min(cw / vw, ch / vh);
+  const w = vw * scale;
+  const h = vh * scale;
   drawHazards(ctx, s.hazards, (cw - w) / 2, (ch - h) / 2, w, h);
 }
 

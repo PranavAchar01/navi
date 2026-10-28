@@ -6,6 +6,7 @@ export class Net {
   private ws: WebSocket | null = null;
   private handlers = new Map<string, Handler<never>[]>();
   private onChunk: ((n: number, pts: Float32Array, cols: Uint8Array) => void) | null = null;
+  private onFrame: ((seq: number, jpeg: Blob) => void) | null = null;
   private onReplace: ((n: number, pts: Float32Array, cols: Uint8Array) => void) | null = null;
   private onState: ((up: boolean) => void) | null = null;
 
@@ -16,6 +17,10 @@ export class Net {
   }
   onMapChunk(fn: (n: number, pts: Float32Array, cols: Uint8Array) => void): void {
     this.onChunk = fn;
+  }
+  /** Camera frames another client sent, forwarded by the server after analysis. */
+  onCameraFrame(fn: (seq: number, jpeg: Blob) => void): void {
+    this.onFrame = fn;
   }
   onMapReplace(fn: (n: number, pts: Float32Array, cols: Uint8Array) => void): void {
     this.onReplace = fn;
@@ -40,6 +45,10 @@ export class Net {
       } else {
         const buf = ev.data as ArrayBuffer;
         const tag = new Uint8Array(buf, 0, 1)[0];
+        if (tag === 70 /* 'F' */) {
+          this.onFrame?.(new DataView(buf).getUint32(1, true), new Blob([buf.slice(5)], { type: "image/jpeg" }));
+          return;
+        }
         if (tag !== 77 /* 'M' */ && tag !== 82 /* 'R' */) return;
         const n = new DataView(buf).getUint32(1, true);
         // Offsets are not 4-aligned, so copy into aligned views.

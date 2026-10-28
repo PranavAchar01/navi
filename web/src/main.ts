@@ -121,8 +121,35 @@ net.on("safety", (m) => {
         : "");
   renderChips();
 });
+// Viewer: when another client (the glasses app) is the camera, show the frames the server
+// forwards, each with the result computed from it.
+let viewing = false;
+let viewSeq = -1;
+const bySeq = new Map<number, Safety>();
+net.on("safety", (m) => {
+  if (!viewing) return;
+  bySeq.set(m.seq, m);
+  bySeq.delete(m.seq - 60);
+});
+net.onCameraFrame(async (seq, jpeg) => {
+  if (chipState.source && !viewing) return;
+  const bmp = await createImageBitmap(jpeg);
+  if (!viewing) {
+    viewing = true;
+    started();
+  }
+  if (disp.width !== bmp.width || disp.height !== bmp.height) {
+    disp.width = bmp.width;
+    disp.height = bmp.height;
+  }
+  disp.getContext("2d")!.drawImage(bmp, 0, 0);
+  bmp.close();
+  viewSeq = seq;
+});
+
 function frame(now: number) {
-  drawOverlay(overlay, video, syncedFrame(now));
+  if (viewing) drawOverlay(overlay, disp.width, disp.height, bySeq.get(viewSeq) ?? latest);
+  else drawOverlay(overlay, video.videoWidth, video.videoHeight, syncedFrame(now));
   drawRing(ring, chipState.belt, latest);
   requestAnimationFrame(frame);
 }
