@@ -28,7 +28,8 @@ from pydantic import BaseModel
 from .align import map_resolution
 from .belt import FLAG_FOUND, NAMES, BeltLink, guide, plan
 from .config import ROOT, Settings
-from .geometry import CAMERA_SECTORS, SECTORS, merge_sectors, relative_to
+from .geometry import CAMERA_SECTORS, SECTORS, merge_sectors
+from .heading import Heading
 from .hub import Hub
 from .memory_worker import run as memory_run
 from .motion import FallDetector, Sample, ShakeDetector
@@ -44,6 +45,8 @@ from .query import (
 from .safety import SafetyLoop, hazards
 
 MAX_PENDING_KEYFRAMES = 12
+SIGHT_AGREE_DEG = 50.0  # after a lock, a sighting further than this from it is another object
+SIGHT_HOLD_S = 6.0  # how long a lock vets new sightings
 log = logging.getLogger("metasight")
 
 
@@ -68,6 +71,7 @@ class Server:
         self.source_ws = None  # the client sending camera frames (phone, glasses app, browser)
         self.guide: dict | None = None  # the item the belt is pointing to, after a question
         self.found_until = 0.0
+        self.heading = Heading(settings.hfov_deg)  # carries the head's turn between map poses
         self.map_sectors: list[float] = [math.inf] * 8
         self.map_pose_ts = 0.0
         self.trail: list[list[float]] = []
@@ -148,6 +152,7 @@ class Server:
             pose[:3, 1] = -np.array(ev["up"])
             pose[:3, 0] = np.cross(pose[:3, 1], pose[:3, 2])
             self.pose = pose
+            self.heading.anchor(pose[:3, 3], pose[:3, 2], ev.get("ts"))
             self.map_sectors = [math.inf if d is None else d for d in ev["map_sectors"]]
             self.map_pose_ts = time.time()
             await self.hub.json(
@@ -169,7 +174,7 @@ class Server:
             return None
         w, h = map_resolution(bgr.shape[1], bgr.shape[0])
         small = cv2.resize(bgr, (w, h), interpolation=cv2.INTER_AREA)
-        return small, self.safety.process(small)
+        return small, self.safety.process(small), self.heading.shift_gray(small)
 
     async def frame_guard(self) -> None:
         """Keep the frame loop alive: log a failure, then carry on with the next frame."""
@@ -191,8 +196,9 @@ class Server:
             done = await self.loop.run_in_executor(self.pool, self._process, ts, seq, jpeg)
             if done is None:
                 continue
-            small, res = done
+            small, res, gray = done
             now = time.time()
+            self.heading.image_turn(gray, now)
             if self.last_done:
                 inst = 1.0 / max(1e-3, now - self.last_done)
                 self.fps = inst if self.fps == 0 else 0.85 * self.fps + 0.15 * inst
@@ -204,7 +210,9 @@ class Server:
             map_fresh = self.memory_ready and self.map_pose_ts and now - self.map_pose_ts < 3.0
             known = [n in CAMERA_SECTORS or bool(map_fresh) for n in SECTORS]
             cmd, flags = plan(merged, known, sc.path_m, res.ttc_s, sc.drop_m)
-            guiding = self._guide(cmd, now, bool(map_fresh))
+            # The heading is carried between poses, so guidance tolerates an older position.
+            guide_fresh = self.memory_ready and self.map_pose_ts and now - self.map_pose_ts < 6.0
+            guiding = self._guide(cmd, now, bool(guide_fresh), res.obstacles)
             if now < self.found_until:
                 flags |= FLAG_FOUND
             self.belt.send(cmd, flags, arrived)
@@ -256,26 +264,44 @@ class Server:
             )
             self._maybe_keyframe(now, ts, seq, small, res)
 
-    def _guide(self, cmd: list[tuple[int, int]], now: float, map_fresh: bool) -> dict | None:
-        """After "where is my X", point the belt at X until you reach it or 90 s pass. Needs a
-        fresh map pose: without one the direction would be a guess, so the belt stays quiet."""
+    def _guide(
+        self, cmd: list[tuple[int, int]], now: float, map_fresh: bool, seen: list
+    ) -> dict | None:
+        """After "where is my X", point the belt at X until you reach it or 90 s pass. When X is
+        in view the camera gives its direction and distance (and corrects the map heading);
+        otherwise the map does, but only with a fresh pose: without one the direction would be a
+        guess, so the belt stays quiet."""
         g = self.guide
         if g is None or now > g["until"]:
             self.guide = None
             return None
         pin = self.pins.pins.get(g["pin"])
-        if pin is None or self.pose is None or not map_fresh:
+        rel = self.heading.to(np.array(pin.pos)) if pin is not None and map_fresh else None
+        live = [
+            (self.heading.box_bearing(o.box), o.dist_m)
+            for o in seen
+            if o.label == g["label"] and math.isfinite(o.dist_m)
+        ]
+        if rel is not None and now - g.get("seen", -math.inf) < SIGHT_HOLD_S:
+            # Locked on recently, so the heading agrees with the camera: another chair in view
+            # is not the one asked about. Before the first lock the map's heading can be far off
+            # and the camera wins.
+            live = [b for b in live if abs(b[0] - rel[1]) < SIGHT_AGREE_DEG]
+        if live:
+            near = (lambda b: abs(b[0] - rel[1])) if rel else (lambda b: b[1])
+            bearing, dist = min(live, key=near)
+            g["seen"] = now
+            if pin is not None:
+                self.heading.sight(np.array(pin.pos), bearing)
+            rel = dist, bearing
+        if rel is None:
             return {"label": g["label"], "dist": None, "bearing": None}
-        rel = relative_to(np.array(pin.pos), self.pose)
-        if rel.horizontal_m < 0.8:
+        dist, bearing = rel
+        if dist < 0.8:
             self.guide, self.found_until = None, now + 2.0
             return None
-        guide(cmd, rel.bearing_deg, rel.horizontal_m)
-        return {
-            "label": g["label"],
-            "dist": round(rel.horizontal_m, 2),
-            "bearing": round(rel.bearing_deg, 1),
-        }
+        guide(cmd, bearing, dist)
+        return {"label": g["label"], "dist": round(dist, 2), "bearing": round(bearing, 1)}
 
     def _maybe_keyframe(self, now: float, ts: float, seq: int, small, res) -> None:
         if not self.memory_ready or self.pending_kf >= MAX_PENDING_KEYFRAMES:
@@ -305,10 +331,18 @@ class Server:
 
     # ------------------------------------------------------------ motion
     async def on_motion(self, samples: list[list[float]]) -> None:
-        for t, ax, ay, az in samples:
+        now = time.time()
+        for row in samples:
+            t, ax, ay, az = row[:4]
             s = Sample(t, ax, ay, az)
+            dt = t - self.motion_t
             self.motion_t = t
             self.accel.append(np.array([ax, ay, az]))
+            if len(row) >= 7:  # gyro, rad/s, device axes: x right, y up, z toward the face
+                up = np.mean(self.accel, axis=0)
+                up = up / (np.linalg.norm(up) or 1.0)
+                up = up if up[1] >= 0 else -up  # either accelerometer sign: up is the +y side
+                self.heading.gyro(np.array(row[4:7]), up, dt, now)
             for ev in self.fall.update(s) + self.shake.update(s):
                 await self.hub.json({"type": "alert", "kind": ev.kind, "message": ev.message})
 
