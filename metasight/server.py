@@ -44,7 +44,7 @@ from .query import (
     valid_sentence,
 )
 from .safety import SafetyLoop, hazards
-from .walk import WalkRecorder
+from .walk import WALKS, WalkRecorder
 
 MAX_PENDING_KEYFRAMES = 12
 SIGHT_AGREE_DEG = 50.0  # after a lock, a sighting further than this from it is another object
@@ -90,6 +90,7 @@ class Server:
         self.frame_ready = asyncio.Event()
         self.pending_taps: list[tuple[str, float, float]] = []
         self.pending_kf = 0
+        self.current_walk: str | None = None
         self.last_kf = 0.0
         self.kf_best: dict | None = None  # sharpest frame so far in this keyframe interval
         self.fps = 0.0
@@ -144,6 +145,7 @@ class Server:
         )
         if sock is self.source_ws:
             self.use_source(sock)
+        self._walk_started(str(m.get("walk") or f"conn-{id(sock)}"))
         old, walk = self.walks.pop(sock, None), m.get("walk")
         if old and old.id == walk:
             old.camera(m)
@@ -156,6 +158,20 @@ class Server:
                 self.walks[sock] = WalkRecorder(str(walk), m)
             except ValueError:
                 log.warning("ignored walk id %r", walk)
+
+    def _walk_started(self, key: str) -> None:
+        """A new walk starts with an empty pin set; the old walk's pins stay in its folder.
+        The same walk id reconnecting (a phone that dropped) keeps its pins."""
+        prev, self.current_walk = self.current_walk, key
+        if prev is None or prev == key:
+            return
+        folder = WALKS / prev
+        if self.pins.pins and folder.is_dir():
+            (folder / "pins.json").write_text(
+                json.dumps([p.to_json(False) for p in self.pins.pins.values()], indent=1)
+            )
+        self.pins = PinStore()
+        self.in_q.put({"cmd": "mode", "mode": self.mode})
 
     def drop_client(self, sock: WebSocket) -> None:
         self.hub.clients.discard(sock)
