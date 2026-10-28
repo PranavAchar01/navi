@@ -17,7 +17,7 @@ install)
   <key>WorkingDirectory</key><string>$PWD</string>
   <key>ProgramArguments</key><array>
     <string>$PWD/.venv/bin/python</string><string>-m</string><string>metasight.server</string>
-    <string>--host</string><string>0.0.0.0</string><string>--port</string><string>8445</string>
+    <string>--host</string><string>::</string><string>--port</string><string>8445</string>
     <string>--session</string><string>home</string>
   </array>
   <key>EnvironmentVariables</key><dict>

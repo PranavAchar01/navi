@@ -9,6 +9,7 @@ import json
 import logging
 import math
 import multiprocessing as mp
+import socket
 import struct
 import threading
 import time
@@ -624,7 +625,7 @@ def main() -> None:
     ap.add_argument("--session", default=None)
     a = ap.parse_args()
     cert = Path(a.cert) if a.cert else None
-    uvicorn.run(
+    config = uvicorn.Config(
         create_app(session=a.session),
         host=a.host,
         port=a.port,
@@ -632,6 +633,16 @@ def main() -> None:
         ssl_keyfile=a.key,
         log_level="info",
     )
+    server = uvicorn.Server(config)
+    if a.host != "::":
+        server.run()
+        return
+    # iPhones resolve the Mac's .local name to IPv6 first, so listen on both stacks
+    sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+    sock.bind(("::", a.port))
+    server.run(sockets=[sock])
 
 
 if __name__ == "__main__":
