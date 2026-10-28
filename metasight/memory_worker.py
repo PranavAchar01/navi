@@ -49,6 +49,10 @@ def run(in_q, out_q, settings: Settings, session: str, new_needed: int = 4) -> N
                 if engine.mode == "home":
                     engine.save(save_path)
                 return
+            if msg["cmd"] == "hfov":  # the frame source changed lens (an iPhone, the glasses)
+                if settings.map_intrinsics:
+                    engine.runner.hfov_deg = msg["hfov"]
+                continue
             if msg["cmd"] == "mode":
                 if engine.mode == "home" and len(engine._map_pts):
                     engine.save(save_path)  # leaving home: the house map stays on disk

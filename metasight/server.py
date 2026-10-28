@@ -44,6 +44,7 @@ from .query import (
     valid_sentence,
 )
 from .safety import SafetyLoop, hazards
+from .walk import WalkRecorder
 
 MAX_PENDING_KEYFRAMES = 12
 SIGHT_AGREE_DEG = 50.0  # after a lock, a sighting further than this from it is another object
@@ -72,6 +73,9 @@ class Server:
         self.accel: deque[np.ndarray] = deque(maxlen=40)
         self.pose = None
         self.source_ws = None  # the client sending camera frames (phone, glasses app, browser)
+        self.profile_hfov = settings.hfov_deg
+        self.lenses: dict[WebSocket, float] = {}  # field of view a client measured on its camera
+        self.walks: dict[WebSocket, WalkRecorder] = {}  # clients saving their walk on this Mac
         self.guide: dict | None = None  # the item the belt is pointing to, after a question
         self.found_until = 0.0
         self.heading = Heading(settings.hfov_deg)  # carries the head's turn between map poses
@@ -109,6 +113,54 @@ class Server:
         await self.belt.start()
         threading.Thread(target=self._read_memory, daemon=True).start()
         self._frame_task = asyncio.create_task(self.frame_guard())
+
+    def use_source(self, sock: WebSocket) -> None:
+        """Frames now come from `sock`: use the lens it reported (an iPhone measures its own),
+        else the profile's (the glasses report none)."""
+        self.source_ws = sock
+        hfov = self.lenses.get(sock, self.profile_hfov)
+        if hfov == self.s.hfov_deg:
+            return
+        self.s.hfov_deg = hfov  # the safety loop reads it from these settings every frame
+        self.heading.hfov_deg = hfov
+        self.in_q.put({"cmd": "hfov", "hfov": hfov})
+        log.info("camera lens now %.1f deg horizontal", hfov)
+
+    def on_camera(self, sock: WebSocket, m: dict) -> None:
+        """A client describes its camera, and whether to save its walk here."""
+        hfov = m.get("hfov")
+        if isinstance(hfov, (int, float)) and 20 <= hfov <= 150:
+            self.lenses[sock] = round(float(hfov), 2)
+        else:
+            self.lenses.pop(sock, None)
+        log.info(
+            "camera from %s: hfov %s, %sx%s, walk %s",
+            m.get("source", "?"),
+            hfov,
+            m.get("width"),
+            m.get("height"),
+            m.get("walk"),
+        )
+        if sock is self.source_ws:
+            self.use_source(sock)
+        old, walk = self.walks.pop(sock, None), m.get("walk")
+        if old and old.id == walk:
+            old.camera(m)
+            self.walks[sock] = old
+            return
+        if old:
+            old.close()
+        if walk:
+            try:
+                self.walks[sock] = WalkRecorder(str(walk), m)
+            except ValueError:
+                log.warning("ignored walk id %r", walk)
+
+    def drop_client(self, sock: WebSocket) -> None:
+        self.hub.clients.discard(sock)
+        self.lenses.pop(sock, None)
+        if walk := self.walks.pop(sock, None):
+            walk.close()
 
     def _belt_state(self, msg: dict) -> None:
         asyncio.ensure_future(self.hub.json(msg))
@@ -505,7 +557,10 @@ def create_app(settings: Settings | None = None, session: str | None = None) -> 
                     ts, seq = struct.unpack("<dI", data[:12])
                     srv.latest = (ts, seq, data[12:])
                     srv.latest_arrived = time.monotonic()
-                    srv.source_ws = sock
+                    if sock is not srv.source_ws:
+                        srv.use_source(sock)
+                    if walk := srv.walks.get(sock):
+                        walk.frame(ts, seq, data[12:])
                     srv.frame_ready.set()
                 elif msg.get("text"):
                     m = json.loads(msg["text"])
@@ -514,6 +569,11 @@ def create_app(settings: Settings | None = None, session: str | None = None) -> 
                         await srv.on_motion(m["s"])
                     elif kind == "ask":
                         asyncio.create_task(srv.answer(m["text"]))
+                    elif kind == "camera":
+                        srv.on_camera(sock, m)
+                    elif kind == "arpose":  # the phone's own tracked pose, kept with its walk
+                        if walk := srv.walks.get(sock):
+                            walk.pose(m)
                     elif kind == "mode" and m.get("mode") in ("home", "outside"):
                         srv.in_q.put({"cmd": "mode", "mode": m["mode"]})
                     elif kind == "tap":
@@ -528,7 +588,7 @@ def create_app(settings: Settings | None = None, session: str | None = None) -> 
         except WebSocketDisconnect:
             pass
         finally:
-            srv.hub.clients.discard(sock)
+            srv.drop_client(sock)
 
     dist = ROOT / "web" / "dist"
     if dist.exists():
