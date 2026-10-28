@@ -70,10 +70,44 @@ class PinStore:
         return pin
 
     def latest(self, label: str, kind: str = "object") -> Pin | None:
+        """The pin of this label seen most often (a stray detection loses to the real thing),
+        the newest among equals."""
         cands = [p for p in self.pins.values() if p.label == label and p.kind == kind]
         firm = [p for p in cands if p.seen >= 2 or p.score >= 0.5]
         pool = firm or cands
-        return max(pool, key=lambda p: p.ts) if pool else None
+        return max(pool, key=lambda p: (p.seen, p.ts)) if pool else None
+
+    def merge(self, radius: float, landmark_radius: float | None = None) -> None:
+        """Fold pins of one label that sit within `radius` of each other into the better seen
+        one (position averaged by sightings). Map drift splits one object into several pins
+        that the live radius, tuned for a single window, does not join."""
+        lm = radius * 2.6 if landmark_radius is None else landmark_radius
+        order = sorted(self.pins.values(), key=lambda p: -p.seen)
+        keep: list[Pin] = []
+        for p in order:
+            r = radius if p.kind == "object" else lm
+            host = next(
+                (
+                    k
+                    for k in keep
+                    if k.label == p.label and k.kind == p.kind and math.dist(k.pos, p.pos) <= r
+                ),
+                None,
+            )
+            if host is None:
+                keep.append(p)
+                continue
+            n = host.seen + p.seen
+            host.pos = [
+                (a * host.seen + b * p.seen) / n for a, b in zip(host.pos, p.pos, strict=True)
+            ]
+            host.seen, host.first_ts = n, min(host.first_ts, p.first_ts)
+            if p.ts > host.ts:
+                host.ts = p.ts
+            if p.score > host.score:
+                host.score, host.thumb = p.score, p.thumb or host.thumb
+            host.near = host.near or p.near
+        self.pins = {p.id: p for p in keep}
 
     def labels(self, kind: str = "object") -> list[str]:
         return sorted({p.label for p in self.pins.values() if p.kind == kind})

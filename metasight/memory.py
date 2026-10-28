@@ -477,6 +477,15 @@ class MemoryEngine:
                 count += 1
         return count
 
+    def _pin_merge_m(self) -> float:
+        """How far apart two sightings of one object may be and still be one pin: the longer the
+        walk, the more the map has drifted (0.5 m for a window, up to 1.2 m on a long walk)."""
+        path = sum(
+            float(np.linalg.norm(np.subtract(a[:3], b[:3])))
+            for a, b in zip(self.trail, self.trail[1:], strict=False)
+        )
+        return min(1.2, 0.5 + 0.03 * path)
+
     def _near_landmarks(self, pos: list[float], label: str, radius: float = 1.6) -> list[str]:
         """The two nearest landmarks, never one named like the object ("chair near chair")."""
         cands = []
@@ -632,6 +641,7 @@ class MemoryEngine:
             pos_l = [float(v) for v in pos]
             near = self._near_landmarks(pos_l, o.label) if o.kind == "object" else None
             self.pins.observe(o.label, o.kind, pos_l, o.ts, o.score, near, o.thumb, o.source)
+        self.pins.merge(self._pin_merge_m())
         return [
             {
                 "type": "map_replace",
@@ -726,6 +736,7 @@ class MemoryEngine:
             found += self._pin_detections(
                 p, run_finder=self.mode == "home" and p.kf.seq % self.sam_every == 0
             )
+        self.pins.merge(self._pin_merge_m())
         events.append({"type": "pins", "pins": [p.to_json() for p in self.pins.pins.values()]})
 
         # A place seen before: bend the walk since then back onto it.
