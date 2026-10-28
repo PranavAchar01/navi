@@ -226,6 +226,7 @@ class Server:
             self.memory_stats = ev
             await self.hub.json({**ev, "type": "memory"}, True)
         elif t == "memory_error":
+            self.pending_kf = max(0, self.pending_kf - ev.get("consumed", 0))
             await self.hub.json({"type": "status", "memory_error": ev["error"]}, True)
 
     # ------------------------------------------------------------ frames

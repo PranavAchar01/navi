@@ -95,10 +95,13 @@ def run(in_q, out_q, settings: Settings, session: str, new_needed: int = 4) -> N
         else:
             chunk = buf
         buf = []
+        # A source switch (portrait phone, landscape glasses) leaves frames of another size in the
+        # backlog; a window is one batch, so it keeps only the newest frame's size.
+        chunk = [k for k in chunk if k.bgr.shape == chunk[-1].bgr.shape]
         try:
             events = engine.process_window(chunk)
         except Exception as exc:  # keep the loop alive; the server shows the error
-            out_q.put({"type": "memory_error", "error": repr(exc)})
+            out_q.put({"type": "memory_error", "error": repr(exc), "consumed": consumed})
             continue
         for e in events:
             if e["type"] == "memory_stats":
