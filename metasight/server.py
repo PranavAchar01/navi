@@ -145,6 +145,9 @@ class Server:
             await self.hub.json({"type": "mode", "mode": self.mode}, True)
         elif t == "map_chunk":
             await self.hub.map_chunk(ev["n"], ev["points"], ev["colors"])
+        elif t == "trail_replace":
+            self.trail = ev["points"]
+            await self.hub.json({"type": "trail", "points": self.trail}, True)
         elif t == "trail":
             self.trail += ev["points"]
             await self.hub.json({"type": "trail", "points": self.trail}, True)

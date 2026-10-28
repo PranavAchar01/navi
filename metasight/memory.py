@@ -23,6 +23,21 @@ from .align import (
 )
 from .config import Settings
 from .geometry import gravity_alignment, map_sector_distances
+from .loops import (
+    GAP_S,
+    MAX_SHIFT_M,
+    MAX_TURN_DEG,
+    MIN_INLIERS,
+    MIN_SHIFT_M,
+    NEAR_M,
+    SIM_MIN,
+    Sim3,
+    compose,
+    inverse,
+    optimize,
+    shared_matches,
+    turn_deg,
+)
 from .pins import PinStore
 from .providers.finder import LANDMARKS, Finder
 
@@ -45,6 +60,36 @@ class _Placed:
     pts: np.ndarray  # (H, W, 3) global
     mask: np.ndarray  # (H, W) bool
     pose: np.ndarray  # 4x4 global
+
+
+STRIDE = 2  # pixel step of the geometry each keyframe keeps for re-placing after a loop
+
+
+@dataclass
+class _Stored:
+    """What a keyframe keeps so the map can be rebuilt when its window moves."""
+
+    seq: int
+    ts: float
+    w: int  # window index; the window's similarity transform places everything below
+    local: np.ndarray  # (h, w, 3) float16, the window's own frame, every STRIDE-th pixel
+    mask: np.ndarray  # (h, w) bool
+    cols: np.ndarray  # (h, w, 3) uint8 RGB
+    pose: np.ndarray  # 4x4 in the window's frame
+    jpg: bytes
+    desc: np.ndarray | None
+
+
+@dataclass
+class _Obs:
+    w: int
+    local: np.ndarray  # position in the window's frame
+    label: str
+    kind: str
+    ts: float
+    score: float
+    thumb: str
+    source: str
 
 
 def _thumb(bgr: np.ndarray, box: tuple[float, float, float, float], size: int = 96) -> str:
@@ -129,10 +174,17 @@ class MemoryEngine:
         finder: Finder,
         landmarks=None,
         sam_every: int = 1,
+        describer=None,
     ):
         self.base, self.mode = s, "home"
         self.s, self.runner, self.finder, self.landmarks = s, runner, finder, landmarks
-        self.sam_every = sam_every
+        self.sam_every, self.describer = sam_every, describer
+        self._kfs: dict[int, _Stored] = {}
+        self._sims: list[Sim3] = []
+        self._seq_rel: list[Sim3 | None] = []  # each window's measured step from the one before
+        self._loop_edges: list[tuple[int, int, Sim3]] = []
+        self._obs: list[_Obs] = []
+        self.loops: list[dict] = []  # every loop check that got as far as a match
         self.pins = PinStore()
         self.voxels = VoxelSet(s.voxel_m)
         self._tail: list[_Placed] = []
@@ -141,6 +193,7 @@ class MemoryEngine:
         self._map_cols = np.empty((0, 3), np.uint8)
         self.trail: list[list[float]] = []
         self.last_pose: np.ndarray | None = None
+        self.poses: dict[int, np.ndarray] = {}  # keyframe seq -> 4x4 map pose
         self._windows = 0
         self._prev_sim: tuple[float, np.ndarray, np.ndarray] | None = None
 
@@ -154,7 +207,9 @@ class MemoryEngine:
         self._tail, self._prev_sim, self._windows = [], None, 0
         self._map_pts = np.empty((0, 3), np.float32)
         self._map_cols = np.empty((0, 3), np.uint8)
-        self.trail, self.last_pose = [], None
+        self.trail, self.last_pose, self.poses = [], None, {}
+        self._kfs, self._sims, self._obs, self.loops = {}, [], [], []
+        self._seq_rel, self._loop_edges = [], []
 
     def _trim_to_horizon(self) -> tuple[np.ndarray, np.ndarray] | None:
         """Outside only: forget map points farther than horizon_m from the newest pose."""
@@ -219,9 +274,19 @@ class MemoryEngine:
         pts = placed.pts[rows, cols][placed.mask[rows, cols]]
         return np.median(pts, axis=0) if len(pts) >= 6 else None
 
+    def _observe(self, w, pos, label, kind, ts, score, thumb="", source="") -> None:
+        """Pin a sighting, and keep it in its window's frame so a loop can move it later."""
+        sc, rot, t = self._sims[w]
+        local = rot.T @ (np.asarray(pos, float) - t) / sc
+        self._obs.append(_Obs(w, local, label, kind, ts, score, thumb, source))
+        pos_l = [float(v) for v in pos]
+        near = self._near_landmarks(pos_l) if kind == "object" else None
+        self.pins.observe(label, kind, pos_l, ts, score, near, thumb, source)
+
     def _pin_detections(self, placed: _Placed, run_finder: bool) -> int:
         kf = placed.kf
         ts = kf.ts
+        w = self._kfs[kf.seq].w if kf.seq in self._kfs else len(self._sims) - 1
         count = 0
         if self.landmarks is not None:
             r = self.landmarks.predict(kf.bgr, imgsz=320, device="mps", verbose=False, conf=0.4)[0]
@@ -234,9 +299,7 @@ class MemoryEngine:
                 name = LANDMARKS.get(r.names[int(c)])
                 pos = self._locate(placed, tuple(b)) if name else None
                 if pos is not None:
-                    self.pins.observe(
-                        name, "landmark", [float(v) for v in pos], ts, float(p), source="yolo26n"
-                    )
+                    self._observe(w, pos, name, "landmark", ts, float(p), source="yolo26n")
         if run_finder:
             src = kf.hi if kf.hi is not None else kf.bgr
             sx, sy = kf.bgr.shape[1] / src.shape[1], kf.bgr.shape[0] / src.shape[0]
@@ -246,36 +309,24 @@ class MemoryEngine:
                 pos = self._locate(placed, det.box)
                 if pos is None:
                     continue
-                pos_l = [float(v) for v in pos]
-                near = self._near_landmarks(pos_l)
-                self.pins.observe(
+                self._observe(
+                    w,
+                    pos,
                     det.label,
                     "object",
-                    pos_l,
                     ts,
                     det.score,
-                    near,
                     _thumb(kf.bgr, det.box),
                     det.source or self.finder.name,
                 )
                 count += 1
         for label, nx, ny in kf.taps:
-            h, w = kf.bgr.shape[:2]
+            h, wd = kf.bgr.shape[:2]
             half = 0.04
-            box = ((nx - half) * w, (ny - half) * h, (nx + half) * w, (ny + half) * h)
+            box = ((nx - half) * wd, (ny - half) * h, (nx + half) * wd, (ny + half) * h)
             pos = self._locate(placed, box)
             if pos is not None:
-                pos_l = [float(v) for v in pos]
-                self.pins.observe(
-                    label,
-                    "object",
-                    pos_l,
-                    ts,
-                    1.0,
-                    self._near_landmarks(pos_l),
-                    _thumb(kf.bgr, box),
-                    "tap",
-                )
+                self._observe(w, pos, label, "object", ts, 1.0, _thumb(kf.bgr, box), "tap")
                 count += 1
         return count
 
@@ -287,6 +338,123 @@ class MemoryEngine:
                 if d <= radius:
                     cands.append((d, p.label))
         return [lb for _, lb in sorted(cands)[:2]]
+
+    # ------------------------------------------------------------------ loops
+    def _store(self, kf: Keyframe, pr: dict, w: int) -> None:
+        ok, jpg = cv2.imencode(".jpg", kf.bgr, [cv2.IMWRITE_JPEG_QUALITY, 90])
+        sl = (slice(None, None, STRIDE), slice(None, None, STRIDE))
+        self._kfs[kf.seq] = _Stored(
+            kf.seq,
+            kf.ts,
+            w,
+            pr["pts"][sl].astype(np.float16),
+            pr["mask"][sl],
+            (pr["rgb"][sl] * 255).astype(np.uint8),
+            pr["pose"],
+            jpg.tobytes(),
+            self.describer(kf.bgr) if self.describer is not None else None,
+        )
+
+    def _global(self, st: _Stored) -> np.ndarray:
+        return apply_sim3(st.local.astype(np.float32).reshape(-1, 3), *self._sims[st.w]).reshape(
+            st.local.shape
+        )
+
+    def _close_loop(self, newest: _Placed) -> bool:
+        st = self._kfs.get(newest.kf.seq)
+        if st is None or st.desc is None:
+            return False
+        here = newest.pose[:3, 3]
+        cands = []
+        for o in self._kfs.values():
+            if o.w > st.w - 2 or st.ts - o.ts < GAP_S:
+                continue
+            sim = float(o.desc @ st.desc)
+            o_pos = pose_through_sim3(o.pose, *self._sims[o.w])[:3, 3]
+            if sim >= SIM_MIN and np.linalg.norm(o_pos - here) <= NEAR_M:
+                cands.append((sim, o))
+        if not cands:
+            return False
+        best, inliers = None, 0
+        for _, o in sorted(cands, key=lambda c: -c[0])[:3]:
+            old_bgr = cv2.imdecode(np.frombuffer(o.jpg, np.uint8), cv2.IMREAD_COLOR)
+            n = shared_matches(old_bgr, newest.kf.bgr)
+            if n > inliers:
+                best, inliers, best_bgr = o, n, old_bgr
+        rec = {"seq": st.seq, "to": best.seq if best else None, "inliers": inliers}
+        self.loops.append(rec)
+        if best is None or inliers < MIN_INLIERS:
+            rec["result"] = "few matches"
+            return False
+
+        # MapAnything on the old and new frame together: the new frame's place next to the old.
+        pr = self.runner.infer([best_bgr, newest.kf.bgr])
+        sl = (slice(None, None, STRIDE), slice(None, None, STRIDE))
+        m_old = pr[0]["mask"][sl] & best.mask
+        a = robust_similarity(pr[0]["pts"][sl][m_old], self._global(best)[m_old])
+        if a is None or a[3] > 0.05:
+            rec["result"] = "old frame did not fit"
+            return False
+        m_new = pr[1]["mask"][sl] & st.mask
+        target = apply_sim3(pr[1]["pts"][sl][m_new], *a[:3])
+        c = robust_similarity(self._global(st)[m_new], target)
+        if c is None:
+            rec["result"] = "no fit"
+            return False
+        c = c[:3]
+        shift = float(np.linalg.norm(c[0] * c[1] @ here + c[2] - here))
+        turn = turn_deg(c[1])
+        rec.update(shift_m=round(shift, 3), turn_deg=round(turn, 1), scale=round(c[0], 3))
+        if shift < MIN_SHIFT_M or shift > MAX_SHIFT_M or turn > MAX_TURN_DEG:
+            rec["result"] = "skipped"
+            return False
+        # The new window placed as the loop says, measured relative to the old one.
+        self._loop_edges.append(
+            (best.w, st.w, compose(inverse(self._sims[best.w]), compose(c, self._sims[st.w])))
+        )
+        before = list(self._sims)
+        self._sims = optimize(self._sims, self._seq_rel, self._loop_edges)
+        self._prev_sim = self._sims[-1]
+        for p in self._tail + [newest]:  # the next window stitches onto these
+            w = self._kfs[p.kf.seq].w if p.kf.seq in self._kfs else st.w
+            cw = compose(self._sims[w], inverse(before[w]))
+            p.pts = apply_sim3(p.pts.reshape(-1, 3), *cw).reshape(p.pts.shape)
+            p.pose = pose_through_sim3(p.pose, *cw)
+        rec["result"] = "closed"
+        return True
+
+    def _rebuilt(self) -> list[dict]:
+        """Map, trail and pins again from every keyframe's own geometry, after a loop."""
+        self.voxels = VoxelSet(self.s.voxel_m)
+        pts, cols = [], []
+        self.trail, self.poses = [], {}
+        for seq in sorted(self._kfs):
+            st = self._kfs[seq]
+            g = self._global(st)[st.mask]
+            fresh = self.voxels.add_new(g)
+            pts.append(g[fresh].astype(np.float32))
+            cols.append(st.cols[st.mask][fresh])
+            pose = pose_through_sim3(st.pose, *self._sims[st.w])
+            self.poses[seq] = pose
+            self.trail.append([*map(float, pose[:3, 3]), st.ts])
+        self._map_pts, self._map_cols = np.concatenate(pts), np.concatenate(cols)
+        self.last_pose = self.poses[max(self.poses)]
+        self.pins = PinStore()
+        for o in self._obs:
+            pos = apply_sim3(o.local[None], *self._sims[o.w])[0]
+            pos_l = [float(v) for v in pos]
+            near = self._near_landmarks(pos_l) if o.kind == "object" else None
+            self.pins.observe(o.label, o.kind, pos_l, o.ts, o.score, near, o.thumb, o.source)
+        return [
+            {
+                "type": "map_replace",
+                "n": len(self._map_pts),
+                "points": self._map_pts.tobytes(),
+                "colors": self._map_cols.tobytes(),
+            },
+            {"type": "trail_replace", "points": self.trail},
+            {"type": "pins", "pins": [p.to_json() for p in self.pins.pins.values()]},
+        ]
 
     # ------------------------------------------------------------------ main entry
     def process_window(self, frames: list[Keyframe]) -> list[dict]:
@@ -312,6 +480,14 @@ class MemoryEngine:
                     pose_through_sim3(pr["pose"], s_, rot, trans),
                 )
             )
+        stitched = bool(old) or self._prev_sim is not None and bool(self._sims)
+        self._seq_rel.append(
+            compose(inverse(self._sims[-1]), sim) if self._sims and stitched else None
+        )
+        self._sims.append(sim)
+        if self.mode == "home":
+            for p, pr in zip(placed_new, preds[len(old) :], strict=True):
+                self._store(p.kf, pr, len(self._sims) - 1)
 
         # Points -> map, only voxels not yet occupied.
         pts = np.concatenate([p.pts[p.mask] for p in placed_new])
@@ -341,6 +517,7 @@ class MemoryEngine:
         for p in placed_new:
             pos = p.pose[:3, 3]
             self.trail.append([float(pos[0]), float(pos[1]), float(pos[2]), p.kf.ts])
+            self.poses[p.kf.seq] = p.pose
         self.last_pose = placed_new[-1].pose
         events.append({"type": "trail", "points": self.trail[-len(placed_new) :]})
 
@@ -351,6 +528,10 @@ class MemoryEngine:
                 p, run_finder=self.mode == "home" and p.kf.seq % self.sam_every == 0
             )
         events.append({"type": "pins", "pins": [p.to_json() for p in self.pins.pins.values()]})
+
+        # A place seen before: bend the walk since then back onto it.
+        if self._close_loop(placed_new[-1]):
+            events += self._rebuilt()
 
         # Scale hint for the fast depth: map depth vs. the depth the safety loop produced.
         ratios = []

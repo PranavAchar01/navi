@@ -11,6 +11,7 @@ from pathlib import Path
 import numpy as np
 
 from .config import SESSIONS, Settings
+from .loops import Describer
 from .memory import Keyframe, MapAnythingRunner, MemoryEngine
 from .providers import make_finder
 
@@ -26,6 +27,7 @@ def run(in_q, out_q, settings: Settings, session: str, new_needed: int = 4) -> N
         make_finder(settings),
         YOLO(str(settings.weights_dir / "yolo26n.pt")),
         sam_every=sam_every,
+        describer=Describer(),
     )
     if settings.mode != "home":
         engine.set_mode(settings.mode)
