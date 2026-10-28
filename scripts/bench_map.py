@@ -292,6 +292,10 @@ def main():
         "cache_hits": runner.hits,
         "loops_closed": sum(r.get("result") == "closed" for r in engine.loops),
         "loop_checks": [r for r in engine.loops if "shift_m" in r][:12],
+        "loop_results": {
+            k: sum(r.get("result") == k for r in engine.loops)
+            for k in {r.get("result") for r in engine.loops}
+        },
     }
     trail = np.array([est[k] for k in sorted(est)])
     al = gtp = None

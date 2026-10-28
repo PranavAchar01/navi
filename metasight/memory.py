@@ -24,6 +24,8 @@ from .align import (
 from .config import Settings
 from .geometry import gravity_alignment, map_sector_distances
 from .loops import (
+    AGREE_SHARE,
+    AGREE_TURN_DEG,
     GAP_S,
     MAX_SHIFT_M,
     MAX_TURN_DEG,
@@ -62,6 +64,9 @@ class _Placed:
     pose: np.ndarray  # 4x4 global
 
 
+STITCH_OK = 0.05  # stitch cost (share of scene distance) of a join trusted fully
+STITCH_FLOOR = 0.05  # trust in a join with no overlap at all (the transform was carried over)
+TEXTURE_MIN = 25  # FAST corners at 320 px wide; a blank wall or door up close has 2 to 22
 STRIDE = 2  # pixel step of the geometry each keyframe keeps for re-placing after a loop
 
 
@@ -90,6 +95,15 @@ class _Obs:
     score: float
     thumb: str
     source: str
+
+
+_fast = cv2.FastFeatureDetector_create(25)
+
+
+def texture(bgr: np.ndarray) -> int:
+    """Corner count: how much a frame gives the map to hold on to."""
+    h = round(bgr.shape[0] * 320 / bgr.shape[1])
+    return len(_fast.detect(cv2.cvtColor(cv2.resize(bgr, (320, h)), cv2.COLOR_BGR2GRAY)))
 
 
 def _thumb(bgr: np.ndarray, box: tuple[float, float, float, float], size: int = 96) -> str:
@@ -182,6 +196,8 @@ class MemoryEngine:
         self._kfs: dict[int, _Stored] = {}
         self._sims: list[Sim3] = []
         self._seq_rel: list[Sim3 | None] = []  # each window's measured step from the one before
+        self._seq_w: list[float] = []  # and how far to trust it
+        self._last_cost: float | None = None
         self._loop_edges: list[tuple[int, int, Sim3]] = []
         self._obs: list[_Obs] = []
         self.loops: list[dict] = []  # every loop check that got as far as a match
@@ -209,7 +225,7 @@ class MemoryEngine:
         self._map_cols = np.empty((0, 3), np.uint8)
         self.trail, self.last_pose, self.poses = [], None, {}
         self._kfs, self._sims, self._obs, self.loops = {}, [], [], []
-        self._seq_rel, self._loop_edges = [], []
+        self._seq_rel, self._seq_w, self._loop_edges = [], [], []
 
     def _trim_to_horizon(self) -> tuple[np.ndarray, np.ndarray] | None:
         """Outside only: forget map points farther than horizon_m from the newest pose."""
@@ -237,12 +253,13 @@ class MemoryEngine:
 
     def _fit(self, new: list[dict], old: list[_Placed], first: Keyframe):
         """Similarity taking this window's local frame into the global map frame."""
+        self._last_cost = None
         if not old:
             if self._prev_sim is not None:  # no overlap survived: carry the last transform
                 return self._prev_sim
             rot = self._gravity_rot(first)
             return 1.0, rot, np.zeros(3)
-        src, dst = [], []
+        src, dst, cl, cg = [], [], [], []
         rng = np.random.default_rng(0)
         for j, placed in enumerate(old):
             n = new[j]  # the first len(old) frames of the window are the overlap
@@ -253,17 +270,44 @@ class MemoryEngine:
                 a, b = a[pick], b[pick]
             src.append(a)
             dst.append(b)
-        fit = robust_similarity(np.concatenate(src), np.concatenate(dst))
-        if fit is not None and fit[3] < 0.25:
-            return fit[:3]
-        # Fall back to the camera poses of the overlap frames (rigid, scale 1).
-        rots, trans = [], []
-        for j, placed in enumerate(old):
-            rel = placed.pose @ np.linalg.inv(new[j]["pose"])
-            rots.append(rel[:3, :3])
-            trans.append(rel[:3, 3])
+            cl.append(np.broadcast_to(n["pose"][:3, 3], a.shape))
+            cg.append(np.broadcast_to(placed.pose[:3, 3], b.shape))
+        src, dst = np.concatenate(src), np.concatenate(dst)
+        cl, cg = np.concatenate(cl), np.concatenate(cg)
+        cands = []
+        fit = robust_similarity(src, dst)
+        if fit is not None:
+            cands.append(fit[:3])
+        # From the overlap frames' own camera poses, which a flat wall cannot slide; the scale
+        # is the ratio of the distances from each camera to the same pixels.
+        rots = [p.pose[:3, :3] @ new[j]["pose"][:3, :3].T for j, p in enumerate(old)]
         u, _, vt = np.linalg.svd(np.sum(rots, axis=0))
-        return 1.0, u @ vt, np.mean(trans, axis=0)
+        rot = u @ vt
+        if np.linalg.det(rot) < 0:
+            rot = u @ np.diag([1.0, 1.0, -1.0]) @ vt
+        dl, dg = np.linalg.norm(src - cl, axis=1), np.linalg.norm(dst - cg, axis=1)
+        good = dl > 1e-3
+        sc = float(np.clip(np.median(dg[good] / dl[good]), 0.5, 2.0)) if good.any() else 1.0
+        t = np.mean(
+            [p.pose[:3, 3] - sc * rot @ new[j]["pose"][:3, 3] for j, p in enumerate(old)], 0
+        )
+        cands.append((sc, rot, t))
+        costs = [self._stitch_cost(c, src, dst, new, old) for c in cands]
+        self._last_cost = min(costs)
+        return cands[int(np.argmin(costs))]
+
+    @staticmethod
+    def _stitch_cost(c, src, dst, new, old) -> float:
+        """How badly a candidate stitch disagrees, as a share of the distance to the scene:
+        median point gap plus the worst gap between where each overlap camera was and lands."""
+        s_, rot, t = c
+        depth = max(float(np.median(np.linalg.norm(dst - old[0].pose[:3, 3], axis=1))), 0.3)
+        res = float(np.median(np.linalg.norm(apply_sim3(src, s_, rot, t) - dst, axis=1)))
+        gap = max(
+            float(np.linalg.norm(s_ * rot @ new[j]["pose"][:3, 3] + t - p.pose[:3, 3]))
+            for j, p in enumerate(old)
+        )
+        return (res + gap) / depth
 
     def _locate(self, placed: _Placed, box: tuple[float, float, float, float]):
         """Median map position of the central half of a box (pixels of the keyframe)."""
@@ -360,10 +404,11 @@ class MemoryEngine:
             st.local.shape
         )
 
-    def _close_loop(self, newest: _Placed) -> bool:
+    def _loop_proposal(self, newest: _Placed):
+        """(old keyframe, this keyframe, correction, record) when `newest` sees an old place."""
         st = self._kfs.get(newest.kf.seq)
         if st is None or st.desc is None:
-            return False
+            return None
         here = newest.pose[:3, 3]
         cands = []
         for o in self._kfs.values():
@@ -374,7 +419,7 @@ class MemoryEngine:
             if sim >= SIM_MIN and np.linalg.norm(o_pos - here) <= NEAR_M:
                 cands.append((sim, o))
         if not cands:
-            return False
+            return None
         best, inliers = None, 0
         for _, o in sorted(cands, key=lambda c: -c[0])[:3]:
             old_bgr = cv2.imdecode(np.frombuffer(o.jpg, np.uint8), cv2.IMREAD_COLOR)
@@ -385,7 +430,7 @@ class MemoryEngine:
         self.loops.append(rec)
         if best is None or inliers < MIN_INLIERS:
             rec["result"] = "few matches"
-            return False
+            return None
 
         # MapAnything on the old and new frame together: the new frame's place next to the old.
         pr = self.runner.infer([best_bgr, newest.kf.bgr])
@@ -394,33 +439,71 @@ class MemoryEngine:
         a = robust_similarity(pr[0]["pts"][sl][m_old], self._global(best)[m_old])
         if a is None or a[3] > 0.05:
             rec["result"] = "old frame did not fit"
-            return False
+            return None
         m_new = pr[1]["mask"][sl] & st.mask
         target = apply_sim3(pr[1]["pts"][sl][m_new], *a[:3])
         c = robust_similarity(self._global(st)[m_new], target)
         if c is None:
             rec["result"] = "no fit"
-            return False
+            return None
         c = c[:3]
         shift = float(np.linalg.norm(c[0] * c[1] @ here + c[2] - here))
         turn = turn_deg(c[1])
         rec.update(shift_m=round(shift, 3), turn_deg=round(turn, 1), scale=round(c[0], 3))
-        if shift < MIN_SHIFT_M or shift > MAX_SHIFT_M or turn > MAX_TURN_DEG:
-            rec["result"] = "skipped"
+        rec["result"] = "proposed"
+        return best, st, c, rec, here
+
+    def _close_loops(self, placed_new: list[_Placed]) -> bool:
+        """Small corrections close on one keyframe's word; a large one (real walks drift by
+        metres and tens of degrees) needs two keyframes of the window that agree on it."""
+        props = [p for p in (self._loop_proposal(x) for x in reversed(placed_new)) if p]
+        if not props:
             return False
+
+        def size(p):
+            return p[3]["shift_m"], p[3]["turn_deg"]
+
+        def lands(p):
+            c, here = p[2], placed_new[-1].pose[:3, 3]
+            return c[0] * c[1] @ here + c[2], c[1]
+
+        small = [
+            p
+            for p in props
+            if MIN_SHIFT_M <= size(p)[0] <= MAX_SHIFT_M and size(p)[1] <= MAX_TURN_DEG
+        ]
+        big = [p for p in props if size(p)[0] > MAX_SHIFT_M or size(p)[1] > MAX_TURN_DEG]
+        chosen = max(small, key=lambda p: p[3]["inliers"]) if small else None
+        for p in sorted(big, key=lambda p: -p[3]["inliers"]):
+            if chosen is not None:
+                break
+            pos, rot = lands(p)
+            for q in big:
+                q_pos, q_rot = lands(q)
+                if (
+                    q is not p
+                    and np.linalg.norm(pos - q_pos) <= max(0.5, AGREE_SHARE * size(p)[0])
+                    and turn_deg(rot.T @ q_rot) <= AGREE_TURN_DEG
+                ):
+                    chosen = p
+                    break
+        for p in props:
+            p[3]["result"] = "closed" if p is chosen else "not used"
+        if chosen is None:
+            return False
+        best, st, c, _, _ = chosen
         # The new window placed as the loop says, measured relative to the old one.
         self._loop_edges.append(
             (best.w, st.w, compose(inverse(self._sims[best.w]), compose(c, self._sims[st.w])))
         )
         before = list(self._sims)
-        self._sims = optimize(self._sims, self._seq_rel, self._loop_edges)
+        self._sims = optimize(self._sims, self._seq_rel, self._loop_edges, self._seq_w)
         self._prev_sim = self._sims[-1]
-        for p in self._tail + [newest]:  # the next window stitches onto these
+        for p in self._tail + [x for x in placed_new if x not in self._tail]:
             w = self._kfs[p.kf.seq].w if p.kf.seq in self._kfs else st.w
             cw = compose(self._sims[w], inverse(before[w]))
             p.pts = apply_sim3(p.pts.reshape(-1, 3), *cw).reshape(p.pts.shape)
             p.pose = pose_through_sim3(p.pose, *cw)
-        rec["result"] = "closed"
         return True
 
     def _rebuilt(self) -> list[dict]:
@@ -460,6 +543,11 @@ class MemoryEngine:
     def process_window(self, frames: list[Keyframe]) -> list[dict]:
         """Run MapAnything on [overlap tail] + frames; return events for the clients."""
         t0 = time.perf_counter()
+        # Blank walls and doors up close give MapAnything nothing to place, and a window
+        # that stitches onto one slides off; leave them out.
+        frames = [f for f in frames if texture(f.bgr) >= TEXTURE_MIN]
+        if not frames:
+            return []
         old = self._tail[-self.s.overlap :] if self._tail else []
         batch = [p.kf for p in old] + frames
         preds = self.runner.infer([k.bgr for k in batch])
@@ -480,10 +568,14 @@ class MemoryEngine:
                     pose_through_sim3(pr["pose"], s_, rot, trans),
                 )
             )
-        stitched = bool(old) or self._prev_sim is not None and bool(self._sims)
-        self._seq_rel.append(
-            compose(inverse(self._sims[-1]), sim) if self._sims and stitched else None
-        )
+        if self._sims:
+            self._seq_rel.append(compose(inverse(self._sims[-1]), sim))
+            # A join that fit badly is where drift came from, so a loop bends it the most.
+            cost = self._last_cost
+            self._seq_w.append(STITCH_FLOOR if cost is None else min(1.0, STITCH_OK / cost))
+        else:
+            self._seq_rel.append(None)
+            self._seq_w.append(0.0)
         self._sims.append(sim)
         if self.mode == "home":
             for p, pr in zip(placed_new, preds[len(old) :], strict=True):
@@ -530,7 +622,7 @@ class MemoryEngine:
         events.append({"type": "pins", "pins": [p.to_json() for p in self.pins.pins.values()]})
 
         # A place seen before: bend the walk since then back onto it.
-        if self._close_loop(placed_new[-1]):
+        if self._close_loops(placed_new):
             events += self._rebuilt()
 
         # Scale hint for the fast depth: map depth vs. the depth the safety loop produced.
@@ -574,7 +666,10 @@ class MemoryEngine:
             }
         )
 
-        self._tail = (self._tail + placed_new)[-self.s.overlap :]
+        # The next window stitches onto the most textured of the latest few frames.
+        recent = (self._tail + placed_new)[-2 * self.s.overlap :]
+        keep = sorted(recent, key=lambda p: -texture(p.kf.bgr))[: self.s.overlap]
+        self._tail = sorted(keep, key=lambda p: p.kf.seq)
         self._windows += 1
         events.append(
             {

@@ -17,11 +17,15 @@ import numpy as np
 
 SIM_MIN = 0.75  # descriptor cosine for a candidate (TUM revisits: recall ~0.9, many false ones)
 GAP_S = 15.0  # a candidate is at least this much older
-NEAR_M = 3.0  # and at most this far on the current (drifted) map
+NEAR_M = 8.0  # and at most this far on the current (drifted) map
 MIN_INLIERS = 40  # SIFT matches surviving the fundamental-matrix check
-MAX_SHIFT_M = 2.0  # larger corrections are more likely a wrong match than real drift
-MAX_TURN_DEG = 30.0
+MAX_SHIFT_M = 2.0  # larger corrections need a second keyframe to agree
+MAX_TURN_DEG = 30.0  # likewise
 MIN_SHIFT_M = 0.05  # smaller drift is not worth a rebuild
+# A larger correction stands only when another keyframe of the same window lands within this
+# share of it (and this many degrees): one look-alike room is easy, two in a row agreeing is not.
+AGREE_SHARE = 0.15
+AGREE_TURN_DEG = 10.0
 
 
 class Describer:
@@ -64,12 +68,12 @@ def shared_matches(a: np.ndarray, b: np.ndarray) -> int:
         return 0
     pairs = cv2.BFMatcher(cv2.NORM_L2).knnMatch(da, db, k=2)
     good = [p[0] for p in pairs if len(p) == 2 and p[0].distance < 0.75 * p[1].distance]
-    if len(good) < 8:
+    if len(good) < 15:  # with 8 points the RANSAC mask comes back as garbage bytes
         return 0
     pa = np.float32([ka[m.queryIdx].pt for m in good])
     pb = np.float32([kb[m.trainIdx].pt for m in good])
     _, inl = cv2.findFundamentalMat(pa, pb, cv2.FM_RANSAC, 1.5, 0.999)
-    return 0 if inl is None else int(inl.sum())
+    return 0 if inl is None else int(np.count_nonzero(inl))
 
 
 # ---------------------------------------------------------------------- similarity transforms
@@ -100,20 +104,29 @@ def _exp(v: np.ndarray) -> Sim3:
 
 
 LOOP_WEIGHT = 3.0  # a checked loop is worth a few windows of chaining
+# MapAnything measures in metres, so windows rarely disagree on scale; without this a loop's
+# correction shrinks the map at one weak join instead of turning it.
+SCALE_WEIGHT = 10.0
+_AXIS_W = np.array([SCALE_WEIGHT, 1, 1, 1, 1, 1, 1])
 
 
 def optimize(
-    sims: list[Sim3], seq_rel: list[Sim3 | None], loops: list[tuple[int, int, Sim3]]
+    sims: list[Sim3],
+    seq_rel: list[Sim3 | None],
+    loops: list[tuple[int, int, Sim3]],
+    seq_w: list[float] | None = None,
 ) -> list[Sim3]:
     """Pose graph over windows: keep each window's measured step from the one before and each
-    loop's measured offset, with window 0 held still. Residuals are scale-free in rotation and
-    log-scale and in metres for translation."""
+    loop's measured offset, with window 0 held still. `seq_w` says how much each step is
+    trusted; a loop's correction goes mostly into the steps trusted least. Residuals are
+    scale-free in rotation and log-scale and in metres for translation."""
     from scipy.optimize import least_squares
 
     n = len(sims)
     if n < 2 or not loops:
         return sims
-    edges = [(w - 1, w, seq_rel[w], 1.0) for w in range(1, n) if seq_rel[w] is not None]
+    wts = seq_w or [1.0] * n
+    edges = [(w - 1, w, seq_rel[w], wts[w]) for w in range(1, n) if seq_rel[w] is not None]
     edges += [(a, b, m, LOOP_WEIGHT) for a, b, m in loops]
     x0 = np.concatenate([_log(s) for s in sims[1:]])
 
@@ -125,7 +138,7 @@ def optimize(
         out = []
         for a, b, m, wt in edges:
             e = compose(inverse(m), compose(inverse(t[a]), t[b]))
-            out.append(wt * _log(e))
+            out.append(wt * _AXIS_W * _log(e))
         return np.concatenate(out)
 
     sol = least_squares(resid, x0, method="lm" if len(edges) * 7 >= len(x0) else "trf")

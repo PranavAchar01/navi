@@ -56,3 +56,10 @@ def test_the_same_place_from_a_step_aside_matches_and_another_place_does_not():
     shifted = cv2.warpAffine(a, np.float32([[1, 0, 25], [0, 1, 10]]), (a.shape[1], a.shape[0]))
     assert shared_matches(a, shifted) >= 40
     assert shared_matches(a, _scene(2)) < 40
+
+
+def test_a_bare_handful_of_matches_never_counts_as_many():
+    a = _scene(3)
+    b = cv2.warpAffine(_scene(4), np.float32([[1, 0, 5], [0, 1, 0]]), (a.shape[1], a.shape[0]))
+    b[:120, :160] = a[:120, :160]  # a small shared patch: a few true matches only
+    assert shared_matches(a, b) <= 200
