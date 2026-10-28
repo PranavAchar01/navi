@@ -68,21 +68,24 @@ export class MapView {
       uTint: { value: 0 },
       uMin: { value: 1.5 },
       uMax: { value: 26 },
+      uSolid: { value: 0 },
+      uGrow: { value: 0 },
     },
     vertexShader: `
       uniform float uScale; uniform float uSize; uniform float uCeil; uniform float uTint;
-      uniform float uMin; uniform float uMax;
+      uniform float uMin; uniform float uMax; uniform float uGrow;
       varying vec3 vC;
       void main() {
         vC = color;
         if (position.y > uCeil) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); gl_PointSize = 0.0; return; }
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
-        gl_PointSize = clamp(uSize * uScale / -mv.z, uMin, uMax);
+        gl_PointSize = clamp(max(uSize, uGrow * -mv.z) * uScale / -mv.z, uMin, uMax);
         // First person: far points sink toward the sky colour, 20% at 8 m and beyond.
         vC = mix(vC, vec3(0.16, 0.2, 0.32), uTint * clamp(-mv.z / 8.0, 0.0, 1.0));
         gl_Position = projectionMatrix * mv;
       }`,
     fragmentShader: `
+      uniform float uSolid;
       varying vec3 vC;
       void main() {
         vec2 p = gl_PointCoord * 2.0 - 1.0;
@@ -90,7 +93,9 @@ export class MapView {
         if (r2 > 1.0) discard;
         float luma = dot(vC, vec3(0.299, 0.587, 0.114));
         vec3 c = mix(vec3(luma), vC, 1.3) * 1.06;
-        gl_FragColor = vec4(c, exp(-r2 * 2.4) * 0.92);
+        // First person: opaque discs on the depth buffer, so the nearest surface wins and
+        // overlapping discs close the gaps between points.
+        gl_FragColor = vec4(c, mix(exp(-r2 * 2.4) * 0.92, 1.0, uSolid));
       }`,
   });
   private fitted = 0;
@@ -201,8 +206,14 @@ export class MapView {
     this.trail.visible = !on;
     this.rig.visible = false;
     this.splat.uniforms.uTint.value = on ? 0.2 : 0;
-    this.splat.uniforms.uMin.value = on ? 2.5 : 1.5;
-    this.splat.uniforms.uMax.value = on ? 9 : 26;
+    this.splat.uniforms.uMin.value = on ? 3 : 1.5;
+    this.splat.uniforms.uMax.value = on ? 20 : 26;
+    this.splat.uniforms.uSolid.value = on ? 1 : 0;
+    this.splat.uniforms.uGrow.value = on ? 0.012 : 0; // a disc at least as wide as a source pixel
+    this.splat.transparent = !on;
+    this.splat.depthWrite = on;
+    this.splat.depthTest = true;
+    this.splat.needsUpdate = true;
     this.splat.uniforms.uSize.value = on ? 0.03 : 0.075;
     this.camera.up.set(0, 1, 0);
     this.applyLens();
