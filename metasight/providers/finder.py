@@ -14,7 +14,7 @@ import asyncio
 import base64
 import logging
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Protocol
 
 import cv2
@@ -57,22 +57,109 @@ class Finder(Protocol):
     def find(self, bgr: np.ndarray, labels: list[str]) -> list[Detection]: ...
 
 
-class YoloeFinder:
-    name = "yoloe-26s-seg"
+# What the open-vocabulary model is asked for, where the watch-list word reads it worse. On LVIS
+# val (scripts/eval_finder.py) "cell phone" finds phones at AP50 0.63 where "phone" got 0.43
+# (it also fires on desk phones, staplers and drills), and "key" beats "keys".
+PROMPTS = {"phone": "cell phone", "keys": "key"}
 
-    def __init__(self, s: Settings, device: str = "mps", conf: float = 0.12):
+
+class CropCheck:
+    """A second look at each box: SigLIP 2 compares the crop with the item's name and with the
+    names of ordinary things it is often mistaken for, and the detector's score is scaled by
+    the square root of the item's share. On LVIS val this keeps most finds and drops most of
+    the look-alikes (phone precision 0.54 to 0.79 at the 0.12 cut, wallet 0.35 to 0.54)."""
+
+    MODEL = "google/siglip2-base-patch16-224"
+    NAMES = {
+        "keys": "a set of keys",
+        "phone": "a smartphone",
+        "remote control": "a TV remote control",
+    }
+    OTHER = (
+        "a book", "a box", "a stapler", "a cup", "a mug", "a bag", "a laptop", "a keyboard",
+        "a computer mouse", "a tray", "a toy", "a tool", "a pen", "a notebook", "a plate",
+        "a bowl", "a shoe", "a pillow", "a picture frame", "a lamp", "a hand", "a person",
+        "a chair", "a table", "a shelf", "a cable", "a can", "a jar", "a tablet", "a camera",
+        "a clock", "a paper", "a towel", "a telephone", "food", "a wall",
+    )  # fmt: skip
+
+    def __init__(self, device: str = "mps"):
+        import torch
+        from transformers import AutoModel, AutoProcessor
+
+        self._torch, self._device = torch, device
+        self._proc = AutoProcessor.from_pretrained(self.MODEL)
+        self._model = AutoModel.from_pretrained(self.MODEL).to(device).eval()
+        self._labels: list[str] = []
+        self._text = None
+
+    def _features(self, out):
+        f = getattr(out, "pooler_output", out)
+        return f / f.norm(dim=-1, keepdim=True)
+
+    def __call__(self, bgr: np.ndarray, dets: list[Detection], labels: list[str]):
+        if not dets:
+            return dets
+        torch = self._torch
+        if self._labels != labels:
+            names = [self.NAMES.get(lb, f"a {lb}") for lb in labels] + list(self.OTHER)
+            with torch.no_grad():
+                t = self._proc(
+                    text=[f"a photo of {n}" for n in names],
+                    return_tensors="pt",
+                    padding="max_length",
+                ).to(self._device)
+                self._text = self._features(self._model.get_text_features(**t))
+            self._labels = list(labels)
+        h, w = bgr.shape[:2]
+        crops = []
+        for d in dets:
+            x0, y0, x1, y1 = d.box
+            p = 0.15 * max(x1 - x0, y1 - y0)
+            c = bgr[
+                int(max(0, y0 - p)) : int(min(h, y1 + p)), int(max(0, x0 - p)) : int(min(w, x1 + p))
+            ]
+            crops.append(cv2.cvtColor(c, cv2.COLOR_BGR2RGB))
+        with torch.no_grad():
+            i = self._proc(images=crops, return_tensors="pt").to(self._device)
+            f = self._features(self._model.get_image_features(**i))
+            share = (f @ self._text.T * self._model.logit_scale.exp()).softmax(-1).float().cpu()
+        return [
+            replace(d, score=d.score * float(share[k, labels.index(d.label)]) ** 0.5)
+            for k, d in enumerate(dets)
+        ]
+
+
+class YoloeFinder:
+    """YOLOE-26 large at 1024 px, then the crop check. LVIS val AP50 over the watch-list: 0.29
+    for the small model at 640, 0.44 for this one (about 165 ms a keyframe on the M5 Pro)."""
+
+    name = "yoloe-26l-seg"
+
+    def __init__(
+        self,
+        s: Settings,
+        device: str = "mps",
+        conf: float = 0.1,
+        keep: float = 0.12,
+        imgsz: int = 1024,
+        check: bool = True,
+    ):
         from ultralytics import YOLO
 
-        self._model = YOLO(str(s.weights_dir / "yoloe-26s-seg.pt"))
+        self._model = YOLO(str(s.weights_dir / "yoloe-26l-seg.pt"))
         self._labels: list[str] | None = None
-        self._device, self._conf = device, conf
+        self._device, self._conf, self._keep, self._imgsz = device, conf, keep, imgsz
+        self._check = CropCheck(device) if check else None
 
     def find(self, bgr: np.ndarray, labels: list[str]) -> list[Detection]:
         if self._labels != labels:
-            self._model.set_classes(labels)
+            self._model.set_classes([PROMPTS.get(lb, lb) for lb in labels])
             self._labels = list(labels)
-        r = self._model.predict(bgr, device=self._device, conf=self._conf, verbose=False)[0]
-        return [
+        r = self._model.predict(
+            bgr, imgsz=self._imgsz, device=self._device, conf=self._conf, verbose=False
+        )[0]
+        dets = [
             Detection(labels[int(c)], float(p), tuple(map(float, b)), self.name)
             for b, c, p in zip(
                 r.boxes.xyxy.cpu().numpy(),
@@ -81,6 +168,9 @@ class YoloeFinder:
                 strict=True,
             )
         ]
+        if self._check is not None:
+            dets = self._check(bgr, dets, labels)
+        return [d for d in dets if d.score >= self._keep]
 
 
 class Sam31Finder:
