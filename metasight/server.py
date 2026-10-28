@@ -216,9 +216,9 @@ class Server:
             self.map_sectors = [math.inf if d is None else d for d in ev["map_sectors"]]
             self.map_yaw = math.atan2(ev["fwd"][0], ev["fwd"][2])
             self.map_pose_ts = time.time()
-            await self.hub.json(
-                {"type": "pose", "pos": ev["pos"], "fwd": ev["fwd"], "up": ev["up"]}, True
-            )
+            out = {"type": "pose", "pos": ev["pos"], "fwd": ev["fwd"], "up": ev["up"]}
+            out.update({k: ev[k] for k in ("hfov", "aspect") if k in ev})
+            await self.hub.json(out, True)
         elif t == "scale_hint" and self.safety:
             self.safety.apply_scale_hint(ev["ratio"])
         elif t == "memory_stats":
