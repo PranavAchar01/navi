@@ -14,6 +14,7 @@ import json
 import math
 import sys
 import time
+from dataclasses import replace
 from pathlib import Path
 
 import cv2
@@ -137,7 +138,29 @@ def load_video(path: Path, hz: float, seconds: float, src_hfov: float | None):
     for g in _pick(stamps, hz):
         best = max(g, key=lambda k: _sharpness(raw[k]))
         frames.append((best, stamps[best], raw[best]))
-    return frames, None
+    return frames, None, _cuts(raw, fps)
+
+
+def _cuts(raw: list[np.ndarray], fps: float) -> list[float]:
+    """Times of edits in a downloaded clip: one frame changes far more than its neighbours do
+    (a fast head turn changes a run of frames). The glasses stream has none; a step across one
+    is the footage jumping, not the map."""
+    small = [
+        cv2.cvtColor(cv2.resize(f, (64, 36)), cv2.COLOR_BGR2GRAY).astype(np.float32) for f in raw
+    ]
+    d = [float(np.mean(np.abs(b - a))) for a, b in zip(small[:-1], small[1:], strict=True)]
+    # Repeated frames (a low frame-rate source padded up) are skipped, or every change is a spike.
+    moved = [(i + 1, v) for i, v in enumerate(d) if v > 0.5]
+    if not moved:
+        return []
+    floor = 4 * float(np.median([v for _, v in moved]))
+    return [
+        i / fps
+        for k, (i, v) in enumerate(moved)
+        if v > floor
+        and v
+        > 3 * max(moved[k - 1][1] if k else 0.0, moved[k + 1][1] if k + 1 < len(moved) else 0.0)
+    ]
 
 
 # ---------------------------------------------------------------------- scoring
@@ -172,6 +195,23 @@ def score_poses(est: dict[int, np.ndarray], times: dict[int, float], gt: np.ndar
         "_aligned": al,
         "_gt": g,
         "_sim": (s, rot, t),
+    }
+
+
+def score_jumps(trail: np.ndarray, ts: list[float], cuts: list[float]) -> dict:
+    """Without ground truth: a step between keyframes far longer than the usual one is the map
+    breaking (people do not teleport). Steps across an edit in the footage are left out."""
+    if len(trail) < 3:
+        return {}
+    steps = np.linalg.norm(np.diff(trail[:, [0, 2]], axis=0), axis=1)
+    cut = np.array([any(a < c <= b for c in cuts) for a, b in zip(ts, ts[1:], strict=False)])
+    steps = steps[~cut]
+    med = float(np.median(steps))
+    return {
+        "step_med_m": round(med, 3),
+        "jumps": int(np.sum(steps > 3 * med + 0.05)),
+        "worst_step_m": round(float(steps.max()), 2),
+        "cuts": int(cut.sum()),
     }
 
 
@@ -232,18 +272,22 @@ def main():
     ap.add_argument("--no-loops", action="store_true")
     ap.add_argument("--window", type=int, default=None)
     ap.add_argument("--overlap", type=int, default=None)
+    ap.add_argument("--mode", default="home", help="home or outside (short-horizon settings)")
     a = ap.parse_args()
 
     s = Settings.load()
     s.finder = a.finder
+    if a.mode == "outside":
+        s = replace(s, **s.outside)
     s.window, s.overlap = a.window or s.window, a.overlap or s.overlap
     hz = a.hz or s.keyframe_hz
     src = Path(a.source)
     t_load = time.perf_counter()
     if src.is_dir():
         frames, gt = load_tum(src, hz, a.seconds)
+        cuts = []
     else:
-        frames, gt = load_video(src, hz, a.seconds, a.src_hfov)
+        frames, gt, cuts = load_video(src, hz, a.seconds, a.src_hfov)
     print(f"{len(frames)} keyframes in {time.perf_counter() - t_load:.1f}s", flush=True)
 
     from ultralytics import YOLO
@@ -264,6 +308,8 @@ def main():
     engine = MemoryEngine(
         s, runner, finder, YOLO(str(s.weights_dir / "yolo26n.pt")), describer=describer
     )
+    if a.mode == "outside":
+        engine.set_mode("outside")
     kfs, ids, times = [], [], {}
     for n, (idx, t, img) in enumerate(frames):
         w, h = map_resolution(img.shape[1], img.shape[0])
@@ -298,6 +344,14 @@ def main():
         },
     }
     trail = np.array([est[k] for k in sorted(est)])
+    out.update(score_jumps(trail, [times[k] for k in sorted(est)], cuts))
+    if gt is None:
+        np.savez(
+            ROOT / "bench" / "results" / f"traj-{src.stem}-{a.tag}.npz",
+            est=trail,
+            seq=np.array(sorted(est)),
+            t=np.array([times[k] for k in sorted(est)]),
+        )
     al = gtp = None
     if gt is not None:
         sc = score_poses(est, times, gt)
