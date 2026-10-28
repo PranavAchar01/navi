@@ -203,7 +203,7 @@ export class MapView {
     this.splat.uniforms.uTint.value = on ? 0.2 : 0;
     this.splat.uniforms.uMin.value = on ? 2.5 : 1.5;
     this.splat.uniforms.uMax.value = on ? 9 : 26;
-    this.splat.uniforms.uSize.value = on ? 0.05 : 0.075;
+    this.splat.uniforms.uSize.value = on ? 0.03 : 0.075;
     this.camera.up.set(0, 1, 0);
     this.applyLens();
   }

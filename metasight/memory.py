@@ -71,10 +71,11 @@ STITCH_FLOOR = 0.05  # trust in a join with no overlap at all (the transform was
 TEXTURE_MIN = 25  # FAST corners at 320 px wide; a blank wall or door up close has 2 to 22
 STRIDE = 2  # pixel step of the geometry each keyframe keeps for re-placing after a loop
 BANK_MAX = 24  # views the global re-solve sees at once (one MapAnything pass, ~13 s for 16)
-BANK_STEP_M = 0.3  # a view joins the bank when it is this far (or BANK_STEP_DEG) from all of them
+BANK_STEP_M = 0.2  # a view joins the bank when it is this far (or BANK_STEP_DEG) from all of them
 BANK_STEP_DEG = 15.0
 GLOBAL_EVERY = 4  # new bank views that trigger a re-solve
 ROOF_M = 2.0  # the global map keeps points up to this far above the floor
+GLOBAL_VOXEL_M = 0.02  # voxel of the global map
 
 
 @dataclass
@@ -897,7 +898,7 @@ class MemoryEngine:
         floor = float(np.percentile(pts[:, 1], 2))
         keep = pts[:, 1] < floor + ROOF_M
         pts, cols = pts[keep] - [0.0, floor, 0.0], cols[keep]
-        fresh = VoxelSet(self.s.voxel_m).add_new(pts)
+        fresh = VoxelSet(GLOBAL_VOXEL_M).add_new(pts)
         pts, cols = pts[fresh].astype(np.float32), cols[fresh]
 
         g = np.eye(4)
