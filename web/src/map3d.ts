@@ -61,15 +61,25 @@ export class MapView {
     transparent: true,
     depthWrite: false,
     vertexColors: true,
-    uniforms: { uScale: { value: 600 }, uSize: { value: 0.075 }, uCeil: { value: 1e9 } },
+    uniforms: {
+      uScale: { value: 600 },
+      uSize: { value: 0.075 },
+      uCeil: { value: 1e9 },
+      uTint: { value: 0 },
+      uMin: { value: 1.5 },
+      uMax: { value: 26 },
+    },
     vertexShader: `
-      uniform float uScale; uniform float uSize; uniform float uCeil;
+      uniform float uScale; uniform float uSize; uniform float uCeil; uniform float uTint;
+      uniform float uMin; uniform float uMax;
       varying vec3 vC;
       void main() {
         vC = color;
         if (position.y > uCeil) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); gl_PointSize = 0.0; return; }
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
-        gl_PointSize = clamp(uSize * uScale / -mv.z, 1.5, 26.0);
+        gl_PointSize = clamp(uSize * uScale / -mv.z, uMin, uMax);
+        // First person: far points sink toward the sky colour, 20% at 8 m and beyond.
+        vC = mix(vC, vec3(0.16, 0.2, 0.32), uTint * clamp(-mv.z / 8.0, 0.0, 1.0));
         gl_Position = projectionMatrix * mv;
       }`,
     fragmentShader: `
@@ -93,6 +103,14 @@ export class MapView {
     new THREE.MeshBasicMaterial({ color: ACCENT, transparent: true, opacity: 0.28, depthTest: false }),
   );
   private aim: THREE.Line;
+  private grid: THREE.GridHelper;
+  // First person: the camera sits where the phone is, with its lens, and keeps turning with the
+  // live heading between map poses.
+  private fp = false;
+  private lens: { hfov: number; aspect: number } | null = null;
+  private fpPose: { pos: THREE.Vector3; fwd: THREE.Vector3; up: THREE.Vector3; yaw: number } | null = null;
+  private liveYaw: number | null = null;
+  private turn = 0;
   onCount: (n: number) => void = () => {};
 
   constructor(private canvas: HTMLCanvasElement) {
@@ -114,12 +132,12 @@ export class MapView {
     pts.frustumCulled = false;
     this.scene.add(pts);
 
-    const grid = new THREE.GridHelper(40, 40, 0xffffff, 0xffffff);
-    const gm = grid.material as THREE.LineBasicMaterial;
+    this.grid = new THREE.GridHelper(40, 40, 0xffffff, 0xffffff);
+    const gm = this.grid.material as THREE.LineBasicMaterial;
     gm.depthWrite = false;
     gm.transparent = true;
     gm.opacity = 0.07;
-    this.scene.add(grid);
+    this.scene.add(this.grid);
 
     this.trail.frustumCulled = false;
     this.scene.add(this.trail);
@@ -160,10 +178,43 @@ export class MapView {
     if (!w || !h) return;
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
+    this.applyLens();
+  }
+
+  private applyLens() {
+    if (this.fp && this.lens) {
+      // The lens is horizontal, measured on the frame the map was solved from.
+      this.camera.fov =
+        (2 * Math.atan(Math.tan((this.lens.hfov * Math.PI) / 360) / this.lens.aspect) * 180) / Math.PI;
+    }
     this.camera.updateProjectionMatrix();
     const px = this.renderer.getPixelRatio();
     this.splat.uniforms.uScale.value =
-      (h * px) / (2 * Math.tan((this.camera.fov * Math.PI) / 360));
+      (this.canvas.clientHeight * px) / (2 * Math.tan((this.camera.fov * Math.PI) / 360));
+  }
+
+  /** First-person mode: the map seen through the phone's own camera, tinted with distance. */
+  setFirstPerson(on: boolean) {
+    this.fp = on;
+    this.controls.enabled = !on;
+    this.grid.visible = !on;
+    this.trail.visible = !on;
+    this.rig.visible = false;
+    this.splat.uniforms.uTint.value = on ? 0.2 : 0;
+    this.splat.uniforms.uMin.value = on ? 2.5 : 1.5;
+    this.splat.uniforms.uMax.value = on ? 9 : 26;
+    this.splat.uniforms.uSize.value = on ? 0.05 : 0.075;
+    this.camera.up.set(0, 1, 0);
+    this.applyLens();
+  }
+
+  /** The live map-frame heading (radians, atan2(fwd_x, fwd_z)), for turning between poses. */
+  setLiveYaw(yaw: number | null) {
+    this.liveYaw = yaw;
+  }
+
+  get hasPose(): boolean {
+    return this.fpPose !== null && this.count > 0;
   }
 
   addChunk(n: number, pts: Float32Array, cols: Uint8Array) {
@@ -266,6 +317,21 @@ export class MapView {
   }
 
   setPose(p: Pose) {
+    if (this.fp) {
+      const fwd = new THREE.Vector3(...p.fwd);
+      this.fpPose = {
+        pos: new THREE.Vector3(...p.pos),
+        fwd,
+        up: new THREE.Vector3(...p.up),
+        yaw: Math.atan2(fwd.x, fwd.z),
+      };
+      this.turn = 0;
+      if (p.hfov && p.aspect) {
+        this.lens = { hfov: p.hfov, aspect: p.aspect };
+        this.applyLens();
+      }
+      return;
+    }
     this.rig.visible = true;
     this.rig.position.set(...p.pos);
     const f = new THREE.Vector3(...p.fwd);
@@ -370,7 +436,19 @@ export class MapView {
       this.controls.target.add(d);
       this.camera.position.add(d);
     }
-    if (this.top) this.camera.lookAt(this.controls.target);
+    if (this.fp) {
+      const q = this.fpPose;
+      if (q) {
+        if (this.liveYaw !== null) {
+          const d = Math.atan2(Math.sin(this.liveYaw - q.yaw), Math.cos(this.liveYaw - q.yaw));
+          this.turn += (d - this.turn) * 0.5;
+        }
+        const fwd = q.fwd.clone().applyAxisAngle(q.up, this.turn);
+        this.camera.up.copy(q.up);
+        this.camera.position.copy(q.pos);
+        this.camera.lookAt(q.pos.clone().add(fwd));
+      }
+    } else if (this.top) this.camera.lookAt(this.controls.target);
     else this.controls.update();
     this.renderer.render(this.scene, this.camera);
   };

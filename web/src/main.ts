@@ -125,6 +125,7 @@ net.on("safety", (m) => {
     results.push({ t, s: m });
   }
   chipState.fps = m.fps;
+  fpv.setLiveYaw(m.yaw ?? null);
   belt.update(m);
   audio.update(m);
   const f = (x: number | null, unit: string) => (x === null ? "-" : `${x.toFixed(1)} ${unit}`);
@@ -200,11 +201,53 @@ $("btn-audio").addEventListener("click", async (ev) => {
 });
 
 // ---------------------------------------------------------------- map
-net.onMapChunk((n, p, c) => map.addChunk(n, p, c));
-net.onMapReplace((n, p, c) => map.replaceMap(n, p, c));
+// The main view: the same map seen through the camera, from the live pose. The raw camera view
+// stays one tap away.
+const fpvCanvas = document.createElement("canvas");
+fpvCanvas.id = "fpv";
+stage.insertBefore(fpvCanvas, overlay);
+const fpv = new MapView(fpvCanvas);
+fpv.setFirstPerson(true);
+let fpvOn = true;
+let frameAspect = 9 / 16;
+function showView() {
+  const on = fpvOn && fpv.hasPose;
+  stage.classList.toggle("fpv", on);
+  $("btn-fpv").textContent = fpvOn ? "View: map" : "View: camera";
+  if (!on) return;
+  // The map is drawn in the shape of the frame, letterboxed like the video.
+  const w = stage.clientWidth;
+  const h = stage.clientHeight;
+  const k = Math.min(w / frameAspect, h);
+  fpvCanvas.style.width = `${Math.round(k * frameAspect)}px`;
+  fpvCanvas.style.height = `${Math.round(k)}px`;
+}
+$("btn-fpv").addEventListener("click", () => {
+  fpvOn = !fpvOn;
+  showView();
+});
+window.addEventListener("resize", showView);
+net.onMapChunk((n, p, c) => {
+  map.addChunk(n, p, c);
+  fpv.addChunk(n, p, c);
+  showView();
+});
+net.onMapReplace((n, p, c) => {
+  map.replaceMap(n, p, c);
+  fpv.replaceMap(n, p, c);
+  showView();
+});
 map.onCount = (n) => ($("map-count").textContent = `${n.toLocaleString()} points`);
-net.on("trail", (m) => map.setTrail(m.points));
-net.on("pose", (m) => map.setPose(m));
+net.on("trail", (m) => {
+  map.setTrail(m.points);
+  fpv.setTrail(m.points);
+});
+net.on("pose", (m) => {
+  map.setPose(m);
+  fpv.setPose(m);
+  if (m.aspect) frameAspect = m.aspect;
+  showView();
+});
 $("btn-fit").addEventListener("click", () => map.fit());
 
 function ago(ts: number): string {

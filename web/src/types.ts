@@ -46,6 +46,7 @@ export interface Safety {
   ms: Record<string, number>;
   scale: number;
   map_age: number | null;
+  yaw?: number | null; // live map-frame heading, atan2(fwd_x, fwd_z)
 }
 export interface PinJson {
   id: number;
@@ -77,6 +78,8 @@ export interface Pose {
   pos: [number, number, number];
   fwd: [number, number, number];
   up: [number, number, number];
+  hfov?: number | null; // horizontal field of view of the frames the map was solved from, degrees
+  aspect?: number; // width over height of those frames
 }
 export interface MemoryStats {
   type: "memory";
