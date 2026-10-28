@@ -50,6 +50,7 @@ MAX_PENDING_KEYFRAMES = 12
 SIGHT_AGREE_DEG = 50.0  # after a lock, a sighting further than this from it is another object
 SIGHT_HOLD_S = 6.0  # how long a lock vets new sightings
 POSE_FRESH_S = 6.0  # a map pose older than this gives no direction
+ANSWER_POSE_S = 12.0  # answers accept an older pose: windows take 5 to 11 s during a solve
 FINDER_LONG_SIDE = 960  # small items vanish at the models' 518 px; the item finder looks here
 log = logging.getLogger("metasight")
 
@@ -474,7 +475,7 @@ class Server:
                 pin, stand_in = max(alike, key=lambda p: (p.seen, p.score)), True
         now = time.time()
         # A stale pose gives a confident wrong direction; without one the answer names the place.
-        pose = self.pose if now - self.map_pose_ts < POSE_FRESH_S else None
+        pose = self.pose if now - self.map_pose_ts < ANSWER_POSE_S else None
         text_out = template_answer(label, pin, pose, now, stand_in)
         polished = False
         if pin is not None and not stand_in and self.language.name != "template":
