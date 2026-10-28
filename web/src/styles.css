@@ -181,6 +181,7 @@ p { margin: 0; }
 .cell .bar { height: 4px; border-radius: 2px; background: rgb(255 255 255 / 16%); margin-top: 5px; overflow: hidden; }
 .cell .bar i { display: block; height: 100%; width: 0; background: var(--ok); transition: width 90ms linear; border-radius: 2px; }
 .cell.slow .bar i { background: var(--warn); }
+.cell.guide .motor { box-shadow: 0 0 calc(var(--duty) * 16px) calc(var(--duty) * 3px) rgb(90 200 255 / 90%); }
 .cell.fast .bar i, .cell.solid .bar i { background: var(--fail); }
 .cell.solid {
   background: linear-gradient(160deg, rgb(255 107 107 / 46%), rgb(255 107 107 / 16%));

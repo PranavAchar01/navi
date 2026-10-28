@@ -25,9 +25,10 @@ log = logging.getLogger(__name__)
 FIRMWARE = ROOT / "firmware"
 EMU_SRC = FIRMWARE / "emulator" / "emu.c"
 EMU_BIN = FIRMWARE / "emulator" / "belt-emu"
-MODES = {"off": 0, "slow": 1, "fast": 2, "solid": 3, "unknown": 4}
+MODES = {"off": 0, "slow": 1, "fast": 2, "solid": 3, "unknown": 4, "guide": 5}
 NAMES = {v: k for k, v in MODES.items()}
 FLAG_DROP = 1
+FLAG_FOUND = 2
 
 
 def plan(
@@ -60,6 +61,15 @@ def plan(
         out.append((mode, int(round(255 * min(1.0, inten)))))
     flags = FLAG_DROP if drop_m < 1.5 else 0
     return out, flags
+
+
+def guide(cmd: list[tuple[int, int]], bearing_deg: float, dist_m: float) -> None:
+    """Point the belt at a remembered item: the motor facing it plays the guide taps, from soft
+    at 4 m to strong up close. It takes over the "slow" cue (something 1 to 2 m away), which
+    in a small room is on most of the time; anything nearer than 1 m still wins."""
+    i = round(bearing_deg / 45) % 8
+    if cmd[i][0] in (MODES["off"], MODES["slow"]):
+        cmd[i] = (MODES["guide"], int(round(110 + 145 * max(0.0, min(1.0, 1 - dist_m / 4)))))
 
 
 def ensure_emulator() -> None:
@@ -139,6 +149,7 @@ class BeltLink:
                 "device": "ESP32 emulator" if self.kind == "emulator" else "ESP32",
                 "lost": bool(lost),
                 "drop": bool(flags & FLAG_DROP),
+                "found": bool(flags & FLAG_FOUND),
                 "duty": duty,
                 "modes": [NAMES[m] for m, _ in self.last_cmd],
                 "age_ms": None if age == 0xFFFFFFFF else age,

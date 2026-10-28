@@ -17,6 +17,6 @@ watchlist = [
   "backpack", "desk", "computer monitor", "laptop", "chair", "armchair", "potted plant",
   "window", "picture frame", "curtain", "shelf", "pillow", "rug", "tv",
   "person", "table", "cabinet", "sofa", "stool", "box", "bag", "handbag", "suitcase", "basket",
-  "trash can", "bottle", "cup", "book", "shoe", "clothes", "fan", "speaker", "keyboard", "toy",
+  "trash can", "water bottle", "cup", "book", "shoe", "clothes", "fan", "speaker", "keyboard", "toy",
   "wall", "railing", "stairs", "pole", "bench", "car", "bicycle", "sign",
 ]

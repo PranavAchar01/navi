@@ -16,6 +16,7 @@ ALIASES = {
     "glasses case": ["glasses case", "glasses", "sunglasses", "spectacles"],
     "remote control": ["remote", "remote control", "clicker", "tv remote"],
     "backpack": ["backpack", "bag", "rucksack"],
+    "water bottle": ["water bottle", "bottle", "my bottle", "flask", "hydro flask", "tumbler"],
 }
 _ASK = re.compile(
     r"\b(where(?:'s| is| are| did i (?:leave|put))?|find|locate|have you seen|did you see|"

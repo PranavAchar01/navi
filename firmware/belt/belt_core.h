@@ -4,7 +4,9 @@
 // Command packet, server to belt, UDP, little endian, 26 bytes:
 //   'M' 'S' | version (1) | flags | seq u16 | t_ms u32 | 8 x (mode u8, intensity u8)
 //   flags bit 0: drop-off ahead (front motor plays the drop pattern over everything else)
-//   mode: 0 off, 1 slow, 2 fast, 3 solid, 4 unknown (no buzz; the sector has no trusted data)
+//   flags bit 1: arrived at the item being guided to (a sweep once round the belt)
+//   mode: 0 off, 1 slow, 2 fast, 3 solid, 4 unknown (no buzz; the sector has no trusted data),
+//         5 guide (soft double tap toward a remembered item; stronger as it gets closer)
 // Telemetry, belt to server, 50 Hz, 22 bytes:
 //   'M' 'T' | lost u8 | flags u8 | seq u16 (last applied) | t_ms u32 (echo) | rx_age_ms u32 |
 //   8 x duty u8 (what the motors are doing right now)
@@ -20,7 +22,7 @@
 #define BELT_TEL_LEN 22
 #define BELT_WATCHDOG_MS 250  // no command for this long means the link is lost
 
-enum { M_OFF = 0, M_SLOW, M_FAST, M_SOLID, M_UNKNOWN };
+enum { M_OFF = 0, M_SLOW, M_FAST, M_SOLID, M_UNKNOWN, M_GUIDE };
 
 typedef struct {
   uint8_t mode[BELT_N], inten[BELT_N], flags;
@@ -45,7 +47,7 @@ static inline int belt_rx(belt_t *b, const uint8_t *p, int n, uint32_t now) {
   b->seq = seq;
   b->echo_ms = rd32(p + 6);
   for (int i = 0; i < BELT_N; i++) {
-    b->mode[i] = p[10 + 2 * i] <= M_UNKNOWN ? p[10 + 2 * i] : M_OFF;
+    b->mode[i] = p[10 + 2 * i] <= M_GUIDE ? p[10 + 2 * i] : M_OFF;
     b->inten[i] = p[11 + 2 * i];
   }
   b->last_rx_ms = now;
@@ -73,6 +75,11 @@ static inline void belt_tick(const belt_t *b, uint32_t now, uint8_t duty[BELT_N]
       case M_SLOW: on = (now % 667) < 200; break;   // 1.5 Hz, 200 ms taps
       case M_FAST: on = (now % 250) < 125; break;   // 4 Hz
       case M_SOLID: on = 1; break;
+      case M_GUIDE: {  // two soft taps a second: unlike any obstacle pattern
+        uint32_t t = now % 1000;
+        on = t < 70 || (t >= 150 && t < 220);
+        break;
+      }
       default: on = 0;
     }
     duty[i] = on ? b->inten[i] : 0;
@@ -81,6 +88,10 @@ static inline void belt_tick(const belt_t *b, uint32_t now, uint8_t duty[BELT_N]
     // Drop-off ahead: three sharp taps then a pause, full strength, on the front motor.
     uint32_t t = now % 800;
     duty[0] = (t < 300 && (t % 100) < 50) ? 255 : 0;
+  }
+  if (b->flags & 2) {
+    // Arrived: one motor at a time, all the way round, every 960 ms.
+    for (int i = 0; i < BELT_N; i++) duty[i] = (now % 960) / 120 == (uint32_t)i ? 200 : 0;
   }
 }
 

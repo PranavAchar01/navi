@@ -4,7 +4,7 @@ import struct
 import subprocess
 import time
 
-from metasight.belt import EMU_BIN, FLAG_DROP, MODES, ensure_emulator, plan
+from metasight.belt import EMU_BIN, FLAG_DROP, FLAG_FOUND, MODES, ensure_emulator, guide, plan
 
 INF = math.inf
 
@@ -24,6 +24,19 @@ def test_plan_closing_fast_raises_front():
 def test_plan_front_uses_walking_path_and_drop_flag():
     cmd, flags = plan([INF] * 8, [True] * 8, 0.4, INF, 1.0)
     assert cmd[0][0] == MODES["solid"] and flags & FLAG_DROP
+
+
+def test_guide_points_the_facing_motor_and_yields_to_obstacles():
+    cmd, _ = plan([None] * 8, [True] * 8, INF, INF, INF)
+    guide(cmd, 95.0, 3.0)  # on the right
+    assert cmd[2][0] == MODES["guide"] and sum(m == MODES["guide"] for m, _ in cmd) == 1
+    near, _ = plan([None] * 8, [True] * 8, INF, INF, INF)
+    guide(near, 95.0, 1.0)
+    assert near[2][1] > cmd[2][1]  # closer is stronger
+    blocked, _ = plan([0.3, 1.5] + [None] * 6, [True] * 8, INF, INF, INF)
+    guide(blocked, 0.0, 2.0)
+    guide(blocked, 45.0, 2.0)
+    assert blocked[0][0] == MODES["solid"] and blocked[1][0] == MODES["guide"]
 
 
 def _tel(sock):
@@ -50,5 +63,34 @@ def test_emulator_runs_firmware_and_watchdog():
         seen = [_tel(s) for _ in range(80)]
         assert all(t[0] == 1 for t in seen[-10:])
         assert any(max(t[1]) > 0 for t in seen) and any(max(t[1]) == 0 for t in seen)
+    finally:
+        proc.terminate()
+
+
+def _run(s, port, cmd, flags, seconds, seq0):
+    body = b"".join(struct.pack("<BB", m, i) for m, i in cmd)
+    seen, seq, end = [], seq0, time.time() + seconds
+    while time.time() < end:
+        seq += 1
+        s.sendto(struct.pack("<2sBBHI", b"MS", 1, flags, seq, 0) + body, ("127.0.0.1", port))
+        seen.append(_tel(s)[1])
+    return seen
+
+
+def test_emulator_guide_taps_and_found_sweep():
+    ensure_emulator()
+    port = 4800 + int(time.time()) % 500
+    proc = subprocess.Popen([str(EMU_BIN), str(port)], stderr=subprocess.DEVNULL)
+    try:
+        time.sleep(0.2)
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(1.0)
+        cmd = [(0, 0)] * 8
+        cmd[2] = (MODES["guide"], 180)
+        seen = _run(s, port, cmd, 0, 1.1, 0)
+        assert {d[2] for d in seen} == {0, 180} and all(d[0] == 0 for d in seen)
+        swept = _run(s, port, [(0, 0)] * 8, FLAG_FOUND, 1.1, 1000)
+        lit = {i for d in swept for i in range(8) if d[i]}
+        assert lit == set(range(8)) and all(sum(1 for v in d if v) <= 1 for d in swept)
     finally:
         proc.terminate()

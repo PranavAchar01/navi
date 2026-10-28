@@ -143,12 +143,13 @@ const MODE_RGB: Record<string, [number, number, number]> = {
   fast: [255, 72, 72],
   solid: [255, 72, 72],
   lost: [170, 120, 255],
+  guide: [90, 200, 255],
 };
 
 /** The belt seen from above, front at the top: the wearer, the strap, and the eight numbered
  *  motors. Each motor is drawn from the belt's own telemetry, so it lights and shakes exactly
  *  when the firmware is driving it. */
-export function drawRing(canvas: HTMLCanvasElement, b: Belt | null) {
+export function drawRing(canvas: HTMLCanvasElement, b: Belt | null, s: Safety | null) {
   const dpr = window.devicePixelRatio || 1;
   const size = canvas.clientWidth;
   if (size < 20) return;
@@ -176,6 +177,19 @@ export function drawRing(canvas: HTMLCanvasElement, b: Belt | null) {
   ctx.lineTo(c, c - R * 0.32);
   ctx.lineTo(c + 5, c - R * 0.2);
   ctx.fill();
+  // Guiding to a remembered item: a dotted line from the wearer toward it.
+  const g = s?.guide;
+  if (g && g.bearing !== null) {
+    const a = ((g.bearing - 90) * Math.PI) / 180;
+    ctx.strokeStyle = "rgba(90,200,255,0.85)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([3, 4]);
+    ctx.beginPath();
+    ctx.moveTo(c + R * 0.25 * Math.cos(a), c + R * 0.25 * Math.sin(a));
+    ctx.lineTo(c + (R + 20) * Math.cos(a), c + (R + 20) * Math.sin(a));
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
   // The strap.
   ctx.strokeStyle = "rgba(255,255,255,0.28)";
   ctx.lineWidth = 7;
@@ -185,7 +199,7 @@ export function drawRing(canvas: HTMLCanvasElement, b: Belt | null) {
   ctx.fillStyle = "rgba(255,255,255,0.55)";
   ctx.font = '600 9px "Atkinson Hyperlegible Mono", ui-monospace, monospace';
   ctx.textAlign = "center";
-  ctx.fillText(b?.lost ? "BELT LINK LOST" : "BELT", c, c + R * 0.62);
+  ctx.fillText(b?.lost ? "BELT LINK LOST" : b?.found ? "FOUND IT" : "BELT", c, c + R * 0.62);
   ctx.font = '600 10px "Atkinson Hyperlegible Mono", ui-monospace, monospace';
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";

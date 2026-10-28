@@ -26,9 +26,9 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .align import map_resolution
-from .belt import NAMES, BeltLink, plan
+from .belt import FLAG_FOUND, NAMES, BeltLink, guide, plan
 from .config import ROOT, Settings
-from .geometry import CAMERA_SECTORS, SECTORS, merge_sectors
+from .geometry import CAMERA_SECTORS, SECTORS, merge_sectors, relative_to
 from .hub import Hub
 from .memory_worker import run as memory_run
 from .motion import FallDetector, Sample, ShakeDetector
@@ -65,6 +65,8 @@ class Server:
         self.motion_t = 0.0
         self.accel: deque[np.ndarray] = deque(maxlen=40)
         self.pose = None
+        self.guide: dict | None = None  # the item the belt is pointing to, after a question
+        self.found_until = 0.0
         self.map_sectors: list[float] = [math.inf] * 8
         self.map_pose_ts = 0.0
         self.trail: list[list[float]] = []
@@ -201,6 +203,9 @@ class Server:
             map_fresh = self.memory_ready and self.map_pose_ts and now - self.map_pose_ts < 3.0
             known = [n in CAMERA_SECTORS or bool(map_fresh) for n in SECTORS]
             cmd, flags = plan(merged, known, sc.path_m, res.ttc_s, sc.drop_m)
+            guiding = self._guide(cmd, now, bool(map_fresh))
+            if now < self.found_until:
+                flags |= FLAG_FOUND
             self.belt.send(cmd, flags, arrived)
             await self.hub.json(
                 {
@@ -220,6 +225,8 @@ class Server:
                     "floor": sc.floor,
                     "floor_scale": res.floor_scale,
                     "eye_h": self.s.eye_height_m,
+                    "guide": guiding,
+                    "found": now < self.found_until,
                     "obstacles": [
                         {
                             "label": o.label,
@@ -246,6 +253,27 @@ class Server:
                 }
             )
             self._maybe_keyframe(now, ts, seq, small, res)
+
+    def _guide(self, cmd: list[tuple[int, int]], now: float, map_fresh: bool) -> dict | None:
+        """After "where is my X", point the belt at X until you reach it or 90 s pass. Needs a
+        fresh map pose: without one the direction would be a guess, so the belt stays quiet."""
+        g = self.guide
+        if g is None or now > g["until"]:
+            self.guide = None
+            return None
+        pin = self.pins.pins.get(g["pin"])
+        if pin is None or self.pose is None or not map_fresh:
+            return {"label": g["label"], "dist": None, "bearing": None}
+        rel = relative_to(np.array(pin.pos), self.pose)
+        if rel.horizontal_m < 0.8:
+            self.guide, self.found_until = None, now + 2.0
+            return None
+        guide(cmd, rel.bearing_deg, rel.horizontal_m)
+        return {
+            "label": g["label"],
+            "dist": round(rel.horizontal_m, 2),
+            "bearing": round(rel.bearing_deg, 1),
+        }
 
     def _maybe_keyframe(self, now: float, ts: float, seq: int, small, res) -> None:
         if not self.memory_ready or self.pending_kf >= MAX_PENDING_KEYFRAMES:
@@ -319,6 +347,8 @@ class Server:
                     text_out, polished = phrased.strip(), True
             except Exception:
                 pass
+        if pin is not None:
+            self.guide = {"pin": pin.id, "label": label, "until": now + 90.0}
         return {
             "type": "answer",
             "label": label,

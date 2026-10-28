@@ -20,7 +20,7 @@ keyframe_hz = 1.5
 window = 8
 overlap = 2
 voxel_m = 0.05
-watchlist = ["keys", "wallet", "phone", "glasses case", "remote control", "backpack"]
+watchlist = ["keys", "wallet", "phone", "glasses case", "remote control", "backpack", "water bottle"]
 
 [mode]
 # home: the full persistent map of the house. outside: a short-horizon map that drops what is

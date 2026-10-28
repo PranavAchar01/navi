@@ -40,6 +40,8 @@ export interface Safety {
   floor: boolean;
   floor_scale: number | null;
   eye_h: number;
+  guide: { label: string; dist: number | null; bearing: number | null } | null;
+  found: boolean;
   fps: number;
   ms: Record<string, number>;
   scale: number;
@@ -97,6 +99,7 @@ export interface Belt {
   device: string;
   lost: boolean;
   drop: boolean;
+  found: boolean;
   duty: number[]; // 0..255 per motor, front first, clockwise
   modes: string[];
   age_ms: number | null;

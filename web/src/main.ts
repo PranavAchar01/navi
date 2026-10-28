@@ -113,12 +113,17 @@ net.on("safety", (m) => {
   const f = (x: number | null, unit: string) => (x === null ? "-" : `${x.toFixed(1)} ${unit}`);
   $("readout").textContent =
     `path ${f(m.path, "m")} · contact ${f(m.ttc, "s")} · low ${f(m.trip, "m")} · drop ${f(m.drop, "m")}` +
-    ` · floor ${m.floor ? "ok" : "lost"} · scale ${m.scale.toFixed(2)} · depth ${m.ms.depth?.toFixed(0)} ms`;
+    ` · floor ${m.floor ? "ok" : "lost"} · scale ${m.scale.toFixed(2)} · depth ${m.ms.depth?.toFixed(0)} ms` +
+    (m.found
+      ? " · found it"
+      : m.guide
+        ? ` · guiding to ${m.guide.label} ${m.guide.dist === null ? "(waiting for the map)" : f(m.guide.dist, "m")}`
+        : "");
   renderChips();
 });
 function frame(now: number) {
   drawOverlay(overlay, video, syncedFrame(now));
-  drawRing(ring, chipState.belt);
+  drawRing(ring, chipState.belt, latest);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
