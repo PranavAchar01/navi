@@ -1,0 +1,27 @@
+# Glasses profile: METASIGHT_CONFIG=metasight.glasses.toml, frames from the ios/ app (Ray-Ban Meta,
+# DAT stream 504x896 portrait). Same as the room profile except the camera geometry.
+[providers]
+language = "meta"
+finder = "hybrid"
+
+[safety]
+segment = false
+depth_scale = 0.6  # PLACEHOLDER lens prior; the floor gate trusts it, so measure it on the first glasses walk
+eye_height_m = 1.60  # camera on the face: the wearer's eye height. Set it to his real eye height.
+hfov_deg = 70.0  # PLACEHOLDER: measure from the first glasses walk (global map intrinsics), as for the phone
+detector_imgsz = 384
+
+[memory]
+watchlist = [
+  "bed", "dresser", "mirror", "door", "nightstand", "lamp", "mini fridge", "vacuum cleaner",
+  "backpack", "desk", "computer monitor", "laptop", "chair", "armchair", "potted plant",
+  "window", "picture frame", "curtain", "shelf", "pillow", "rug", "tv",
+  "person", "table", "cabinet", "sofa", "stool", "box", "bag", "handbag", "suitcase", "basket",
+  "trash can", "water bottle", "cup", "book", "shoe", "clothes", "fan", "speaker", "keyboard", "toy",
+  "wall", "railing", "stairs", "pole", "bench", "car", "bicycle", "sign",
+  "keys", "wallet", "phone", "remote control",
+]
+# Sent to SAM 3.1 (billed $2.50 per 1,000 images, one image per item): 6 items every 2 s is
+# about $27 an hour of walking.
+meta_items = ["water bottle", "keys", "wallet", "phone", "glasses case", "remote control"]
+meta_interval_s = 2.0
