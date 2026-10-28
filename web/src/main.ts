@@ -118,7 +118,7 @@ net.on("safety", (m) => {
 });
 function frame(now: number) {
   drawOverlay(overlay, video, syncedFrame(now));
-  drawRing(ring, latest);
+  drawRing(ring, chipState.belt);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

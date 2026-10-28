@@ -1,12 +1,5 @@
 import { type Belt, type Hazard, SECTOR_NAMES, type Safety } from "./types";
 
-const COLORS = { ok: "#5ee6a0", warn: "#ffd166", near: "#ff6b6b" };
-
-function toneFor(d: number | null): string {
-  if (d === null) return COLORS.ok;
-  return d < 1 ? COLORS.near : d < 2 ? COLORS.warn : COLORS.ok;
-}
-
 // Hazards: only the obstacles in the walking path, nearest first, each a smooth thin contour
 // with a soft inner fade and a small distance tag. Amber when you are approaching (under 1.4 m),
 // red when you are too close (under 0.9 m). Hysteresis on the level, easing on colour and alpha.
@@ -145,8 +138,17 @@ export function drawOverlay(canvas: HTMLCanvasElement, video: HTMLVideoElement, 
   drawHazards(ctx, s.hazards, (cw - w) / 2, (ch - h) / 2, w, h);
 }
 
-/** The belt as a ring seen from above, front at the top. Wedge length shrinks as things get close. */
-export function drawRing(canvas: HTMLCanvasElement, s: Safety | null) {
+const MODE_RGB: Record<string, [number, number, number]> = {
+  slow: [255, 190, 70],
+  fast: [255, 72, 72],
+  solid: [255, 72, 72],
+  lost: [170, 120, 255],
+};
+
+/** The belt seen from above, front at the top: the wearer, the strap, and the eight numbered
+ *  motors. Each motor is drawn from the belt's own telemetry, so it lights and shakes exactly
+ *  when the firmware is driving it. */
+export function drawRing(canvas: HTMLCanvasElement, b: Belt | null) {
   const dpr = window.devicePixelRatio || 1;
   const size = canvas.clientWidth;
   if (size < 20) return;
@@ -158,33 +160,70 @@ export function drawRing(canvas: HTMLCanvasElement, s: Safety | null) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, size, size);
   const c = size / 2;
-  const rMax = c - 6;
-  ctx.strokeStyle = "rgba(255,255,255,0.22)";
-  ctx.lineWidth = 1;
-  for (const f of [0.35, 0.7, 1]) {
-    ctx.beginPath();
-    ctx.arc(c, c, rMax * f, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-  for (let i = 0; i < 8; i++) {
-    const d = s?.sectors[i] ?? null;
-    const mid = (i * 45 - 90) * (Math.PI / 180);
-    const a0 = mid - Math.PI / 8 + 0.03;
-    const a1 = mid + Math.PI / 8 - 0.03;
-    const reach = d === null ? 1 : Math.min(1, d / 3);
-    ctx.beginPath();
-    ctx.moveTo(c, c);
-    ctx.arc(c, c, Math.max(6, rMax * reach), a0, a1);
-    ctx.closePath();
-    ctx.fillStyle = d === null ? "rgba(255,255,255,0.07)" : toneFor(d) + "66";
-    ctx.fill();
-    ctx.strokeStyle = d === null ? "rgba(255,255,255,0.22)" : toneFor(d);
-    ctx.stroke();
-  }
-  ctx.fillStyle = "#ffffff";
+  const R = c - 24;
+  const now = performance.now();
+  // Wearer from above: shoulders and head, nose pointing forward.
+  ctx.fillStyle = "rgba(255,255,255,0.10)";
   ctx.beginPath();
-  ctx.arc(c, c, 3.5, 0, Math.PI * 2);
+  ctx.ellipse(c, c, R * 0.62, R * 0.4, 0, 0, Math.PI * 2);
   ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.22)";
+  ctx.beginPath();
+  ctx.arc(c, c, R * 0.22, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(c - 5, c - R * 0.2);
+  ctx.lineTo(c, c - R * 0.32);
+  ctx.lineTo(c + 5, c - R * 0.2);
+  ctx.fill();
+  // The strap.
+  ctx.strokeStyle = "rgba(255,255,255,0.28)";
+  ctx.lineWidth = 7;
+  ctx.beginPath();
+  ctx.arc(c, c, R, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = "rgba(255,255,255,0.55)";
+  ctx.font = '600 9px "Atkinson Hyperlegible Mono", ui-monospace, monospace';
+  ctx.textAlign = "center";
+  ctx.fillText(b?.lost ? "BELT LINK LOST" : "BELT", c, c + R * 0.62);
+  ctx.font = '600 10px "Atkinson Hyperlegible Mono", ui-monospace, monospace';
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  for (let i = 0; i < 8; i++) {
+    const a = (i * 45 - 90) * (Math.PI / 180);
+    const mode = !b ? "off" : b.lost ? "lost" : b.modes[i];
+    const duty = b ? b.duty[i] / 255 : 0;
+    const rgb = MODE_RGB[mode];
+    // A running motor shakes by a pixel or two, so the vibration is visible in a still frame too.
+    const shake = duty * 1.8;
+    const x = c + R * Math.cos(a) + shake * Math.sin(now / 9 + i);
+    const y = c + R * Math.sin(a) + shake * Math.cos(now / 11 + i);
+    if (rgb && duty > 0) {
+      const [r, g, bl] = rgb;
+      for (const k of [1, 2]) {
+        ctx.strokeStyle = `rgba(${r},${g},${bl},${(0.5 * duty / k).toFixed(3)})`;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(x, y, 11 + 6 * k * duty, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.shadowColor = `rgba(${r},${g},${bl},0.9)`;
+      ctx.shadowBlur = 14 * duty;
+    }
+    const lit = rgb ? `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${(0.35 + 0.65 * duty).toFixed(3)})` : "rgba(40,48,80,0.95)";
+    ctx.fillStyle = lit;
+    ctx.beginPath();
+    ctx.arc(x, y, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = mode === "unknown" ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.6)";
+    ctx.setLineDash(mode === "unknown" ? [2, 2] : []);
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#fff";
+    ctx.fillText(String(i + 1), x, y + 0.5);
+  }
 }
 
 /** Eight cells under the video: metres and a bar per direction. */
@@ -194,15 +233,17 @@ export class BeltCells {
     for (const name of SECTOR_NAMES) {
       const el = document.createElement("div");
       el.className = "cell";
-      el.innerHTML = `<span>${name}</span><b>-</b><div class="bar"><i></i></div><em class="motor"></em>`;
+      el.innerHTML = `<span><em>${SECTOR_NAMES.indexOf(name) + 1}</em>${name.replace("-right", "-R").replace("-left", "-L")}</span><b>-</b><div class="bar"><i></i></div><em class="motor"></em>`;
       root.appendChild(el);
       this.cells.push(el);
     }
   }
   /** Distances, from the safety loop. */
   update(s: Safety): void {
-    s.sectors.forEach((d, i) => {
+    s.sectors.forEach((sd, i) => {
       const el = this.cells[i];
+      // The front motor answers to the walking path too, so show the same number it acts on.
+      const d = i === 0 && s.path !== null ? Math.min(sd ?? Infinity, s.path) : sd;
       el.querySelector("b")!.textContent = !s.known[i] ? "no data" : d === null ? "clear" : `${d.toFixed(1)} m`;
       const fill = d === null || !s.known[i] ? 0 : Math.max(0.04, Math.min(1, 1 - d / 3));
       (el.querySelector("i") as HTMLElement).style.width = `${fill * 100}%`;
