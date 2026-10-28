@@ -427,7 +427,7 @@ class MemoryEngine:
         local = rot.T @ (np.asarray(pos, float) - t) / sc
         self._obs.append(_Obs(w, local, label, kind, ts, score, thumb, source))
         pos_l = [float(v) for v in pos]
-        near = self._near_landmarks(pos_l) if kind == "object" else None
+        near = self._near_landmarks(pos_l, label) if kind == "object" else None
         self.pins.observe(label, kind, pos_l, ts, score, near, thumb, source)
 
     def _pin_detections(self, placed: _Placed, run_finder: bool) -> int:
@@ -477,10 +477,11 @@ class MemoryEngine:
                 count += 1
         return count
 
-    def _near_landmarks(self, pos: list[float], radius: float = 1.6) -> list[str]:
+    def _near_landmarks(self, pos: list[float], label: str, radius: float = 1.6) -> list[str]:
+        """The two nearest landmarks, never one named like the object ("chair near chair")."""
         cands = []
         for p in self.pins.pins.values():
-            if p.kind == "landmark":
+            if p.kind == "landmark" and p.label.lower() != label.lower():
                 d = float(np.linalg.norm(np.array(p.pos) - np.array(pos)))
                 if d <= radius:
                     cands.append((d, p.label))
@@ -629,7 +630,7 @@ class MemoryEngine:
         for o in self._obs:
             pos = apply_sim3(o.local[None], *self._sims[o.w])[0]
             pos_l = [float(v) for v in pos]
-            near = self._near_landmarks(pos_l) if o.kind == "object" else None
+            near = self._near_landmarks(pos_l, o.label) if o.kind == "object" else None
             self.pins.observe(o.label, o.kind, pos_l, o.ts, o.score, near, o.thumb, o.source)
         return [
             {
