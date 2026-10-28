@@ -68,6 +68,7 @@ def run(in_q, out_q, settings: Settings, session: str, new_needed: int = 4) -> N
                         msg["depth_scale"],
                         msg["gravity"],
                         msg["taps"],
+                        msg.get("hi"),
                     )
                 )
         stale = buf and len(buf) >= 2 and time.time() - arrived > 4.0

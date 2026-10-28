@@ -36,6 +36,7 @@ class Keyframe:
     depth_scale: float = 1.0  # scale that had been applied to `depth`
     gravity: np.ndarray | None = None  # gravity axis in OpenCV camera axes, sign unknown
     taps: list[tuple[str, float, float]] = field(default_factory=list)  # (label, nx, ny)
+    hi: np.ndarray | None = None  # the same frame larger, for the item finder
 
 
 @dataclass
@@ -237,7 +238,11 @@ class MemoryEngine:
                         name, "landmark", [float(v) for v in pos], ts, float(p), source="yolo26n"
                     )
         if run_finder:
-            for det in self.finder.find(kf.bgr, self.s.watchlist):
+            src = kf.hi if kf.hi is not None else kf.bgr
+            sx, sy = kf.bgr.shape[1] / src.shape[1], kf.bgr.shape[0] / src.shape[0]
+            for det in self.finder.find(src, self.s.watchlist):
+                x0, y0, x1, y1 = det.box
+                det = replace(det, box=(x0 * sx, y0 * sy, x1 * sx, y1 * sy))
                 pos = self._locate(placed, det.box)
                 if pos is None:
                     continue

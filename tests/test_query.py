@@ -114,3 +114,10 @@ def test_latest_prefers_confirmed_sightings_over_a_single_weak_one():
     s.observe("keys", "object", [1, 0, 1], 105.0, 0.6)
     s.observe("keys", "object", [5, 0, 5], 200.0, 0.2)  # one weak, newer sighting
     assert s.latest("keys").ts == 105.0
+
+
+def test_a_look_alike_is_offered_as_unconfirmed():
+    cup = pin([0.0, 0.9, -2.0], near=["desk"], label="cup")
+    text = template_answer("water bottle", cup, pose_facing_minus_z(), 1000.0, stand_in=True)
+    assert text.startswith("I'm not sure I saw your water bottle, but a cup was near the desk")
+    assert "straight ahead" in text

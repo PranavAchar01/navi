@@ -1,7 +1,7 @@
 import type { Net } from "./net";
 
 const TARGET_FPS = 30; // the server keeps only the newest frame, so more is fresher, not slower
-const LONG_SIDE = 640;
+const LONG_SIDE = 960;
 
 /** Frames and device motion from a phone camera or a video file, sent to the server. */
 export class Source {

@@ -78,21 +78,27 @@ def time_ago(seconds: float) -> str:
     return f"{h} hour{'s' if h != 1 else ''} ago"
 
 
-def template_answer(label: str, pin: Pin | None, pose: np.ndarray | None, now: float) -> str:
+def template_answer(
+    label: str, pin: Pin | None, pose: np.ndarray | None, now: float, stand_in: bool = False
+) -> str:
+    """`stand_in`: `pin` is a look-alike (a cup for the water bottle), not a confirmed sighting."""
     noun = f"your {label}"
     was = "were" if label.endswith("s") else "was"
     if pin is None:
         return f"I haven't seen {noun} yet. Walk past where you left them and ask again."
     ago = time_ago(now - pin.ts)
     where = f" near the {pin.near[0]}" if pin.near else ""
+    if stand_in:
+        noun = f"I'm not sure I saw {noun}, but a {pin.label}"
+        was = "was"
     if pose is None:
-        return f"{noun.capitalize()} {was} last seen{where}, {ago}."
+        return f"{noun[0].upper() + noun[1:]} {was} last seen{where}, {ago}."
     rel: Relative = relative_to(np.array(pin.pos), pose)
     if rel.horizontal_m < 1.0:
         place = "right next to you"
     else:
         place = f"{distance_phrase(rel.horizontal_m)} {direction_phrase(rel.bearing_deg)}"
-    return f"{noun.capitalize()} {was}{where}, {place}, seen {ago}."
+    return f"{noun[0].upper() + noun[1:]} {was}{where}, {place}, seen {ago}."
 
 
 def facts_for_language(label: str, pin: Pin, pose: np.ndarray | None, now: float) -> str:

@@ -35,6 +35,7 @@ from .memory_worker import run as memory_run
 from .motion import FallDetector, Sample, ShakeDetector
 from .pins import PinStore
 from .providers import make_language
+from .providers.finder import LOOKALIKES
 from .query import (
     SYSTEM,
     facts_for_language,
@@ -47,6 +48,8 @@ from .safety import SafetyLoop, hazards
 MAX_PENDING_KEYFRAMES = 12
 SIGHT_AGREE_DEG = 50.0  # after a lock, a sighting further than this from it is another object
 SIGHT_HOLD_S = 6.0  # how long a lock vets new sightings
+POSE_FRESH_S = 6.0  # a map pose older than this gives no direction
+FINDER_LONG_SIDE = 960  # small items vanish at the models' 518 px; the item finder looks here
 log = logging.getLogger("metasight")
 
 
@@ -179,7 +182,9 @@ class Server:
         small = cv2.resize(bgr, (w, h), interpolation=cv2.INTER_AREA)
         gray = self.heading.shift_gray(small)
         sharp = float(cv2.Laplacian(gray, cv2.CV_32F).var())
-        return small, self.safety.process(small), gray, sharp
+        k = FINDER_LONG_SIDE / max(bgr.shape[:2])
+        hi = cv2.resize(bgr, None, fx=k, fy=k, interpolation=cv2.INTER_AREA) if k < 1 else bgr
+        return small, self.safety.process(small), gray, sharp, hi
 
     async def frame_guard(self) -> None:
         """Keep the frame loop alive: log a failure, then carry on with the next frame."""
@@ -201,7 +206,7 @@ class Server:
             done = await self.loop.run_in_executor(self.pool, self._process, ts, seq, jpeg)
             if done is None:
                 continue
-            small, res, gray, sharp = done
+            small, res, gray, sharp, hi = done
             now = time.time()
             self.heading.image_turn(gray, now)
             if self.last_done:
@@ -216,7 +221,7 @@ class Server:
             known = [n in CAMERA_SECTORS or bool(map_fresh) for n in SECTORS]
             cmd, flags = plan(merged, known, sc.path_m, res.ttc_s, sc.drop_m)
             # The heading is carried between poses, so guidance tolerates an older position.
-            guide_fresh = self.memory_ready and self.map_pose_ts and now - self.map_pose_ts < 6.0
+            guide_fresh = self.memory_ready and now - self.map_pose_ts < POSE_FRESH_S
             guiding = self._guide(cmd, now, bool(guide_fresh), res.obstacles)
             if now < self.found_until:
                 flags |= FLAG_FOUND
@@ -267,7 +272,7 @@ class Server:
                     "map_age": round(now - self.map_pose_ts, 1) if self.map_pose_ts else None,
                 }
             )
-            self._maybe_keyframe(now, seq, small, res, sharp)
+            self._maybe_keyframe(now, seq, small, res, sharp, hi)
 
     def _map_sectors_now(self) -> list[float]:
         """The map's sectors turned with the head since their keyframe: turning left by 45
@@ -288,6 +293,11 @@ class Server:
         g = self.guide
         if g is None or now > g["until"]:
             self.guide = None
+            return None
+        if "want" in g and self.pins.latest(g["want"]) is not None:
+            # Memory confirmed the real item after the look-alike answer: say so, guide there.
+            self.guide = None
+            self.loop.create_task(self.answer(f"where is my {g['want']}"))
             return None
         pin = self.pins.pins.get(g["pin"])
         rel = self.heading.to(np.array(pin.pos)) if pin is not None and map_fresh else None
@@ -317,7 +327,7 @@ class Server:
         guide(cmd, bearing, dist)
         return {"label": g["label"], "dist": round(dist, 2), "bearing": round(bearing, 1)}
 
-    def _maybe_keyframe(self, now: float, seq: int, small, res, sharp: float) -> None:
+    def _maybe_keyframe(self, now: float, seq: int, small, res, sharp: float, hi) -> None:
         """Send memory the sharpest frame of each keyframe interval. Walking and turning blur
         most frames; a bottle on a desk walked past can be sharp in only one of them, and the
         map stitches better from sharp views too."""
@@ -334,6 +344,7 @@ class Server:
                 "seq": seq,
                 "ts": now,
                 "bgr": small,
+                "hi": hi,
                 "depth": res.depth,
                 "depth_scale": self.safety.scale,
                 "gravity": g,
@@ -392,20 +403,33 @@ class Server:
                 "pin": None,
             }
         pin = self.pins.latest(label)
+        stand_in = False
+        if pin is None:
+            # The careful detector can miss a motion-blurred item the quick one saw as its
+            # look-alike; offer that, and say it is unconfirmed.
+            alike = [
+                p
+                for p in self.pins.pins.values()
+                if label in LOOKALIKES.get(p.label, ()) and (p.seen >= 2 or p.score >= 0.25)
+            ]
+            if alike:
+                pin, stand_in = max(alike, key=lambda p: (p.seen, p.score)), True
         now = time.time()
-        text_out = template_answer(label, pin, self.pose, now)
+        # A stale pose gives a confident wrong direction; without one the answer names the place.
+        pose = self.pose if now - self.map_pose_ts < POSE_FRESH_S else None
+        text_out = template_answer(label, pin, pose, now, stand_in)
         polished = False
-        if pin is not None and self.language.name != "template":
+        if pin is not None and not stand_in and self.language.name != "template":
             try:
-                phrased = self.language.complete(
-                    SYSTEM, facts_for_language(label, pin, self.pose, now)
-                )
+                phrased = self.language.complete(SYSTEM, facts_for_language(label, pin, pose, now))
                 if valid_sentence(phrased):
                     text_out, polished = phrased.strip(), True
             except Exception:
                 pass
         if pin is not None:
-            self.guide = {"pin": pin.id, "label": label, "until": now + 90.0}
+            self.guide = {"pin": pin.id, "label": pin.label, "until": now + 90.0}
+            if stand_in:
+                self.guide["want"] = label
         return {
             "type": "answer",
             "label": label,
