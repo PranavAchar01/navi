@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+<meta name="description" content="{{TAGLINE}}">
+<style>
+:root {
+  color-scheme: light;
+  --surface: #fcfcfb; --card: #ffffff; --line: #e6e5e0;
+  --ink: #0b0b0b; --ink-2: #52514e; --ink-3: #8a8983;
+  --s1: #2a78d6; --s2: #eb6834; --truth: #b9b8b0;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --surface: #1a1a19; --card: #222220; --line: #34332f;
+    --ink: #f0efec; --ink-2: #c3c2b7; --ink-3: #8f8e86;
+    --s1: #3987e5; --s2: #d95926; --truth: #5d5c56;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--surface); color: var(--ink);
+  font: 17px/1.6 ui-sans-serif, -apple-system, "Inter", "Segoe UI", sans-serif; }
+main { max-width: 760px; margin: 0 auto; padding: 72px 24px 96px; }
+h1 { font-size: 44px; letter-spacing: -0.02em; margin: 0 0 6px; }
+h2 { font-size: 24px; letter-spacing: -0.01em; margin: 72px 0 8px; }
+h3 { font-size: 17px; margin: 0 0 4px; }
+.tag { font-size: 21px; color: var(--ink-2); margin: 0 0 24px; }
+p { color: var(--ink-2); margin: 0 0 14px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 32px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+.card p { font-size: 15px; margin: 0; }
+.legend { display: flex; gap: 20px; font-size: 14px; color: var(--ink-2); margin: 18px 0 6px; }
+.key { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 7px;
+  vertical-align: -1px; }
+.key.s1 { background: var(--s1); } .key.s2 { background: var(--s2); }
+.key.truth { background: var(--truth); }
+.chart { width: 100%; height: auto; display: block; }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .tick { fill: var(--ink-3); font-size: 12px; }
+.chart .cat { fill: var(--ink); font-size: 14px; }
+.chart .val { fill: var(--ink-2); font-size: 12px; }
+.chart .s1 { fill: var(--s1); } .chart .s2 { fill: var(--s2); }
+.chart .hit { fill: transparent; }
+.chart .mark:hover .hit { fill: var(--line); opacity: 0.5; }
+.note { font-size: 15px; border-left: 3px solid var(--line); padding-left: 14px; margin-top: 18px; }
+.paths { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 18px; }
+.paths h3 { margin-bottom: 8px; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.panel { margin: 0; background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px; }
+.panel figcaption { font-size: 12px; color: var(--ink-2); margin-bottom: 4px; }
+.panel svg { width: 100%; height: auto; display: block; }
+.panel .truth { fill: none; stroke: var(--truth); stroke-width: 4; stroke-linejoin: round; }
+.panel .est { fill: none; stroke-width: 2; stroke-linejoin: round; }
+.panel .est.s1 { stroke: var(--s1); } .panel .est.s2 { stroke: var(--s2); }
+details { margin-top: 12px; font-size: 14px; color: var(--ink-2); }
+summary { cursor: pointer; }
+table { border-collapse: collapse; width: 100%; margin-top: 8px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+th { color: var(--ink); font-weight: 600; }
+.flow { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 10px;
+  align-items: center; margin-top: 18px; }
+.flow .card { height: 100%; }
+.arrow { color: var(--ink-3); font-size: 22px; }
+footer { margin-top: 72px; font-size: 14px; color: var(--ink-3); }
+@media (max-width: 680px) {
+  .grid3, .paths, .flow { grid-template-columns: 1fr; }
+  .arrow { transform: rotate(90deg); justify-self: center; }
+  h1 { font-size: 36px; }
+}
+</style>
+</head>
+<body>
+<main>
+  <h1>{{TITLE}}</h1>
+  <p class="tag">{{TAGLINE}}</p>
+  <p>{{INTRO}}</p>
+
+  <div class="grid3">
+    <div class="card"><h3>{{F1_H}}</h3><p>{{F1}}</p></div>
+    <div class="card"><h3>{{F2_H}}</h3><p>{{F2}}</p></div>
+    <div class="card"><h3>{{F3_H}}</h3><p>{{F3}}</p></div>
+  </div>
+
+  <h2 id="t-map">{{MAP_H}}</h2>
+  <p>{{MAP_BODY}}</p>
+  <div class="legend"><span><span class="key s2"></span>Before</span><span><span class="key s1"></span>Now</span></div>
+  {{MAP_BARS}}
+  <p class="note">{{MAP_NOTE}}</p>
+  <details><summary>{{TABLE}}</summary>
+    <table><tr><th>Walk</th><th>Length</th><th>Before</th><th>Now</th></tr>{{TABLE_MAP}}</table>
+  </details>
+
+  <h2>{{PATH_H}}</h2>
+  <p>{{PATH_BODY}}</p>
+  <div class="legend"><span><span class="key truth"></span>True path</span><span><span class="key s2"></span>Before</span><span><span class="key s1"></span>Now</span></div>
+  <div class="paths">
+    <div><h3 id="p-freiburg3_long_office_household">{{PATH_OFFICE_H}}</h3><div class="pair">{{PATH_OFFICE}}</div></div>
+    <div><h3 id="p-freiburg2_pioneer_slam">{{PATH_HALL_H}}</h3><div class="pair">{{PATH_HALL}}</div></div>
+  </div>
+
+  <h2 id="t-find">{{FIND_H}}</h2>
+  <p>{{FIND_BODY}}</p>
+  <div class="legend"><span><span class="key s2"></span>Before</span><span><span class="key s1"></span>Now</span></div>
+  {{FIND_BARS}}
+  <p class="note">{{FIND_NOTE}}</p>
+  <details><summary>{{TABLE}}</summary>
+    <table><tr><th>Item</th><th>Items in photos</th><th>Before</th><th>Now</th></tr>{{TABLE_FIND}}</table>
+  </details>
+
+  <h2>{{HOW_H}}</h2>
+  <p>{{HOW_BODY}}</p>
+  <div class="flow" role="img" aria-label="{{FLOW_LABEL}}">
+    <div class="card"><h3>{{FLOW1_H}}</h3><p>{{FLOW1}}</p></div><span class="arrow">&rarr;</span>
+    <div class="card"><h3>{{FLOW2_H}}</h3><p>{{FLOW2}}</p></div><span class="arrow">&rarr;</span>
+    <div class="card"><h3>{{FLOW3_H}}</h3><p>{{FLOW3}}</p></div>
+  </div>
+
+  <h2>{{DATA_H}}</h2>
+  <p>{{DATA_BODY}}</p>
+
+  <footer>{{FOOT}}</footer>
+</main>
+</body>
+</html>

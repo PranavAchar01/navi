@@ -20,3 +20,4 @@ showcase/*.mp4
 showcase/rec/audio/
 ios/**/xcuserdata/
 ios/build/
+site/public/
