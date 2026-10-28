@@ -31,9 +31,15 @@ export interface Safety {
   cues: Cue[];
   obstacles: Obstacle[];
   objects?: SegObject[];
-  prox?: string; // base64 uint8 grid, centimetres / 2, 255 = far or floor
-  prox_size?: [number, number];
   hazards?: Hazard[];
+  known: boolean[]; // false: no trusted data for that sector (stale map), the belt stays quiet
+  path: number | null; // nearest obstacle in the 0.9 m walking path, metres
+  trip: number | null; // nearest low obstacle (under 40 cm) in the path
+  drop: number | null; // nearest drop below the floor in the path
+  ttc: number | null; // seconds to contact at the current closing speed
+  floor: boolean;
+  floor_scale: number | null;
+  eye_h: number;
   fps: number;
   ms: Record<string, number>;
   scale: number;
@@ -85,7 +91,18 @@ export interface Status {
   finder?: string;
   memory_error?: string;
 }
-export type Message = Safety | Answer | Alert | Pose | MemoryStats | Status | PinsMsg | TrailMsg | ModeMsg;
+/** What the belt's motors are doing, reported by the ESP32 (or its emulator) at 30 Hz. */
+export interface Belt {
+  type: "belt";
+  device: string;
+  lost: boolean;
+  drop: boolean;
+  duty: number[]; // 0..255 per motor, front first, clockwise
+  modes: string[];
+  age_ms: number | null;
+  latency_ms: number | null;
+}
+export type Message = Safety | Belt | Answer | Alert | Pose | MemoryStats | Status | PinsMsg | TrailMsg | ModeMsg;
 export type Mode = "home" | "outside";
 export interface ModeMsg {
   type: "mode";

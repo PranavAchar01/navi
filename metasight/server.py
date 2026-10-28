@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import base64
 import json
 import logging
 import math
@@ -27,8 +26,9 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .align import map_resolution
+from .belt import NAMES, BeltLink, plan
 from .config import ROOT, Settings
-from .geometry import SECTORS, cue_for_distance, merge_sectors
+from .geometry import CAMERA_SECTORS, SECTORS, merge_sectors
 from .hub import Hub
 from .memory_worker import run as memory_run
 from .motion import FallDetector, Sample, ShakeDetector
@@ -41,7 +41,7 @@ from .query import (
     template_answer,
     valid_sentence,
 )
-from .safety import SafetyLoop, hazards, proximity_grid
+from .safety import SafetyLoop, hazards
 
 MAX_PENDING_KEYFRAMES = 12
 log = logging.getLogger("metasight")
@@ -69,6 +69,8 @@ class Server:
         self.map_pose_ts = 0.0
         self.trail: list[list[float]] = []
         self.latest: tuple[float, int, bytes] | None = None
+        self.latest_arrived = 0.0  # monotonic time the latest camera frame reached the server
+        self.belt = BeltLink(settings.belt, settings.belt_addr, self._belt_state)
         self.frame_ready = asyncio.Event()
         self.pending_taps: list[tuple[str, float, float]] = []
         self.pending_kf = 0
@@ -92,10 +94,15 @@ class Server:
             target=memory_run, args=(self.in_q, self.out_q, self.s, self.session), daemon=True
         )
         self.proc.start()
+        await self.belt.start()
         threading.Thread(target=self._read_memory, daemon=True).start()
         self._frame_task = asyncio.create_task(self.frame_guard())
 
+    def _belt_state(self, msg: dict) -> None:
+        asyncio.ensure_future(self.hub.json(msg))
+
     def stop(self) -> None:
+        self.belt.stop()
         self.in_q.put({"cmd": "stop"})
         if self.proc:
             self.proc.join(timeout=15)
@@ -177,6 +184,7 @@ class Server:
             if self.latest is None:
                 continue
             ts, seq, jpeg = self.latest
+            arrived = self.latest_arrived
             done = await self.loop.run_in_executor(self.pool, self._process, ts, seq, jpeg)
             if done is None:
                 continue
@@ -188,6 +196,12 @@ class Server:
             self.last_done = now
             live = res.sectors
             merged = merge_sectors(live, self.map_sectors)
+            sc = res.scene
+            # Side and back sectors come from the map; trust them only while the pose is fresh.
+            map_fresh = self.memory_ready and self.map_pose_ts and now - self.map_pose_ts < 3.0
+            known = [n in CAMERA_SECTORS or bool(map_fresh) for n in SECTORS]
+            cmd, flags = plan(merged, known, sc.path_m, res.ttc_s, sc.drop_m)
+            self.belt.send(cmd, flags, arrived)
             await self.hub.json(
                 {
                     "type": "safety",
@@ -196,12 +210,16 @@ class Server:
                     "sectors": [_finite(d) for d in merged],
                     "names": SECTORS,
                     "live": [_finite(d) for d in live],
-                    "cues": [vars(cue_for_distance(d)) for d in merged],
-                    "prox": base64.b64encode(
-                        (grid := proximity_grid(res.depth)).tobytes()
-                    ).decode(),
-                    "hazards": hazards(grid),
-                    "prox_size": [192, 108],
+                    "known": known,
+                    "cues": [{"mode": NAMES[m], "intensity": i / 255} for m, i in cmd],
+                    "hazards": hazards(sc.grid, sc.corridor),
+                    "path": _finite(sc.path_m),
+                    "trip": _finite(sc.trip_m),
+                    "drop": _finite(sc.drop_m),
+                    "ttc": _finite(res.ttc_s),
+                    "floor": sc.floor,
+                    "floor_scale": res.floor_scale,
+                    "eye_h": self.s.eye_height_m,
                     "obstacles": [
                         {
                             "label": o.label,
@@ -371,6 +389,7 @@ def create_app(settings: Settings | None = None, session: str | None = None) -> 
                     data = msg["bytes"]
                     ts, seq = struct.unpack("<dI", data[:12])
                     srv.latest = (ts, seq, data[12:])
+                    srv.latest_arrived = time.monotonic()
                     srv.frame_ready.set()
                 elif msg.get("text"):
                     m = json.loads(msg["text"])

@@ -6,7 +6,7 @@ import { setupGlass } from "./glass";
 import { Net } from "./net";
 import { BeltCells, drawOverlay, drawRing } from "./overlay";
 import { listen, speak } from "./speech";
-import type { Answer, Mode, PinJson, Safety } from "./types";
+import type { Answer, Belt, Mode, PinJson, Safety } from "./types";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -26,13 +26,25 @@ let latest: Safety | null = null;
 let pins: PinJson[] = [];
 
 // ---------------------------------------------------------------- status chips
-const chipState = { server: false, memory: "loading", finder: "", fps: 0, source: false };
+const chipState = {
+  server: false,
+  memory: "loading",
+  finder: "",
+  fps: 0,
+  source: false,
+  belt: null as Belt | null,
+};
 function renderChips() {
   const chip = (cls: string, text: string) => `<span class="chip ${cls}"><i></i>${text}</span>`;
   $("chips").innerHTML = [
     chip(chipState.server ? "ok" : "bad", chipState.server ? "server" : "offline"),
     chip(chipState.memory === "ready" ? "ok" : "", chipState.memory === "ready" ? "memory" : "memory loading"),
     chipState.source ? chip("live", `${chipState.fps.toFixed(0)} fps`) : "",
+    chipState.belt
+      ? chipState.belt.lost
+        ? chip("bad", `${chipState.belt.device}: link lost`)
+        : chip("ok", `${chipState.belt.device} · ${chipState.belt.latency_ms?.toFixed(0) ?? "-"} ms`)
+      : chip("", "belt offline"),
   ].join("");
 }
 net.onConnection((up) => {
@@ -82,6 +94,12 @@ function syncedFrame(now: number): Safety | null {
   return r ?? latest;
 }
 
+net.on("belt", (m) => {
+  const was = chipState.belt?.lost;
+  chipState.belt = m;
+  belt.motors(m);
+  if (was !== m.lost) renderChips();
+});
 net.on("safety", (m) => {
   latest = m;
   const t = source.sentAt.get(m.seq);
@@ -92,9 +110,10 @@ net.on("safety", (m) => {
   chipState.fps = m.fps;
   belt.update(m);
   audio.update(m);
+  const f = (x: number | null, unit: string) => (x === null ? "-" : `${x.toFixed(1)} ${unit}`);
   $("readout").textContent =
-    `depth ${m.ms.depth?.toFixed(0)} ms · detect ${m.ms.detect?.toFixed(0)} ms · scale ${m.scale}` +
-    (m.map_age !== null ? ` · map ${m.map_age.toFixed(0)} s old` : "");
+    `path ${f(m.path, "m")} · contact ${f(m.ttc, "s")} · low ${f(m.trip, "m")} · drop ${f(m.drop, "m")}` +
+    ` · floor ${m.floor ? "ok" : "lost"} · scale ${m.scale.toFixed(2)} · depth ${m.ms.depth?.toFixed(0)} ms`;
   renderChips();
 });
 function frame(now: number) {

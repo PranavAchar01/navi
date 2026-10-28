@@ -1,4 +1,4 @@
-import { type Hazard, SECTOR_NAMES, type Safety } from "./types";
+import { type Belt, type Hazard, SECTOR_NAMES, type Safety } from "./types";
 
 const COLORS = { ok: "#5ee6a0", warn: "#ffd166", near: "#ff6b6b" };
 
@@ -190,22 +190,32 @@ export function drawRing(canvas: HTMLCanvasElement, s: Safety | null) {
 /** Eight cells under the video: metres and a bar per direction. */
 export class BeltCells {
   private cells: HTMLElement[] = [];
-  constructor(root: HTMLElement) {
+  constructor(private root: HTMLElement) {
     for (const name of SECTOR_NAMES) {
       const el = document.createElement("div");
       el.className = "cell";
-      el.innerHTML = `<span>${name}</span><b>-</b><div class="bar"><i></i></div>`;
+      el.innerHTML = `<span>${name}</span><b>-</b><div class="bar"><i></i></div><em class="motor"></em>`;
       root.appendChild(el);
       this.cells.push(el);
     }
   }
+  /** Distances, from the safety loop. */
   update(s: Safety): void {
     s.sectors.forEach((d, i) => {
       const el = this.cells[i];
-      el.className = `cell ${s.cues[i].mode === "off" ? "" : s.cues[i].mode}`;
-      el.querySelector("b")!.textContent = d === null ? "clear" : `${d.toFixed(1)} m`;
-      const fill = d === null ? 0 : Math.max(0.04, Math.min(1, 1 - d / 3));
+      el.querySelector("b")!.textContent = !s.known[i] ? "no data" : d === null ? "clear" : `${d.toFixed(1)} m`;
+      const fill = d === null || !s.known[i] ? 0 : Math.max(0.04, Math.min(1, 1 - d / 3));
       (el.querySelector("i") as HTMLElement).style.width = `${fill * 100}%`;
+    });
+  }
+  /** What each motor is doing right now, from the belt's own telemetry. */
+  motors(b: Belt): void {
+    this.root.classList.toggle("lost", b.lost);
+    b.duty.forEach((v, i) => {
+      const el = this.cells[i];
+      const mode = b.lost ? "lost" : b.modes[i];
+      el.className = `cell ${mode === "off" ? "" : mode}`;
+      el.style.setProperty("--duty", (v / 255).toFixed(2));
     });
   }
 }

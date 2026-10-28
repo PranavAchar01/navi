@@ -163,6 +163,18 @@ p { margin: 0; }
 
 .belt { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; flex: none; }
 .cell { --r: 16px; --blur: 12px; padding: 7px 9px 9px; }
+/* The motor under each cell, driven by the belt's telemetry: the dot is the vibration. */
+.cell { position: relative; --duty: 0; }
+.cell .motor {
+  position: absolute; top: 8px; right: 8px; width: 9px; height: 9px; border-radius: 50%;
+  background: rgb(255 255 255 / calc(18% + var(--duty) * 82%));
+  box-shadow: 0 0 calc(var(--duty) * 16px) calc(var(--duty) * 3px) rgb(255 200 90 / calc(var(--duty) * 90%));
+  transform: scale(calc(0.8 + var(--duty) * 0.6));
+}
+.cell.fast .motor, .cell.solid .motor { box-shadow: 0 0 calc(var(--duty) * 16px) calc(var(--duty) * 3px) rgb(255 90 90 / calc(var(--duty) * 90%)); }
+.cell.unknown { opacity: 0.55; }
+.cell.unknown b { font-size: 12px; color: var(--ink-soft); }
+.cell.lost .motor { box-shadow: 0 0 calc(var(--duty) * 16px) calc(var(--duty) * 3px) rgb(170 120 255 / 90%); }
 .cell b { display: block; font-family: var(--font-mono); font-weight: 500; font-size: 14px; }
 .cell span { display: block; font-size: 10px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.07em; }
 .cell .bar { height: 4px; border-radius: 2px; background: rgb(255 255 255 / 16%); margin-top: 5px; overflow: hidden; }

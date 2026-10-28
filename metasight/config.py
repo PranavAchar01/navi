@@ -27,6 +27,7 @@ def secret(*names: str) -> str | None:
             return out.stdout.strip()
     return None
 
+
 # Meta Model API: OpenAI-compatible, so the OpenAI SDK is the documented client.
 META_BASE_URL = "https://api.meta.ai/v1"
 META_TEAM_ID = "1009485265518211"
@@ -44,6 +45,10 @@ class Settings:
     depth_height: int = 294
     detector_imgsz: int = 320
     depth_scale: float = 1.0  # starting live-depth scale; ultra-wide lenses read about 0.6
+    eye_height_m: float = 1.37  # camera height above the floor; the live depth's ruler
+    hfov_deg: float = 105.0  # horizontal field of view of the camera feeding the safety loop
+    belt: str = "emulator"  # emulator: spawn firmware/emulator/belt-emu; udp: a real belt
+    belt_addr: str = "127.0.0.1:4210"
     segment: bool = False  # HUD: open-vocabulary masks over the watch-list vocabulary
     keyframe_hz: float = 1.5
     window: int = 8
@@ -79,7 +84,17 @@ class Settings:
         s.finder = os.environ.get("METASIGHT_FINDER", prov.get("finder", s.finder))
         for k in ("openai_model", "meta_model", "sam_model"):
             setattr(s, k, mod.get(k, getattr(s, k)))
-        for k in ("depth_width", "depth_height", "detector_imgsz", "segment", "depth_scale"):
+        for k in (
+            "depth_width",
+            "depth_height",
+            "detector_imgsz",
+            "segment",
+            "depth_scale",
+            "eye_height_m",
+            "hfov_deg",
+            "belt",
+            "belt_addr",
+        ):
             setattr(s, k, saf.get(k, getattr(s, k)))
         for k in ("keyframe_hz", "window", "overlap", "voxel_m", "watchlist"):
             setattr(s, k, mem.get(k, getattr(s, k)))

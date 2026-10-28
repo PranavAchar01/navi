@@ -6,7 +6,9 @@ finder = "yoloe"
 
 [safety]
 segment = false
-depth_scale = 0.6  # iPhone 0.5x ultra-wide room walk; the map's scale hints refine it
+depth_scale = 0.45  # lens prior: gates which plane can be the floor; the floor measures the rest
+eye_height_m = 1.22  # phone held at chest; measured on the global map (floor plane fit)
+hfov_deg = 105.0  # iPhone 0.5x, measured from the global map's intrinsics
 detector_imgsz = 384
 
 [memory]
