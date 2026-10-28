@@ -1,0 +1,41 @@
+//
+// AnswerSpeaker.swift
+//
+// Speaks the server's answers ("Your water bottle is on the desk, two steps ahead").
+// Audio goes through the current output route, which is the glasses' open-ear
+// speakers when they are connected over Bluetooth.
+//
+
+import AVFoundation
+
+@MainActor
+final class AnswerSpeaker {
+  private let synthesizer = AVSpeechSynthesizer()
+  private var sessionConfigured = false
+
+  func speak(_ text: String) {
+    configureSessionIfNeeded()
+    // A new answer replaces whatever is still being read out.
+    if synthesizer.isSpeaking {
+      synthesizer.stopSpeaking(at: .immediate)
+    }
+    let utterance = AVSpeechUtterance(string: text)
+    utterance.rate = AVSpeechUtteranceDefaultSpeechRate
+    synthesizer.speak(utterance)
+  }
+
+  private func configureSessionIfNeeded() {
+    guard !sessionConfigured else { return }
+    let session = AVAudioSession.sharedInstance()
+    do {
+      // The playback category routes to Bluetooth A2DP outputs (the glasses) by
+      // default; `.allowBluetoothA2DP` only applies to play-and-record.
+      try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+      try session.setActive(true)
+      sessionConfigured = true
+    } catch {
+      // Leave unconfigured; the synthesizer still plays on the default route and
+      // the next answer retries.
+    }
+  }
+}

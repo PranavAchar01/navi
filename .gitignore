@@ -18,3 +18,5 @@ mobileclip*.ts
 showcase/raw/
 showcase/*.mp4
 showcase/rec/audio/
+ios/**/xcuserdata/
+ios/build/
