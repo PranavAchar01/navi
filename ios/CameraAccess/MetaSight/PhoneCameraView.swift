@@ -39,6 +39,7 @@ struct PhoneCameraView: View {
           serverStatus
           askRow
           serverRow
+          beepRow
           Toggle("Save this walk on the Mac", isOn: $camera.saveWalk)
             .font(.system(size: 15, weight: .medium))
             .foregroundStyle(.white)
@@ -236,6 +237,20 @@ struct PhoneCameraView: View {
       .panelButton()
       .accessibilityHint("Connects to the server address")
     }
+  }
+
+  private var beepRow: some View {
+    Picker("Beeps", selection: beepVolumeBinding) {
+      ForEach(BeepVolume.allCases) { Text($0.label).tag($0) }
+    }
+    .pickerStyle(.segmented)
+    .accessibilityLabel("Beep volume")
+    .accessibilityIdentifier("beep_volume")
+  }
+
+  private var beepVolumeBinding: Binding<BeepVolume> {
+    let beeper = link.beeper
+    return Binding(get: { beeper.volume }, set: { beeper.volume = $0 })
   }
 
   private var serverURLBinding: Binding<String> {

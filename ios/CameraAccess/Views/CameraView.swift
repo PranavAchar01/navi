@@ -393,6 +393,13 @@ struct CameraView: View {
         .panelButton()
       }
 
+      Picker("Beeps", selection: beepVolumeBinding) {
+        ForEach(BeepVolume.allCases) { Text($0.label).tag($0) }
+      }
+      .pickerStyle(.segmented)
+      .accessibilityLabel("Beep volume")
+      .accessibilityIdentifier("beep_volume")
+
       HStack(spacing: 8) {
         TextField("where is my water bottle", text: $question)
           .submitLabel(.send)
@@ -429,6 +436,11 @@ struct CameraView: View {
       }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
+  }
+
+  private var beepVolumeBinding: Binding<BeepVolume> {
+    let beeper = viewModel.link.beeper
+    return Binding(get: { beeper.volume }, set: { beeper.volume = $0 })
   }
 
   private var serverURLBinding: Binding<String> {

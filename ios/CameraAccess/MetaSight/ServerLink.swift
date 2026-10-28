@@ -119,6 +119,8 @@ final class ServerLink {
   @ObservationIgnored private var motionFlusher: Task<Void, Never>?
   @ObservationIgnored private var motionBuffer: [[Double]] = []
   @ObservationIgnored private let speaker = AnswerSpeaker()
+  /// Spatial beeps for the proximity bands, through the active output (the glasses).
+  @ObservationIgnored let beeper = SpatialBeeper()
   /// Sent every time the socket connects (and right away when set), so a reconnect
   /// restores what the server needs to know about this camera.
   @ObservationIgnored private var hello: [String: Any]?
@@ -348,6 +350,7 @@ final class ServerLink {
         let reading = Self.proximity(sectors: sectors, modes: cues.map(\.mode), path: msg.path)
         proximity = reading
         WatchLink.shared.send(reading)
+        beeper.update(reading)
       }
     default:
       break
