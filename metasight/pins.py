@@ -70,12 +70,14 @@ class PinStore:
         return pin
 
     def latest(self, label: str, kind: str = "object") -> Pin | None:
-        """The pin of this label seen most often (a stray detection loses to the real thing),
-        the newest among equals."""
+        """Where it was last seen, so a moved object answers with its new place: the newest pin
+        with two sightings, or one the crop check scored firmly (score >= 0.5). Only when no
+        pin of the label is firm does the most-seen lone sighting stand in."""
         cands = [p for p in self.pins.values() if p.label == label and p.kind == kind]
         firm = [p for p in cands if p.seen >= 2 or p.score >= 0.5]
-        pool = firm or cands
-        return max(pool, key=lambda p: (p.seen, p.ts)) if pool else None
+        if firm:
+            return max(firm, key=lambda p: p.ts)
+        return max(cands, key=lambda p: (p.seen, p.ts)) if cands else None
 
     def merge(self, radius: float, landmark_radius: float | None = None) -> None:
         """Fold pins of one label that sit within `radius` of each other into the better seen
