@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import base64
 import math
+import threading
 import time
 from dataclasses import dataclass, field, replace
 
@@ -127,6 +128,62 @@ def _thumb(bgr: np.ndarray, box: tuple[float, float, float, float], size: int = 
     return base64.b64encode(jpg.tobytes()).decode() if ok else ""
 
 
+def _solver_main(fd: int, hfov_deg: float | None) -> None:
+    from multiprocessing.connection import Connection
+
+    conn = Connection(fd)
+    runner = MapAnythingRunner(hfov_deg=hfov_deg)
+    while True:
+        try:
+            job = conn.recv()
+        except EOFError:  # the worker is gone
+            return
+        if job is None:
+            return
+        if "hfov" in job:
+            runner.hfov_deg = job["hfov"]
+            continue
+        try:
+            conn.send(runner.infer(job["frames"]))
+        except Exception as exc:
+            conn.send(exc)
+
+
+class SolverProcess:
+    """MapAnything in a second process: the global solve runs beside the live windows."""
+
+    def __init__(self, hfov_deg: float | None = None):
+        import multiprocessing as mp
+        import subprocess
+        import sys
+
+        # A plain subprocess: the worker is a daemon process and may not have children.
+        self._conn, child = mp.Pipe()
+        arg = "None" if hfov_deg is None else repr(float(hfov_deg))
+        code = f"from metasight.memory import _solver_main; _solver_main({child.fileno()}, {arg})"
+        self._proc = subprocess.Popen([sys.executable, "-c", code], pass_fds=[child.fileno()])
+        child.close()
+        self.hfov_deg = hfov_deg
+
+    def set_hfov(self, hfov: float) -> None:
+        self.hfov_deg = hfov
+        self._conn.send({"hfov": hfov})
+
+    def submit(self, frames: list[np.ndarray]) -> None:
+        self._conn.send({"frames": frames})
+
+    def poll(self) -> list[dict] | None:
+        if not self._conn.poll():
+            return None
+        out = self._conn.recv()
+        if isinstance(out, Exception):
+            raise out
+        return out
+
+    def stop(self) -> None:
+        self._conn.send(None)
+
+
 def _rotation_to(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     """Smallest rotation taking unit vector a onto unit vector b."""
     v, c = np.cross(a, b), float(a @ b)
@@ -211,6 +268,7 @@ class MemoryEngine:
         landmarks=None,
         sam_every: int = 1,
         describer=None,
+        solver=None,
     ):
         self.base, self.mode = s, "home"
         self.s, self.runner, self.finder, self.landmarks = s, runner, finder, landmarks
@@ -236,6 +294,8 @@ class MemoryEngine:
         self._prev_sim: tuple[float, np.ndarray, np.ndarray] | None = None
         self._bank: dict[int, tuple[float, np.ndarray]] = {}  # seq -> (ts, bgr), spread out
         self._bank_new = 0
+        self.solver = solver
+        self._job: dict | None = None
         self._anchors: tuple[Sim3, np.ndarray, np.ndarray] | None = None  # live frame -> global
 
     # ------------------------------------------------------------------ modes
@@ -250,6 +310,7 @@ class MemoryEngine:
         self._map_cols = np.empty((0, 3), np.uint8)
         self.trail, self.last_pose, self.poses = [], None, {}
         self._bank, self._bank_new, self._anchors = {}, 0, None
+        self._job = None  # a solve still running finishes into the new map; drop its result
         self._kfs, self._sims, self._obs, self.loops = {}, [], [], []
         self._seq_rel, self._seq_w, self._loop_edges = [], [], []
 
@@ -749,15 +810,67 @@ class MemoryEngine:
                 del self._bank[min(crowd, key=crowd.get)]
 
     def global_due(self) -> bool:
-        return self.mode == "home" and self._bank_new >= GLOBAL_EVERY and len(self._bank) >= 4
+        return (
+            self.mode == "home"
+            and self._job is None
+            and self._bank_new >= GLOBAL_EVERY
+            and len(self._bank) >= 4
+        )
 
-    def global_solve(self) -> list[dict]:
-        """One MapAnything pass over the bank: a clean map in a gravity-aligned frame, floor at
-        y = 0, roof cropped. Replaces the whole map; the live windows keep running in their own
-        frame and are carried over with `_to_global`."""
+    def global_start(self) -> None:
+        """Start the pass over the bank without blocking live windows: in the `solver` process
+        (its own model on the GPU; MPS does not take two threads), or a thread with the
+        engine's own runner when there is none. `global_poll` picks the result up."""
         self._bank_new = 0
         seqs = sorted(self._bank)
-        preds = self.runner.infer([self._bank[q][1] for q in seqs])
+        frames = [self._bank[q][1] for q in seqs]
+        job: dict = {"seqs": seqs, "ts": [self._bank[q][0] for q in seqs]}
+        if self.solver is not None:
+            self.solver.submit(frames)
+        else:
+
+            def work() -> None:
+                try:
+                    job["preds"] = self.runner.infer(frames)
+                except Exception as exc:
+                    job["error"] = exc
+
+            job["thread"] = threading.Thread(target=work, daemon=True)
+            job["thread"].start()
+        self._job = job
+
+    def global_running(self) -> bool:
+        return self._job is not None
+
+    def global_poll(self) -> list[dict] | None:
+        """None while the solve runs; its events once it is done."""
+        job = self._job
+        if job is None:
+            return None
+        if self.solver is not None:
+            preds = self.solver.poll()
+            if preds is None:
+                return None
+            self._job = None
+            return self._global_finish(job["seqs"], preds, job["ts"])
+        if job["thread"].is_alive():
+            return None
+        self._job = None
+        if "error" in job:
+            raise job["error"]
+        return self._global_finish(job["seqs"], job["preds"], job["ts"])
+
+    def global_solve(self) -> list[dict]:
+        """The same, waiting for it."""
+        self._bank_new = 0
+        seqs = sorted(self._bank)
+        ts = [self._bank[q][0] for q in seqs]
+        return self._global_finish(seqs, self.runner.infer([self._bank[q][1] for q in seqs]), ts)
+
+    def _global_finish(self, seqs: list[int], preds: list[dict], stamps: list[float]) -> list[dict]:
+        """A clean map in a gravity-aligned frame, floor at y = 0, roof cropped. Replaces the
+        whole map; the live windows keep running in their own frame and are carried over with
+        `_to_global`."""
         # Old (live) frame -> the new frame, from the pixels both passes saw.
         src, dst = [], []
         sl = (slice(None, None, STRIDE), slice(None, None, STRIDE))
@@ -798,8 +911,7 @@ class MemoryEngine:
         self._anchors = (c, np.array(centres), np.array(fixes))
 
         trail = [
-            [*map(float, (g @ pr["pose"])[:3, 3]), self._bank[q][0]]
-            for q, pr in zip(seqs, preds, strict=True)
+            [*map(float, (g @ pr["pose"])[:3, 3]), ts] for ts, pr in zip(stamps, preds, strict=True)
         ]
         return [
             {

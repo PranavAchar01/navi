@@ -12,7 +12,7 @@ import numpy as np
 
 from .config import SESSIONS, Settings
 from .loops import Describer
-from .memory import Keyframe, MapAnythingRunner, MemoryEngine
+from .memory import Keyframe, MapAnythingRunner, MemoryEngine, SolverProcess
 from .providers import make_finder
 
 
@@ -28,6 +28,7 @@ def run(in_q, out_q, settings: Settings, session: str, new_needed: int = 4) -> N
         YOLO(str(settings.weights_dir / "yolo26n.pt")),
         sam_every=sam_every,
         describer=Describer(),
+        solver=SolverProcess(settings.hfov_deg if settings.map_intrinsics else None),
     )
     if settings.mode != "home":
         engine.set_mode(settings.mode)
@@ -41,17 +42,24 @@ def run(in_q, out_q, settings: Settings, session: str, new_needed: int = 4) -> N
         per = engine.s.window - engine.s.overlap
         need = max(2, per // 2 + 1) if engine.mode == "outside" else new_needed
         try:
+            for e in engine.global_poll() or []:
+                out_q.put(e)
+        except Exception as exc:
+            out_q.put({"type": "memory_error", "error": repr(exc)})
+        try:
             msg = in_q.get(timeout=0.25)
         except queue.Empty:
             msg = None
         if msg is not None:
             if msg["cmd"] == "stop":
+                engine.solver.stop()
                 if engine.mode == "home":
                     engine.save(save_path)
                 return
             if msg["cmd"] == "hfov":  # the frame source changed lens (an iPhone, the glasses)
                 if settings.map_intrinsics:
                     engine.runner.hfov_deg = msg["hfov"]
+                    engine.solver.set_hfov(msg["hfov"])
                 continue
             if msg["cmd"] == "mode":
                 if engine.mode == "home" and len(engine._map_pts):
@@ -96,11 +104,7 @@ def run(in_q, out_q, settings: Settings, session: str, new_needed: int = 4) -> N
             if e["type"] == "memory_stats":
                 e["consumed"] = consumed
             out_q.put(e)
-        if engine.global_due():  # the same process, so the safety loop never waits on it
-            try:
-                for e in engine.global_solve():
-                    out_q.put(e)
-            except Exception as exc:
-                out_q.put({"type": "memory_error", "error": repr(exc)})
+        if engine.global_due():
+            engine.global_start()
         if engine.mode == "home" and engine._windows % 10 == 0:
             engine.save(save_path)
