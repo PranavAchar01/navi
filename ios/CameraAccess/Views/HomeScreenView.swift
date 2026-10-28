@@ -18,12 +18,15 @@ import SwiftUI
 
 struct HomeScreenView: View {
   var viewModel: WearablesViewModel
+  @Binding var source: CameraSource
 
   var body: some View {
     ZStack {
       Color.white.edgesIgnoringSafeArea(.all)
 
       VStack(spacing: 12) {
+        SourcePicker(source: $source)
+
         Spacer()
 
         Image(.cameraAccessIcon)
@@ -66,6 +69,14 @@ struct HomeScreenView: View {
           ) {
             viewModel.connectGlasses()
           }
+
+          Button("No glasses? Use the iPhone camera") {
+            source = .iphone
+          }
+          .font(.system(size: 17, weight: .semibold))
+          .frame(maxWidth: .infinity, minHeight: 44)
+          .accessibilityHint("Switches to this iPhone's camera, no glasses needed")
+          .accessibilityIdentifier("use_iphone_button")
         }
       }
       .padding(.all, 24)

@@ -1,0 +1,251 @@
+//
+// PhoneCameraView.swift
+//
+// The iPhone-camera screen: one big Start / Stop button, the nearest obstacle in large
+// text, the camera view with the belt beside it, and the same ask field and server
+// settings as the glasses screen. Every control carries a VoiceOver label; the nearest
+// obstacle reads as a full sentence and updates as you walk.
+//
+
+import SwiftUI
+
+struct PhoneCameraView: View {
+  @Binding var source: CameraSource
+  @State private var camera: PhoneCamera
+  @State private var question: String = ""
+  @FocusState private var focusedField: Field?
+
+  private enum Field {
+    case serverURL
+    case question
+  }
+
+  init(link: ServerLink, source: Binding<CameraSource>) {
+    self._source = source
+    self._camera = State(wrappedValue: PhoneCamera(link: link))
+  }
+
+  private var link: ServerLink { camera.link }
+
+  var body: some View {
+    VStack(spacing: 12) {
+      SourcePicker(source: $source)
+
+      ScrollView {
+        VStack(alignment: .leading, spacing: 12) {
+          statusRows
+          cameraArea
+          nearest
+          serverStatus
+          askRow
+          serverRow
+          Toggle("Save this walk on the Mac", isOn: $camera.saveWalk)
+            .font(.system(size: 15, weight: .medium))
+            .foregroundStyle(.white)
+            .disabled(camera.isRunning)
+            .accessibilityHint("Keeps the frames and the phone's path on the Mac for checking the map later")
+            .accessibilityIdentifier("save_walk_toggle")
+        }
+      }
+      .scrollDismissesKeyboard(.interactively)
+
+      CustomButton(
+        title: camera.isRunning ? "Stop" : "Start walking",
+        style: camera.isRunning ? .destructive : .primary,
+        isDisabled: false
+      ) {
+        if camera.isRunning {
+          camera.stop()
+        } else {
+          camera.start()
+        }
+      }
+      .accessibilityHint(camera.isRunning ? "Stops sending the camera" : "Sends this iPhone's camera to the meta-sight server")
+      .accessibilityIdentifier(camera.isRunning ? "phone_stop_button" : "phone_start_button")
+    }
+    .padding(.horizontal, 20)
+    .padding(.vertical, 12)
+    .background(Color.black.ignoresSafeArea())
+    // Black screen: dark controls keep every label and placeholder readable.
+    .environment(\.colorScheme, .dark)
+    .onAppear {
+      link.start()
+      WatchLink.shared.activate()
+    }
+    .onDisappear { camera.stop() }
+    #if DEBUG
+    .task { if DemoLaunch.isPhoneDemo { camera.start() } }
+    #endif
+  }
+
+  // MARK: - Status
+
+  private var statusRows: some View {
+    VStack(alignment: .leading, spacing: 4) {
+      chip("Server", link.connection.text, ok: link.connection == .connected)
+        .accessibilityIdentifier("server_chip")
+      chip("Watch", WatchLink.shared.status, ok: WatchLink.shared.status == "watch connected")
+        .accessibilityIdentifier("watch_chip")
+      chip("Camera", camera.tracking, ok: camera.isRunning)
+        .accessibilityIdentifier("tracking_chip")
+      if camera.isRunning {
+        Text(walkLine)
+          .font(.system(size: 12, weight: .medium))
+          .monospaced()
+          .foregroundStyle(Color.white.opacity(0.75))
+          .accessibilityIdentifier("walk_line")
+      }
+    }
+  }
+
+  private var walkLine: String {
+    var parts = ["\(camera.framesSent) frames"]
+    if let hfov = camera.hfov {
+      parts.append(String(format: "lens %.1f°", hfov))
+    }
+    parts.append(camera.walkID.map { "saving \($0)" } ?? "not saving")
+    return parts.joined(separator: " · ")
+  }
+
+  private func chip(_ label: String, _ value: String, ok: Bool) -> some View {
+    HStack(spacing: 6) {
+      Circle()
+        .fill(ok ? Color.green : Color.gray)
+        .frame(width: 8, height: 8)
+        .accessibilityHidden(true)
+      Text("\(label): \(value)")
+        .font(.system(size: 13, weight: .medium))
+        .monospaced()
+        .foregroundStyle(Color.white.opacity(0.9))
+    }
+    .accessibilityElement(children: .combine)
+  }
+
+  // MARK: - Camera and belt
+
+  private var cameraArea: some View {
+    HStack(alignment: .top, spacing: 12) {
+      ZStack {
+        Color.white.opacity(0.06)
+        if let image = camera.preview {
+          Image(uiImage: image)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+        } else {
+          Image(systemName: "camera")
+            .font(.system(size: 30))
+            .foregroundStyle(Color.white.opacity(0.4))
+        }
+      }
+      .aspectRatio(FrameEncoder.width / FrameEncoder.height, contentMode: .fit)
+      .frame(maxHeight: 260)
+      .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+      .accessibilityElement()
+      .accessibilityLabel(camera.isRunning ? "Camera view, sending" : "Camera view, off")
+      .accessibilityIdentifier("phone_preview")
+
+      BeltView(belt: link.belt, guideBearing: link.guide?.bearing)
+        .frame(width: 120, height: 120)
+        .background(Color.white.opacity(0.06))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .accessibilityIdentifier("belt_view")
+    }
+  }
+
+  /// The nearest obstacle in large, high-contrast type.
+  private var nearest: some View {
+    let warning = link.proximity?.warning
+    let title: String
+    if !camera.isRunning && link.proximity == nil {
+      title = "Not started"
+    } else if let warning {
+      title = "\(warning.directionName) \(warning.distanceText)"
+    } else {
+      title = "Clear"
+    }
+    let colour: Color =
+      switch warning?.band {
+      case .stop: .red
+      case .fast: .orange
+      case .slow: .yellow
+      default: .white
+      }
+    return Text(title)
+      .font(.system(size: 40, weight: .heavy))
+      .foregroundStyle(colour)
+      .minimumScaleFactor(0.5)
+      .lineLimit(1)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .accessibilityLabel(warning?.spoken ?? (title == "Clear" ? "Path clear" : title))
+      .accessibilityAddTraits(.updatesFrequently)
+      .accessibilityIdentifier("nearest_label")
+  }
+
+  private var serverStatus: some View {
+    VStack(alignment: .leading, spacing: 4) {
+      Text(link.statusLine)
+        .font(.system(size: 15, weight: .semibold))
+        .foregroundStyle(.white)
+        .lineLimit(2)
+        .accessibilityIdentifier("status_line")
+      if let answer = link.lastAnswer {
+        Text(answer)
+          .font(.system(size: 15))
+          .foregroundStyle(Color.white.opacity(0.85))
+          .accessibilityLabel("Answer: \(answer)")
+      }
+    }
+  }
+
+  // MARK: - Ask and server
+
+  private var askRow: some View {
+    HStack(spacing: 8) {
+      TextField("where is my water bottle", text: $question)
+        .submitLabel(.send)
+        .focused($focusedField, equals: .question)
+        .onSubmit(sendQuestion)
+        .panelField()
+        .accessibilityLabel("Question")
+        .accessibilityHint("Type or dictate a question, like where is my water bottle")
+        .accessibilityIdentifier("ask_field")
+      Button("Ask", action: sendQuestion)
+        .panelButton()
+        .disabled(link.connection != .connected)
+        .accessibilityHint("Sends the question; the answer is spoken")
+        .accessibilityIdentifier("ask_button")
+    }
+  }
+
+  private var serverRow: some View {
+    HStack(spacing: 8) {
+      TextField("ws://host:8445/ws", text: serverURLBinding)
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+        .keyboardType(.URL)
+        .submitLabel(.go)
+        .focused($focusedField, equals: .serverURL)
+        .onSubmit { link.applyURL() }
+        .panelField()
+        .accessibilityLabel("Server address")
+        .accessibilityIdentifier("server_url_field")
+      Button("Connect") {
+        focusedField = nil
+        link.applyURL()
+      }
+      .panelButton()
+      .accessibilityHint("Connects to the server address")
+    }
+  }
+
+  private var serverURLBinding: Binding<String> {
+    let link = self.link
+    return Binding(get: { link.urlString }, set: { link.urlString = $0 })
+  }
+
+  private func sendQuestion() {
+    link.ask(question)
+    question = ""
+    focusedField = nil
+  }
+}

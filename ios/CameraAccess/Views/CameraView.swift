@@ -24,6 +24,7 @@ private let updateRequiredTitle = "Update required"
 struct CameraView: View {
   @State private var viewModel: CameraViewModel
   @Bindable var wearablesVM: WearablesViewModel
+  @Binding var source: CameraSource
   @State private var showSettingsMenu: Bool = false
   @State private var isLaunchingUpdate: Bool = false
   @State private var question: String = ""
@@ -34,9 +35,10 @@ struct CameraView: View {
     case question
   }
 
-  init(wearables: WearablesInterface, wearablesVM: WearablesViewModel) {
-    self._viewModel = State(wrappedValue: CameraViewModel(wearables: wearables))
+  init(wearables: WearablesInterface, wearablesVM: WearablesViewModel, link: ServerLink, source: Binding<CameraSource>) {
+    self._viewModel = State(wrappedValue: CameraViewModel(wearables: wearables, link: link))
     self._wearablesVM = Bindable(wearablesVM)
+    self._source = source
   }
 
   private var isUpdateRequired: Bool {
@@ -78,9 +80,13 @@ struct CameraView: View {
       }
 
       VStack(spacing: 0) {
+        SourcePicker(source: $source)
+          .environment(\.colorScheme, .dark)
+          .padding(.horizontal, 20)
+          .padding(.top, 8)
         topBar
           .padding(.horizontal, 20)
-          .padding(.top, 16)
+          .padding(.top, 12)
           .padding(.bottom, 40)
           .background(
             LinearGradient(colors: [.black.opacity(0.6), .clear], startPoint: .top, endPoint: .bottom)
@@ -105,11 +111,14 @@ struct CameraView: View {
     }
     .onAppear {
       viewModel.link.start()
+      WatchLink.shared.activate()
       // Keep the screen on: backgrounding the app ends the glasses session.
       UIApplication.shared.isIdleTimerDisabled = true
     }
     .onDisappear {
       UIApplication.shared.isIdleTimerDisabled = false
+      // Switching to the iPhone camera: let go of the glasses.
+      if viewModel.hasSession { viewModel.endSession() }
     }
     #if DEBUG
     .task { await DemoLaunch.autoStart(viewModel) }
@@ -264,7 +273,7 @@ struct CameraView: View {
       Spacer()
 
       // Top bar carries only the app-level settings/Disconnect control.
-      iconButton("gearshape", id: "settings_button") {
+      iconButton("gearshape", label: "Settings", id: "settings_button") {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
           showSettingsMenu.toggle()
         }
@@ -299,7 +308,7 @@ struct CameraView: View {
     }
   }
 
-  private func iconButton(_ systemName: String, id: String, action: @escaping () -> Void) -> some View {
+  private func iconButton(_ systemName: String, label: String, id: String, action: @escaping () -> Void) -> some View {
     Button(action: action) {
       Image(systemName: systemName)
         .resizable()
@@ -308,6 +317,7 @@ struct CameraView: View {
         .frame(width: 22, height: 22)
         .padding(.leading, 16)
     }
+    .accessibilityLabel(label)
     .accessibilityIdentifier(id)
   }
 
@@ -374,6 +384,7 @@ struct CameraView: View {
           .focused($focusedField, equals: .serverURL)
           .onSubmit { viewModel.link.applyURL() }
           .panelField()
+          .accessibilityLabel("Server address")
           .accessibilityIdentifier("server_url_field")
         Button("Connect") {
           focusedField = nil
@@ -388,6 +399,7 @@ struct CameraView: View {
           .focused($focusedField, equals: .question)
           .onSubmit(sendQuestion)
           .panelField()
+          .accessibilityLabel("Question")
           .accessibilityIdentifier("ask_field")
         Button("Ask", action: sendQuestion)
           .panelButton()
@@ -446,6 +458,7 @@ struct CameraView: View {
         .background(.ultraThinMaterial)
         .clipShape(Circle())
     }
+    .accessibilityLabel("Take photo")
     .accessibilityIdentifier("capture_button")
     .disabled(!captureControlsEnabled)
     .opacity(captureControlsEnabled ? 1 : 0.35)
@@ -609,7 +622,7 @@ struct UpdateRequiredMessage: View {
 
 // MARK: - meta-sight panel styling
 
-private extension View {
+extension View {
   func panelField() -> some View {
     self
       .font(.system(size: 14))

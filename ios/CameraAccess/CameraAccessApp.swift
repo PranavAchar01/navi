@@ -33,6 +33,7 @@ struct CameraAccessApp: App {
   #endif
   private let wearables: WearablesInterface
   @State private var wearablesViewModel: WearablesViewModel
+  @State private var link = ServerLink()
 
   init() {
     do {
@@ -60,6 +61,7 @@ struct CameraAccessApp: App {
     }
     // meta-sight: optional simulator demo (paired mock glasses + video feed).
     DemoLaunch.configureMockDevice()
+    DemoLaunch.configurePhoneDemo()
     #endif
 
     let wearables = Wearables.shared
@@ -71,7 +73,7 @@ struct CameraAccessApp: App {
     WindowGroup {
       // Main app view with access to the shared Wearables SDK instance
       // The Wearables.shared singleton provides the core DAT API
-      MainAppView(wearables: Wearables.shared, viewModel: wearablesViewModel)
+      MainAppView(wearables: Wearables.shared, viewModel: wearablesViewModel, link: link)
         // Show error alerts for view model failures
         .alert("Something went wrong", isPresented: $wearablesViewModel.showError) {
           Button("OK") {

@@ -8,9 +8,11 @@
 //   frame  -> binary: Float64 LE timestamp (ms since epoch) + UInt32 LE seq + JPEG bytes
 //   motion -> {"type":"motion","s":[[t, ax, ay, az, gx, gy, gz], ...]} (gyro omitted when absent)
 //   ask    -> {"type":"ask","text":"..."}
+//   camera -> {"type":"camera","source":"iphone","hfov":deg,"width":w,"height":h,"walk":id|null}
+//   arpose -> {"type":"arpose","seq":n,"ts":ms,"m":[16 floats],"track":"..."} (just before its frame)
 //   answer <- {"type":"answer","text":"..."}
 //   belt   <- {"type":"belt","duty":[8],"modes":[8],"lost":b,"found":b,"latency_ms":n|null}
-//   safety <- {"type":"safety","path":m|null,"guide":{...}|null,"found":b}
+//   safety <- {"type":"safety","sectors":[8],"cues":[{"mode":...}],"path":m|null,"guide":{...}|null,"found":b}
 //
 
 import Foundation
@@ -102,6 +104,8 @@ final class ServerLink {
   private(set) var guide: GuideTarget?
   private(set) var statusLine: String = "waiting for server"
   private(set) var lastAnswer: String?
+  /// Sector distances from the latest safety message, as forwarded to the watch.
+  private(set) var proximity: ProximityReading?
 
   // MARK: - Frame path (read off the main actor)
 
@@ -115,6 +119,9 @@ final class ServerLink {
   @ObservationIgnored private var motionFlusher: Task<Void, Never>?
   @ObservationIgnored private var motionBuffer: [[Double]] = []
   @ObservationIgnored private let speaker = AnswerSpeaker()
+  /// Sent every time the socket connects (and right away when set), so a reconnect
+  /// restores what the server needs to know about this camera.
+  @ObservationIgnored private var hello: [String: Any]?
 
   init(defaults: UserDefaults = .standard) {
     urlString = defaults.string(forKey: Self.urlDefaultsKey) ?? Self.defaultURL
@@ -178,7 +185,13 @@ final class ServerLink {
   func ask(_ text: String) {
     let question = text.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !question.isEmpty else { return }
-    sendJSON(["type": "ask", "text": question])
+    send(json: ["type": "ask", "text": question])
+  }
+
+  /// Sets the message re-sent on every connect and sends it now.
+  func announce(_ message: [String: Any]?) {
+    hello = message
+    if let message { send(json: message) }
   }
 
   /// Builds the binary frame message: Float64 LE ms timestamp + UInt32 LE seq + JPEG.
@@ -229,6 +242,7 @@ final class ServerLink {
     connection = .connected
     frameGate.setOpen(true)
     statusLine = "connected"
+    if let hello { send(json: hello) }
   }
 
   private func receiveLoop(on task: URLSessionWebSocketTask) {
@@ -268,10 +282,10 @@ final class ServerLink {
     guard !motionBuffer.isEmpty else { return }
     let batch = motionBuffer
     motionBuffer.removeAll(keepingCapacity: true)
-    sendJSON(["type": "motion", "s": batch])
+    send(json: ["type": "motion", "s": batch])
   }
 
-  private func sendJSON(_ object: [String: Any]) {
+  func send(json object: [String: Any]) {
     guard let socket, connection == .connected,
       let data = try? JSONSerialization.data(withJSONObject: object),
       let text = String(data: data, encoding: .utf8)
@@ -298,6 +312,11 @@ final class ServerLink {
   }
 
   private struct SafetyMessage: Decodable {
+    struct Cue: Decodable {
+      let mode: String
+    }
+    let sectors: [Double?]?
+    let cues: [Cue]?
     let path: Double?
     let guide: GuideTarget?
     let found: Bool?
@@ -325,9 +344,23 @@ final class ServerLink {
       guard let msg = try? decoder.decode(SafetyMessage.self, from: data) else { return }
       guide = msg.guide
       statusLine = Self.statusLine(path: msg.path, guide: msg.guide, found: msg.found ?? false)
+      if let sectors = msg.sectors, let cues = msg.cues {
+        let reading = Self.proximity(sectors: sectors, modes: cues.map(\.mode), path: msg.path)
+        proximity = reading
+        WatchLink.shared.send(reading)
+      }
     default:
       break
     }
+  }
+
+  /// The front sector also counts the walking path, as the belt's planner does.
+  static func proximity(sectors: [Double?], modes: [String], path: Double?) -> ProximityReading {
+    var distances = sectors
+    if let path, !distances.isEmpty {
+      distances[0] = min(distances[0] ?? .infinity, path)
+    }
+    return ProximityReading(distances: distances, modes: modes)
   }
 
   private static func padded<T>(_ values: [T], with filler: T) -> [T] {

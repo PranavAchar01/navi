@@ -71,7 +71,7 @@
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>This app needs access to save photos captured from your glasses.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>This app needs camera access to stream from your phone's camera as a mock device feed.</string>
+	<string>meta-sight sends your iPhone camera to your meta-sight server so it can warn you about obstacles and find your things.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This app needs microphone access to record sound from your glasses' microphone alongside video.</string>
 	<key>NSAppTransportSecurity</key>

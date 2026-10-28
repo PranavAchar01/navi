@@ -8,6 +8,9 @@
 //
 //   xcrun simctl launch booted com.pranavachar.metasight --metasight-demo
 //
+// `--metasight-phone-demo` instead switches to the iPhone camera screen and presses Start;
+// in the simulator the same video stands in for the camera.
+//
 
 #if DEBUG
 
@@ -17,6 +20,15 @@ import MWDATMockDevice
 @MainActor
 enum DemoLaunch {
   static let isEnabled = ProcessInfo.processInfo.arguments.contains("--metasight-demo")
+  static let isPhoneDemo = ProcessInfo.processInfo.arguments.contains("--metasight-phone-demo")
+
+  static func configurePhoneDemo() {
+    guard isPhoneDemo else { return }
+    UserDefaults.standard.set(CameraSource.iphone.rawValue, forKey: CameraSource.defaultsKey)
+    if let server = ProcessInfo.processInfo.environment["METASIGHT_DEMO_SERVER"] {
+      UserDefaults.standard.set(server, forKey: "metasight.serverURL")
+    }
+  }
 
   /// Call before the Wearables view model is created so it sees the registered state.
   static func configureMockDevice() {
