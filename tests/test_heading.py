@@ -82,3 +82,12 @@ def test_map_sectors_turn_with_the_head():
             np.array([0.0, math.radians(450), 0.0]), np.array([0.0, 1.0, 0.0]), 0.01, 1
         )
     assert srv._map_sectors_now() == [8.0, 1.0, 2, 3, 4, 5, 6, 7]
+
+
+def test_a_relocalised_map_snaps_the_heading_instead_of_blending():
+    h = Heading(105.0)
+    h.anchor(np.array([0.0, 0, 0]), np.array([0.0, 0, 1]))  # facing +z, yaw 0
+    h.anchor(np.array([0.2, 0, 0]), np.array([1.0, 0, 0]))  # small move: blends
+    assert 0 < h.yaw < np.pi / 2
+    h.anchor(np.array([3.0, 0, 0]), np.array([1.0, 0, 0]))  # jumped 2.8 m: snaps
+    assert abs(h.yaw - np.pi / 2) < 1e-6

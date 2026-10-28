@@ -1,14 +1,19 @@
-# Glasses profile: METASIGHT_CONFIG=metasight.glasses.toml, frames from the ios/ app (Ray-Ban Meta,
-# DAT stream 504x896 portrait). Same as the room profile except the camera geometry.
+# Ray-Ban Meta profile: METASIGHT_CONFIG=metasight.glasses.toml, fed by the glasses app or by
+# `python -m metasight.glasses_emu`. Same providers as the room profile.
+#
+# hfov_deg is the emulator's 9:16 crop of the room walk (105 deg landscape, 405 of 1280 columns):
+# 44.8 deg. Real glasses: Meta lists a 100 deg field of view; if that is diagonal over the 9:16
+# stream it is about 61 deg horizontal. Measure on the first real footage and set it here.
+# eye_height_m is still the room walk's (phone at chest); glasses sit at eye level, about 1.6 m.
 [providers]
 language = "meta"
 finder = "hybrid"
 
 [safety]
 segment = false
-depth_scale = 0.6  # PLACEHOLDER lens prior; the floor gate trusts it, so measure it on the first glasses walk
-eye_height_m = 1.60  # camera on the face: the wearer's eye height. Set it to his real eye height.
-hfov_deg = 70.0  # PLACEHOLDER: measure from the first glasses walk (global map intrinsics), as for the phone
+depth_scale = 0.45  # lens prior: gates which plane can be the floor; the floor measures the rest
+eye_height_m = 1.22  # phone held at chest; measured on the global map (floor plane fit)
+hfov_deg = 44.8  # see the note at the top
 detector_imgsz = 384
 
 [memory]

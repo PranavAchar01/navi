@@ -304,7 +304,8 @@ class Server:
         live = [
             (self.heading.box_bearing(o.box), o.dist_m)
             for o in seen
-            if o.label == g["label"] and math.isfinite(o.dist_m)
+            if (o.label == g["label"] or g["label"] in LOOKALIKES.get(o.label, ()))
+            and math.isfinite(o.dist_m)
         ]
         if rel is not None and now - g.get("seen", -math.inf) < SIGHT_HOLD_S:
             # Locked on recently, so the heading agrees with the camera: another chair in view
@@ -514,6 +515,8 @@ def create_app(settings: Settings | None = None, session: str | None = None) -> 
                         srv.in_q.put({"cmd": "mode", "mode": m["mode"]})
                     elif kind == "tap":
                         srv.pending_taps.append((m["label"], float(m["x"]), float(m["y"])))
+                    elif kind in ("device", "transcript"):  # glasses state, live captions
+                        await srv.hub.json(m, kind == "device")
                     elif kind == "fall_ok":
                         for ev in srv.fall.respond_ok(srv.motion_t):
                             await srv.hub.json(

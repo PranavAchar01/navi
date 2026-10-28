@@ -30,6 +30,7 @@ SHIFT_W = 160  # image width the shift is measured at
 MIN_RESPONSE = 0.08  # phase correlation peak below this is texture-free noise
 GAIN_MIN_TURN = math.radians(20)  # pose pairs with less image turn than this say little
 GAIN_RANGE = (0.5, 1.5)
+JUMP_M = 1.5  # a map position this far from the last one is a relocalisation: snap, don't blend
 SIGHT_BLEND = 0.3  # share of the gap to the camera's bearing closed per frame the item is seen
 
 
@@ -106,7 +107,9 @@ class Heading:
     def anchor(self, pos: np.ndarray, fwd: np.ndarray, t: float | None = None) -> bool:
         """Take a map pose for the keyframe at time `t`. False when its heading was unusable
         (the position is kept)."""
-        self.pos = np.asarray(pos, dtype=float)
+        new_pos = np.asarray(pos, dtype=float)
+        jumped = self.pos is not None and float(np.linalg.norm(new_pos - self.pos)) > JUMP_M
+        self.pos = new_pos
         f = np.asarray(fwd, dtype=float)
         f = f / (np.linalg.norm(f) or 1.0)
         if abs(f[1]) > MAX_PITCH_FWD_Y:
@@ -115,7 +118,7 @@ class Heading:
         turn, raw = self.at(t)
         self._learn_gain(heading, raw)
         new = heading - turn
-        if self.offset is None:
+        if self.offset is None or jumped:
             self.offset = wrap(new)
         else:
             self.offset = wrap(self.offset + MAP_BLEND * wrap(new - self.offset))

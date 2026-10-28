@@ -6,7 +6,7 @@ import { setupGlass } from "./glass";
 import { Net } from "./net";
 import { BeltCells, drawOverlay, drawRing } from "./overlay";
 import { listen, speak } from "./speech";
-import type { Answer, Belt, Mode, PinJson, Safety } from "./types";
+import type { Answer, Belt, Device, Mode, PinJson, Safety } from "./types";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -33,6 +33,7 @@ const chipState = {
   fps: 0,
   source: false,
   belt: null as Belt | null,
+  device: null as Device | null,
 };
 function renderChips() {
   const chip = (cls: string, text: string) => `<span class="chip ${cls}"><i></i>${text}</span>`;
@@ -40,6 +41,7 @@ function renderChips() {
     chip(chipState.server ? "ok" : "bad", chipState.server ? "server" : "offline"),
     chip(chipState.memory === "ready" ? "ok" : "", chipState.memory === "ready" ? "memory" : "memory loading"),
     chipState.source ? chip("live", `${chipState.fps.toFixed(0)} fps`) : "",
+    chipState.device ? deviceChip(chipState.device) : "",
     chipState.belt
       ? chipState.belt.lost
         ? chip("bad", `${chipState.belt.device}: link lost`)
@@ -47,6 +49,21 @@ function renderChips() {
       : chip("", "belt offline"),
   ].join("");
 }
+function deviceChip(d: Device) {
+  const on = d.state === "streaming";
+  const lat = d.latency_ms === undefined ? "" : ` · ${d.latency_ms} ms`;
+  const text = on ? `${d.name} · ${d.res[0]}×${d.res[1]} @ ${d.fps}${lat}` : `${d.name}: ${d.state}`;
+  return `<span class="chip ${on ? "ok" : ""}" title="IMU ${d.imu_hz} Hz · link ${d.kbps} of ${d.budget_kbps} kbps"><i></i>${text}</span>`;
+}
+net.on("device", (m) => {
+  chipState.device = m;
+  renderChips();
+});
+// What the glasses hear, typed into the ask box as it is spoken; the final question is sent by
+// the glasses themselves.
+net.on("transcript", (m) => {
+  $<HTMLInputElement>("ask-input").value = m.final ? "" : m.text;
+});
 net.onConnection((up) => {
   chipState.server = up;
   renderChips();

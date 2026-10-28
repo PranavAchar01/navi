@@ -105,7 +105,37 @@ export interface Belt {
   age_ms: number | null;
   latency_ms: number | null;
 }
-export type Message = Safety | Belt | Answer | Alert | Pose | MemoryStats | Status | PinsMsg | TrailMsg | ModeMsg;
+/** The glasses (or their emulator) and their Bluetooth link to the phone. */
+export interface Device {
+  type: "device";
+  name: string;
+  state: string;
+  res: [number, number];
+  fps: number;
+  imu_hz: number;
+  kbps: number;
+  budget_kbps: number;
+  latency_ms?: number;
+}
+/** Speech heard by the glasses' microphones, partial until `final`. */
+export interface Transcript {
+  type: "transcript";
+  text: string;
+  final: boolean;
+}
+export type Message =
+  | Safety
+  | Belt
+  | Answer
+  | Alert
+  | Pose
+  | MemoryStats
+  | Status
+  | PinsMsg
+  | TrailMsg
+  | ModeMsg
+  | Device
+  | Transcript;
 export type Mode = "home" | "outside";
 export interface ModeMsg {
   type: "mode";
