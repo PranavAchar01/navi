@@ -8,6 +8,7 @@ camera's forward axis is pose[:3, 2] and its up axis is -pose[:3, 1].
 from __future__ import annotations
 
 import math
+import warnings
 from dataclasses import dataclass
 
 import numpy as np
@@ -70,9 +71,12 @@ def local_floor(points: np.ndarray, cell: float = 0.3, reach: int = 2) -> np.nda
     grid = low.reshape(shape)
     pad = np.pad(grid, reach, constant_values=np.nan)
     span = 2 * reach + 1
-    neigh = np.nanmedian(
-        [pad[a : a + shape[0], b : b + shape[1]] for a in range(span) for b in range(span)], axis=0
-    )
+    with warnings.catch_warnings():  # empty cells far from any point; never read below
+        warnings.simplefilter("ignore", RuntimeWarning)
+        neigh = np.nanmedian(
+            [pad[a : a + shape[0], b : b + shape[1]] for a in range(span) for b in range(span)],
+            axis=0,
+        )
     return neigh[ij[:, 0], ij[:, 1]]
 
 
