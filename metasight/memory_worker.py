@@ -96,5 +96,11 @@ def run(in_q, out_q, settings: Settings, session: str, new_needed: int = 4) -> N
             if e["type"] == "memory_stats":
                 e["consumed"] = consumed
             out_q.put(e)
+        if engine.global_due():  # the same process, so the safety loop never waits on it
+            try:
+                for e in engine.global_solve():
+                    out_q.put(e)
+            except Exception as exc:
+                out_q.put({"type": "memory_error", "error": repr(exc)})
         if engine.mode == "home" and engine._windows % 10 == 0:
             engine.save(save_path)

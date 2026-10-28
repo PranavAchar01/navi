@@ -69,6 +69,11 @@ STITCH_OK = 0.05  # stitch cost (share of scene distance) of a join trusted full
 STITCH_FLOOR = 0.05  # trust in a join with no overlap at all (the transform was carried over)
 TEXTURE_MIN = 25  # FAST corners at 320 px wide; a blank wall or door up close has 2 to 22
 STRIDE = 2  # pixel step of the geometry each keyframe keeps for re-placing after a loop
+BANK_MAX = 24  # views the global re-solve sees at once (one MapAnything pass, ~13 s for 16)
+BANK_STEP_M = 0.3  # a view joins the bank when it is this far (or BANK_STEP_DEG) from all of them
+BANK_STEP_DEG = 15.0
+GLOBAL_EVERY = 4  # new bank views that trigger a re-solve
+ROOF_M = 2.0  # the global map keeps points up to this far above the floor
 
 
 @dataclass
@@ -120,6 +125,15 @@ def _thumb(bgr: np.ndarray, box: tuple[float, float, float, float], size: int = 
     crop = cv2.resize(crop, (max(1, int(crop.shape[1] * s)), max(1, int(crop.shape[0] * s))))
     ok, jpg = cv2.imencode(".jpg", crop, [cv2.IMWRITE_JPEG_QUALITY, 80])
     return base64.b64encode(jpg.tobytes()).decode() if ok else ""
+
+
+def _rotation_to(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Smallest rotation taking unit vector a onto unit vector b."""
+    v, c = np.cross(a, b), float(a @ b)
+    if c < -0.9999:
+        return np.diag([1.0, -1.0, -1.0])
+    k = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
+    return np.eye(3) + k + k @ k / (1 + c)
 
 
 class MapAnythingRunner:
@@ -220,6 +234,9 @@ class MemoryEngine:
         self.poses: dict[int, np.ndarray] = {}  # keyframe seq -> 4x4 map pose
         self._windows = 0
         self._prev_sim: tuple[float, np.ndarray, np.ndarray] | None = None
+        self._bank: dict[int, tuple[float, np.ndarray]] = {}  # seq -> (ts, bgr), spread out
+        self._bank_new = 0
+        self._anchors: tuple[Sim3, np.ndarray, np.ndarray] | None = None  # live frame -> global
 
     # ------------------------------------------------------------------ modes
     def set_mode(self, mode: str) -> None:
@@ -232,6 +249,7 @@ class MemoryEngine:
         self._map_pts = np.empty((0, 3), np.float32)
         self._map_cols = np.empty((0, 3), np.uint8)
         self.trail, self.last_pose, self.poses = [], None, {}
+        self._bank, self._bank_new, self._anchors = {}, 0, None
         self._kfs, self._sims, self._obs, self.loops = {}, [], [], []
         self._seq_rel, self._seq_w, self._loop_edges = [], [], []
 
@@ -620,6 +638,9 @@ class MemoryEngine:
             self.poses[p.kf.seq] = p.pose
         self.last_pose = placed_new[-1].pose
         events.append({"type": "trail", "points": self.trail[-len(placed_new) :]})
+        if self.mode == "home":
+            for p in placed_new:
+                self._bank_offer(p.kf)
 
         # Objects and landmarks.
         found = 0
@@ -691,7 +712,164 @@ class MemoryEngine:
                 "stitch_scale": float(s_),
             }
         )
-        return events
+        return self._to_global(events)
+
+    # ------------------------------------------------------------------ global re-solve
+    def _bank_far(self, seq: int, pose: np.ndarray, others: list[int]) -> float:
+        """How far a view is from the nearest of `others`, 1.0 = one bank step."""
+        best = float("inf")
+        for o in others:
+            q = self.poses.get(o)
+            if q is None or o == seq:
+                continue
+            ang = math.degrees(math.acos(np.clip(pose[:3, 2] @ q[:3, 2], -1.0, 1.0)))
+            best = min(
+                best,
+                max(
+                    np.linalg.norm(pose[:3, 3] - q[:3, 3]) / BANK_STEP_M,
+                    ang / BANK_STEP_DEG,
+                ),
+            )
+        return best
+
+    def _bank_offer(self, kf: Keyframe) -> None:
+        """Keep the views that spread over the walk: new only if the pose or view changed."""
+        pose = self.poses.get(kf.seq)
+        if pose is None or self._bank_far(kf.seq, pose, list(self._bank)) < 1.0:
+            return
+        self._bank[kf.seq] = (kf.ts, kf.bgr)
+        self._bank_new += 1
+        if len(self._bank) > BANK_MAX:
+            seqs = sorted(self._bank)
+            # Drop the most crowded view; the first and the newest stay.
+            crowd = {
+                q: self._bank_far(q, self.poses[q], seqs) for q in seqs[1:-1] if q in self.poses
+            }
+            if crowd:
+                del self._bank[min(crowd, key=crowd.get)]
+
+    def global_due(self) -> bool:
+        return self.mode == "home" and self._bank_new >= GLOBAL_EVERY and len(self._bank) >= 4
+
+    def global_solve(self) -> list[dict]:
+        """One MapAnything pass over the bank: a clean map in a gravity-aligned frame, floor at
+        y = 0, roof cropped. Replaces the whole map; the live windows keep running in their own
+        frame and are carried over with `_to_global`."""
+        self._bank_new = 0
+        seqs = sorted(self._bank)
+        preds = self.runner.infer([self._bank[q][1] for q in seqs])
+        # Old (live) frame -> the new frame, from the pixels both passes saw.
+        src, dst = [], []
+        sl = (slice(None, None, STRIDE), slice(None, None, STRIDE))
+        for q, pr in zip(seqs, preds, strict=True):
+            st = self._kfs.get(q)
+            if st is None:
+                continue
+            m = pr["mask"][sl] & st.mask
+            src.append(self._global(st)[m])
+            dst.append(pr["pts"][sl][m])
+        fit = robust_similarity(np.concatenate(src), np.concatenate(dst)) if src else None
+        if fit is None:
+            return []
+        c: Sim3 = fit[:3]
+
+        down = np.mean([pr["pose"][:3, 1] for pr in preds], axis=0)
+        down /= np.linalg.norm(down)
+        rot = _rotation_to(down, np.array([0.0, -1.0, 0.0]))  # down becomes -y: y is up
+        pts = np.concatenate([pr["pts"][pr["mask"]] for pr in preds]) @ rot.T
+        cols = np.concatenate([(pr["rgb"][pr["mask"]] * 255).astype(np.uint8) for pr in preds])
+        floor = float(np.percentile(pts[:, 1], 2))
+        keep = pts[:, 1] < floor + ROOF_M
+        pts, cols = pts[keep] - [0.0, floor, 0.0], cols[keep]
+        fresh = VoxelSet(self.s.voxel_m).add_new(pts)
+        pts, cols = pts[fresh].astype(np.float32), cols[fresh]
+
+        g = np.eye(4)
+        g[:3, :3], g[:3, 3] = rot, [0.0, -floor, 0.0]
+        centres, fixes = [], []
+        for q, pr in zip(seqs, preds, strict=True):
+            old = self.poses.get(q)
+            if old is None:
+                continue
+            carried = pose_through_sim3(old, *c)
+            new = g @ pr["pose"]
+            centres.append(carried[:3, 3])
+            fixes.append(new @ np.linalg.inv(carried))
+        self._anchors = (c, np.array(centres), np.array(fixes))
+
+        trail = [
+            [*map(float, (g @ pr["pose"])[:3, 3]), self._bank[q][0]]
+            for q, pr in zip(seqs, preds, strict=True)
+        ]
+        return [
+            {
+                "type": "map_replace",
+                "n": len(pts),
+                "points": pts.tobytes(),
+                "colors": cols.tobytes(),
+            },
+            {"type": "trail_replace", "points": trail},
+            {"type": "pins", "pins": self._pins_out()},
+            {"type": "global_stats", "views": len(seqs), "points": len(pts), "scale": float(c[0])},
+        ]
+
+    def _pins_out(self) -> list[dict]:
+        out = []
+        for p in self.pins.pins.values():
+            d = p.to_json()
+            d["pos"] = self._pos_out(np.array(d["pos"])).tolist()
+            out.append(d)
+        return out
+
+    def _fix_for(self, pos_carried: np.ndarray) -> np.ndarray:
+        _, centres, fixes = self._anchors
+        return fixes[int(np.argmin(np.linalg.norm(centres - pos_carried, axis=1)))]
+
+    def _pos_out(self, pos: np.ndarray) -> np.ndarray:
+        if self._anchors is None:
+            return pos
+        carried = apply_sim3(pos[None], *self._anchors[0])[0]
+        f = self._fix_for(carried)
+        return f[:3, :3] @ carried + f[:3, 3]
+
+    def _pose_out(self, pose: np.ndarray) -> np.ndarray:
+        if self._anchors is None:
+            return pose
+        carried = pose_through_sim3(pose, *self._anchors[0])
+        return self._fix_for(carried[:3, 3]) @ carried
+
+    def _to_global(self, events: list[dict]) -> list[dict]:
+        """Once a global solve exists it owns the map; live events are carried into its frame."""
+        if self._anchors is None:
+            return events
+        out = []
+        for e in events:
+            t = e["type"]
+            if t in ("map_chunk", "map_replace"):
+                continue
+            if t in ("trail", "trail_replace"):
+                e = {
+                    **e,
+                    "points": [
+                        [*self._pos_out(np.array(p[:3])).tolist(), p[3]] for p in e["points"]
+                    ],
+                }
+            elif t == "pins":
+                e = {**e, "pins": self._pins_out()}
+            elif t == "pose":
+                pose = np.eye(4)
+                pose[:3, 3], pose[:3, 2] = e["pos"], e["fwd"]
+                pose[:3, 1] = -np.array(e["up"])
+                pose[:3, 0] = np.cross(pose[:3, 1], pose[:3, 2])
+                o = self._pose_out(pose)
+                e = {
+                    **e,
+                    "pos": o[:3, 3].tolist(),
+                    "fwd": o[:3, 2].tolist(),
+                    "up": (-o[:3, 1]).tolist(),
+                }
+            out.append(e)
+        return out
 
     # ------------------------------------------------------------------ persistence
     def save(self, path) -> None:
