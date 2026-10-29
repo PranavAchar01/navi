@@ -286,3 +286,99 @@ def test_tool_question_is_not_answered_from_an_early_guess():
         return v
 
     assert asyncio.run(main()).last["early"] is False
+
+
+def test_a_stalled_endpointer_is_answered_from_the_still_partial(monkeypatch):
+    import metasight.providers.transcribe as tr
+
+    monkeypatch.setattr(tr, "STILL_S", 0.1)
+    heard, _, t = run_session(
+        [
+            {"type": "transcript", "transcript": "keys", "final": False},
+            0.3,  # the endpointer holds the turn; the microphone is quiet
+            {"type": "speechComplete", "turnId": 0, "transcript": "Keys?"},
+        ],
+        wait=0.5,
+    )
+    assert [(h.text, h.final) for h in heard] == [("keys", False), ("keys", True)]
+    assert t.stats["forced"] == 1
+
+
+def test_words_after_a_forced_final_still_get_through(monkeypatch):
+    import metasight.providers.transcribe as tr
+
+    monkeypatch.setattr(tr, "STILL_S", 0.1)
+    heard, _, _ = run_session(
+        [
+            {"type": "transcript", "transcript": "where did I leave", "final": False},
+            0.3,
+            {"type": "speechComplete", "turnId": 0, "transcript": "Where did I leave my phone?"},
+        ],
+        wait=0.5,
+    )
+    finals = [h.text for h in heard if h.final]
+    assert finals == ["where did I leave", "Where did I leave my phone?"]
+
+
+def test_a_question_split_at_a_pause_after_my_is_joined(monkeypatch):
+    import metasight.providers.transcribe as tr
+
+    monkeypatch.setattr(tr, "HANGING_S", 0.3)
+    heard, _, _ = run_session(
+        [
+            {"type": "speechComplete", "turnId": 0, "transcript": "Where are my"},
+            0.1,  # the wearer pauses, then finishes the question
+            {"type": "transcript", "transcript": "keys", "final": False},
+            {"type": "speechComplete", "turnId": 1, "transcript": "Keys?"},
+        ],
+        wait=0.6,
+    )
+    assert [h.text for h in heard] == ["Where are my keys", "Where are my keys?"]
+    assert [h.final for h in heard] == [False, True]
+
+
+def test_a_dangling_final_is_let_go_when_nothing_follows(monkeypatch):
+    import metasight.providers.transcribe as tr
+
+    monkeypatch.setattr(tr, "HANGING_S", 0.2)
+    heard, _, _ = run_session(
+        [{"type": "speechComplete", "turnId": 0, "transcript": "Take me to the"}], wait=0.5
+    )
+    assert [(h.text, h.final) for h in heard] == [("Take me to the", True)]
+
+
+def test_a_forced_cut_at_my_is_not_said_twice(monkeypatch):
+    import metasight.providers.transcribe as tr
+
+    monkeypatch.setattr(tr, "STILL_S", 0.1)
+    monkeypatch.setattr(tr, "HANGING_S", 0.3)
+    heard, _, _ = run_session(
+        [
+            {"type": "transcript", "transcript": "where are my", "final": False},
+            0.2,
+            {"type": "transcript", "transcript": "where are my keys", "final": False},
+            {"type": "speechComplete", "turnId": 0, "transcript": "Where are my keys?"},
+        ],
+        wait=0.6,
+    )
+    assert [h.text for h in heard if h.final] == ["Where are my keys?"]
+
+
+def test_the_rest_of_a_split_question_is_taken_from_its_partial_when_its_final_is_slow(
+    monkeypatch,
+):
+    import metasight.providers.transcribe as tr
+
+    monkeypatch.setattr(tr, "HANGING_S", 0.2)
+    heard, _, _ = run_session(
+        [
+            {"type": "speechComplete", "turnId": 0, "transcript": "Where are my"},
+            0.05,
+            {"type": "transcript", "transcript": "keys", "final": False},
+            0.5,  # the endpointer holds the second turn
+            {"type": "speechComplete", "turnId": 1, "transcript": "Keys?"},
+        ],
+        push_audio=False,
+        wait=0.3,
+    )
+    assert [h.text for h in heard if h.final] == ["Where are my keys"]
