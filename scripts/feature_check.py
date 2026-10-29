@@ -47,6 +47,7 @@ SR = 16000
 LIVE_PORT = 8445
 DOC = ROOT / "docs" / "MORNING-CHECK.md"
 EVENTS = ROOT / "bench" / "events"
+VLOAD, VLOAD_NAME = "voiceload", "Spoken question before the map loads"
 RESULTS = ROOT / "bench" / "results" / "morning-check.json"
 JARVIS_LOG = ROOT.parent / "jarvis" / "log"
 STOP_MODES = ("solid", "stop")  # the belt's stop layer: about to touch
@@ -321,6 +322,59 @@ class Client:
             t += chunk / SR
             await asyncio.sleep(max(0.0, t - time.time()))
         return spoken
+
+
+async def voice_before_map(c: Client) -> dict:
+    """A spoken question while the home map is still loading must get the loading line, not
+    silence: the voice path answers like the typed one does."""
+    import websockets
+
+    for _ in range(10):  # the voice service can come up a moment after HTTP
+        st = await c.state()
+        if st.get("memory_ready"):
+            return row(VLOAD, VLOAD_NAME, "metasight-muse", "SKIP", "", "map loaded before the ask")
+        if st.get("asr") is not None:
+            break
+        await asyncio.sleep(1)
+    else:
+        return row(VLOAD, VLOAD_NAME, "metasight-muse", "FAIL", "", "voice service never came up")
+    async with websockets.connect(c.url, max_size=None, ping_interval=None) as ws:
+        c.ws = ws
+        rd = asyncio.create_task(c.reader())
+        t0 = time.time()
+        spoken = await c.audio(speech("where are my keys"), 1)
+        a, at = await c.wait(t0, "answer", lambda e: True, 8)
+        ready = (await c.state()).get("memory_ready")
+        heard = [e["text"] for e in c.since(t0, "transcript") if e.get("final")]
+        fin = [
+            at_
+            for at_, e in c.events
+            if at_ >= t0 and e.get("type") == "transcript" and e.get("final")
+        ]
+        asr = (await c.state()).get("asr") or {}
+        rd.cancel()
+    c.ws = None
+    if a is None:
+        if ready:
+            note = "map finished loading during the ask; "
+        else:
+            note = ""
+        return row(
+            VLOAD, VLOAD_NAME, "metasight-muse", "FAIL", "",
+            f"{note}no answer in 8 s after the speech; finals heard {heard}",
+        )  # fmt: skip
+    ms = 1000 * (at - spoken)
+    loading = "still loading" in (a.get("text") or "").lower()
+    ok = loading and ms <= 2000
+    return row(
+        VLOAD, VLOAD_NAME, "metasight-muse", "PASS" if ok else "FAIL", f"{ms:.0f} ms",
+        f"spoken 'where are my keys' before memory_ready -> \"{a.get('text')}\" "
+        f"{ms:.0f} ms after the speech ended (limit 2000); final transcript at "
+        f"{1000 * (fin[0] - spoken):.0f} ms; finals heard {heard}; "
+        f"asr handshake {asr.get('handshake_ms')} ms, warmup {asr.get('warmup_ms')} ms"
+        if fin
+        else f"{ms:.0f} ms after the speech ended (limit 2000); no final transcript event",
+    )  # fmt: skip
 
 
 def row(key, feature, owner, status, number="", evidence=""):
@@ -1145,6 +1199,7 @@ ORDER = [
     "find",
     "findmy",
     "voice",
+    "voiceload",
     "changed",
     "who",
     "pose",
@@ -1358,13 +1413,22 @@ def main() -> None:
         c = Client(f"ws://127.0.0.1:{port}/ws", f"http://127.0.0.1:{port}")
         t_up = time.time()
         up = t_up + 600  # at background priority the map models take minutes to load
-        http_up = False
+        http_up = vload_tried = False
         while time.time() < up:
             if proc.poll() is not None:
                 raise RuntimeError("server exited at start")
             try:
                 ready = asyncio.run(c.state())["memory_ready"]
                 http_up = True
+                if not vload_tried and not ready:
+                    vload_tried = True
+                    try:
+                        results.append(asyncio.run(asyncio.wait_for(voice_before_map(c), 60)))
+                    except Exception as e:
+                        results.append(
+                            row(VLOAD, VLOAD_NAME, "metasight-muse", "FAIL", "", f"{e!r}")
+                        )
+                    print(results[-1]["status"], results[-1]["evidence"], flush=True)
                 if ready:
                     break
             except Exception:
