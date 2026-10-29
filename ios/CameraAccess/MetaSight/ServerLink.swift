@@ -387,7 +387,7 @@ final class ServerLink {
     let found: Bool?
   }
 
-  private func handle(_ text: String) {
+  func handle(_ text: String) {
     let data = Data(text.utf8)
     let decoder = JSONDecoder()
     guard let envelope = try? decoder.decode(Envelope.self, from: data) else { return }
