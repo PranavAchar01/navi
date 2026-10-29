@@ -162,11 +162,38 @@ def serve(port: int) -> None:
     )
 
 
-def private_config(work: Path, belt_port: int) -> Path:
+# Ignored by git but needed by the server: model weights, vendored code, the belt emulator.
+LINKED = ("data", "third_party", "weights", "web/dist", "firmware/emulator/belt-emu", "certs")
+
+
+def worktree(work: Path) -> Path:
+    """A clean checkout of HEAD for the private server, so a half-saved edit in the shared
+    working tree cannot break or change the run. The ignored assets are linked in."""
+    wt = work / "tree"
+    subprocess.run(
+        ["git", "worktree", "add", "--detach", str(wt), "HEAD"],
+        cwd=ROOT, check=True, capture_output=True,
+    )  # fmt: skip
+    names = [*LINKED, *(p.name for p in ROOT.glob("*.pt")), *(p.name for p in ROOT.glob("*.ts"))]
+    for rel in names:
+        if (ROOT / rel).exists() and not (wt / rel).exists():
+            (wt / rel).parent.mkdir(parents=True, exist_ok=True)
+            (wt / rel).symlink_to(ROOT / rel)
+    return wt
+
+
+def drop_worktree(wt: Path) -> None:
+    for p in wt.rglob("*"):  # the links first: git leaves the linked targets alone either way
+        if p.is_symlink():
+            p.unlink()
+    subprocess.run(["git", "worktree", "remove", "--force", str(wt)], cwd=ROOT, check=False)
+
+
+def private_config(work: Path, belt_port: int, src: Path = ROOT) -> Path:
     """The live glasses profile with three changes: the map review every 2 min instead of 10 (so
     one happens in the run), SAM 3.1 crops every 10 s instead of 2 (cost), and its own belt
     emulator port."""
-    text = (ROOT / "metasight.glasses.toml").read_text()
+    text = (src / "metasight.glasses.toml").read_text()
     extra = {
         "providers": "review_every_min = 2",
         "safety": f'belt_addr = "127.0.0.1:{belt_port}"',
@@ -1211,24 +1238,6 @@ ORDER = [
 ]
 
 
-# Rows an uncommitted file can change (the private server imports the working tree). A dirty
-# file under metasight/ not listed here may change any row.
-DIRTY_ROWS = {
-    "metasight/nav.py": ("guide", "nav", "falsecue", "urgent", "missnear", "priors"),
-    "metasight/pan.py": ("falsecue", "urgent", "missnear", "priors", "stop"),
-    "metasight/belt.py": ("falsecue", "urgent", "missnear", "priors", "stop", "belt-", "patterns"),
-    "metasight/providers/transcribe.py": ("voice", "notes"),
-    "metasight/voice.py": ("voice", "notes"),
-    "metasight/providers/finder.py": ("find", "falsepin", "findmy", "guide", "nav", "voice"),
-    "metasight/people.py": ("speaker", "who"),
-    "metasight/audio_doa.py": ("speaker",),
-    "metasight/notes.py": ("notes",),
-    "metasight/review.py": ("wonder",),
-    "metasight/onboarding.py": ("onboarding", "patterns"),
-    "metasight/modes.py": ("modes", "patterns"),
-}
-
-
 KNOWN_FALSE_PINS = {100015}  # the saved house's "keys" pin is the keyboard (compare, 085c47b)
 WEAK_PIN_SCORE = 0.3
 
@@ -1264,26 +1273,6 @@ def git_state() -> dict:
     return {"head": git("rev-parse", "--short", "HEAD"), "dirty": dirty}
 
 
-def flag_dirty(results: list, dirty: list[str]) -> None:
-    """Mark each row an uncommitted metasight/ file could have changed."""
-    for r in results:
-        hit = [
-            Path(f).name
-            for f in dirty
-            if f.endswith(".py")
-            and (
-                f not in DIRTY_ROWS
-                or any(
-                    r["key"] == k or (k.endswith("-") and r["key"].startswith(k)) or k in r["key"]
-                    for k in DIRTY_ROWS[f]
-                )
-            )
-        ]
-        if hit:
-            r["dirty"] = hit
-            r["evidence"] += f" [uncommitted at start: {', '.join(hit)}]"
-
-
 def write_report(results: list, meta: dict, walk: str, stamp: str, note: str) -> str:
     def rank(r):
         k = "belt-" if r["key"].startswith("belt") else r["key"]
@@ -1310,13 +1299,12 @@ def write_report(results: list, meta: dict, walk: str, stamp: str, note: str) ->
         "",
         f"Run {stamp}. Result: {summary}.",
         "",
-        f"Code at start: HEAD `{meta['git']['head']}`, "
+        f"Code: the private server ran a clean git worktree at HEAD `{meta['git']['head']}`"
         + (
-            "uncommitted under metasight/: "
+            "; uncommitted in the shared tree, not used by the run: "
             + ", ".join(f"`{f}`" for f in meta["git"]["dirty"])
-            + f" ({sum(bool(r.get('dirty')) for r in results)} rows flagged)"
             if meta["git"]["dirty"]
-            else "no uncommitted changes under metasight/"
+            else ""
         )
         + ".",
         "",
@@ -1375,7 +1363,7 @@ def main() -> None:
         return
     walk = ROOT / "data" / "walks" / a.walk
     stamp = time.strftime("%Y-%m-%d %H:%M %Z")
-    tree = git_state()  # the private server imports the working tree as it is now
+    tree = git_state()  # the private server runs a clean worktree at this HEAD
     if why := preflight():
         print("skipped:", why)
         sys.exit(2)
@@ -1384,11 +1372,12 @@ def main() -> None:
     for d in ("sessions", "walks"):
         (work / d).mkdir(parents=True, exist_ok=True)
     shutil.copytree(ROOT / "data" / "home", work / "home")
+    wt = worktree(work)
     port, belt_port = free_port(socket.SOCK_STREAM), free_port(socket.SOCK_DGRAM)
     assert port != LIVE_PORT
     env = {
         **os.environ,
-        "METASIGHT_CONFIG": str(private_config(work, belt_port)),
+        "METASIGHT_CONFIG": str(private_config(work, belt_port, wt)),
         "METASIGHT_FINDER": "hybrid",
         "METASIGHT_HOME": str(work / "home"),
         "METASIGHT_WALKS": str(work / "walks"),
@@ -1401,8 +1390,17 @@ def main() -> None:
     note = ""
     log = open(work / "server.log", "w")
     proc = subprocess.Popen(
-        ["nice", "-n", "19", "taskpolicy", "-b", sys.executable, __file__, "--serve", str(port)],
-        cwd=ROOT,
+        [
+            "nice",
+            "-n",
+            "19",
+            "taskpolicy",
+            "-b",
+            sys.executable,
+            str(wt / "scripts" / "feature_check.py"),
+        ]
+        + ["--serve", str(port)],
+        cwd=wt,
         env=env,
         stdout=log,
         stderr=subprocess.STDOUT,
@@ -1452,6 +1450,7 @@ def main() -> None:
                 os.killpg(proc.pid, signal.SIGKILL)
         log.close()
         shutil.rmtree(slot, ignore_errors=True)
+        drop_worktree(wt)
     have = {r["key"] for r in results}
     for key in ORDER:
         if key != "belt-" and key not in have and note:
@@ -1507,8 +1506,7 @@ def main() -> None:
                 f"scripts/belt_check.py: {e}",
             )
         )
-    meta["git"] = tree
-    flag_dirty(results, tree["dirty"])
+    meta["git"] = tree  # dirty files are listed but not flagged: the server ran from HEAD
     summary = write_report(results, meta, a.walk, stamp, note)
     RESULTS.write_text(
         json.dumps(
