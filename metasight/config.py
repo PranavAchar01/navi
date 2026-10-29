@@ -50,6 +50,12 @@ class Settings:
     map_intrinsics: bool = False  # tell MapAnything the lens (hfov_deg) instead of letting it guess
     belt: str = "emulator"  # emulator: spawn firmware/emulator/belt-emu; udp: a real belt
     belt_addr: str = "127.0.0.1:4210"
+    braille: str = "off"  # deafblind mode: off | emulator | wrist | belt (docs/braille.md)
+    braille_addr: str = ""  # BLE address of the wrist band, for braille = "wrist"
+    braille_dot_ms: int = 250  # a cell is on this long (ERM motors need 50-100 ms to spin up)
+    braille_cell_gap_ms: int = 150
+    braille_word_gap_ms: int = 500
+    braille_max_cells: int = 24  # cues are cut to about this many cells
     segment: bool = False  # HUD: open-vocabulary masks over the watch-list vocabulary
     keyframe_hz: float = 1.5
     window: int = 8
@@ -108,6 +114,12 @@ class Settings:
             "map_intrinsics",
             "belt",
             "belt_addr",
+            "braille",
+            "braille_addr",
+            "braille_dot_ms",
+            "braille_cell_gap_ms",
+            "braille_word_gap_ms",
+            "braille_max_cells",
         ):
             setattr(s, k, saf.get(k, getattr(s, k)))
         for k in (

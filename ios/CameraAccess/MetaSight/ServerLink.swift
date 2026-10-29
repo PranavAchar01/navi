@@ -18,6 +18,9 @@
 import Foundation
 import Observation
 import os
+#if canImport(UIKit)
+  import UIKit
+#endif
 
 /// Latest belt state reported by the server.
 struct BeltState: Equatable, Sendable {
@@ -358,6 +361,10 @@ final class ServerLink {
         text: answer.text, label: answer.label, near: answer.pin?.near?.first,
         seen: answer.pin?.ts.map { Date(timeIntervalSince1970: $0) }, at: Date())
       speaker.speak(answer.text)
+      #if canImport(UIKit)
+        // VoiceOver forwards announcements to a paired Bluetooth Braille display.
+        UIAccessibility.post(notification: .announcement, argument: answer.text)
+      #endif
     case "belt":
       guard let msg = try? decoder.decode(BeltMessage.self, from: data) else { return }
       belt = BeltState(

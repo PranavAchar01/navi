@@ -30,6 +30,7 @@ from .align import map_resolution
 from .belt import FLAG_FOUND, NAMES, BeltLink, guide, plan
 from .config import ROOT, Settings
 from .geometry import CAMERA_SECTORS, SECTORS, merge_sectors
+from .haptics import make_output
 from .heading import Heading, wrap
 from .hub import Hub
 from .memory_worker import run as memory_run
@@ -88,6 +89,7 @@ class Server:
         self.latest: tuple[float, int, bytes] | None = None
         self.latest_arrived = 0.0  # monotonic time the latest camera frame reached the server
         self.belt = BeltLink(settings.belt, settings.belt_addr, self._belt_state)
+        self.braille = make_output(settings, self.hub.json, self.belt)
         self.frame_ready = asyncio.Event()
         self.pending_taps: list[tuple[str, float, float]] = []
         self.pending_kf = 0
@@ -303,7 +305,8 @@ class Server:
             guiding = self._guide(cmd, now, bool(guide_fresh), res.obstacles)
             if now < self.found_until:
                 flags |= FLAG_FOUND
-            self.belt.send(cmd, flags, arrived)
+            if not (self.braille and self.braille.owns_belt):  # a Braille cue on the belt wins
+                self.belt.send(cmd, flags, arrived)
             await self.hub.frame(seq, jpeg, self.source_ws)
             await self.hub.json(
                 {
@@ -527,6 +530,8 @@ class Server:
     async def answer(self, text: str) -> dict:
         res = await self.loop.run_in_executor(self.llm_pool, self._answer_sync, text)
         await self.hub.json(res)
+        if self.braille:
+            res["cues"] = self.braille.say(res["text"])
         return res
 
 
@@ -566,6 +571,13 @@ def create_app(settings: Settings | None = None, session: str | None = None) -> 
     @app.post("/api/ask")
     async def ask(body: Ask):
         return await srv.answer(body.text)
+
+    @app.post("/api/braille")
+    async def braille_say(body: Ask):
+        """Play any text as a haptic Braille cue (demo and wiring check)."""
+        if srv.braille is None:
+            return JSONResponse({"error": "braille is off; set safety.braille"}, status_code=409)
+        return {"cues": srv.braille.say(body.text)}
 
     @app.post("/api/test_fall")
     async def test_fall():
