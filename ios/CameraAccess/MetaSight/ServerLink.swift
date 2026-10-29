@@ -134,6 +134,8 @@ final class ServerLink {
   private(set) var onboarding = OnboardingState()
   /// Conversation notes: idle, recording, summarizing or ready, and the last saved title.
   private(set) var notes = NotesState()
+  /// Live captions while a note records: the last few finished lines and the words so far.
+  private(set) var captions = CaptionState()
   private(set) var answerNote: AnswerNote?
   /// Sector distances from the latest safety message, as forwarded to the watch.
   private(set) var proximity: ProximityReading?
@@ -416,11 +418,22 @@ final class ServerLink {
           items: obj["items"] as? [String] ?? [], mode: obj["mode"] as? String)
         if let say = obj["say"] as? String { speaker.speak(say) }
       }
+    case "caption":
+      if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        let line = obj["text"] as? String
+      {
+        let final = obj["final"] as? Bool ?? false
+        captions.apply(text: line, who: obj["who"] as? String, final: final)
+        // VoiceOver forwards announcements to a paired Braille display. Off by default: with
+        // speech on, VoiceOver would talk over the people in the conversation.
+        if final, CaptionState.toBraille() { UIAccessibility.post(notification: .announcement, argument: line) }
+      }
     case "notes":
       // Recording is announced aloud so everyone nearby knows; the server sends each line to say.
       if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
         let state = obj["state"] as? String
       {
+        if state == "recording", !notes.isRecording { captions = CaptionState() }
         notes = NotesState(
           state: state, title: obj["title"] as? String ?? notes.title,
           summary: obj["summary"] as? String ?? notes.summary)
@@ -632,6 +645,27 @@ struct WarningFilter {
     }
     return shown
   }
+}
+
+/// What the large-text captions show: a few finished lines, then the words so far.
+struct CaptionState: Equatable {
+  struct Line: Equatable { var who: String?; var text: String }
+  static let keep = 4
+  static let brailleKey = "metasight.captionsToBraille"
+  var lines: [Line] = []
+  var partial = ""
+
+  mutating func apply(text: String, who: String?, final: Bool) {
+    if final {
+      lines.append(Line(who: who, text: text))
+      lines = Array(lines.suffix(Self.keep))
+      partial = ""
+    } else {
+      partial = text
+    }
+  }
+
+  static func toBraille(_ defaults: UserDefaults = .standard) -> Bool { defaults.bool(forKey: brailleKey) }
 }
 
 /// Where a conversation note is: idle, recording, summarizing or ready.

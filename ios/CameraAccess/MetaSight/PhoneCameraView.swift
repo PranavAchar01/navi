@@ -13,6 +13,7 @@ struct PhoneCameraView: View {
   @Binding var source: CameraSource
   @State private var camera: PhoneCamera
   @State private var question: String = ""
+  @AppStorage(CaptionState.brailleKey) private var captionsToBraille = false
   @FocusState private var focusedField: Field?
 
   private enum Field {
@@ -35,6 +36,7 @@ struct PhoneCameraView: View {
         VStack(alignment: .leading, spacing: 12) {
           setupButton
           notesButton
+          captionsView
           statusRows
           cameraArea
           nearest
@@ -131,6 +133,33 @@ struct PhoneCameraView: View {
         : "Records the conversation and says aloud that it is recording; tell the people with you"
     )
     .accessibilityIdentifier("notes_button")
+  }
+
+  /// Large live captions while a note records. Hidden from VoiceOver on purpose (it would talk
+  /// over the people); the toggle sends each finished line to a paired Braille display instead.
+  @ViewBuilder private var captionsView: some View {
+    let c = link.captions
+    if link.notes.isRecording || !c.lines.isEmpty {
+      VStack(alignment: .leading, spacing: 8) {
+        ForEach(Array(c.lines.enumerated()), id: \.offset) { i, line in
+          Text(line.who.map { "\($0): \(line.text)" } ?? line.text)
+            .font(.system(size: 26, weight: .semibold))
+            .foregroundStyle(.white.opacity(i == c.lines.count - 1 && c.partial.isEmpty ? 1 : 0.6))
+        }
+        if !c.partial.isEmpty {
+          Text(c.partial).font(.system(size: 30, weight: .bold)).foregroundStyle(.white)
+        }
+        Toggle("Send captions to my Braille display", isOn: $captionsToBraille)
+          .font(.system(size: 15, weight: .medium))
+          .foregroundStyle(.white)
+          .accessibilityHint("Each finished line is announced so a paired Braille display shows it")
+          .accessibilityIdentifier("captions_braille_toggle")
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding(14)
+      .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+      .accessibilityIdentifier("captions_view")
+    }
   }
 
   // MARK: - Status

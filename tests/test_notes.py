@@ -144,6 +144,12 @@ def test_server_routes_finals_to_notes_not_questions(tmp_path):
         async def on_heard(self, h):
             asked.append(h.text)
 
+    said = []
+
+    class Braille:
+        def say(self, text):
+            said.append(text)
+
     srv = NS(
         notes=Notes(tmp_path, now=Clock()),
         hub=Hub(),
@@ -151,6 +157,7 @@ def test_server_routes_finals_to_notes_not_questions(tmp_path):
         language=Lang(),
         llm_pool=None,
         _notes_task=None,
+        braille=Braille(),
     )
     srv.start_notes = lambda: Server.start_notes(srv)
     srv._notes_reminders = lambda: Server._notes_reminders(srv)
@@ -158,13 +165,26 @@ def test_server_routes_finals_to_notes_not_questions(tmp_path):
     async def run():
         srv.loop = asyncio.get_running_loop()
         srv.stop_notes = lambda: Server.stop_notes(srv)
-        for text in ("take notes", "Where is the dose?", "The dose is 20 mg.", "stop recording"):
+        for text in ("take notes", "Where is the dose?"):
+            await Server.heard(srv, Heard(text, True, 1, None))
+        await Server.heard(srv, Heard("The dose is", False, None, None))
+        for text in ("The dose is 20 mg.", "stop recording"):
             await Server.heard(srv, Heard(text, True, 1, None))
         await asyncio.sleep(0)
 
     asyncio.run(run())
     states = [e["state"] for e in sent if e["type"] == "notes"]
     assert states[0] == "recording" and "summarizing" in states and states[-1] == "ready"
+    caps = [(e["text"], e["final"]) for e in sent if e["type"] == "caption"]
+    assert caps == [
+        ("Where is the dose?", True),
+        ("The dose is", False),
+        ("The dose is 20 mg.", True),
+    ]
+    assert said == [
+        "Where is the dose?",
+        "The dose is 20 mg.",
+    ]  # each final line to the braille card
     assert asked == []  # a question asked during a recording is part of the notes
     saved = json.loads(next(tmp_path.glob("*.json")).read_text())
     assert [x["text"] for x in saved["lines"]] == ["Where is the dose?", "The dose is 20 mg."]

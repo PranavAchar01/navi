@@ -40,7 +40,7 @@ from .modes import Activity
 from .modes import command as activity_command
 from .modes import implied as implied_activity
 from .motion import FallDetector, Sample, ShakeDetector
-from .notes import Notes, asks_notes, notes_command
+from .notes import Notes, asks_notes, caption, notes_command
 from .onboarding import PATTERNS, Onboarding, pattern_length, wants_setup
 from .pan import Persist
 from .pins import PinStore
@@ -756,10 +756,15 @@ class Server:
             if cmd == "start" and not self.notes.recording:
                 return await self.start_notes()
         if self.notes.recording:
-            if h.final and (ev := self.notes.hear(h.text, h.spoken_end)):
+            if not h.final:  # the words so far, for the large-text captions
+                await self.hub.json(caption(h.text, None, False))
+            elif ev := self.notes.hear(h.text, h.spoken_end):
                 await self.hub.json(
                     {"type": "transcript", "text": h.text, "final": True, "source": "notes"}
                 )
+                await self.hub.json(caption(h.text, self.notes.cur.lines[-1].get("who"), True))
+                if self.braille:
+                    self.braille.say(h.text)  # the newest line wins; haptic reading is slow
                 await self.hub.json(ev, True)
             return
         await self.voice.on_heard(h)

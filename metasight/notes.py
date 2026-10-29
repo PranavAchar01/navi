@@ -98,6 +98,14 @@ def unsupported(answer: str, transcript: str) -> list[str]:
     return bad
 
 
+def caption(text: str, who: str | None, final: bool) -> dict:
+    """A live caption for the phone screen: the words so far, or a finished line."""
+    ev = {"type": "caption", "text": text, "final": final}
+    if who:
+        ev["who"] = who
+    return ev
+
+
 def notes_command(text: str) -> str | None:
     """ "start" or "stop" when the wearer asked for it, else None."""
     t = " ".join(text.lower().replace("’", "'").split())
