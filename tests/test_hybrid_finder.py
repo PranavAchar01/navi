@@ -128,3 +128,40 @@ def test_a_never_seen_thing_is_swept_and_a_word_nobody_can_name_pins_nothing():
 
     h.want("zorblax", new=True)  # neither model knows the word: no crash, no detection
     assert h.find(FRAME, ["zorblax"]) == []
+
+
+# SAM 3.1's "keys" on walk 20261028-135040 at 18 s (640x360 frame): a box per keycap.
+KEYCAPS = [
+    (206, 576, 227, 592), (226, 585, 248, 602), (121, 569, 143, 589), (223, 551, 242, 568),
+    (208, 556, 227, 573), (184, 620, 213, 640), (192, 562, 212, 580), (131, 581, 159, 604),
+    (290, 570, 332, 605), (189, 581, 210, 598), (208, 592, 230, 609), (138, 595, 174, 621),
+    (176, 552, 194, 568), (148, 607, 193, 638), (158, 574, 178, 593), (141, 563, 160, 580),
+    (171, 587, 193, 606), (161, 631, 186, 640), (223, 569, 241, 586), (191, 598, 213, 619),
+    (231, 590, 284, 628), (207, 611, 235, 640), (175, 568, 196, 585),
+]  # fmt: skip
+
+
+def sam_returning(per_label):
+    """A Sam31Finder whose API answers come from `per_label`, so no request leaves the Mac."""
+    from metasight.providers.finder import Sam31Finder
+
+    sam = Sam31Finder.__new__(Sam31Finder)
+    sam._api_key, sam.meta_images, sam.meta_ms = "test", 0, 0.0
+
+    async def one(client, url, label):
+        return [Detection(label, 0.55, box, "sam-3.1") for box in per_label.get(label, [])]
+
+    sam._one = one
+    return sam
+
+
+def test_a_keycap_grid_is_a_texture_and_finds_no_keys():
+    """23 small boxes for "keys" are the keyboard: dropped, so no pin; the bottle in the same
+    sweep, and one or two real-size boxes for keys, still come through."""
+    frame = np.zeros((640, 360, 3), np.uint8)
+    sam = sam_returning({"keys": KEYCAPS, "water bottle": [(10, 10, 60, 120)]})
+    assert [d.label for d in sam.find(frame, ["keys", "water bottle"])] == ["water bottle"]
+
+    for boxes in ([(100, 300, 160, 340)], [(100, 300, 160, 340), (20, 20, 50, 45)]):
+        sam = sam_returning({"keys": boxes})
+        assert len(sam.find(frame, ["keys"])) == len(boxes)

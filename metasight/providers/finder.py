@@ -215,6 +215,22 @@ class YoloeFinder:
         return [d for d in dets if d.score >= self._keep]
 
 
+# One thing asked for that comes back as many small masks is a texture, not the thing: SAM 3.1
+# reads "keys" as a keyboard, a box per keycap (23 to 35 boxes on walk 20261028-135040). A pin
+# there would guide the wearer to the desk, so such a sweep finds nothing for that noun.
+TEXTURE_MASKS = 5
+TEXTURE_AREA = 0.01  # of the image, per mask
+
+
+def texture_hit(dets: list[Detection], shape: tuple[int, ...]) -> bool:
+    """More than TEXTURE_MASKS boxes for one noun, most of them under TEXTURE_AREA."""
+    if len(dets) <= TEXTURE_MASKS:
+        return False
+    limit = TEXTURE_AREA * shape[0] * shape[1]
+    small = sum((d.box[2] - d.box[0]) * (d.box[3] - d.box[1]) < limit for d in dets)
+    return small > len(dets) / 2
+
+
 class Sam31Finder:
     """SAM 3.1 via the OpenAI SDK on the Meta Model API; `meta-sam-parser` reads the stream."""
 
@@ -259,7 +275,10 @@ class Sam31Finder:
         async with AsyncOpenAI(base_url=META_BASE_URL, api_key=self._api_key, timeout=30.0) as c:
             results = await asyncio.gather(*(self._one(c, u, lb) for _, u, lb in calls))
         out: list[list[Detection]] = [[] for _ in jobs]
-        for (i, _, _), r in zip(calls, results, strict=True):
+        for (i, _, lb), r in zip(calls, results, strict=True):
+            if texture_hit(r, jobs[i][0].shape):
+                log.info("SAM 3.1 texture hit: %d masks for %r dropped", len(r), lb)
+                continue
             out[i] += r
         return out
 
