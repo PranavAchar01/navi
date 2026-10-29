@@ -30,6 +30,8 @@ enum DemoLaunch {
   static let displayPreviewPort: UInt16 = 9000
   /// `--metasight-large-display` starts the in-app display preview enlarged.
   static let largeDisplayPreview = ProcessInfo.processInfo.arguments.contains("--metasight-large-display")
+  /// `--metasight-settings` opens the settings sheet once the session is up (for screenshots).
+  static let opensSettings = ProcessInfo.processInfo.arguments.contains("--metasight-settings")
 
   /// The paired mock glasses, for the in-app display preview.
   private(set) static var glasses: (any MockGlasses)?

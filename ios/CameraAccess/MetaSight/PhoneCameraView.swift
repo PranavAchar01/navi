@@ -145,7 +145,7 @@ struct PhoneCameraView: View {
       .accessibilityLabel(camera.isRunning ? "Camera view, sending" : "Camera view, off")
       .accessibilityIdentifier("phone_preview")
 
-      BeltView(belt: link.belt, guideBearing: link.guide?.bearing)
+      BeltView(belt: link.belt, guideBearing: link.guide?.bearing, cues: link.proximity)
         .frame(width: 120, height: 120)
         .background(Color.white.opacity(0.06))
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))

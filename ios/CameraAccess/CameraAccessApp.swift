@@ -87,7 +87,10 @@ struct CameraAccessApp: App {
         MockDeviceKitView(viewModel: mockDeviceKitViewModel)
       }
       .overlay {
-        DebugMenuView(showDebugMenu: $showDebugMenu)
+        // The meta-sight demo pairs its own mock glasses; keep its screen clean.
+        if !DemoLaunch.isEnabled {
+          DebugMenuView(showDebugMenu: $showDebugMenu)
+        }
       }
         #endif
 

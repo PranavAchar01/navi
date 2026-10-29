@@ -6,6 +6,7 @@
 
 @testable import CameraAccess
 import Foundation
+import UIKit
 // ast-grep-ignore: swift-testing/swift/no-new-xctest
 import XCTest
 
@@ -20,29 +21,30 @@ final class DisplayCardTests: XCTestCase {
     let stop = ProximityWarning(sector: 0, distance: 0.3, band: .stop)
     let card = DisplayCard.make(warning: stop, guide: keys, answer: note)
     XCTAssertEqual(card.title, "Stop")
-    XCTAssertEqual(card.detail, "Ahead, 0.3 m")
+    XCTAssertEqual(card.detail, "Ahead · 0.3 m")
     XCTAssertEqual(card.glyph, .obstacle(bearing: 0, band: .stop))
   }
 
   func testItemBeatsANearbyWall() {
     let fast = ProximityWarning(sector: 7, distance: 0.8, band: .fast)
     let card = DisplayCard.make(warning: fast, guide: keys, answer: note)
-    XCTAssertEqual(card.title, "keys")
-    XCTAssertEqual(card.detail, "kitchen counter · 3.0 m left")
+    XCTAssertEqual(card.title, "3.0 m")
+    XCTAssertEqual(card.detail, "keys · kitchen counter")
     XCTAssertEqual(card.glyph, .target(bearing: -88))
   }
 
-  func testItemFromAnEarlierWalkHasNoArrow() {
+  func testItemFromAnEarlierWalkGetsAPin() {
     let card = DisplayCard.make(
       warning: nil, guide: GuideTarget(label: "keys", dist: nil, bearing: nil), answer: note)
-    XCTAssertEqual(card.detail, "near the kitchen counter")
+    XCTAssertEqual(card.title, "keys")
+    XCTAssertEqual(card.detail, "kitchen counter · 9 min ago")
     XCTAssertEqual(card.glyph, .pin)
   }
 
   func testAnswerSaysWhereAndWhen() {
     let card = DisplayCard.make(warning: nil, guide: nil, answer: note)
     XCTAssertEqual(card.title, "keys")
-    XCTAssertEqual(card.detail, "near the kitchen counter · 9 min ago")
+    XCTAssertEqual(card.detail, "kitchen counter · 9 min ago")
     XCTAssertEqual(card.glyph, .pin)
   }
 
@@ -59,8 +61,8 @@ final class DisplayCardTests: XCTestCase {
   func testObstacleWhenNothingWasAsked() {
     let slow = ProximityWarning(sector: 2, distance: 1.4, band: .slow)
     let card = DisplayCard.make(warning: slow, guide: nil, answer: nil)
-    XCTAssertEqual(card.title, "Right")
-    XCTAssertEqual(card.detail, "1.5 m")
+    XCTAssertEqual(card.title, "1.5 m")
+    XCTAssertEqual(card.detail, "Right")
     XCTAssertEqual(DisplayCard.make(warning: nil, guide: nil, answer: nil), .clear)
   }
 
@@ -73,7 +75,16 @@ final class DisplayCardTests: XCTestCase {
       label: nil, near: nil, seen: nil, at: Date())
     let card = DisplayCard.make(warning: nil, guide: nil, answer: vague)
     XCTAssertLessThanOrEqual(card.title.count, 48)
-    XCTAssertTrue(card.title.hasSuffix("…"))
+    XCTAssertEqual(card.title, "I haven't seen your passport yet. Walk past…")
+  }
+
+  @MainActor
+  func testCardIsOneSmallSquare() {
+    let card = DisplayCard.make(warning: nil, guide: keys, answer: note)
+    let image = GlassesDisplay.image(for: card)
+    XCTAssertEqual(image.size, CGSize(width: GlassesDisplay.cardSide, height: GlassesDisplay.cardSide))
+    // Mostly black: it should cost little on the Bluetooth link.
+    XCTAssertLessThan(image.pngData()?.count ?? .max, 40_000)
   }
 
   func testDirectionWords() {

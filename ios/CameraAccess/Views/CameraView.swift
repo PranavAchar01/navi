@@ -9,10 +9,10 @@
 //
 // CameraView.swift
 //
-// The capture screen: a full-bleed camera preview with controls overlaid on a
-// scrim. Walks the SDK's camera lifecycle as explicit steps (Start Session →
-// Start Streaming → Capture / Record → Stop Streaming → End Session) and shows the
-// live DeviceSessionState / StreamState so the state machine is legible.
+// The capture screen: a full-bleed camera preview with the belt, the latest answer on
+// a solid card, the ask field and Preview / End session over it. Session, stream and
+// server state, the server address, beep volume and Disconnect live in the settings
+// sheet behind the gear; a single status dot stays on screen.
 //
 
 import MWDATCore
@@ -25,7 +25,7 @@ struct CameraView: View {
   @State private var viewModel: CameraViewModel
   @Bindable var wearablesVM: WearablesViewModel
   @Binding var source: CameraSource
-  @State private var showSettingsMenu: Bool = false
+  @State private var showSettings: Bool = false
   @State private var isLaunchingUpdate: Bool = false
   @State private var question: String = ""
   #if DEBUG
@@ -34,7 +34,6 @@ struct CameraView: View {
   @FocusState private var focusedField: Field?
 
   private enum Field {
-    case serverURL
     case question
   }
 
@@ -79,18 +78,6 @@ struct CameraView: View {
         .zIndex(1)
       }
 
-      // Tap outside the open top-bar settings menu dismisses it.
-      if showSettingsMenu {
-        Color.clear
-          .contentShape(Rectangle())
-          .onTapGesture {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-              showSettingsMenu = false
-            }
-          }
-          .edgesIgnoringSafeArea(.all)
-      }
-
       VStack(spacing: 0) {
         SourcePicker(source: $source)
           .environment(\.colorScheme, .dark)
@@ -119,9 +106,9 @@ struct CameraView: View {
           #endif
           Spacer()
           if !beltHiddenForPreview {
-            BeltView(belt: viewModel.link.belt, guideBearing: viewModel.link.guide?.bearing)
+            BeltView(belt: viewModel.link.belt, guideBearing: viewModel.link.guide?.bearing, cues: viewModel.link.proximity)
               .frame(width: 150, height: 150)
-              .background(Color.black.opacity(0.45))
+              .background(Color.black.opacity(0.6))
               .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
               .accessibilityIdentifier("belt_view")
           }
@@ -146,13 +133,19 @@ struct CameraView: View {
       if viewModel.hasSession { viewModel.endSession() }
     }
     #if DEBUG
-    .task { await DemoLaunch.autoStart(viewModel) }
+    .task {
+      await DemoLaunch.autoStart(viewModel)
+      showSettings = DemoLaunch.opensSettings
+    }
     #endif
     .animation(.spring(response: 0.42, dampingFraction: 0.86), value: viewModel.hasSession)
     .animation(.easeInOut(duration: 0.2), value: previewIsActive)
     .animation(.easeInOut(duration: 0.2), value: viewModel.isStreaming)
     .animation(.easeInOut(duration: 0.2), value: viewModel.isPaused)
     .animation(.easeInOut(duration: 0.2), value: viewModel.isRecording)
+    .sheet(isPresented: $showSettings) {
+      SettingsSheet(viewModel: viewModel, wearablesVM: wearablesVM)
+    }
     .alert("Something went wrong", isPresented: $viewModel.showError) {
       Button("OK") { viewModel.dismissError() }
     } message: {
@@ -279,58 +272,38 @@ struct CameraView: View {
 
   // MARK: - Top bar
 
-  /// Top bar: compact live SDK state stacked on the left so the lifecycle is
-  /// legible without heavy chrome, settings/disconnect on the right.
+  /// One status dot (green when the glasses stream to a connected server) and the gear.
   private var topBar: some View {
-    HStack(alignment: .top, spacing: 12) {
-      VStack(alignment: .leading, spacing: 6) {
-        statusChip(label: "Session", value: viewModel.sessionStateText, active: viewModel.isSessionActive, present: viewModel.hasSession)
-        statusChip(label: "Stream", value: viewModel.streamStateText, active: viewModel.isStreaming, present: viewModel.hasStream)
-        statusChip(
-          label: "Server",
-          value: viewModel.link.connection.text,
-          active: viewModel.link.connection == .connected,
-          present: viewModel.link.connection == .connecting
-        )
-        .accessibilityIdentifier("server_chip")
+    HStack(alignment: .center, spacing: 12) {
+      HStack(spacing: 6) {
+        Circle()
+          .fill(liveStatus.color)
+          .frame(width: 8, height: 8)
+        Text(liveStatus.text)
+          .font(.system(size: 13, weight: .semibold))
+          .foregroundStyle(.white)
       }
+      .padding(.horizontal, 10)
+      .padding(.vertical, 5)
+      .background(.black.opacity(0.55), in: Capsule())
+      .accessibilityIdentifier("server_chip")
 
       Spacer()
 
-      // Top bar carries only the app-level settings/Disconnect control.
       iconButton("gearshape", label: "Settings", id: "settings_button") {
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-          showSettingsMenu.toggle()
-        }
-      }
-      .overlay(alignment: .trailing) {
-        if showSettingsMenu {
-          CustomButton(
-            title: "Disconnect",
-            style: .destructive,
-            isDisabled: wearablesVM.registrationState != .registered
-          ) {
-            wearablesVM.disconnectGlasses()
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { showSettingsMenu = false }
-          }
-          .frame(width: 120)
-          .offset(y: 44)
-          .transition(.scale(scale: 0.01, anchor: .topTrailing).combined(with: .opacity))
-        }
+        showSettings = true
       }
     }
   }
 
-  private func statusChip(label: String, value: String, active: Bool, present: Bool) -> some View {
-    HStack(spacing: 6) {
-      Circle()
-        .fill(active ? Color.green : (present ? Color.yellow : Color.gray))
-        .frame(width: 7, height: 7)
-      Text("\(label): \(value)")
-        .font(.system(size: 12, weight: .medium))
-        .monospaced()
-        .foregroundStyle(Color.white.opacity(0.85))
+  /// "Live" when frames are going to a connected server, else the first thing that isn't.
+  private var liveStatus: (text: String, color: Color) {
+    if viewModel.link.connection != .connected {
+      return ("Server \(viewModel.link.connection.text)", .yellow)
     }
+    if !viewModel.hasSession { return ("No session", .gray) }
+    if !viewModel.isStreaming { return ("Camera \(viewModel.streamStateText)", .yellow) }
+    return ("Live", .green)
   }
 
   private func iconButton(_ systemName: String, label: String, id: String, action: @escaping () -> Void) -> some View {
@@ -384,46 +357,33 @@ struct CameraView: View {
 
   // MARK: - meta-sight panel
 
-  /// Status line, server URL, voice state and the ask field.
+  /// The latest answer and the guide/path line on a solid card, then the ask field.
   private var metaSightPanel: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      Text(viewModel.link.statusLine)
-        .font(.system(size: 15, weight: .semibold))
-        .foregroundStyle(.white)
-        .lineLimit(2)
-        .accessibilityIdentifier("status_line")
-
-      if let answer = viewModel.link.lastAnswer {
-        Text(answer)
-          .font(.system(size: 13))
-          .foregroundStyle(Color.white.opacity(0.8))
-          .lineLimit(2)
-      }
-
-      HStack(spacing: 8) {
-        TextField("ws://host:8445/ws", text: serverURLBinding)
-          .textInputAutocapitalization(.never)
-          .autocorrectionDisabled()
-          .keyboardType(.URL)
-          .submitLabel(.go)
-          .focused($focusedField, equals: .serverURL)
-          .onSubmit { viewModel.link.applyURL() }
-          .panelField()
-          .accessibilityLabel("Server address")
-          .accessibilityIdentifier("server_url_field")
-        Button("Connect") {
-          focusedField = nil
-          viewModel.link.applyURL()
+    VStack(alignment: .leading, spacing: 10) {
+      VStack(alignment: .leading, spacing: 6) {
+        if let answer = viewModel.link.lastAnswer {
+          Text(answer)
+            .font(.system(size: 18, weight: .semibold))
+            .foregroundStyle(.white)
+            .lineLimit(3)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("answer_line")
         }
-        .panelButton()
+        Text(viewModel.link.statusLine)
+          .font(.system(size: 14, weight: .medium))
+          .foregroundStyle(Color.white.opacity(viewModel.link.lastAnswer == nil ? 0.95 : 0.65))
+          .lineLimit(2)
+          .accessibilityIdentifier("status_line")
+        if !viewModel.sensors.heard.isEmpty {
+          Text("Heard: \(viewModel.sensors.heard)")
+            .font(.system(size: 13))
+            .foregroundStyle(Color.white.opacity(0.6))
+            .lineLimit(1)
+        }
       }
-
-      Picker("Beeps", selection: beepVolumeBinding) {
-        ForEach(BeepVolume.allCases) { Text($0.label).tag($0) }
-      }
-      .pickerStyle(.segmented)
-      .accessibilityLabel("Beep volume")
-      .accessibilityIdentifier("beep_volume")
+      .padding(14)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .background(Color(white: 0.09).opacity(0.94), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
 
       HStack(spacing: 8) {
         TextField("where is my water bottle", text: $question)
@@ -438,39 +398,8 @@ struct CameraView: View {
           .disabled(viewModel.link.connection != .connected)
           .accessibilityIdentifier("ask_button")
       }
-
-      HStack(spacing: 8) {
-        Text("Motion: \(viewModel.sensors.motionStatus) · Voice: \(viewModel.sensors.voiceStatus)")
-          .font(.system(size: 12, weight: .medium))
-          .monospaced()
-          .foregroundStyle(Color.white.opacity(0.75))
-          .lineLimit(1)
-        Spacer(minLength: 0)
-        if viewModel.sensors.voiceNeedsPermission {
-          Button("Enable voice") {
-            Task { await viewModel.sensors.requestVoicePermission() }
-          }
-          .panelButton()
-        }
-      }
-      if !viewModel.sensors.heard.isEmpty {
-        Text("Heard: \(viewModel.sensors.heard)")
-          .font(.system(size: 12))
-          .foregroundStyle(Color.white.opacity(0.7))
-          .lineLimit(1)
-      }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
-  }
-
-  private var beepVolumeBinding: Binding<BeepVolume> {
-    let beeper = viewModel.link.beeper
-    return Binding(get: { beeper.volume }, set: { beeper.volume = $0 })
-  }
-
-  private var serverURLBinding: Binding<String> {
-    let link = viewModel.link
-    return Binding(get: { link.urlString }, set: { link.urlString = $0 })
   }
 
   private func sendQuestion() {
@@ -654,6 +583,81 @@ struct UpdateRequiredMessage: View {
     .frame(maxWidth: .infinity, alignment: .leading)
     .background(Color.updateRequiredBackground)
     .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+  }
+}
+
+// MARK: - Settings
+
+/// Everything a developer needs and a wearer doesn't: live SDK and server state, the
+/// server address, beep volume, voice permission and Disconnect.
+private struct SettingsSheet: View {
+  var viewModel: CameraViewModel
+  @Bindable var wearablesVM: WearablesViewModel
+  @Environment(\.dismiss) private var dismiss
+
+  var body: some View {
+    let link = viewModel.link
+    NavigationStack {
+      Form {
+        Section("Status") {
+          row("Session", viewModel.sessionStateText)
+          row("Stream", viewModel.streamStateText)
+          row("Server", link.connection.text)
+          row("Glasses display", viewModel.glassesDisplay.status)
+          row("Motion", viewModel.sensors.motionStatus)
+          row("Voice", viewModel.sensors.voiceStatus)
+          if let ms = link.belt.latencyMs {
+            row("Belt latency", String(format: "%.0f ms", ms))
+          }
+        }
+        Section("Server") {
+          TextField("ws://host:8445/ws", text: Binding(get: { link.urlString }, set: { link.urlString = $0 }))
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .keyboardType(.URL)
+            .submitLabel(.go)
+            .onSubmit { link.applyURL() }
+            .accessibilityLabel("Server address")
+            .accessibilityIdentifier("server_url_field")
+          Button("Connect") { link.applyURL() }
+        }
+        Section("Beeps") {
+          Picker("Beeps", selection: Binding(get: { link.beeper.volume }, set: { link.beeper.volume = $0 })) {
+            ForEach(BeepVolume.allCases) { Text($0.label).tag($0) }
+          }
+          .pickerStyle(.segmented)
+          .accessibilityLabel("Beep volume")
+          .accessibilityIdentifier("beep_volume")
+        }
+        if viewModel.sensors.voiceNeedsPermission {
+          Section("Voice") {
+            Button("Enable voice") {
+              Task { await viewModel.sensors.requestVoicePermission() }
+            }
+          }
+        }
+        Section {
+          Button("Disconnect glasses", role: .destructive) {
+            wearablesVM.disconnectGlasses()
+            dismiss()
+          }
+          .disabled(wearablesVM.registrationState != .registered)
+        }
+      }
+      .navigationTitle("Settings")
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+      }
+    }
+    .presentationDetents([.medium, .large])
+    .environment(\.colorScheme, .dark)
+  }
+
+  private func row(_ label: String, _ value: String) -> some View {
+    LabeledContent(label) {
+      Text(value).monospaced()
+    }
   }
 }
 

@@ -3,7 +3,9 @@
 //
 // The haptic belt seen from above, front at the top: the wearer in the middle, the
 // strap ring, and 8 motors numbered clockwise from the front (1 front, 3 right,
-// 5 back, 7 left). Each motor lights by its duty and is coloured by its mode.
+// 5 back, 7 left). Each motor lights by its duty and is coloured by its mode, and the
+// nearest obstacle's distance sits beside its motor. With no belt connected (the
+// Simulator, or a walk without the ESP32) it shows the safety cues the belt would get.
 //
 
 import SwiftUI
@@ -12,6 +14,9 @@ struct BeltView: View {
   var belt: BeltState
   /// Degrees, 0 = ahead, positive = right. Draws a dotted guide line when set.
   var guideBearing: Double?
+  /// The server's safety cues: the nearest obstacle's distance, and the motors when no
+  /// belt is connected.
+  var cues: ProximityReading?
 
   private static let amber = Color(red: 255 / 255, green: 190 / 255, blue: 70 / 255)
   private static let red = Color(red: 255 / 255, green: 72 / 255, blue: 72 / 255)
@@ -31,9 +36,26 @@ struct BeltView: View {
   }
 
   private var caption: String {
+    if showsCues { return "NO BELT" }
     if belt.lost { return "BELT LINK LOST" }
     if belt.found { return "FOUND IT" }
     return "BELT"
+  }
+
+  /// No belt on the link, but the server is still sending cues: draw those instead.
+  private var showsCues: Bool { belt.lost && cues != nil }
+
+  /// The belt as drawn: the real one, or the cue plan when there is no belt.
+  private var shown: BeltState {
+    guard showsCues, let cues else { return belt }
+    let duty = cues.modes.map { mode -> Int in
+      switch ProximityBand(mode: mode) {
+      case .stop, .fast: 255
+      case .slow: 150
+      case .clear: 0
+      }
+    }
+    return BeltState(duty: duty, modes: cues.modes, lost: false, found: belt.found, latencyMs: nil)
   }
 
   // MARK: - Drawing
@@ -59,13 +81,29 @@ struct BeltView: View {
 
     drawWearer(in: &context, center: center, ringRadius: ringRadius)
 
+    let belt = shown
     for i in 0..<BeltState.motorCount {
       let angle = Double(i) * .pi / 4
       let anchor = CGPoint(x: center.x + sin(angle) * ringRadius, y: center.y - cos(angle) * ringRadius)
-      drawMotor(index: i, at: anchor, radius: motorRadius, in: &context, time: t)
+      drawMotor(belt, index: i, at: anchor, radius: motorRadius, in: &context, time: t)
     }
 
-    let captionColor: Color = belt.lost ? Self.purple : (belt.found ? Self.blue : .white.opacity(0.8))
+    if let warning = cues?.warning, warning.distance != nil {
+      // "0.4 m" just inside the nearest obstacle's motor, on a dark chip over the wearer.
+      let angle = Double(warning.sector) * .pi / 4
+      let at = CGPoint(x: center.x + sin(angle) * ringRadius * 0.55, y: center.y - cos(angle) * ringRadius * 0.55)
+      let label = context.resolve(
+        Text(DisplayCard.distanceText(warning.distance))
+          .font(.system(size: max(9, side * 0.085), weight: .heavy))
+          .foregroundStyle(warning.band == .slow ? Self.amber : Self.red))
+      let size = label.measure(in: CGSize(width: side, height: side))
+      let chip = CGRect(x: at.x - size.width / 2 - 4, y: at.y - size.height / 2 - 1, width: size.width + 8, height: size.height + 2)
+      context.fill(Path(roundedRect: chip, cornerRadius: chip.height / 2), with: .color(.black.opacity(0.8)))
+      context.draw(label, at: at)
+    }
+
+    let captionColor: Color =
+      showsCues ? .white.opacity(0.5) : belt.lost ? Self.purple : (belt.found ? Self.blue : .white.opacity(0.8))
     context.draw(
       Text(caption).font(.system(size: max(7, side * 0.055), weight: .bold)).foregroundStyle(captionColor),
       at: CGPoint(x: center.x, y: center.y + ringRadius * 0.52)
@@ -87,7 +125,7 @@ struct BeltView: View {
     context.fill(nose, with: fill)
   }
 
-  private func drawMotor(index i: Int, at anchor: CGPoint, radius r: CGFloat, in context: inout GraphicsContext, time t: Double) {
+  private func drawMotor(_ belt: BeltState, index i: Int, at anchor: CGPoint, radius r: CGFloat, in context: inout GraphicsContext, time t: Double) {
     let mode = belt.modes[i]
     let duty = belt.lost ? 0.6 : Double(min(max(belt.duty[i], 0), 255)) / 255
     let color = motorColor(mode: mode)

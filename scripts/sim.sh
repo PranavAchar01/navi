@@ -11,7 +11,8 @@
 # projects' simulators never get its frames or screenshots. Screenshot it with:
 #   xcrun simctl io "$(cat ios/build/sim/udid)" screenshot ~/Pictures/Screenshots/NAME.png
 # Env: SIM_DEVICE (default "Meta Sight"), METASIGHT_DEMO_SERVER (default ws://127.0.0.1:8445/ws),
-#      NO_CHROME=1 to skip opening the preview tab, SIM_ARGS="--metasight-large-display" for a big in-app display.
+#      NO_CHROME=1 to skip opening the preview tab, SIM_ARGS="--metasight-large-display" for a big in-app display
+#      (or "--metasight-settings" to open the settings sheet).
 set -e
 cd "$(dirname "$0")/.."
 ROOT=$PWD
