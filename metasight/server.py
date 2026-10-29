@@ -71,9 +71,11 @@ MAX_PENDING_KEYFRAMES = 12
 SIGHT_AGREE_DEG = 50.0  # after a lock, a sighting further than this from it is another object
 SIGHT_HOLD_S = 6.0  # how long a lock vets new sightings
 POSE_FRESH_S = 6.0  # a map pose older than this gives no direction
-# The guide still points from the last pose this long: the heading follows the gyro and the
-# camera's turn between poses, so only the walker's own steps since then are missing.
+# The guide still points from the last pose this long. With the phone's ARKit the position
+# itself is tracked, so a minute is fine; with only a memory window's pose (the glasses) the
+# heading follows the gyro and the camera's turn, but the walker's steps since are missing.
 GUIDE_POSE_S = 60.0
+GUIDE_DR_S = 15.0
 NO_DIRECTION = "Turn slowly, I'll buzz when you face it."
 ANSWER_POSE_S = 12.0  # answers accept an older pose: windows take 5 to 11 s during a solve
 LIVE_SEEN_S = 1.0  # a camera sighting this recent answers "where is my X" over memory
@@ -424,7 +426,7 @@ class Server:
             # now; the speaker turn and the item guide ride on the last frame's labels.
             cmd = self.talk.overlay(cmd, now)
             # The heading is carried between poses, so guidance tolerates an older position.
-            guide_fresh = self.memory_ready and now - self.pose_ts() < GUIDE_POSE_S
+            guide_fresh = self.memory_ready and self.guide_pose_fresh(now)
             guiding = self._guide(cmd, now, bool(guide_fresh), self.last_obstacles)
             if now < self.found_until:
                 flags |= FLAG_FOUND
@@ -584,8 +586,14 @@ class Server:
             pin is not None
             and pin.placed
             and self.heading.to(np.array(pin.pos)) is not None
-            and now - self.pose_ts() < GUIDE_POSE_S
+            and self.guide_pose_fresh(now)
         )
+
+    def guide_pose_fresh(self, now: float) -> bool:
+        """An ARKit-carried pose points for a minute; a memory pose dead-reckoned on heading
+        alone for 15 s."""
+        ar = getattr(self, "ar_pose_ts", 0.0)
+        return now - ar < GUIDE_POSE_S or now - self.map_pose_ts < GUIDE_DR_S
 
     def pose_ts(self) -> float:
         """When the map pose was last current: a memory window, or ARKit carrying it since."""
