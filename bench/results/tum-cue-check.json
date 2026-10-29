@@ -1,0 +1,395 @@
+{
+ "rgbd_dataset_freiburg1_360": {
+  "frames": 252,
+  "minutes": 0.42,
+  "hfov_deg": 63.5,
+  "camera_height_m": {
+   "median": 1.25,
+   "frames": 25
+  },
+  "a_depth_scale": {
+   "pixel_ratio_true_over_live": {
+    "median": 1.964,
+    "q1": 1.679,
+    "q3": 2.31,
+    "pixels": 4436386
+   },
+   "per_frame_median_ratio": {
+    "median": 1.975,
+    "q1": 1.722,
+    "q3": 2.29,
+    "frames": 252
+   },
+   "strip_ratio_true_over_live": {
+    "median": 2.407,
+    "q1": 1.765,
+    "q3": 3.24,
+    "strips": 3665
+   },
+   "metric_scale": 0.884
+  },
+  "kinect_near_pct": {
+   "centre_inside_2m": 91.7,
+   "any_inside_1m": 55.6
+  },
+  "live_running_scale": {
+   "median": 0.495,
+   "q1": 0.493,
+   "q3": 0.524
+  },
+  "live_adaptive": {
+   "cue_on_pct": 100.0,
+   "front_cue_on_pct": 100.0,
+   "b_false_front_cue": {
+    "events_per_min": 12.0,
+    "frames": 21,
+    "of_frames": 252,
+    "pct": 8.3,
+    "kinect_centre_mostly_holes": 0
+   },
+   "b_false_any_cue": {
+    "events_per_min": 9.6,
+    "frames": 9,
+    "of_frames": 252,
+    "pct": 3.6
+   },
+   "c_over_urgent": {
+    "events_per_min": 62.1,
+    "frames": 100,
+    "of_frames": 127,
+    "pct": 78.7,
+    "kinect_centre_mostly_holes": 0
+   },
+   "d_missed_inside_1m": {
+    "events_per_min": 0.0,
+    "frames": 0,
+    "of_frames": 140,
+    "pct": 0.0
+   }
+  },
+  "fixed_0.45": {
+   "scale": 0.45,
+   "cue_on_pct": 100.0,
+   "front_cue_on_pct": 100.0,
+   "b_false_front_cue": {
+    "events_per_min": 12.0,
+    "frames": 21,
+    "of_frames": 252,
+    "pct": 8.3,
+    "kinect_centre_mostly_holes": 0
+   },
+   "b_false_any_cue": {
+    "events_per_min": 9.6,
+    "frames": 9,
+    "of_frames": 252,
+    "pct": 3.6
+   },
+   "c_over_urgent": {
+    "events_per_min": 69.3,
+    "frames": 137,
+    "of_frames": 163,
+    "pct": 84.0,
+    "kinect_centre_mostly_holes": 0
+   },
+   "d_missed_inside_1m": {
+    "events_per_min": 0.0,
+    "frames": 0,
+    "of_frames": 140,
+    "pct": 0.0
+   }
+  },
+  "fixed_metric": {
+   "scale": 0.884,
+   "cue_on_pct": 89.3,
+   "front_cue_on_pct": 88.1,
+   "b_false_front_cue": {
+    "events_per_min": 7.2,
+    "frames": 9,
+    "of_frames": 222,
+    "pct": 4.1,
+    "kinect_centre_mostly_holes": 0
+   },
+   "b_false_any_cue": {
+    "events_per_min": 4.8,
+    "frames": 2,
+    "of_frames": 225,
+    "pct": 0.9
+   },
+   "c_over_urgent": {
+    "events_per_min": 16.7,
+    "frames": 7,
+    "of_frames": 14,
+    "pct": 50.0,
+    "kinect_centre_mostly_holes": 0
+   },
+   "d_missed_inside_1m": {
+    "events_per_min": 2.4,
+    "frames": 1,
+    "of_frames": 140,
+    "pct": 0.7
+   }
+  }
+ },
+ "rgbd_dataset_freiburg2_desk": {
+  "frames": 989,
+  "minutes": 1.65,
+  "hfov_deg": 63.1,
+  "camera_height_m": {
+   "median": 1.46,
+   "frames": 99
+  },
+  "a_depth_scale": {
+   "pixel_ratio_true_over_live": {
+    "median": 2.01,
+    "q1": 1.86,
+    "q3": 2.156,
+    "pixels": 16711464
+   },
+   "per_frame_median_ratio": {
+    "median": 2.034,
+    "q1": 1.919,
+    "q3": 2.138,
+    "frames": 989
+   },
+   "strip_ratio_true_over_live": {
+    "median": 1.667,
+    "q1": 1.452,
+    "q3": 1.905,
+    "strips": 14422
+   },
+   "metric_scale": 0.904
+  },
+  "kinect_near_pct": {
+   "centre_inside_2m": 100.0,
+   "any_inside_1m": 82.7
+  },
+  "live_running_scale": {
+   "median": 0.45,
+   "q1": 0.45,
+   "q3": 0.45
+  },
+  "live_adaptive": {
+   "cue_on_pct": 100.0,
+   "front_cue_on_pct": 100.0,
+   "b_false_front_cue": {
+    "events_per_min": 0.0,
+    "frames": 0,
+    "of_frames": 989,
+    "pct": 0.0,
+    "kinect_centre_mostly_holes": 0
+   },
+   "b_false_any_cue": {
+    "events_per_min": 0.0,
+    "frames": 0,
+    "of_frames": 989,
+    "pct": 0.0
+   },
+   "c_over_urgent": {
+    "events_per_min": 17.6,
+    "frames": 145,
+    "of_frames": 179,
+    "pct": 81.0,
+    "kinect_centre_mostly_holes": 0
+   },
+   "d_missed_inside_1m": {
+    "events_per_min": 0.0,
+    "frames": 0,
+    "of_frames": 818,
+    "pct": 0.0
+   }
+  },
+  "fixed_0.45": {
+   "scale": 0.45,
+   "cue_on_pct": 100.0,
+   "front_cue_on_pct": 100.0,
+   "b_false_front_cue": {
+    "events_per_min": 0.0,
+    "frames": 0,
+    "of_frames": 989,
+    "pct": 0.0,
+    "kinect_centre_mostly_holes": 0
+   },
+   "b_false_any_cue": {
+    "events_per_min": 0.0,
+    "frames": 0,
+    "of_frames": 989,
+    "pct": 0.0
+   },
+   "c_over_urgent": {
+    "events_per_min": 17.6,
+    "frames": 145,
+    "of_frames": 179,
+    "pct": 81.0,
+    "kinect_centre_mostly_holes": 0
+   },
+   "d_missed_inside_1m": {
+    "events_per_min": 0.0,
+    "frames": 0,
+    "of_frames": 818,
+    "pct": 0.0
+   }
+  },
+  "fixed_metric": {
+   "scale": 0.904,
+   "cue_on_pct": 100.0,
+   "front_cue_on_pct": 100.0,
+   "b_false_front_cue": {
+    "events_per_min": 0.0,
+    "frames": 0,
+    "of_frames": 989,
+    "pct": 0.0,
+    "kinect_centre_mostly_holes": 0
+   },
+   "b_false_any_cue": {
+    "events_per_min": 0.0,
+    "frames": 0,
+    "of_frames": 989,
+    "pct": 0.0
+   },
+   "c_over_urgent": {
+    "events_per_min": 7.3,
+    "frames": 23,
+    "of_frames": 53,
+    "pct": 43.4,
+    "kinect_centre_mostly_holes": 0
+   },
+   "d_missed_inside_1m": {
+    "events_per_min": 0.0,
+    "frames": 0,
+    "of_frames": 818,
+    "pct": 0.0
+   }
+  }
+ },
+ "rgbd_dataset_freiburg2_pioneer_slam": {
+  "frames": 747,
+  "minutes": 2.58,
+  "hfov_deg": 63.1,
+  "camera_height_m": {
+   "median": 0.7,
+   "frames": 75
+  },
+  "a_depth_scale": {
+   "pixel_ratio_true_over_live": {
+    "median": 2.279,
+    "q1": 2.054,
+    "q3": 2.665,
+    "pixels": 8606319
+   },
+   "per_frame_median_ratio": {
+    "median": 2.313,
+    "q1": 2.101,
+    "q3": 2.724,
+    "frames": 747
+   },
+   "strip_ratio_true_over_live": {
+    "median": 2.817,
+    "q1": 2.25,
+    "q3": 4.731,
+    "strips": 5474
+   },
+   "metric_scale": 1.025
+  },
+  "kinect_near_pct": {
+   "centre_inside_2m": 39.4,
+   "any_inside_1m": 18.6
+  },
+  "live_running_scale": {
+   "median": 0.524,
+   "q1": 0.496,
+   "q3": 0.547
+  },
+  "live_adaptive": {
+   "cue_on_pct": 100.0,
+   "front_cue_on_pct": 97.9,
+   "b_false_front_cue": {
+    "events_per_min": 11.6,
+    "frames": 437,
+    "of_frames": 731,
+    "pct": 59.8,
+    "kinect_centre_mostly_holes": 0
+   },
+   "b_false_any_cue": {
+    "events_per_min": 15.5,
+    "frames": 246,
+    "of_frames": 747,
+    "pct": 32.9
+   },
+   "c_over_urgent": {
+    "events_per_min": 17.0,
+    "frames": 218,
+    "of_frames": 218,
+    "pct": 100.0,
+    "kinect_centre_mostly_holes": 0
+   },
+   "d_missed_inside_1m": {
+    "events_per_min": 0.0,
+    "frames": 0,
+    "of_frames": 139,
+    "pct": 0.0
+   }
+  },
+  "fixed_0.45": {
+   "scale": 0.45,
+   "cue_on_pct": 100.0,
+   "front_cue_on_pct": 98.7,
+   "b_false_front_cue": {
+    "events_per_min": 10.8,
+    "frames": 443,
+    "of_frames": 737,
+    "pct": 60.1,
+    "kinect_centre_mostly_holes": 0
+   },
+   "b_false_any_cue": {
+    "events_per_min": 15.5,
+    "frames": 246,
+    "of_frames": 747,
+    "pct": 32.9
+   },
+   "c_over_urgent": {
+    "events_per_min": 22.9,
+    "frames": 349,
+    "of_frames": 349,
+    "pct": 100.0,
+    "kinect_centre_mostly_holes": 0
+   },
+   "d_missed_inside_1m": {
+    "events_per_min": 0.0,
+    "frames": 0,
+    "of_frames": 139,
+    "pct": 0.0
+   }
+  },
+  "fixed_metric": {
+   "scale": 1.025,
+   "cue_on_pct": 72.3,
+   "front_cue_on_pct": 52.3,
+   "b_false_front_cue": {
+    "events_per_min": 14.7,
+    "frames": 125,
+    "of_frames": 391,
+    "pct": 32.0,
+    "kinect_centre_mostly_holes": 0
+   },
+   "b_false_any_cue": {
+    "events_per_min": 15.5,
+    "frames": 93,
+    "of_frames": 540,
+    "pct": 17.2
+   },
+   "c_over_urgent": {
+    "events_per_min": 1.2,
+    "frames": 6,
+    "of_frames": 6,
+    "pct": 100.0,
+    "kinect_centre_mostly_holes": 0
+   },
+   "d_missed_inside_1m": {
+    "events_per_min": 0.0,
+    "frames": 0,
+    "of_frames": 139,
+    "pct": 0.0
+   }
+  }
+ }
+}
