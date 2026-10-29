@@ -10,7 +10,8 @@ from metasight.voice import VoiceAsk
 
 
 class FakeWS:
-    """Speaks the realtime protocol: acks the handshake, then replays scripted events."""
+    """Speaks the realtime protocol: acks the handshake, then replays scripted events (a number
+    in the script is a pause, in seconds, before the next event)."""
 
     def __init__(self, events):
         self.sent: list = []
@@ -21,7 +22,13 @@ class FakeWS:
         self.sent.append(m)
         if isinstance(m, str) and "authorization" in m:
             await self.q.put(json.dumps({"sessionId": "s1"}))
-            for e in self.events:
+            asyncio.get_running_loop().create_task(self._play())
+
+    async def _play(self):
+        for e in self.events:
+            if isinstance(e, float):
+                await asyncio.sleep(e)
+            else:
                 await self.q.put(json.dumps(e))
 
     async def recv(self):
@@ -60,7 +67,7 @@ def test_handshake_asks_for_endpointing_and_keywords():
     assert hs["authorization"]["accessToken"] == "Bearer k"
 
 
-def run_session(events, push_audio=True):
+def run_session(events, push_audio=True, warmup=b"", wait=0.4):
     heard = []
 
     async def on_heard(h):
@@ -72,13 +79,13 @@ def run_session(events, push_audio=True):
         async def connect():
             return ws
 
-        t = Transcriber("k", on_heard, ["keys"], connect=connect)
+        t = Transcriber("k", on_heard, ["keys"], connect=connect, warmup=warmup)
         t.wanted = True
         task = asyncio.create_task(t._session())
         await asyncio.sleep(0.05)
         if push_audio:
             t.push(np.zeros(1600, np.float32))
-        await asyncio.sleep(0.4)
+        await asyncio.sleep(wait)
         t.wanted = False
         await asyncio.sleep(0.1)
         task.cancel()
@@ -110,6 +117,39 @@ def test_stream_is_paced_and_padded_with_silence():
     assert 1 <= len(frames) <= 3
     assert all(f == b"\0" * len(f) for f in frames)
     assert json.loads(ws.sent[-1]) == {"type": "endStream"}
+
+
+def test_each_session_opens_with_a_warm_up_turn_that_is_dropped():
+    clip = b"\x01\x02" * 1280  # 0.16 s, two frames
+    heard, ws, t = run_session(
+        [
+            {"type": "transcript", "transcript": "okay", "final": False},
+            {"type": "speechComplete", "turnId": 0, "transcript": "Okay, ready."},
+            {"type": "transcript", "transcript": "where are", "final": False},
+            {"type": "speechComplete", "turnId": 1, "transcript": "Where are my keys?"},
+        ],
+        push_audio=False,
+        warmup=clip,
+    )
+    frames = b"".join(m for m in ws.sent if isinstance(m, bytes))
+    assert frames.startswith(clip)
+    assert [h.text for h in heard] == ["where are", "Where are my keys?"]
+    assert t.stats["turns"] == 1 and t.stats["warmup_ms"] is not None
+
+
+def test_a_question_spoken_over_the_warm_up_still_gets_through():
+    heard, _, _ = run_session(
+        [
+            {"type": "transcript", "transcript": "Okay, ready, where are", "final": False},
+            {
+                "type": "speechComplete",
+                "turnId": 0,
+                "transcript": "Okay, ready, where are my keys?",
+            },
+        ],
+        warmup=b"\x01\x02" * 1280,
+    )
+    assert [h.text for h in heard] == ["Where are", "Where are my keys?"]
 
 
 class FakeServer:

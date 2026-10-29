@@ -5,6 +5,9 @@ utterance ends, so there is no button and no local end-of-speech timer. The sess
 before anyone speaks (the handshake costs ~0.6 s) and kept alive with silence, because the
 endpoint closes a stream that runs slower than real time after about 15 s. Watch-list labels go in
 as keyword biasing so "glasses case" and "keys" come back spelled the way the map knows them.
+A fresh session finalizes its first turn about 0.3 s slower than later ones (0.44 to 1.27 s against
+0.21 to 0.38 s after a warm-up, bench 2026-10-29), so each session first hears a 1.3 s synthetic
+"Okay, ready." (macOS `say`, warmup.pcm) and drops that turn.
 
 Audio arrives as 16 kHz mono float32 from the same `audio` messages the conversation feature
 reads; this module never touches the camera or the people tracker.
@@ -15,9 +18,11 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 
@@ -30,6 +35,9 @@ FRAME_S = 0.08  # 80 ms frames, the docs' pacing
 AHEAD_S = 0.2  # send at most this far ahead of the wall clock
 GAP_S = 0.3  # no microphone audio for this long: pad with silence so the stream keeps time
 ROTATE_S = 50 * 60  # sessions end at 60 minutes; start a fresh one before that
+WARMUP = (Path(__file__).parent / "warmup.pcm").read_bytes()  # "Okay, ready.", 16 kHz PCM16
+WARM_MAX_S = 4.0  # the warm-up turn is done in ~1.5 s; past this, whatever comes is the wearer
+_WARM_TEXT = re.compile(r"^\s*ok(ay)?([\s,.]*ready)?[\s.!?,]*", re.I)  # or a partial of it
 
 
 @dataclass
@@ -76,8 +84,11 @@ class Transcriber:
         on_heard: Callable[[Heard], Awaitable[None]],
         keywords: list[str] | None = None,
         connect=None,
+        warmup: bytes = WARMUP,
     ):
         self.key, self.on_heard = key, on_heard
+        self.warmup = warmup
+        self.warm_until = 0.0  # while before this, the session's first turn is the warm-up
         self.keywords = keywords or []
         self._connect = connect  # tests inject a fake socket factory
         self.buf = bytearray()  # microphone audio not yet sent, PCM16 at 16 kHz
@@ -87,7 +98,7 @@ class Transcriber:
         self.wanted = False  # someone is connected who might speak
         self.turn_start: dict[int, float] = {}
         self._task: asyncio.Task | None = None
-        self.stats = {"sessions": 0, "turns": 0, "handshake_ms": None}
+        self.stats = {"sessions": 0, "turns": 0, "handshake_ms": None, "warmup_ms": None}
 
     # ------------------------------------------------------------ control
     def want(self, on: bool) -> None:
@@ -149,6 +160,10 @@ class Transcriber:
             self.connected = True
             self.clock = AudioClock()
             self.buf.clear()  # audio from before the session has no place on its clock
+            if self.warmup:
+                self.buf += self.warmup
+                self.buf_arrived = time.time()
+                self.warm_until = time.time() + WARM_MAX_S
             log.info("transcribe session %s open", ack["sessionId"])
             sender = asyncio.create_task(self._send(ws))
             try:
@@ -198,13 +213,27 @@ class Transcriber:
             if kind == "speechStart":
                 self.turn_start[ev.get("turnId", 0)] = time.time()
             elif kind == "transcript" and not ev.get("final") and ev.get("transcript"):
-                await self.on_heard(Heard(ev["transcript"], False, None, None))
+                text = self._unwarm(ev["transcript"])
+                if text:
+                    await self.on_heard(Heard(text, False, None, None))
             elif kind == "speechComplete":
-                self.stats["turns"] += 1
+                text = self._unwarm(clean(ev.get("transcript", "")))
+                if time.time() < self.warm_until:  # the warm-up turn, and anyone talking over it
+                    opened = self.warm_until - WARM_MAX_S
+                    self.warm_until = 0.0
+                    self.stats["warmup_ms"] = round(1000 * (time.time() - opened))
+                else:
+                    self.stats["turns"] += 1
                 end = self.clock.wall(ev.get("audioProcessedMs", 0) / 1000)
-                text = clean(ev.get("transcript", ""))
                 if text:
                     await self.on_heard(Heard(text, True, ev.get("turnId"), end))
+
+    def _unwarm(self, text: str) -> str:
+        """During the warm-up turn, the wearer's words without the clip's "Okay, ready" in front."""
+        if time.time() >= self.warm_until:
+            return text
+        t = _WARM_TEXT.sub("", text, count=1)
+        return t[:1].upper() + t[1:]
 
 
 def clean(text: str) -> str:
