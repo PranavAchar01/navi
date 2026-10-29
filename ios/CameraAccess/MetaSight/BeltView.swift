@@ -18,8 +18,6 @@ struct BeltView: View {
   /// belt is connected.
   var cues: ProximityReading?
 
-  private static let amber = Color(red: 255 / 255, green: 190 / 255, blue: 70 / 255)
-  private static let red = Color(red: 255 / 255, green: 72 / 255, blue: 72 / 255)
   private static let blue = Color(red: 90 / 255, green: 200 / 255, blue: 255 / 255)
   private static let purple = Color(red: 170 / 255, green: 120 / 255, blue: 255 / 255)
 
@@ -172,20 +170,22 @@ struct BeltView: View {
     )
   }
 
-  /// The chip takes its motor's colour, so the number never disagrees with what the belt
-  /// is doing; white while that motor is still off (the belt trails the cues slightly).
+  /// The chip shows the cued band, the same state the lens and the phone card show.
   private func chipColor(_ warning: ProximityWarning, belt: BeltState) -> Color {
-    guard !belt.lost else { return warning.band == .slow ? Self.amber : Self.red }
-    return belt.duty[warning.sector] > 0 ? motorColor(mode: belt.modes[warning.sector]) ?? .white : .white
+    Self.color(warning.band)
   }
 
+  /// The lens palette: white for slow, amber for fast, red only for solid (the stop zone).
   private func motorColor(mode: String) -> Color? {
     switch mode {
-    case "slow": return Self.amber
-    case "fast", "solid": return Self.red
+    case "slow", "fast", "solid": return Self.color(ProximityBand(mode: mode))
     case "guide": return Self.blue
     default: return nil
     }
+  }
+
+  private static func color(_ band: ProximityBand) -> Color {
+    Color(red: band.rgb.red, green: band.rgb.green, blue: band.rgb.blue)
   }
 
   private func rippleRate(mode: String) -> Double {

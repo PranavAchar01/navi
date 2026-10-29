@@ -58,6 +58,21 @@ final class DisplayCardTests: XCTestCase {
     XCTAssertEqual(DisplayCard.distanceText(nil), "close")
   }
 
+  @MainActor func testPhoneCardSaysWhatTheLensShows() {
+    let close = ProximityWarning(sector: 0, distance: 0.97, band: .fast)
+    XCTAssertEqual(ServerLink.statusLine(warning: close, guide: nil, found: false), "Obstacle ahead, 1.0 m")
+    XCTAssertEqual(DisplayCard.make(warning: close, guide: nil, answer: nil).title, "1.0 m")
+    XCTAssertEqual(ServerLink.statusLine(warning: nil, guide: nil, found: false), "Clear ahead")
+    let stop = ProximityWarning(sector: 7, distance: 0.3, band: .stop)
+    XCTAssertEqual(ServerLink.statusLine(warning: stop, guide: nil, found: false), "Stop · obstacle ahead left")
+  }
+
+  func testRedIsOnlyTheStopZone() {
+    XCTAssertTrue(ProximityBand.slow.rgb == (1, 1, 1))
+    XCTAssertNotEqual(ProximityBand.fast.lensColor, ProximityBand.stop.lensColor)
+    XCTAssertEqual(ProximityBand(mode: "solid"), .stop)
+  }
+
   func testUrgencyRanksCards() {
     let slow = DisplayCard.make(warning: ProximityWarning(sector: 0, distance: 2, band: .slow), guide: nil, answer: nil)
     let fast = DisplayCard.make(warning: ProximityWarning(sector: 0, distance: 0.7, band: .fast), guide: nil, answer: nil)

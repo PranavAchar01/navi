@@ -52,11 +52,6 @@ struct DisplayCard: Equatable, Sendable {
     return .clear
   }
 
-  var isObstacle: Bool {
-    if case .obstacle = glyph { return true }
-    return false
-  }
-
   /// Most urgent first: an obstacle within stopping distance, then the item being guided
   /// to with a live fix, then a fresh answer, then any cued obstacle, and last the pin of
   /// an item still being looked for. Indoors something is nearly always within a metre,
@@ -227,11 +222,11 @@ final class GlassesDisplay {
     let card = DisplayCard.make(
       warning: link.proximity?.cueWarning, guide: link.guide, answer: link.answerNote)
     guard card != shown else { return }
-    // Rising urgency goes out at once (yellow to red, red to Stop), and so does the end
-    // of a Stop unless another obstacle simply takes its place; the rest waits out the dwell.
-    let escalates = card.urgency > (shown?.urgency ?? .clear)
-    let standsDown = shown?.isStop == true && !card.isObstacle
-    guard escalates || standsDown || Date().timeIntervalSince(shownAt) >= DisplayCard.minDwell else { return }
+    // A change of urgency (white, amber, Stop, either way) goes out at once, so the lens
+    // never shows a different zone from the belt and the phone; a new distance in the same
+    // zone, or a change between item cards, waits out the dwell.
+    let changesZone = card.urgency != (shown?.urgency ?? .clear)
+    guard changesZone || Date().timeIntervalSince(shownAt) >= DisplayCard.minDwell else { return }
     do {
       try await display.send(Self.view(for: card))
       shown = card
@@ -263,13 +258,13 @@ final class GlassesDisplay {
 
   /// The whole card drawn as one square, so the type can be as big as the lens allows:
   /// glyph, a large first line, a smaller second line, centred as a group on black.
-  /// Red for fast/stop, yellow for slow, white for an item; drawn here so the colour
-  /// survives the display's two-tone text styles.
+  /// Red only for stop, amber for fast, white for slow and for an item: the same palette
+  /// as the belt. Drawn here so the colour survives the display's two-tone text styles.
   static func image(for card: DisplayCard) -> UIImage {
     let side = cardSide
     let color: UIColor =
       switch card.glyph {
-      case let .obstacle(_, band): band == .slow ? .systemYellow : .systemRed
+      case let .obstacle(_, band): band.lensColor
       default: .white
       }
     let maxWidth = side - 16
@@ -398,6 +393,20 @@ extension ProximityReading {
     guard let w = cued.warning else { return nil }
     return ProximityWarning(sector: w.sector, distance: w.distance, band: bands[w.sector])
   }
+}
+
+extension ProximityBand {
+  /// One palette for every surface: red is the stop zone only (under 0.5 m), amber is
+  /// close (0.5 to 1 m), and something 1 to 2 m away is plain white.
+  var rgb: (red: Double, green: Double, blue: Double) {
+    switch self {
+    case .stop: (1, 72 / 255, 72 / 255)
+    case .fast: (1, 190 / 255, 70 / 255)
+    case .slow, .clear: (1, 1, 1)
+    }
+  }
+
+  var lensColor: UIColor { UIColor(red: rgb.red, green: rgb.green, blue: rgb.blue, alpha: 1) }
 }
 
 private extension String {

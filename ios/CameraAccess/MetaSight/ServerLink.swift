@@ -366,9 +366,11 @@ final class ServerLink {
     case "safety":
       guard let msg = try? decoder.decode(SafetyMessage.self, from: data) else { return }
       guide = msg.guide
-      statusLine = Self.statusLine(path: msg.path, guide: msg.guide, found: msg.found ?? false)
-      if let sectors = msg.sectors, let cues = msg.cues {
-        let reading = Self.proximity(sectors: sectors, modes: cues.map(\.mode), path: msg.path)
+      let reading = msg.sectors.flatMap { sectors in
+        msg.cues.map { Self.proximity(sectors: sectors, modes: $0.map(\.mode), path: msg.path) }
+      }
+      statusLine = Self.statusLine(warning: reading?.cueWarning, guide: msg.guide, found: msg.found ?? false)
+      if let reading {
         proximity = reading
         WatchLink.shared.send(reading)
         beeper.update(reading)
@@ -392,13 +394,15 @@ final class ServerLink {
     return head + Array(repeating: filler, count: BeltState.motorCount - head.count)
   }
 
-  /// "Clear for 1.2 m · Finding water bottle, 2.1 m", in the wearer's words.
-  static func statusLine(path: Double?, guide: GuideTarget?, found: Bool) -> String {
+  /// "Obstacle ahead, 1.5 m · Finding water bottle, 2.1 m", in the wearer's words. Built
+  /// from the same cued warning as the lens and the belt chip, so the three never disagree;
+  /// "Clear" only when nothing within the 2 m cue range was cued.
+  static func statusLine(warning: ProximityWarning?, guide: GuideTarget?, found: Bool) -> String {
     var parts: [String] = []
-    if let path {
-      parts.append(String(format: "Clear for %.1f m", path))
-    } else {
-      parts.append("Clear ahead")
+    switch warning {
+    case nil: parts.append("Clear ahead")
+    case let w? where w.band == .stop: parts.append("Stop · obstacle \(w.directionName.lowercased())")
+    case let w?: parts.append("Obstacle \(w.directionName.lowercased()), \(DisplayCard.distanceText(w.distance))")
     }
     if let guide {
       if let dist = guide.dist {
