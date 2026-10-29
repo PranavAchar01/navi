@@ -126,14 +126,20 @@ class EmulatorBraille(HapticDriver):
 
     name = "emulator"
 
-    def __init__(self, emit: Callable[[dict], Awaitable[None]], timing: Timing = DEFAULT_TIMING):
+    def __init__(
+        self,
+        emit: Callable[[dict], Awaitable[None]],
+        timing: Timing = DEFAULT_TIMING,
+        device: str = "emulated wrist band",
+    ):
+        self.device = device
         self.emit = emit
         self.timing = timing
 
     async def begin(self, text, cues, events) -> None:
         await self.emit(
             {
-                "type": "braille", "phase": "start", "device": "emulated wrist band",
+                "type": "braille", "phase": "start", "device": self.device,
                 "text": text, "cues": cues, "total_ms": total_ms(events),
                 "timing": {"dot_ms": self.timing.dot_ms, "cell_gap_ms": self.timing.cell_gap_ms,
                            "word_gap_ms": self.timing.word_gap_ms},
@@ -301,7 +307,8 @@ def make_output(settings, emit: Callable[[dict], Awaitable[None]], belt) -> Brai
     timing = Timing(
         settings.braille_dot_ms, settings.braille_cell_gap_ms, settings.braille_word_gap_ms
     )
-    drivers: list[HapticDriver] = [EmulatorBraille(emit, timing)]
+    device = {"belt": "belt fallback", "wrist": "wrist band"}.get(kind, "emulated wrist band")
+    drivers: list[HapticDriver] = [EmulatorBraille(emit, timing, device)]
     if kind == "wrist":
         drivers.append(WristBraille(ble_writer(settings.braille_addr)))
     elif kind == "belt":

@@ -235,6 +235,7 @@ def test_make_output_picks_backends():
     assert isinstance(haptics.make_output(s, emit, None).driver, EmulatorBraille)
     s.braille = "belt"
     out = haptics.make_output(s, emit, object())
+    assert out.driver.drivers[0].device == "belt fallback"
     assert out.driver_uses_belt and not out.owns_belt
     s.braille = "bogus"
     with pytest.raises(ValueError):
