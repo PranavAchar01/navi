@@ -48,7 +48,10 @@ class Settings:
     eye_height_m: float = 1.37  # camera height above the floor; the live depth's ruler
     hfov_deg: float = 105.0  # horizontal field of view of the camera feeding the safety loop
     map_intrinsics: bool = False  # tell MapAnything the lens (hfov_deg) instead of letting it guess
-    belt: str = "emulator"  # emulator: spawn firmware/emulator/belt-emu; udp: a real belt
+    # emulator: spawn firmware/emulator/belt-emu; udp: a real belt on Wi-Fi; app: the phone app
+    # relays over Bluetooth; ble: this machine writes over Bluetooth (belt_addr = BLE address,
+    # empty to find "metasight-belt")
+    belt: str = "emulator"
     belt_addr: str = "127.0.0.1:4210"
     braille: str = "off"  # deafblind mode: off | emulator | wrist | belt | audio (docs/braille.md)
     braille_addr: str = ""  # BLE address of the wrist band, for braille = "wrist"

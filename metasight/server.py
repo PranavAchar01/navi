@@ -88,7 +88,9 @@ class Server:
         self.trail: list[list[float]] = []
         self.latest: tuple[float, int, bytes] | None = None
         self.latest_arrived = 0.0  # monotonic time the latest camera frame reached the server
-        self.belt = BeltLink(settings.belt, settings.belt_addr, self._belt_state)
+        self.belt = BeltLink(
+            settings.belt, settings.belt_addr, self._belt_state, relay=self._belt_relay
+        )
         self.braille = make_output(settings, self.hub.json, self.belt)
         self.frame_ready = asyncio.Event()
         self.pending_taps: list[tuple[str, float, float]] = []
@@ -185,6 +187,9 @@ class Server:
             walk.close()
 
     def _belt_state(self, msg: dict) -> None:
+        asyncio.ensure_future(self.hub.json(msg))
+
+    def _belt_relay(self, msg: dict) -> None:
         asyncio.ensure_future(self.hub.json(msg))
 
     def stop(self) -> None:

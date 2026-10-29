@@ -19,8 +19,8 @@ static wrist_t wrist;
 
 class CellCallback : public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic *c) override {
-    std::string v = c->getValue();
-    wrist_rx(&wrist, (const uint8_t *)v.data(), (int)v.size(), millis());
+    auto v = c->getValue();  // String on core 3.x, std::string on 2.x
+    wrist_rx(&wrist, (const uint8_t *)v.c_str(), (int)v.length(), millis());
   }
 };
 

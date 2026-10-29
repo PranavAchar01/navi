@@ -8,6 +8,7 @@ stop, the belt falls back to its "lost" taps by itself within 250 ms.
 from __future__ import annotations
 
 import asyncio
+import base64
 import logging
 import math
 import statistics
@@ -29,6 +30,11 @@ MODES = {"off": 0, "slow": 1, "fast": 2, "solid": 3, "unknown": 4, "guide": 5}
 NAMES = {v: k for k, v in MODES.items()}
 FLAG_DROP = 1
 FLAG_FOUND = 2
+# The belt's BLE service (firmware/belt/belt.ino): one characteristic, write without response,
+# taking the same 26-byte packet as UDP 4210.
+BELT_SERVICE_UUID = "6d657461-7369-6768-742d-62656c740000"
+BELT_CHAR_UUID = "6d657461-7369-6768-742d-62656c740001"
+BELT_BLE_NAME = "metasight-belt"
 
 
 def plan(
@@ -72,6 +78,12 @@ def guide(cmd: list[tuple[int, int]], bearing_deg: float, dist_m: float) -> None
         cmd[i] = (MODES["guide"], int(round(110 + 145 * max(0.0, min(1.0, 1 - dist_m / 4)))))
 
 
+def packet(cmd: list[tuple[int, int]], flags: int, seq: int, t_ms: int) -> bytes:
+    """The 26-byte command packet, same for UDP and BLE."""
+    body = b"".join(struct.pack("<BB", m, i) for m, i in cmd)
+    return struct.pack("<2sBBHI", b"MS", 1, flags, seq, t_ms & 0xFFFFFFFF) + body
+
+
 def ensure_emulator() -> None:
     """Build the emulator from the firmware sources when it is missing or older than them."""
     srcs = [EMU_SRC, FIRMWARE / "belt" / "belt_core.h"]
@@ -89,11 +101,25 @@ class _Proto(asyncio.DatagramProtocol):
 
 
 class BeltLink:
-    def __init__(self, kind: str, addr: str, on_state: Callable[[dict], None]):
+    """kind: emulator and udp talk to the belt over UDP; ble writes to it over Bluetooth with
+    bleak (desk testing; `addr` is a BLE address or empty to find "metasight-belt"); app hands
+    each packet to the phone app, which relays it over Bluetooth. ble and app get no telemetry
+    back, so the state shown is the command, not the motors' measured duty."""
+
+    def __init__(
+        self,
+        kind: str,
+        addr: str,
+        on_state: Callable[[dict], None],
+        relay: Callable[[dict], None] | None = None,
+    ):
         self.kind = kind
-        host, port = addr.rsplit(":", 1)
-        self.addr = (host, int(port))
+        self.addr = (addr.rsplit(":", 1)[0], int(addr.rsplit(":", 1)[1])) if self._udp else ("", 0)
+        self.ble_addr = addr
+        self.relay = relay
         self.on_state = on_state
+        self.ble_busy = False
+        self.ble_client = None
         self.proc: subprocess.Popen | None = None
         self.transport: asyncio.DatagramTransport | None = None
         self.seq = 0
@@ -103,7 +129,13 @@ class BeltLink:
         self.last_state = 0.0
         self.last_cmd: list[tuple[int, int]] = [(0, 0)] * 8
 
+    @property
+    def _udp(self) -> bool:
+        return self.kind in ("emulator", "udp")
+
     async def start(self) -> None:
+        if not self._udp:
+            return
         if self.kind == "emulator":
             ensure_emulator()
             self.proc = subprocess.Popen([str(EMU_BIN), str(self.addr[1])])
@@ -113,22 +145,71 @@ class BeltLink:
         )
 
     def stop(self) -> None:
+        if self.ble_client is not None:
+            asyncio.ensure_future(self.ble_client.disconnect())
         if self.transport:
             self.transport.close()
         if self.proc:
             self.proc.terminate()
 
     def send(self, cmd: list[tuple[int, int]], flags: int, frame_arrived: float) -> None:
-        if not self.transport:
+        if self._udp and not self.transport:
             return
         self.seq = (self.seq + 1) & 0xFFFF
         self.arrived[self.seq] = frame_arrived
         self.arrived.pop((self.seq - 200) & 0xFFFF, None)
         self.last_cmd = cmd
-        body = b"".join(struct.pack("<BB", m, i) for m, i in cmd)
-        t_ms = int(time.monotonic() * 1000) & 0xFFFFFFFF
-        pkt = struct.pack("<2sBBHI", b"MS", 1, flags, self.seq, t_ms) + body
-        self.transport.sendto(pkt, self.addr)
+        pkt = packet(cmd, flags, self.seq, int(time.monotonic() * 1000))
+        if self.transport:
+            self.transport.sendto(pkt, self.addr)
+        elif self.kind == "ble":
+            if not self.ble_busy:  # a slow write drops frames rather than queueing them
+                self.ble_busy = True
+                asyncio.ensure_future(self._ble_write(pkt))
+        elif self.kind == "app" and self.relay:
+            self.relay({"type": "beltcmd", "pkt": base64.b64encode(pkt).decode()})
+        if not self._udp:
+            self._command_state(flags)
+
+    async def _ble_write(self, pkt: bytes) -> None:
+        try:
+            if self.ble_client is None or not self.ble_client.is_connected:
+                from bleak import BleakClient, BleakScanner  # optional: only desk testing needs it
+
+                target = self.ble_addr
+                if not target or target == "scan":
+                    target = await BleakScanner.find_device_by_name(BELT_BLE_NAME, timeout=8.0)
+                    if target is None:
+                        log.warning("belt: no %s found over Bluetooth", BELT_BLE_NAME)
+                        return
+                self.ble_client = BleakClient(target)
+                await self.ble_client.connect()
+            await self.ble_client.write_gatt_char(BELT_CHAR_UUID, pkt, response=False)
+        except Exception as e:
+            log.warning("belt: Bluetooth write failed: %s", e)
+            self.ble_client = None
+        finally:
+            self.ble_busy = False
+
+    def _command_state(self, flags: int) -> None:
+        """No telemetry over Bluetooth: report the command itself, at most 30 times a second."""
+        now = time.monotonic()
+        if now - self.last_state < 1 / 30:
+            return
+        self.last_state = now
+        self.on_state(
+            {
+                "type": "belt",
+                "device": "ESP32 via phone" if self.kind == "app" else "ESP32 (Bluetooth)",
+                "lost": False,
+                "drop": bool(flags & FLAG_DROP),
+                "found": bool(flags & FLAG_FOUND),
+                "duty": [i if m in (1, 2, 3, 5) else 0 for m, i in self.last_cmd],
+                "modes": [NAMES[m] for m, _ in self.last_cmd],
+                "age_ms": 0,
+                "latency_ms": None,
+            }
+        )
 
     def _telemetry(self, data: bytes) -> None:
         if len(data) != 22 or data[:2] != b"MT":

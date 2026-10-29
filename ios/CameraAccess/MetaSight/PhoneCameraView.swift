@@ -41,6 +41,7 @@ struct PhoneCameraView: View {
           serverRow
           beepRow
           beltAudioRow
+          beltLinkRow
           Toggle("Save this walk on the Mac", isOn: $camera.saveWalk)
             .font(.system(size: 15, weight: .medium))
             .foregroundStyle(.white)
@@ -237,6 +238,21 @@ struct PhoneCameraView: View {
     .pickerStyle(.segmented)
     .accessibilityLabel("Beep volume")
     .accessibilityIdentifier("beep_volume")
+  }
+
+  private var beltLinkRow: some View {
+    let ble = link.beltBLE
+    return HStack(spacing: 8) {
+      Circle()
+        .fill(ble.isConnected ? Color.green : Color.gray)
+        .frame(width: 10, height: 10)
+      Text(ble.status.label)
+        .font(.system(size: 15, weight: .medium))
+        .foregroundStyle(.white)
+    }
+    .onAppear { ble.start() }
+    .accessibilityElement(children: .combine)
+    .accessibilityIdentifier("belt_link")
   }
 
   private var beltAudioRow: some View {

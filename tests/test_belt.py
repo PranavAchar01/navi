@@ -94,3 +94,36 @@ def test_emulator_guide_taps_and_found_sweep():
         assert lit == set(range(8)) and all(sum(1 for v in d if v) <= 1 for d in swept)
     finally:
         proc.terminate()
+
+
+def test_packet_is_the_26_byte_command_for_udp_and_ble():
+    from metasight.belt import packet
+
+    cmd = [(m, 10 * m) for m in range(6)] + [(0, 0)] * 2
+    pkt = packet(cmd, FLAG_DROP, 513, 0x01020304)
+    assert len(pkt) == 26 and pkt[:3] == b"MS\x01" and pkt[3] == FLAG_DROP
+    assert (
+        struct.unpack("<H", pkt[4:6])[0] == 513 and struct.unpack("<I", pkt[6:10])[0] == 0x01020304
+    )
+    assert pkt[10:14] == bytes([0, 0, 1, 10])
+
+
+def test_app_kind_relays_each_packet_and_reports_the_command():
+    import asyncio
+    import base64
+
+    from metasight.belt import BeltLink
+
+    relayed, states = [], []
+
+    async def go():
+        link = BeltLink("app", "AA", states.append, relay=relayed.append)
+        await link.start()
+        cmd, flags = plan([0.3] + [None] * 7, [True] * 8, INF, INF, INF)
+        link.send(cmd, flags, time.monotonic())
+        return link
+
+    asyncio.run(go())
+    assert relayed[0]["type"] == "beltcmd"
+    assert len(base64.b64decode(relayed[0]["pkt"])) == 26
+    assert states[0]["modes"][0] == "solid" and states[0]["lost"] is False
