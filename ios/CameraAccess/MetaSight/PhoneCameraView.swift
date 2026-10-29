@@ -31,12 +31,12 @@ struct PhoneCameraView: View {
   var body: some View {
     VStack(spacing: 12) {
       SourcePicker(source: $source)
+      captionsView
 
       ScrollView {
         VStack(alignment: .leading, spacing: 12) {
-          setupButton
+          if !link.notes.isRecording { setupButton }
           notesButton
-          captionsView
           statusRows
           cameraArea
           nearest
@@ -82,7 +82,10 @@ struct PhoneCameraView: View {
     }
     .onDisappear { camera.stop() }
     #if DEBUG
-    .task { if DemoLaunch.isPhoneDemo { camera.start() } }
+    .task {
+      if DemoLaunch.isPhoneDemo { camera.start() }
+      DemoLaunch.feedCaptions(link)
+    }
     #endif
   }
 
@@ -135,19 +138,32 @@ struct PhoneCameraView: View {
     .accessibilityIdentifier("notes_button")
   }
 
-  /// Large live captions while a note records. Hidden from VoiceOver on purpose (it would talk
-  /// over the people); the toggle sends each finished line to a paired Braille display instead.
+  /// Large live captions while a note records, pinned above the controls so they never push the
+  /// belt view or the buttons off the screen: a box of fixed height that follows the newest
+  /// line. Hidden from VoiceOver on purpose (it would talk over the people); the toggle sends
+  /// each finished line to a paired Braille display instead.
   @ViewBuilder private var captionsView: some View {
     let c = link.captions
     if link.notes.isRecording || !c.lines.isEmpty {
-      VStack(alignment: .leading, spacing: 8) {
-        ForEach(Array(c.lines.enumerated()), id: \.offset) { i, line in
-          Text(line.who.map { "\($0): \(line.text)" } ?? line.text)
-            .font(.system(size: 26, weight: .semibold))
-            .foregroundStyle(.white.opacity(i == c.lines.count - 1 && c.partial.isEmpty ? 1 : 0.6))
-        }
-        if !c.partial.isEmpty {
-          Text(c.partial).font(.system(size: 30, weight: .bold)).foregroundStyle(.white)
+      VStack(alignment: .leading, spacing: 6) {
+        ScrollViewReader { proxy in
+          ScrollView {
+            VStack(alignment: .leading, spacing: 8) {
+              ForEach(Array(c.lines.enumerated()), id: \.offset) { i, line in
+                Text(line.who.map { "\($0): \(line.text)" } ?? line.text)
+                  .font(.system(size: 26, weight: .semibold))
+                  .foregroundStyle(.white.opacity(i == c.lines.count - 1 && c.partial.isEmpty ? 1 : 0.6))
+              }
+              if !c.partial.isEmpty {
+                Text(c.partial).font(.system(size: 30, weight: .bold)).foregroundStyle(.white)
+              }
+              Color.clear.frame(height: 1).id("captions_end")
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+          }
+          .frame(height: 250)
+          .onChange(of: c) { _, _ in proxy.scrollTo("captions_end", anchor: .bottom) }
+          .onAppear { proxy.scrollTo("captions_end", anchor: .bottom) }
         }
         Toggle("Send captions to my Braille display", isOn: $captionsToBraille)
           .font(.system(size: 15, weight: .medium))
@@ -155,8 +171,7 @@ struct PhoneCameraView: View {
           .accessibilityHint("Each finished line is announced so a paired Braille display shows it")
           .accessibilityIdentifier("captions_braille_toggle")
       }
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .padding(14)
+      .padding(12)
       .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
       .accessibilityIdentifier("captions_view")
     }

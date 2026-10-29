@@ -33,6 +33,25 @@ enum DemoLaunch {
   /// `--metasight-settings` opens the settings sheet once the session is up (for screenshots).
   static let opensSettings = ProcessInfo.processInfo.arguments.contains("--metasight-settings")
 
+  /// `--metasight-captions-demo` feeds the phone screen a recording with two speakers and a live
+  /// partial line, for screenshots (bench/results/captions-sim.png).
+  static let isCaptionsDemo = ProcessInfo.processInfo.arguments.contains("--metasight-captions-demo")
+
+  static func feedCaptions(_ link: ServerLink) {
+    guard isCaptionsDemo else { return }
+    link.handle(#"{"type":"notes","state":"recording","say":""}"#)
+    let lines: [(String, String)] = [
+      ("you", "How has the knee been since the last visit?"),
+      ("person 1", "Better, but the stairs still hurt in the morning."),
+      ("you", "Is the ibuprofen helping with that?"),
+      ("person 1", "Take 400 milligrams twice a day with food."),
+    ]
+    for (who, text) in lines {
+      link.handle(#"{"type":"caption","text":"\#(text)","who":"\#(who)","final":true}"#)
+    }
+    link.handle(#"{"type":"caption","text":"Come back on December third and we will","final":false}"#)
+  }
+
   /// The paired mock glasses, for the in-app display preview.
   private(set) static var glasses: (any MockGlasses)?
 
