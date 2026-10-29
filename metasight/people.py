@@ -45,6 +45,7 @@ PATCH = 24
 LIP_FULL = 6.0  # lip activity (grey levels of frame difference) read as "clearly moving"
 SPEAK_MIN = 0.35
 DOA_SIGMA_DEG = 18.0
+CUE_NEW_DEG = 40.0  # a cue this far from the last one is a new talker, not a repeat
 DOA_OVERRIDE_DEG = 35.0  # a speaker this far from the heard direction is not the one to turn to
 STICKY_S = 1.0  # the speaker is held this long after the evidence thins
 
@@ -238,6 +239,7 @@ class Conversation:
         self.speaker: int | None = None
         self.speaker_t = -math.inf
         self.cue_t = -math.inf
+        self.cue_bearing = 0.0
         self.cue_id: int | None = None
         self.offscreen_t = -math.inf
 
@@ -329,12 +331,16 @@ class Conversation:
             target = (None, doa_deg)
             if not cands_near(cands, doa_deg):
                 ev["offscreen"] = round(doa_deg, 1)
-        if target is not None and t - self.cue_t >= 1.5:
+        # A cue repeats at most every 1.5 s, but one toward a clearly different direction (the
+        # other person started talking) does not wait behind the last.
+        if target is not None and (
+            t - self.cue_t >= 1.5 or abs(target[1] - self.cue_bearing) > CUE_NEW_DEG
+        ):
             cue = bearing_cue(target[1])
             if cue is not None:
                 cue["id"] = target[0]
                 ev["cue"] = cue
-                self.cue_t = t
+                self.cue_t, self.cue_bearing = t, target[1]
         return ev
 
 

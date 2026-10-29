@@ -216,3 +216,18 @@ def test_steady_voice_near_a_face_that_is_not_read_still_cues():
         ev = conv.step(k / 15, [Det(right, 0.9, 2.0)], g, voice=True, doa_deg=40.0)
         cues += [ev["cue"]] if ev["cue"] else []
     assert cues and all(c["turn"] == "right" for c in cues)
+
+
+def test_cue_toward_a_new_direction_does_not_wait_for_the_repeat_gap():
+    rng = np.random.default_rng(7)
+    g = rng.integers(60, 200, size=(480, 640)).astype(np.uint8)
+    conv = Conversation(hfov_deg=90.0)
+    left, right = [], []
+    for k in range(6):
+        e = conv.step(k / 15, [], g, voice=True, doa_deg=-50.0)
+        left += [e["cue"]] if e["cue"] else []
+    for k in range(6, 12):
+        e = conv.step(k / 15, [], g, voice=True, doa_deg=40.0)
+        right += [e["cue"]] if e["cue"] else []
+    assert left and left[0]["turn"] == "left"
+    assert right and right[0]["turn"] == "right"  # well inside 1.5 s of the left cue

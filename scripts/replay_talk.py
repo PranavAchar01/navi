@@ -33,7 +33,11 @@ async def main():
     ap.add_argument("--mono", action="store_true")
     ap.add_argument("--activity", default="", help="set this activity first (talk: cues)")
     ap.add_argument("--dump", default="", help="write the people events to this JSON file")
-    ap.add_argument("--onsets", default="", help="seconds where a voice starts, for latency")
+    ap.add_argument(
+        "--onsets",
+        default="",
+        help="where a voice starts, for latency: 1 or 1:left (counts only cues turning that way)",
+    )
     a = ap.parse_args()
     ch = 1 if a.mono else 2
     pcm = subprocess.run(
@@ -63,7 +67,7 @@ async def main():
     step = max(1, round(src_fps / a.fps))
     log = []
     cues, belts, rtt, chunk_sent, frame_sent = [], [], [], {}, {}
-    onsets = [float(x) for x in a.onsets.split(",") if x]
+    onsets = [(float(x.split(":")[0]), x.partition(":")[2]) for x in a.onsets.split(",") if x]
     async with websockets.connect(a.url, max_size=None) as ws:
 
         async def reader():
@@ -132,9 +136,9 @@ async def main():
     print(f"cues {len(cues)}, belt messages {len(belts)}")
     if belts:
         print("  belt sample:", json.dumps(belts[len(belts) // 2][1])[:300])
-    for on in onsets:
+    for on, side in onsets:
         t_on = chunk_sent.get(int(on / CHUNK_S))
-        after = [c for c in cues if t_on and c[0] >= t_on]
+        after = [c for c in cues if t_on and c[0] >= t_on and side in ("", c[1]["turn"])]
         if after:
             c = after[0]
             print(
