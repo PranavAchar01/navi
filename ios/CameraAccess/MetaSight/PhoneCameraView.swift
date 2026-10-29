@@ -33,6 +33,7 @@ struct PhoneCameraView: View {
 
       ScrollView {
         VStack(alignment: .leading, spacing: 12) {
+          setupButton
           statusRows
           cameraArea
           nearest
@@ -80,6 +81,32 @@ struct PhoneCameraView: View {
     #if DEBUG
     .task { if DemoLaunch.isPhoneDemo { camera.start() } }
     #endif
+  }
+
+  // MARK: - First-run setup
+
+  /// Large, one control: starts the spoken walk-through that learns the home.
+  private var setupButton: some View {
+    Button {
+      FirstRun.markStarted()
+      link.onboard("start")
+    } label: {
+      Text(link.onboarding.step == "idle" || link.onboarding.step == "done" ? "Set up my home" : "Setting up: \(link.onboarding.step)")
+        .font(.system(size: 22, weight: .bold))
+        .frame(maxWidth: .infinity, minHeight: 64)
+        .foregroundStyle(.white)
+        .background(Color.blue, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+    .disabled(link.connection != .connected || ["walk", "name", "belt"].contains(link.onboarding.step))
+    .accessibilityLabel("Set up my home")
+    .accessibilityHint("Starts a spoken walk through your home so the glasses learn it, then lets you name a few things")
+    .accessibilityIdentifier("setup_home_button")
+    .onChange(of: link.connection) { _, now in
+      if now == .connected, FirstRun.shouldStart(step: link.onboarding.step) {
+        FirstRun.markStarted()
+        link.onboard("start")
+      }
+    }
   }
 
   // MARK: - Status

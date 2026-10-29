@@ -112,3 +112,11 @@ def test_skip_finishes():
     ob = Onboarding()
     ob.start()
     assert ob.skip()["step"] == "done" and not ob.active
+
+
+def test_voice_starts_setup():
+    from metasight.onboarding import wants_setup
+
+    assert wants_setup("Let’s set up")
+    assert wants_setup("please learn my home")
+    assert not wants_setup("where is my water bottle")

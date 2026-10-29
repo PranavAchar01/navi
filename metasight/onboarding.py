@@ -77,6 +77,23 @@ def pattern_length(segments) -> float:
     return max((s[1] for s in segments), default=0.0)
 
 
+START_PHRASES = (
+    "let's set up",
+    "lets set up",
+    "set up my home",
+    "setup my home",
+    "learn my home",
+    "learn my house",
+    "learn my place",
+)
+
+
+def wants_setup(text: str) -> bool:
+    """The wearer asked to start the first-run setup by voice."""
+    t = " ".join(text.lower().replace("\u2019", "'").split())
+    return any(p in t for p in START_PHRASES)
+
+
 @dataclass
 class Onboarding:
     step: str = "idle"  # idle, walk, name, belt, done

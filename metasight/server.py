@@ -40,7 +40,7 @@ from .modes import Activity
 from .modes import command as activity_command
 from .modes import implied as implied_activity
 from .motion import FallDetector, Sample, ShakeDetector
-from .onboarding import PATTERNS, Onboarding, pattern_length
+from .onboarding import PATTERNS, Onboarding, pattern_length, wants_setup
 from .pins import PinStore
 from .providers import make_language, make_reviewer
 from .providers.finder import LOOKALIKES
@@ -753,6 +753,9 @@ class Server:
                 if self.onboarding.step == "belt":
                     asyncio.create_task(self.run_belt_intro())
                 return {"type": "onboarding", "text": text}
+        if not self.onboarding.active and wants_setup(text):
+            await self.start_onboarding()
+            return {"type": "onboarding", "text": text}
         if (named := activity_command(text)) is not None:
             await self.set_activity(named, "voice")
             return {"type": "activity", "mode": named, "text": text}
