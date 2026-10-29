@@ -76,3 +76,11 @@ def test_agent_loop_runs_tool_then_answers():
 
     lang = NS(model="m", extra={}, _client=NS(chat=NS(completions=NS(create=create))))
     assert agent_answer(lang, "where is my mug", tools()) == "Your mug is right and ahead"
+
+
+def test_empty_change_list_is_stated_and_the_prompt_says_nothing_changed():
+    from metasight.providers.tools import SYSTEM
+
+    assert "nothing changed" in SYSTEM
+    out = tools().what_changed_since(0.01)
+    assert out["changes"] == [] and out["window_min"] == 0.01
