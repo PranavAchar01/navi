@@ -19,7 +19,7 @@ struct ProximityReading: Equatable, Sendable {
 
   /// Metres to the nearest obstacle per sector; nil when nothing is within range.
   var distances: [Double?]
-  /// The server's cue per sector: off, slow, fast, solid, unknown or guide.
+  /// The server's cue per sector: off, slow, fast, solid, unknown, guide, find or talk.
   var modes: [String]
   /// Metres to the "find my X" target while the camera sees it; nil when nothing is being
   /// looked for or it is out of view.
@@ -77,7 +77,8 @@ enum ProximityBand: Int, Comparable, Sendable {
     self = d >= Self.slowMetres ? .slow : (d >= Self.fastMetres ? .fast : .stop)
   }
 
-  /// The server's cue name. "guide" points at a remembered item, not at an obstacle.
+  /// The server's cue name. "guide", "find" and "talk" point at an item or a voice, not at an
+  /// obstacle, so they stay clear.
   init(mode: String) {
     switch mode {
     case "slow": self = .slow

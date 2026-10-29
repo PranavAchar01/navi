@@ -46,12 +46,12 @@ def test_no_audio_means_no_speaker_and_no_cue():
 
 def test_overlay_only_fills_free_motors_and_expires():
     t = Talk(90.0)
-    t.cue = {"motors": [[1, 0.9], [2, 0.4]]}
+    t.cue = {"bearing": 60.0, "motors": [[1, 0.67], [2, 0.33]]}
     t.cue_until = 1.0
     cmd = [(MODES["off"], 0)] * 8
     cmd[1] = (MODES["fast"], 255)
     out = t.overlay(cmd, 0.5)
-    assert out[1] == (MODES["fast"], 255) and out[2][0] == MODES["slow"]
+    assert out[1] == (MODES["fast"], 255) and out[2][0] == MODES["talk"]
     assert t.overlay(cmd, 2.0) == cmd
 
 

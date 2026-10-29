@@ -21,6 +21,7 @@ struct BeltView: View {
   var warning: ProximityWarning?
 
   private static let blue = Color(red: 90 / 255, green: 200 / 255, blue: 255 / 255)
+  private static let green = Color(red: 120 / 255, green: 220 / 255, blue: 140 / 255)
   private static let purple = Color(red: 170 / 255, green: 120 / 255, blue: 255 / 255)
 
   var body: some View {
@@ -49,10 +50,12 @@ struct BeltView: View {
   private var shown: BeltState {
     guard showsCues, let cues else { return belt }
     let duty = cues.modes.map { mode -> Int in
+      // Find and Talk taps are not obstacles (the band stays clear) but the motor still buzzes.
+      if mode == "find" || mode == "talk" { return 150 }
       switch ProximityBand(mode: mode) {
-      case .stop, .fast: 255
-      case .slow: 150
-      case .clear: 0
+      case .stop, .fast: return 255
+      case .slow: return 150
+      case .clear: return 0
       }
     }
     return BeltState(duty: duty, modes: cues.modes, lost: false, found: belt.found, latencyMs: nil)
@@ -181,7 +184,8 @@ struct BeltView: View {
   private func motorColor(mode: String) -> Color? {
     switch mode {
     case "slow", "fast", "solid": return Self.color(ProximityBand(mode: mode))
-    case "guide": return Self.blue
+    case "guide", "find": return Self.blue
+    case "talk": return Self.green
     default: return nil
     }
   }
@@ -194,6 +198,8 @@ struct BeltView: View {
     switch mode {
     case "fast": return 4
     case "slow": return 1.5
+    case "find": return 2.5
+    case "talk": return 3
     default: return 2
     }
   }

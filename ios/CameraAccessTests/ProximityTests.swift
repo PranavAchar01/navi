@@ -26,6 +26,17 @@ final class ProximityTests: XCTestCase {
     XCTAssertEqual(ProximityBand(mode: "solid"), .stop)
   }
 
+  func testFindAndTalkCuesAreNotObstacles() {
+    for mode in ["guide", "find", "talk"] { XCTAssertEqual(ProximityBand(mode: mode), .clear) }
+    var d = [Double?](repeating: nil, count: ProximityReading.sectorCount)
+    var modes = d.map { _ in "off" }
+    modes[2] = "talk"
+    modes[0] = "find"
+    d[2] = nil
+    let r = ProximityReading(distances: d, modes: modes)
+    XCTAssertNil(r.warning)
+  }
+
   func testClosestBandWinsThenAhead() {
     // A wall 0.4 m to the left beats a chair 1.5 m ahead.
     XCTAssertEqual(reading([0: 1.5, 6: 0.4]).warning?.sector, 6)

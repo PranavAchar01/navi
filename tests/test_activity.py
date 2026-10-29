@@ -74,4 +74,4 @@ def test_speaker_cues_only_flow_when_the_mode_allows():
     assert t.overlay(off, 1.1) == off
     t.cues_enabled = True
     assert t.frame(2.0, [], bgr, heading())["cue"]["turn"] == "right"
-    assert t.overlay(off, 2.1)[1][0] == MODES["slow"]
+    assert t.overlay(off, 2.1)[1][0] == MODES["talk"]

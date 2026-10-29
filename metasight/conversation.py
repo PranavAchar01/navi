@@ -15,6 +15,7 @@ import numpy as np
 
 from .audio_doa import SR, Doa, Vad, to_mono16k
 from .belt import MODES
+from .belt_modes import talk_cmd
 from .people import Conversation, Det
 
 AUDIO_STALE_S = 1.5  # no audio for this long: nobody is heard
@@ -82,12 +83,12 @@ class Talk:
         return ev
 
     def overlay(self, cmd: list[tuple[int, int]], now: float) -> list[tuple[int, int]]:
-        """The turn cue on the belt: the two motors toward the speaker pulse, unless a proximity
-        cue already holds them (walking into something outranks conversation)."""
+        """The turn cue on the belt: the Talk taps on the two motors toward the speaker, unless
+        a proximity cue already holds them (walking into something outranks conversation)."""
         if self.cue is None or now > self.cue_until:
             return cmd
         out = list(cmd)
-        for motor, gain in self.cue["motors"]:
-            if gain > 0.05 and out[motor][0] == MODES["off"]:
-                out[motor] = (MODES["slow"], int(CUE_INTENSITY * gain))
+        for motor, (mode, amp) in enumerate(talk_cmd(self.cue["bearing"], CUE_INTENSITY)):
+            if mode != MODES["off"] and out[motor][0] == MODES["off"]:
+                out[motor] = (mode, amp)
         return out
