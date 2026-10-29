@@ -328,3 +328,38 @@ def with_guide(
 
 def with_params(p: Params, **kw) -> Params:
     return replace(p, **kw)
+
+
+class Tracker:
+    """Prototype (not wired live): panning from tracked objects instead of per-frame clusters.
+
+    Each frame's depth objects are matched to tracks by bearing (gate `gate_deg`); a track's
+    bearing is smoothed (`alpha`), its distance is the live one. A new object must be seen
+    `confirm` frames before it gets a motor, unless it is already inside `p.solid_m` + 0.3 m (a close
+    object is never delayed), and a track survives `coast` missed frames. Used as `hold=` in
+    `plan_pan`: it returns the confirmed tracks as Targets and `select` picks the nearest."""
+
+    def __init__(
+        self, gate_deg: float = 15.0, alpha: float = 0.4, confirm: int = 3, coast: int = 2
+    ):
+        self.gate_deg, self.alpha, self.confirm, self.coast = gate_deg, alpha, confirm, coast
+        self.tracks: list[dict] = []
+
+    def __call__(self, targets: list[Target], p: Params = DEFAULT) -> list[Target]:
+        live = [t for t in targets if math.isfinite(t.dist_m) and t.dist_m < p.off_m + 0.3]
+        free = list(live)
+        for tr in self.tracks:
+            best = min(free, key=lambda t: abs(wrap(t.bearing_deg - tr["b"])), default=None)
+            if best is not None and abs(wrap(best.bearing_deg - tr["b"])) <= self.gate_deg:
+                free.remove(best)
+                tr["b"] = wrap(tr["b"] + self.alpha * wrap(best.bearing_deg - tr["b"]))
+                tr["d"], tr["hits"], tr["miss"] = best.dist_m, tr["hits"] + 1, 0
+            else:
+                tr["miss"] += 1
+        self.tracks = [tr for tr in self.tracks if tr["miss"] <= self.coast]
+        self.tracks += [{"b": t.bearing_deg, "d": t.dist_m, "hits": 1, "miss": 0} for t in free]
+        return [
+            Target(tr["b"], tr["d"] if tr["miss"] == 0 else min(tr["d"], p.off_m - 0.01))
+            for tr in self.tracks
+            if tr["hits"] >= self.confirm or tr["d"] < p.solid_m + 0.3
+        ]

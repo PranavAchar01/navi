@@ -113,3 +113,20 @@ def test_planner_guide_reaches_the_goal_and_stop_always_wins():
     r = h.run(h.make_room(1003), belt, h.Skin(nav_drift_deg=12.0), seed=0)
     assert r.guide_frames > 0 and r.stop_violations == 0
     assert r.stop_overridden == r.stop_frames
+
+
+def test_tracker_confirms_far_objects_but_never_delays_a_close_one():
+    tr = pan.Tracker()
+    far = [pan.Target(20.0, 1.4)]
+    assert tr(far) == [] and tr(far) == []
+    assert len(tr(far)) == 1  # third sighting
+    assert len(pan.Tracker()([pan.Target(-30.0, 0.5)])) == 1
+
+
+def test_tracker_smooths_bearing_and_coasts_through_a_dropout():
+    tr = pan.Tracker(confirm=1)
+    tr([pan.Target(0.0, 1.0)])
+    out = tr([pan.Target(10.0, 1.0)])[0]
+    assert 0.0 < out.bearing_deg < 10.0
+    assert tr([]) and tr([])
+    assert not tr([])

@@ -68,9 +68,22 @@ def extract() -> None:
     np.savez(CACHE, **out)
 
 
+def _chain(*stages):
+    def run(targets, p=pan.DEFAULT):
+        for st in stages:
+            targets = st(targets, p)
+        return targets
+
+    return run
+
+
 def commands(strips, path, ttc, hfov, scheme, persist, felt=1):
     filt = pan.Persist(persist)
-    hold = pan.Hold() if scheme == "panned+hold" else None
+    hold = {
+        "panned+hold": pan.Hold,
+        "panned+track": pan.Tracker,
+        "panned+track+hold": lambda: _chain(pan.Tracker(), pan.Hold()),
+    }.get(scheme, lambda: None)()
     cmds = []
     for st, p, tt in zip(strips, path, ttc, strict=True):
         st = filt(list(st))
@@ -126,7 +139,7 @@ def main() -> None:
     for w in sorted({k.split("/")[0] for k in d.files}):
         ts = d[f"{w}/ts"]
         minutes = (ts[-1] - ts[0]) / 60
-        for scheme in ("sector", "panned", "panned+hold"):
+        for scheme in ("sector", "panned", "panned+hold", "panned+track", "panned+track+hold"):
             for persist in (1, 2):
                 for felt in (1, 26):  # 26/255 is the skin model's 0.10 detection floor
                     on = commands(
