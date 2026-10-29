@@ -1,0 +1,260 @@
+{
+ "20261028-135040-iphone": {
+  "minutes": 1.18,
+  "frames": 563,
+  "sector": {
+   "x0.84": {
+    "false_buzz": {
+     "events_per_min": 0.0,
+     "frames_pct": 0.0
+    },
+    "missed_inside_2m": {
+     "events_per_min": 9.3,
+     "frames_pct": 20.6
+    },
+    "missed_inside_1m": {
+     "events_per_min": 7.6,
+     "frames_pct": 11.2
+    }
+   },
+   "x1.0": {
+    "false_buzz": {
+     "events_per_min": 0.0,
+     "frames_pct": 0.0
+    },
+    "missed_inside_2m": {
+     "events_per_min": 9.3,
+     "frames_pct": 20.6
+    },
+    "missed_inside_1m": {
+     "events_per_min": 5.9,
+     "frames_pct": 9.9
+    }
+   },
+   "x1.16": {
+    "false_buzz": {
+     "events_per_min": 2.5,
+     "frames_pct": 1.8
+    },
+    "missed_inside_2m": {
+     "events_per_min": 8.5,
+     "frames_pct": 12.2
+    },
+    "missed_inside_1m": {
+     "events_per_min": 5.9,
+     "frames_pct": 9.9
+    }
+   },
+   "missed_inside_2m_frames": {
+    "total": 116,
+    "camera_sees_it_now": 11,
+    "not_in_current_frame": 105
+   },
+   "cue_on_pct": 79.4
+  },
+  "panned": {
+   "x0.84": {
+    "false_buzz": {
+     "events_per_min": 0.0,
+     "frames_pct": 0.0
+    },
+    "missed_inside_2m": {
+     "events_per_min": 7.6,
+     "frames_pct": 35.3
+    },
+    "missed_inside_1m": {
+     "events_per_min": 10.2,
+     "frames_pct": 21.4
+    }
+   },
+   "x1.0": {
+    "false_buzz": {
+     "events_per_min": 0.0,
+     "frames_pct": 0.0
+    },
+    "missed_inside_2m": {
+     "events_per_min": 7.6,
+     "frames_pct": 35.3
+    },
+    "missed_inside_1m": {
+     "events_per_min": 9.3,
+     "frames_pct": 20.2
+    }
+   },
+   "x1.16": {
+    "false_buzz": {
+     "events_per_min": 0.0,
+     "frames_pct": 0.0
+    },
+    "missed_inside_2m": {
+     "events_per_min": 11.0,
+     "frames_pct": 27.2
+    },
+    "missed_inside_1m": {
+     "events_per_min": 9.3,
+     "frames_pct": 20.0
+    }
+   },
+   "missed_inside_2m_frames": {
+    "total": 199,
+    "camera_sees_it_now": 94,
+    "not_in_current_frame": 105
+   },
+   "cue_on_pct": 64.7
+  },
+  "panned+hold": {
+   "x0.84": {
+    "false_buzz": {
+     "events_per_min": 0.0,
+     "frames_pct": 0.0
+    },
+    "missed_inside_2m": {
+     "events_per_min": 4.2,
+     "frames_pct": 33.2
+    },
+    "missed_inside_1m": {
+     "events_per_min": 6.8,
+     "frames_pct": 18.8
+    }
+   },
+   "x1.0": {
+    "false_buzz": {
+     "events_per_min": 0.0,
+     "frames_pct": 0.0
+    },
+    "missed_inside_2m": {
+     "events_per_min": 4.2,
+     "frames_pct": 33.2
+    },
+    "missed_inside_1m": {
+     "events_per_min": 5.1,
+     "frames_pct": 17.5
+    }
+   },
+   "x1.16": {
+    "false_buzz": {
+     "events_per_min": 0.0,
+     "frames_pct": 0.0
+    },
+    "missed_inside_2m": {
+     "events_per_min": 7.6,
+     "frames_pct": 24.8
+    },
+    "missed_inside_1m": {
+     "events_per_min": 5.1,
+     "frames_pct": 17.4
+    }
+   },
+   "missed_inside_2m_frames": {
+    "total": 187,
+    "camera_sees_it_now": 85,
+    "not_in_current_frame": 102
+   },
+   "cue_on_pct": 66.8
+  },
+  "panned+track": {
+   "x0.84": {
+    "false_buzz": {
+     "events_per_min": 0.0,
+     "frames_pct": 0.0
+    },
+    "missed_inside_2m": {
+     "events_per_min": 3.4,
+     "frames_pct": 34.3
+    },
+    "missed_inside_1m": {
+     "events_per_min": 5.9,
+     "frames_pct": 20.1
+    }
+   },
+   "x1.0": {
+    "false_buzz": {
+     "events_per_min": 0.0,
+     "frames_pct": 0.0
+    },
+    "missed_inside_2m": {
+     "events_per_min": 3.4,
+     "frames_pct": 34.3
+    },
+    "missed_inside_1m": {
+     "events_per_min": 4.2,
+     "frames_pct": 18.9
+    }
+   },
+   "x1.16": {
+    "false_buzz": {
+     "events_per_min": 0.0,
+     "frames_pct": 0.0
+    },
+    "missed_inside_2m": {
+     "events_per_min": 6.8,
+     "frames_pct": 26.0
+    },
+    "missed_inside_1m": {
+     "events_per_min": 4.2,
+     "frames_pct": 18.7
+    }
+   },
+   "missed_inside_2m_frames": {
+    "total": 193,
+    "camera_sees_it_now": 91,
+    "not_in_current_frame": 102
+   },
+   "cue_on_pct": 65.7
+  },
+  "panned+track+hold": {
+   "x0.84": {
+    "false_buzz": {
+     "events_per_min": 0.0,
+     "frames_pct": 0.0
+    },
+    "missed_inside_2m": {
+     "events_per_min": 3.4,
+     "frames_pct": 33.2
+    },
+    "missed_inside_1m": {
+     "events_per_min": 5.1,
+     "frames_pct": 19.0
+    }
+   },
+   "x1.0": {
+    "false_buzz": {
+     "events_per_min": 0.0,
+     "frames_pct": 0.0
+    },
+    "missed_inside_2m": {
+     "events_per_min": 3.4,
+     "frames_pct": 33.2
+    },
+    "missed_inside_1m": {
+     "events_per_min": 4.2,
+     "frames_pct": 18.0
+    }
+   },
+   "x1.16": {
+    "false_buzz": {
+     "events_per_min": 0.0,
+     "frames_pct": 0.0
+    },
+    "missed_inside_2m": {
+     "events_per_min": 6.8,
+     "frames_pct": 24.8
+    },
+    "missed_inside_1m": {
+     "events_per_min": 4.2,
+     "frames_pct": 17.8
+    }
+   },
+   "missed_inside_2m_frames": {
+    "total": 187,
+    "camera_sees_it_now": 91,
+    "not_in_current_frame": 96
+   },
+   "cue_on_pct": 66.8
+  },
+  "near_pct": {
+   "inside_2m": 100.0,
+   "inside_1m": 81.0
+  }
+ }
+}
