@@ -380,6 +380,8 @@ final class ServerLink {
     let text: String
     let label: String?
     let pin: Pin?
+    /// The camera sees it now: the remembered pin's place and age no longer apply.
+    let live: Bool?
   }
 
   private struct BeltMessage: Decodable {
@@ -468,9 +470,10 @@ final class ServerLink {
     case "answer":
       guard let answer = try? decoder.decode(AnswerMessage.self, from: data) else { return }
       lastAnswer = answer.text
+      let live = answer.live ?? false
       answerNote = AnswerNote(
-        text: answer.text, label: answer.label, near: answer.pin?.near?.first,
-        seen: answer.pin?.ts.map { Date(timeIntervalSince1970: $0) }, at: Date())
+        text: answer.text, label: answer.label, near: live ? nil : answer.pin?.near?.first,
+        seen: live ? Date() : answer.pin?.ts.map { Date(timeIntervalSince1970: $0) }, at: Date())
       speaker.speak(answer.text)
       #if canImport(UIKit)
         // VoiceOver forwards announcements to a paired Bluetooth Braille display.
