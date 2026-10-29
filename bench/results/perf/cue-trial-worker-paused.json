@@ -1,0 +1,40 @@
+{
+ "frames_sent": 1188,
+ "played_s": 70.0,
+ "cues": 1173,
+ "cue_hz": 16.8,
+ "cue_ms": {
+  "p50": 42.8,
+  "p95": 64.5,
+  "max": 349.3
+ },
+ "server_ms": {
+  "depth": {
+   "p50": 22.7,
+   "p95": 31.1
+  },
+  "detect": {
+   "p50": 9.6,
+   "p95": 11.6
+  },
+  "post": {
+   "p50": 0.7,
+   "p95": 2.4
+  },
+  "total": {
+   "p50": 33.0,
+   "p95": 41.8
+  }
+ },
+ "det_age_ms": null,
+ "map_windows": 0,
+ "window_total_ms": {
+  "p50": null,
+  "max": null
+ },
+ "window_infer_ms": {
+  "p50": null,
+  "max": null
+ },
+ "walk": "20261028-135040-iphone"
+}
