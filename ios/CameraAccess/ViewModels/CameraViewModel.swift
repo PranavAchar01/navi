@@ -606,6 +606,7 @@ final class CameraViewModel {
   /// while the link is down or the previous frame is still being sent.
   nonisolated private func uplinkFrame(_ image: UIImage) {
     let timestampMs = Date().timeIntervalSince1970 * 1000
+    if !link.frameGate.isOpen, let frame = CIImage(image: image) { link.reflex.offer(frame) }
     guard let seq = link.frameGate.tryAcquire() else { return }
     guard let jpeg = image.jpegData(compressionQuality: 0.7) else {
       link.frameGate.release()

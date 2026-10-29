@@ -89,6 +89,9 @@ final class FrameGate: Sendable {
     state.withLock { $0.busy = false }
   }
 
+  /// True while the server link is up; frames go to the phone's own reflex otherwise.
+  var isOpen: Bool { state.withLock { $0.open } }
+
   func setOpen(_ open: Bool) {
     state.withLock {
       $0.open = open
@@ -166,6 +169,8 @@ final class ServerLink {
   @ObservationIgnored let beltAudio = BeltAudio()
   /// The belt's Bluetooth link: the server's belt commands, relayed to the ESP32.
   let beltBLE = BeltBLE()
+  /// The stop buzz on the phone itself while the server is out of reach (PhoneReflex.swift).
+  nonisolated let reflex = PhoneReflex()
   /// Sent every time the socket connects (and right away when set), so a reconnect
   /// restores what the server needs to know about this camera.
   @ObservationIgnored private var hello: [String: Any]?
@@ -179,6 +184,7 @@ final class ServerLink {
   /// Starts the connect/reconnect loop and the motion batcher. Idempotent.
   func start() {
     guard supervisor == nil else { return }
+    reflex.attach(beltBLE)
     supervisor = Task { [weak self] in
       while !Task.isCancelled {
         self?.connectIfNeeded()

@@ -1,6 +1,8 @@
 .venv/
 third_party/
 data/
+# Core ML packages keep their weights in Data/, which the line above would catch (case-insensitive disk).
+!ios/CameraAccess/MetaSight/Models/*.mlpackage/Data/
 shots/proximity_frames/
 *.mp4
 *.npz

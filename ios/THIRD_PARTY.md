@@ -1,5 +1,14 @@
 # Third-party code in the iOS app
 
+## Depth Anything V2 Metric-Indoor Small (Apache-2.0)
+
+- Source: https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-Indoor-Small-hf, the
+  same weights the server's safety loop runs (metasight/safety.py `DEPTH_REPO`).
+- Licence: Apache-2.0 (the Small model only; Base and Large are CC-BY-NC-4.0 and not used).
+- What we ship: `CameraAccess/MetaSight/Models/ReflexDepth.mlpackage`, converted by
+  `scripts/coreml_depth.py` (fixed 294 x 518 input, ImageNet normalisation in the graph, int8
+  weights). The model's weights are unchanged apart from that quantisation; no code is vendored.
+
 ## Microsoft Soundscape (MIT)
 
 - Source: https://github.com/microsoft/soundscape (archived; community fork:

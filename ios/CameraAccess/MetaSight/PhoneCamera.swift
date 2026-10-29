@@ -216,7 +216,9 @@ final class PhoneUplink: Sendable {
       last = time
       return true
     }
-    guard due, let seq = link.frameGate.tryAcquire() else { return }
+    guard due else { return }
+    if !link.frameGate.isOpen { link.reflex.offer(upright, focalPx: focalPx) }
+    guard let seq = link.frameGate.tryAcquire() else { return }
     guard let (jpeg, cropWidth) = encoder.encode(upright) else {
       link.frameGate.release()
       return
