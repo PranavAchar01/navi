@@ -5,8 +5,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from score_walk import priors_on_off  # noqa: E402
 
-ON = [{"mode": 3, "intensity": 255}] * 8
-OFF = [{"mode": 0, "intensity": 0}] * 8
+ON = [[3, 255]] * 8  # priors.after: belt command pairs, intensity 0-255
+OFF = [[0, 0]] * 8
+CUE_ON = [{"mode": "solid", "intensity": 1.0}] * 8  # cues: dicts, intensity 0-1
+CUE_OFF = [{"mode": "off", "intensity": 0.0}] * 8
 
 
 def _frame(seq, t, thirds):
@@ -30,9 +32,9 @@ def _events(tmp_path, rows):
 
 def test_priors_that_cover_a_miss_pass(tmp_path):
     ev = _events(tmp_path, [
-        {"seq": 0, "cues": OFF},
-        {"seq": 2, "cues": OFF, "priors": {"after": ON}},
-        {"seq": 4, "cues": OFF},
+        {"seq": 0, "cues": CUE_OFF},
+        {"seq": 2, "cues": CUE_OFF, "priors": {"after": ON}},
+        {"seq": 4, "cues": CUE_OFF},
     ])  # fmt: skip
     r = priors_on_off(_lab(), ev)
     assert r["frames_matched"] == 3 and r["changed_frames"] == 1
@@ -43,9 +45,9 @@ def test_priors_that_cover_a_miss_pass(tmp_path):
 
 def test_priors_that_silence_a_cue_fail(tmp_path):
     ev = _events(tmp_path, [
-        {"seq": 0, "cues": OFF},
-        {"seq": 2, "cues": ON, "priors": {"after": OFF}},
-        {"seq": 4, "cues": OFF},
+        {"seq": 0, "cues": CUE_OFF},
+        {"seq": 2, "cues": CUE_ON, "priors": {"after": OFF}},
+        {"seq": 4, "cues": CUE_OFF},
     ])  # fmt: skip
     r = priors_on_off(_lab(), ev)
     assert (
@@ -55,5 +57,5 @@ def test_priors_that_silence_a_cue_fail(tmp_path):
 
 
 def test_events_matching_no_frame_are_not_scored(tmp_path):
-    r = priors_on_off(_lab(), _events(tmp_path, [{"seq": 99, "cues": OFF}]))
+    r = priors_on_off(_lab(), _events(tmp_path, [{"seq": 99, "cues": CUE_OFF}]))
     assert r["ok"] is None

@@ -32,8 +32,10 @@ FELT = 26  # intensity floor of the skin model, as in score_labels
 OUT = ROOT / "bench" / "results" / "priors-score.json"
 
 
-def felt(cmd: list[dict]) -> bool:
-    return any(c["intensity"] >= FELT for c in cmd)
+def felt(cmd: list) -> bool:
+    """Any motor at or above the felt floor. The event's `cues` are {mode, intensity 0-1}
+    dicts; `priors.raw` / `priors.after` are the belt command, [mode, intensity 0-255] pairs."""
+    return any((round(c["intensity"] * 255) if isinstance(c, dict) else c[1]) >= FELT for c in cmd)
 
 
 def _after(e: dict) -> list[dict]:
