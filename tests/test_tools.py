@@ -26,6 +26,9 @@ def test_where_is_uses_heading_and_age():
     r = tools().where_is("mug")
     assert r["distance_m"] == 2.0 and r["direction"] == "right and ahead" and r["seen_s_ago"] == 5
     assert tools().where_is("wallet") == {"found": False}
+    assert tools().where_is("mugs")["near"] == ["desk"]  # plural from the model
+    assert tools().where_is("key")["found"]
+    assert tools().where_is("cups") == {"found": False}  # never a different thing
 
 
 def test_what_changed_reports_moved_and_new():

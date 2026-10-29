@@ -84,8 +84,7 @@ LIVE_SEEN_S = 1.0  # a camera sighting this recent answers "where is my X" over 
 LIVE_OVER_PIN_S = 60.0  # an older camera sighting wins when memory's pin is this much older
 MAP_WAIT_S = 3.0  # right after a restart, how long a question waits for the home map
 MAP_LOADING = "I'm still loading your home map. Ask me again in a few seconds."
-HOLD_S = 1.2  # a plan not back by then gets a holding line, so the wearer is not left in silence
-HOLDING = "One sec, putting that together."
+HOLDING = "One sec, putting that together."  # spoken at once for a plan, which takes 2 s or more
 AR_POSE_HZ = 5.0  # ARKit-carried poses go out to viewers at most this often
 FLOOR_EVERY_S = 2.0  # the floor plan for routes and priors is rebuilt from the map this often
 RETIE_M = 0.3  # the pose jumping this far in one frame is a re-tie: the priors sit out a second
@@ -841,22 +840,37 @@ class Server:
             seen = []
         labels = sorted({*self.pins.labels(), *self.live_last})
         label = parse_query(text, labels)
+        guess = None
         if label is None and labels and self.language.name != "template":
             try:
                 pick = (
                     self.language.complete(
-                        "Reply with exactly one item from the list, or none.",
+                        "Reply with the one item from the list that is the very object asked "
+                        "about under another name (sneakers: shoe). If none is, reply none.",
                         f"Items: {', '.join(labels)}\nQuestion: {text}",
                         max_tokens=8,
                     )
                     .strip()
                     .lower()
                 )
-                label = pick if pick in labels else None
+                guess = pick if pick in labels else None
             except Exception:
-                label = None
+                guess = None
         if label is None:
             noun = asked_for(text)  # "where is my umbrella": named, but never seen
+            pin = self.pins.latest(guess) if guess and noun else None
+            if pin is not None:  # the model's other name for it is only ever offered as a maybe
+                now = time.time()
+                pose = self.pose if now - Server.pose_ts(self) < ANSWER_POSE_S else None
+                pose = pose if pin.placed else None
+                self.guide = {"pin": pin.id, "label": pin.label, "want": noun, "until": now + 90}
+                return {
+                    "type": "answer",
+                    "label": None,
+                    "text": template_answer(noun, pin, pose, now, stand_in=True),
+                    "pin": pin.to_json(),
+                    "language": "template",
+                }
             return {
                 "type": "answer",
                 "label": None,
@@ -1103,13 +1117,11 @@ class Server:
             res = await pending
         else:
             work = self.loop.run_in_executor(self.llm_pool, self._answer_sync, text)
-            if is_errand(text):
-                done, _ = await asyncio.wait({work}, timeout=HOLD_S)
-                if not done:
-                    hold = {"type": "answer", "label": None, "text": HOLDING, "pin": None}
-                    await self.hub.json({**hold, "holding": True})
-                    if self.braille:
-                        self.braille.say(HOLDING)
+            if is_errand(text):  # waiting for the plan would only leave the wearer in silence
+                hold = {"type": "answer", "label": None, "text": HOLDING, "pin": None}
+                await self.hub.json({**hold, "holding": True})
+                if self.braille:
+                    self.braille.say(HOLDING)
             res = await work
         if quiet_unknown and res.get("label") is None and not res.get("tools"):
             return None

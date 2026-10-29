@@ -12,6 +12,8 @@ import math
 import time
 from collections.abc import Callable
 
+from ..query import parse_query
+
 TOOLS = [
     {
         "type": "function",
@@ -145,7 +147,9 @@ class Tools:
         return self.notes.find(query)
 
     def where_is(self, object: str) -> dict:
-        pin = self.pins.latest(object.lower().strip())
+        known = [*self.pins.labels(), *self.pins.labels("landmark")]
+        label = parse_query(object, known)  # "shoes" is the shoe, never the bed
+        pin = self.pins.latest(label) if label else None
         if pin is None:
             return {"found": False}
         out = {

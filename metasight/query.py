@@ -24,16 +24,32 @@ _ASK = re.compile(
 )
 
 
+def singular(word: str) -> str:
+    """shoes -> shoe, boxes -> box, batteries -> battery; glass and short words stay."""
+    if len(word) <= 3 or word.endswith("ss"):
+        return word
+    if word.endswith("ies"):
+        return word[:-3] + "y"
+    if word.endswith(("ches", "shes", "xes", "sses")):
+        return word[:-2]
+    return word[:-1] if word.endswith("s") else word
+
+
+def _stems(text: str) -> str:
+    return " ".join(singular(w) for w in re.sub(r"[^a-z' ]", " ", text.lower()).split())
+
+
 def parse_query(text: str, known: list[str] | None = None) -> str | None:
-    """The watch-list label a question is about, or None. Longest alias wins."""
-    t = re.sub(r"[^a-z' ]", " ", text.lower())
+    """The watch-list label a question is about, or None. Longest alias wins. Both sides are
+    singularized, so "shoes" finds the shoe and "key" still finds the keys."""
+    t = _stems(text)
     pool = dict(ALIASES)
     for label in known or []:
         pool.setdefault(label, [label])
     best, best_len = None, 0
     for label, words in pool.items():
         for w in words:
-            if re.search(rf"\b{re.escape(w)}\b", t) and len(w) > best_len:
+            if re.search(rf"\b{re.escape(_stems(w))}\b", t) and len(w) > best_len:
                 best, best_len = label, len(w)
     return best
 

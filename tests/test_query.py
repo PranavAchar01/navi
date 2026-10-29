@@ -45,6 +45,20 @@ def test_parse_uses_labels_from_the_map():
     assert parse_query("where is my passport", ["passport"]) == "passport"
 
 
+def test_plurals_find_their_label_and_nothing_else():
+    known = ["shoe", "bed", "headphones", "book", "keys", "glasses case", "chair"]
+    assert parse_query("Where are my shoes?", known) == "shoe"
+    assert parse_query("where's my shoe", known) == "shoe"
+    assert parse_query("where are my headphones", known) == "headphones"
+    assert parse_query("where is my headphone", known) == "headphones"
+    assert parse_query("where are my books", known) == "book"
+    assert parse_query("where are my keys", known) == "keys"
+    assert parse_query("where's my key", known) == "keys"
+    assert parse_query("where are my glasses", known) == "glasses case"
+    assert parse_query("where are my beds", known) == "bed"
+    assert parse_query("where are my socks", known) is None  # never a different thing
+
+
 def test_is_question():
     assert is_question("where are my keys")
     assert not is_question("turn on the lights")
@@ -186,6 +200,48 @@ def test_a_never_seen_wallet_is_not_answered_with_the_handbag():
     text = Server._answer_sync(srv, "where is my wallet")["text"]
     assert text.startswith("I haven't seen your wallet.") and "handbag" in text
     assert "Find My" in text
+
+
+def test_plural_shoes_answer_with_the_shoe_not_the_bed():
+    """Row 5 proof: "Where are my shoes?" came back with the bed pin."""
+    from types import SimpleNamespace as NS
+
+    from metasight.server import Server
+
+    s = PinStore()
+    s.pins[1] = Pin(1, "shoe", "object", [0.0, 0.0, -2.0], 1000.0, 1000.0, 3, 0.8, ["sink"])
+    s.pins[2] = Pin(2, "bed", "object", [3.0, 0.0, -2.0], 1000.0, 1000.0, 1, 0.9, ["wall"])
+    srv = NS(
+        pins=s,
+        language=NS(name="template"),
+        live_seen=(0.0, []),
+        live_last={},
+        pose=None,
+        map_pose_ts=0.0,
+        guide=None,
+    )
+    res = Server._answer_sync(srv, "Where are my shoes?")
+    assert res["label"] == "shoe" and "sink" in res["text"] and "bed" not in res["text"]
+
+
+def test_a_model_guess_is_only_offered_as_a_maybe():
+    from types import SimpleNamespace as NS
+
+    from metasight.server import Server
+
+    s = PinStore()
+    s.pins[2] = Pin(2, "bed", "object", [3.0, 0.0, -2.0], 1000.0, 1000.0, 1, 0.9, ["wall"])
+    srv = NS(
+        pins=s,
+        language=NS(name="muse-spark", complete=lambda *a, **k: "bed"),
+        live_seen=(0.0, []),
+        live_last={},
+        pose=None,
+        map_pose_ts=0.0,
+        guide=None,
+    )
+    text = Server._answer_sync(srv, "where are my sneakers")["text"]
+    assert text.startswith("I haven't seen your sneakers.") and "maybe" in text
 
 
 def test_live_answer_names_the_live_place():
