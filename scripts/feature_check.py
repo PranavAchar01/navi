@@ -46,6 +46,7 @@ import time  # noqa: E402
 SR = 16000
 LIVE_PORT = 8445
 DOC = ROOT / "docs" / "MORNING-CHECK.md"
+EVENTS = ROOT / "bench" / "events"
 RESULTS = ROOT / "bench" / "results" / "morning-check.json"
 JARVIS_LOG = ROOT.parent / "jarvis" / "log"
 STOP_MODES = ("solid", "stop")  # the belt's stop layer: about to touch
@@ -900,6 +901,21 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
 
         # ---- reflex: stop cues and latency over every frame of the run
         safety = [(at, e) for at, e in c.events if e.get("type") == "safety"]
+        # For scripts/score_walk.py (priors on vs off against the labels): the walk's own frame
+        # seq, since the feed's seq keeps counting across passes; the last pass wins per frame.
+        walk_seq = [
+            json.loads(x)["seq"] for x in (walk / "frames.jsonl").read_text().splitlines() if x
+        ]
+        EVENTS.mkdir(parents=True, exist_ok=True)
+        with (EVENTS / f"{walk.name}-safety.jsonl").open("w") as fh:
+            for _, e in safety:
+                fh.write(
+                    json.dumps(
+                        {**e, "feed_seq": e["seq"], "seq": walk_seq[e["seq"] % len(walk_seq)]}
+                    )
+                    + "\n"
+                )
+        meta["safety_events"] = len(safety)
         lat_all, lat_stop = [], []
         for at, e in safety:
             t_sent = c.sent.get(e.get("seq"))
@@ -1161,6 +1177,18 @@ def main() -> None:
     for key in ORDER:
         if key != "belt-" and key not in have and note:
             results.append(row(key, key, "metasight-verify", "FAIL", "", "check did not run"))
+    events = EVENTS / f"{a.walk}-safety.jsonl"
+    if events.exists():  # priors on vs off, read by belt_check's belt_priors_labels row
+        sw = subprocess.run(
+            ["nice", "-n", "19", "taskpolicy", "-b", sys.executable, "scripts/score_walk.py"]
+            + [a.walk, "--events", str(events)],
+            cwd=ROOT,
+            env={**os.environ, "PYTHONPATH": str(ROOT)},
+            capture_output=True,
+            text=True,
+            timeout=600,
+        )
+        meta["score_walk"] = (sw.stdout + sw.stderr).strip()[-400:]
     try:  # belt firmware checks (metasight-braille's scripts/belt_check.py), no server needed
         sys.path.insert(0, str(ROOT / "scripts"))
         from belt_check import run as belt_rows
