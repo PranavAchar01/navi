@@ -14,7 +14,7 @@ final class DisplayCardTests: XCTestCase {
   private let keys = GuideTarget(label: "keys", dist: 3.04, bearing: -88)
   private let note = AnswerNote(
     text: "Your keys are on the kitchen counter, three metres to your left.",
-    label: "keys", near: "kitchen counter", at: Date())
+    label: "keys", near: "kitchen counter", seen: Date(timeIntervalSinceNow: -540), at: Date())
 
   func testStopBeatsTheItem() {
     let stop = ProximityWarning(sector: 0, distance: 0.3, band: .stop)
@@ -36,24 +36,41 @@ final class DisplayCardTests: XCTestCase {
     let card = DisplayCard.make(
       warning: nil, guide: GuideTarget(label: "keys", dist: nil, bearing: nil), answer: note)
     XCTAssertEqual(card.detail, "near the kitchen counter")
-    XCTAssertNil(card.glyph)
+    XCTAssertEqual(card.glyph, .pin)
+  }
+
+  func testAnswerSaysWhereAndWhen() {
+    let card = DisplayCard.make(warning: nil, guide: nil, answer: note)
+    XCTAssertEqual(card.title, "keys")
+    XCTAssertEqual(card.detail, "near the kitchen counter · 9 min ago")
+    XCTAssertEqual(card.glyph, .pin)
+  }
+
+  func testDistancesAreGlanceSized() {
+    XCTAssertEqual(DisplayCard.distanceText(0.43), "0.4 m")
+    XCTAssertEqual(DisplayCard.distanceText(0.57), "0.6 m")
+    XCTAssertEqual(DisplayCard.distanceText(0.04), "0.1 m")
+    XCTAssertEqual(DisplayCard.distanceText(1.3), "1.5 m")
+    XCTAssertEqual(DisplayCard.distanceText(4.4), "4.0 m")
+    XCTAssertEqual(DisplayCard.distanceText(2.8), "3.0 m")
+    XCTAssertEqual(DisplayCard.distanceText(nil), "close")
   }
 
   func testObstacleWhenNothingWasAsked() {
     let slow = ProximityWarning(sector: 2, distance: 1.4, band: .slow)
     let card = DisplayCard.make(warning: slow, guide: nil, answer: nil)
     XCTAssertEqual(card.title, "Right")
-    XCTAssertEqual(card.detail, "1.4 m")
+    XCTAssertEqual(card.detail, "1.5 m")
     XCTAssertEqual(DisplayCard.make(warning: nil, guide: nil, answer: nil), .clear)
   }
 
   func testAnswerFadesAndUnknownItemIsClipped() {
-    let old = AnswerNote(text: note.text, label: "keys", near: nil, at: Date(timeIntervalSinceNow: -30))
+    let old = AnswerNote(text: note.text, label: "keys", near: nil, seen: nil, at: Date(timeIntervalSinceNow: -30))
     XCTAssertEqual(DisplayCard.make(warning: nil, guide: nil, answer: old), .clear)
 
     let vague = AnswerNote(
       text: "I haven't seen your passport yet. Walk past where you left them and ask again.",
-      label: nil, near: nil, at: Date())
+      label: nil, near: nil, seen: nil, at: Date())
     let card = DisplayCard.make(warning: nil, guide: nil, answer: vague)
     XCTAssertLessThanOrEqual(card.title.count, 48)
     XCTAssertTrue(card.title.hasSuffix("…"))

@@ -44,6 +44,8 @@ struct AnswerNote: Equatable, Sendable {
   let text: String
   let label: String?
   let near: String?
+  /// When the item was last seen, if the server had a pin for it.
+  let seen: Date?
   let at: Date
 }
 
@@ -314,6 +316,7 @@ final class ServerLink {
   private struct AnswerMessage: Decodable {
     struct Pin: Decodable {
       let near: [String]?
+      let ts: Double?
     }
     let text: String
     let label: String?
@@ -348,7 +351,8 @@ final class ServerLink {
       guard let answer = try? decoder.decode(AnswerMessage.self, from: data) else { return }
       lastAnswer = answer.text
       answerNote = AnswerNote(
-        text: answer.text, label: answer.label, near: answer.pin?.near?.first, at: Date())
+        text: answer.text, label: answer.label, near: answer.pin?.near?.first,
+        seen: answer.pin?.ts.map { Date(timeIntervalSince1970: $0) }, at: Date())
       speaker.speak(answer.text)
     case "belt":
       guard let msg = try? decoder.decode(BeltMessage.self, from: data) else { return }

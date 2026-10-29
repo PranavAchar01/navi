@@ -7,12 +7,15 @@
 # shows in a square on the app's camera screen and in Chrome at http://127.0.0.1:9000/ with
 # the "Meta Ray-Ban Display Simulator" extension. Nothing plays sound in the Simulator.
 # Walk footage stays under ios/build (git-ignored); it is never committed.
-# Env: SIM_DEVICE (default "iPhone 17"), METASIGHT_DEMO_SERVER (default ws://127.0.0.1:8445/ws),
+# It runs on its own simulator, "Meta Sight" (an iPhone 17, created on first use), so other
+# projects' simulators never get its frames or screenshots. Screenshot it with:
+#   xcrun simctl io "$(cat ios/build/sim/udid)" screenshot ~/Pictures/Screenshots/NAME.png
+# Env: SIM_DEVICE (default "Meta Sight"), METASIGHT_DEMO_SERVER (default ws://127.0.0.1:8445/ws),
 #      NO_CHROME=1 to skip opening the preview tab, SIM_ARGS="--metasight-large-display" for a big in-app display.
 set -e
 cd "$(dirname "$0")/.."
 ROOT=$PWD
-DEVICE=${SIM_DEVICE:-iPhone 17}
+DEVICE=${SIM_DEVICE:-Meta Sight}
 SERVER=${METASIGHT_DEMO_SERVER:-ws://127.0.0.1:8445/ws}
 BUNDLE=com.pranavachar.metasight
 OUT=$ROOT/ios/build/sim
@@ -58,7 +61,11 @@ import json, sys
 name = sys.argv[1]
 devs = [d for rt in json.load(sys.stdin)['devices'].values() for d in rt if d['name'] == name]
 print(devs[-1]['udid'] if devs else '')" "$DEVICE")
-[ -n "$UDID" ] || { echo "no simulator named $DEVICE" >&2; exit 1; }
+if [ -z "$UDID" ]; then
+  [ -n "$SIM_DEVICE" ] && { echo "no simulator named $DEVICE" >&2; exit 1; }
+  UDID=$(xcrun simctl create "$DEVICE" "iPhone 17")
+fi
+echo "$UDID" >"$OUT/udid"
 xcrun simctl boot "$UDID" 2>/dev/null || true
 # The Simulator window is optional; the device runs headless when Xcode ships without it.
 SIMAPP="$(xcode-select -p)/Applications/Simulator.app"
