@@ -687,9 +687,15 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
             tried = [label]
             rest = [k for k in sorted(counts, key=counts.get, reverse=True) if k != label]
             while rest and len(tried) < 4:
-                await asyncio.sleep(2)
-                after = c.since(t0, "safety")
-                if any(e.get("guide") for e in after) or not any(e.get("found") for e in after):
+                found = False
+                for _ in range(12):  # up to 6 s for a guide frame or the found signal
+                    await asyncio.sleep(0.5)
+                    after = c.since(t0, "safety")
+                    if any(e.get("guide") for e in after):
+                        break
+                    if found := any(e.get("found") for e in after):
+                        break
+                if not found:
                     break
                 tried.append(rest.pop(0))
                 t0 = time.time()
