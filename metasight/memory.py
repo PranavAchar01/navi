@@ -824,6 +824,7 @@ class MemoryEngine:
             "fwd": self.last_pose[:3, 2].tolist(),
             "up": (-self.last_pose[:3, 1]).tolist(),
             "ts": kf.ts,
+            "seq": kf.seq,  # ties the phone's ARKit pose for this frame to the map
             # What a first-person render of the map needs to match the camera.
             "hfov": getattr(self.runner, "hfov_deg", None),
             "aspect": kf.bgr.shape[1] / kf.bgr.shape[0],

@@ -124,6 +124,14 @@ class Heading:
             self.offset = wrap(self.offset + MAP_BLEND * wrap(new - self.offset))
         return True
 
+    def track(self, pos: np.ndarray, fwd: np.ndarray) -> None:
+        """A pose tracked every frame (the phone's ARKit, in map axes): exact, so it sets the
+        position and the heading outright instead of blending them in."""
+        self.pos = np.asarray(pos, dtype=float)
+        f = np.asarray(fwd, dtype=float)
+        if abs(f[1]) / (np.linalg.norm(f) or 1.0) <= MAX_PITCH_FWD_Y:
+            self.offset = wrap(math.atan2(f[0], f[2]) - self.turn)
+
     def box_bearing(self, box: tuple[float, float, float, float]) -> float:
         """Bearing in degrees (positive to the right) of a box's centre, box in 0..1 units."""
         cx = 0.5 * (box[0] + box[2])

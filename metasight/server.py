@@ -70,6 +70,17 @@ POSE_FRESH_S = 6.0  # a map pose older than this gives no direction
 ANSWER_POSE_S = 12.0  # answers accept an older pose: windows take 5 to 11 s during a solve
 LIVE_SEEN_S = 1.0  # a camera sighting this recent answers "where is my X" over memory
 LIVE_OVER_PIN_S = 60.0  # an older camera sighting wins when memory's pin is this much older
+AR_POSE_HZ = 5.0  # ARKit-carried poses go out to viewers at most this often
+# ARKit's camera is the landscape sensor (x along its long side, y up, z back). Frames go out
+# turned upright, so the image's right is ARKit's +y and its down is ARKit's +x.
+AR_TO_CV = np.array([[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]], dtype=float)
+
+
+def arkit_pose(m: list[float]) -> np.ndarray:
+    """The phone's column-major camera-to-world matrix, in the upright image's OpenCV axes."""
+    return np.array(m, dtype=float).reshape(4, 4).T @ AR_TO_CV
+
+
 FINDER_LONG_SIDE = 960  # small items vanish at the models' 518 px; the item finder looks here
 log = logging.getLogger("metasight")
 
@@ -124,6 +135,12 @@ class Server:
         self.heading = Heading(settings.hfov_deg)  # carries the head's turn between map poses
         self.map_sectors: list[float] = [math.inf] * 8
         self.map_pose_ts = 0.0
+        # Phone mode: ARKit tracks every frame, and each memory pose for a tracked frame ties
+        # ARKit's world to the map's, so the map pose is current between windows.
+        self.arposes: deque[tuple[int, np.ndarray]] = deque(maxlen=900)  # (frame seq, pose)
+        self.ar_align: np.ndarray | None = None  # ARKit world -> map
+        self.ar_pose_ts = 0.0
+        self.ar_sent = 0.0
         self.map_yaw = 0.0  # heading the map sectors were measured along
         self.trail: list[list[float]] = []
         self.latest: tuple[float, int, bytes] | None = None
@@ -297,6 +314,7 @@ class Server:
             pose[:3, 1] = -np.array(ev["up"])
             pose[:3, 0] = np.cross(pose[:3, 1], pose[:3, 2])
             self.pose = pose
+            self._align_arkit(ev.get("seq"), pose)
             self.heading.anchor(pose[:3, 3], pose[:3, 2], ev.get("ts"))
             self.map_sectors = [math.inf if d is None else d for d in ev["map_sectors"]]
             self.map_yaw = math.atan2(ev["fwd"][0], ev["fwd"][2])
@@ -390,7 +408,7 @@ class Server:
             # now; the speaker turn and the item guide ride on the last frame's labels.
             cmd = self.talk.overlay(cmd, now)
             # The heading is carried between poses, so guidance tolerates an older position.
-            guide_fresh = self.memory_ready and now - self.map_pose_ts < POSE_FRESH_S
+            guide_fresh = self.memory_ready and now - self.pose_ts() < POSE_FRESH_S
             guiding = self._guide(cmd, now, bool(guide_fresh), self.last_obstacles)
             if now < self.found_until:
                 flags |= FLAG_FOUND
@@ -529,6 +547,40 @@ class Server:
             "bearing": round(bearing, 1),
             "in_view": bool(live),  # the camera sees it now, not just the map
         }
+
+    def pose_ts(self) -> float:
+        """When the map pose was last current: a memory window, or ARKit carrying it since."""
+        return max(self.map_pose_ts, getattr(self, "ar_pose_ts", 0.0))
+
+    def _align_arkit(self, seq: int | None, pose: np.ndarray) -> None:
+        """A map pose for a frame the phone also tracked ties ARKit's world to the map's."""
+        a = next((a for s, a in reversed(self.arposes) if s == seq), None)
+        if a is not None:
+            self.ar_align = pose @ np.linalg.inv(a)
+
+    async def on_arpose(self, m: dict) -> None:
+        """Between memory windows the phone's own tracking carries the map pose, frame by
+        frame; MapAnything still corrects it at every window."""
+        if m.get("track") != "tracking":
+            return
+        try:
+            a = arkit_pose(m["m"])
+        except (KeyError, TypeError, ValueError):
+            return
+        self.arposes.append((m.get("seq"), a))
+        if self.ar_align is None:
+            return
+        pose = self.ar_align @ a
+        self.pose = pose
+        self.heading.track(pose[:3, 3], pose[:3, 2])
+        now = time.time()
+        self.ar_pose_ts = now
+        if now - self.ar_sent >= 1.0 / AR_POSE_HZ:
+            self.ar_sent = now
+            fwd, up = pose[:3, 2].tolist(), (-pose[:3, 1]).tolist()
+            await self.hub.json(
+                {"type": "pose", "pos": pose[:3, 3].tolist(), "fwd": fwd, "up": up}, True
+            )
 
     def _maybe_keyframe(self, now: float, seq: int, small, res, sharp: float, hi) -> None:
         """Send memory the sharpest frame of each keyframe interval. Walking and turning blur
@@ -681,7 +733,7 @@ class Server:
                 pin, stand_in = max(alike, key=lambda p: (p.seen, p.score)), True
         now = time.time()
         # A stale pose gives a confident wrong direction; without one the answer names the place.
-        pose = self.pose if now - self.map_pose_ts < ANSWER_POSE_S else None
+        pose = self.pose if now - Server.pose_ts(self) < ANSWER_POSE_S else None
         if pin is not None and not pin.placed:  # a saved pin not yet placed in this walk's frame
             pose = None
         text_out = template_answer(label, pin, pose, now, stand_in)
@@ -972,6 +1024,7 @@ def create_app(settings: Settings | None = None, session: str | None = None) -> 
                     elif kind == "arpose":  # the phone's own tracked pose, kept with its walk
                         if walk := srv.walks.get(sock):
                             walk.pose(m)
+                        await srv.on_arpose(m)
                     elif kind == "notes":
                         if m.get("action") == "start" and not srv.notes.recording:
                             await srv.start_notes()

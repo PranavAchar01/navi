@@ -68,6 +68,14 @@ async def play(a, url: str) -> None:
     walk = Path(a.walk)
     cam = json.loads((walk / "camera.json").read_text())
     frames = [json.loads(line) for line in (walk / "frames.jsonl").read_text().splitlines() if line]
+    # The phone's ARKit pose for each frame, sent just before it as the phone does.
+    pose_file = walk / "poses.jsonl"
+    poses = {}
+    if pose_file.exists():
+        for line in pose_file.read_text().splitlines():
+            if line:
+                p = json.loads(line)
+                poses[p["seq"]] = p
     ws = await connect(url, 240)
     ready = asyncio.Event()
     guides = {"any": 0, "dist": 0, "bearing": 0}
@@ -133,7 +141,10 @@ async def play(a, url: str) -> None:
             at = (f["ts"] - start) / 1000
             await asyncio.sleep(max(0, t0 + at - time.time()))
             jpg = (walk / "frames" / f["file"]).read_bytes()
-            await ws.send(struct.pack("<dI", time.time() * 1000, lap * 100000 + i) + jpg)
+            seq = lap * 100000 + i
+            if (p := poses.get(f.get("seq"))) is not None:
+                await ws.send(json.dumps({**p, "seq": seq, "ts": time.time() * 1000}))
+            await ws.send(struct.pack("<dI", time.time() * 1000, seq) + jpg)
             if not asked and a.ask and at >= a.ask_at:
                 asked = True
                 asyncio.create_task(ask(ws, a.ask, asked_at))
