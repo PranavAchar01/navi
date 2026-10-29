@@ -252,6 +252,24 @@
    },
    "cue_on_pct": 100.0
   },
+  "sensitivity_if_true_scale_0.75": {
+   "label_distance_factor": 1.79,
+   "a_false_buzz": {
+    "events_per_min": 0.0,
+    "frames_pct": 0.0
+   },
+   "c_missed_inside_2m": {
+    "events_per_min": 0.0,
+    "frames_pct": 0.0
+   },
+   "c_missed_inside_1m": {
+    "events_per_min": 0.0,
+    "frames_pct": 0.0
+   },
+   "b_over_urgent_pct": 19.5,
+   "near_pct_inside_2m": 100.0,
+   "near_pct_inside_1m": 100.0
+  },
   "near_pct": {
    "inside_2m": 100.0,
    "inside_1m": 100.0

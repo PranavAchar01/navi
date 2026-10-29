@@ -1,0 +1,16 @@
+{
+ "walk": "20261028-135040-iphone",
+ "unit": "metres per raw depth unit (the scale the live belt should use)",
+ "live_depth_scale": 0.45,
+ "frames": 375,
+ "travel_ge_0.2m": {
+  "pairs": 27,
+  "negative_pairs": 3,
+  "median": 0.74,
+  "q1": 0.33,
+  "q3": 1.13
+ },
+ "travel_ge_0.5m": {
+  "pairs": 0
+ }
+}

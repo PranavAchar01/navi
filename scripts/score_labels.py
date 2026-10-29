@@ -27,6 +27,7 @@ from replay_false_buzz import CACHE, commands  # noqa: E402
 ROOT = Path(__file__).resolve().parents[1]
 OFF_M, SLOW_M = 2.0, 1.0  # a cue is due inside 2 m; inside 1 m it should be urgent
 SCALES = (0.84, 1.0, 1.16)
+LIVE_SCALE, TRUE_SCALE_GUESS = 0.42, 0.75  # live depth_scale median on 135040; ARKit estimate
 SCHEMES = ("sector", "panned", "panned+hold", "panned+track", "panned+track+hold")
 
 
@@ -81,11 +82,37 @@ def score_one(d, lab: dict) -> dict:
         }
         row["cue_on_pct"] = round(100 * float(on[keep].mean()), 1)
         res[scheme] = row
+    res["sensitivity_if_true_scale_0.75"] = _sensitivity(d, w, keep, near_m, minutes)
     res["near_pct"] = {
         "inside_2m": round(100 * float((near_m[keep] < OFF_M).mean()), 1),
         "inside_1m": round(100 * float((near_m[keep] < SLOW_M).mean()), 1),
     }
     return res
+
+
+def _sensitivity(d, w: str, keep: np.ndarray, near_m: np.ndarray, minutes: float) -> dict:
+    """The sector scheme if the labels' distances were really TRUE_SCALE_GUESS / LIVE_SCALE times
+    larger (the live scale is not metric, docs/haptics-sim.md): false front cue, missed near,
+    and over-urgent (the cue reads under FAST_M = 0.5 m but the obstacle is not)."""
+    f = TRUE_SCALE_GUESS / LIVE_SCALE
+    on = commands(
+        d[f"{w}/strips"], d[f"{w}/path"], d[f"{w}/ttc"], float(d[f"{w}/hfov"][0]), "sector", 2, 26
+    ).any(axis=1)  # fmt: skip
+    nm = near_m * f
+    strips = d[f"{w}/strips"]
+    front = strips[:, 5:10].min(axis=1)  # the centre third of the camera, live-scale metres
+    urgent = keep & (front < 0.5)
+    return {
+        "label_distance_factor": round(f, 2),
+        "a_false_buzz": score(on[keep], nm[keep], OFF_M, minutes, "false"),
+        "c_missed_inside_2m": score(on[keep], nm[keep], OFF_M, minutes, "miss"),
+        "c_missed_inside_1m": score(on[keep], nm[keep], SLOW_M, minutes, "miss"),
+        "b_over_urgent_pct": round(
+            100 * float((urgent & (nm >= 0.5)).sum() / max(1, urgent.sum())), 1
+        ),
+        "near_pct_inside_2m": round(100 * float((nm[keep] < OFF_M).mean()), 1),
+        "near_pct_inside_1m": round(100 * float((nm[keep] < SLOW_M).mean()), 1),
+    }
 
 
 def show(w: str, res: dict) -> None:
