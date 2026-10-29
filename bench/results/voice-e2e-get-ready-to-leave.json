@@ -1,82 +1,70 @@
 {
- "at": "2026-10-29 01:46 PDT",
+ "at": "2026-10-29 04:09 PDT",
  "question": "get ready to leave",
  "streamed": [
   {
+   "heard": "Get ready to leave.",
+   "answer": "Put on your clothes first. After that: shoe, phone, handbag and door.",
+   "label": null,
+   "language": "muse-spark",
+   "early": false,
+   "first_partial_from_start_ms": 806,
+   "final_transcript_ms": 328,
+   "answer_ms": 2701,
+   "first_spoken_ms": 330,
+   "server_speech_end_to_answer_ms": 2953
+  },
+  {
+   "heard": "Get ready to leave.",
+   "answer": "Put on your clothes by the chair. After that: shoe, handbag, phone and door.",
+   "label": null,
+   "language": "muse-spark",
+   "early": false,
+   "first_partial_from_start_ms": 642,
+   "final_transcript_ms": 238,
+   "answer_ms": 3601,
+   "first_spoken_ms": 240,
+   "server_speech_end_to_answer_ms": 4046
+  },
+  {
+   "heard": "Get ready to leave.",
+   "answer": "Let's get your clothes on first. After that: shoe, handbag, phone and door.",
+   "label": null,
+   "language": "muse-spark",
+   "early": false,
+   "first_partial_from_start_ms": 856,
+   "final_transcript_ms": 125,
+   "answer_ms": 2929,
+   "first_spoken_ms": 128,
+   "server_speech_end_to_answer_ms": 3440
+  },
+  {
    "heard": "get ready to leave",
-   "answer": "Put on your shoes by the sink. After that: handbag, phone, keys and door.",
+   "answer": "Put on your shoes last seen near the sink. After that: phone, handbag and door.",
    "label": null,
    "language": "muse-spark",
    "early": false,
-   "first_partial_from_start_ms": 911,
-   "final_transcript_ms": 3320,
-   "answer_ms": 6247,
-   "first_spoken_ms": 4524,
-   "server_speech_end_to_answer_ms": 3620
+   "first_partial_from_start_ms": 936,
+   "final_transcript_ms": 355,
+   "answer_ms": 2465,
+   "first_spoken_ms": 356,
+   "server_speech_end_to_answer_ms": 2783
   },
   {
-   "heard": "Get ready to leave",
-   "answer": "Put on your shoes by the sink. After that: handbag, phone, keys and door.",
+   "heard": "get ready to leave",
+   "answer": "Your clothes are by the chair, let's get dressed first. After that: shoe, phone, handbag and door.",
    "label": null,
    "language": "muse-spark",
    "early": false,
-   "first_partial_from_start_ms": 667,
-   "final_transcript_ms": 295,
-   "answer_ms": 2998,
-   "first_spoken_ms": 1499,
-   "server_speech_end_to_answer_ms": 3445
-  },
-  {
-   "heard": "Get ready to leave.",
-   "answer": "Put on your shoes by the sink. After that: clothes, phone, keys, handbag and door.",
-   "label": null,
-   "language": "muse-spark",
-   "early": false,
-   "first_partial_from_start_ms": 760,
-   "final_transcript_ms": 184,
-   "answer_ms": 2332,
-   "first_spoken_ms": 1386,
-   "server_speech_end_to_answer_ms": 2780
-  },
-  {
-   "heard": "Get ready to leave.",
-   "answer": "Put on your shoes by the sink. After that: keys, phone, handbag and door.",
-   "label": null,
-   "language": "muse-spark",
-   "early": false,
-   "first_partial_from_start_ms": 581,
-   "final_transcript_ms": 170,
-   "answer_ms": 2140,
-   "first_spoken_ms": 1372,
-   "server_speech_end_to_answer_ms": 2588
-  },
-  {
-   "heard": "Get ready to leave.",
-   "answer": "Put on your shoes by the sink. After that: phone, keys, handbag and door.",
-   "label": null,
-   "language": "muse-spark",
-   "early": false,
-   "first_partial_from_start_ms": 579,
-   "final_transcript_ms": 225,
-   "answer_ms": 3068,
-   "first_spoken_ms": 1426,
-   "server_speech_end_to_answer_ms": 3578
-  },
-  {
-   "heard": "Get ready to leave.",
-   "answer": "Your shoes are by the sink. After that: keys, phone, handbag and door.",
-   "label": null,
-   "language": "muse-spark",
-   "early": false,
-   "first_partial_from_start_ms": 638,
-   "final_transcript_ms": 209,
-   "answer_ms": 2535,
-   "first_spoken_ms": 1411,
-   "server_speech_end_to_answer_ms": 2983
+   "first_partial_from_start_ms": 636,
+   "final_transcript_ms": 197,
+   "answer_ms": 2443,
+   "first_spoken_ms": 199,
+   "server_speech_end_to_answer_ms": 2888
   }
  ],
- "streamed_median_answer_ms": 2766,
- "streamed_max_answer_ms": 6247,
- "streamed_median_first_spoken_ms": 1418,
- "streamed_max_first_spoken_ms": 4524
+ "streamed_median_answer_ms": 2701,
+ "streamed_max_answer_ms": 3601,
+ "streamed_median_first_spoken_ms": 240,
+ "streamed_max_first_spoken_ms": 356
 }

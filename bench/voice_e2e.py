@@ -165,7 +165,19 @@ async def only(question: str) -> None:
     (ROOT / f"bench/results/voice-e2e-{slug}.json").write_text(json.dumps(out, indent=1))
 
 
+def wait_for_map(timeout_s: float = 120.0) -> None:
+    """A fresh server holds every question until its home map loads (MAP_WAIT_S, then "still
+    loading"); timing questions before that measures the load, not the voice path."""
+    url = URL.replace("ws://", "http://").replace("/ws", "/api/state")
+    end = time.time() + timeout_s
+    while not httpx.get(url).json().get("memory_ready"):
+        if time.time() > end:
+            raise TimeoutError(f"home map not loaded after {timeout_s:.0f} s")
+        time.sleep(1.0)
+
+
 async def main() -> None:
+    wait_for_map()
     if ONLY:
         return await only(ONLY)
     state = httpx.get(URL.replace("ws://", "http://").replace("/ws", "/api/state")).json()
