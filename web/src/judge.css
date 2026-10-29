@@ -118,6 +118,57 @@ body.judge {
   color: var(--amber);
 }
 
+/* The Meta models in the loop: small pills under the source, lit while each one works. */
+.j-models {
+  position: absolute;
+  z-index: 2;
+  top: 9.6vh;
+  right: 1.8vw;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.8vh;
+}
+.j-models li {
+  display: none;
+  align-items: center;
+  gap: 0.6vw;
+  font-size: 1.7vh;
+  font-weight: 600;
+  padding: 0.6vh 0.9vw;
+  border-radius: 99px;
+  color: var(--dim);
+  transition: color 0.3s;
+}
+.j-models li.seen {
+  display: flex;
+}
+.j-models li i {
+  width: 0.9vh;
+  height: 0.9vh;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transition: background 0.3s, box-shadow 0.3s;
+}
+.j-models li b {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+.j-models li b:empty {
+  display: none;
+}
+.j-models li.on {
+  color: #fff;
+}
+.j-models li.on i {
+  background: var(--green);
+  box-shadow: 0 0 1vh var(--green);
+}
+
 /* The belt: always on, bottom right. */
 .j-belt {
   position: absolute;
@@ -208,6 +259,21 @@ body.judge {
   font-weight: 600;
   color: var(--dim);
   margin-top: 0.4vh;
+}
+
+/* Which models found and answered, from the server's own provider names. */
+.j-a small {
+  display: block;
+  white-space: nowrap;
+  font-size: 1.9vh;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--dim);
+  opacity: 0.8;
+  margin-top: 0.5vh;
+}
+.j-a small:empty {
+  display: none;
 }
 
 /* Braille in the caption: one cell lit as the wrist band buzzes it, the cue under it. */

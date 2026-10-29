@@ -11,6 +11,7 @@ The walk is not recorded again (the camera hello carries no walk id).
 
 import argparse
 import asyncio
+import contextlib
 import json
 import os
 import shutil
@@ -251,14 +252,19 @@ def main() -> None:
     except KeyboardInterrupt:
         pass
     finally:
-        # Only the group this script started.
+        # Only the group this script started. macOS answers EPERM, not ESRCH, for a group whose
+        # leader already exited, so both mean it is gone; the slot is freed either way.
         try:
             os.killpg(server.pid, signal.SIGTERM)
             server.wait(20)
-        except (ProcessLookupError, subprocess.TimeoutExpired):
-            os.killpg(server.pid, signal.SIGKILL)
-        shutil.rmtree(slot, ignore_errors=True)
-        shutil.rmtree(home, ignore_errors=True)
+        except subprocess.TimeoutExpired:
+            with contextlib.suppress(ProcessLookupError, PermissionError):
+                os.killpg(server.pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
+        finally:
+            shutil.rmtree(slot, ignore_errors=True)
+            shutil.rmtree(home, ignore_errors=True)
 
 
 if __name__ == "__main__":

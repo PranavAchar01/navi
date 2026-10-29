@@ -221,6 +221,7 @@ class Sam31Finder:
     def __init__(self, s: Settings, api_key: str, min_conf: float = 0.4):
         self._model, self._min_conf = s.sam_model, min_conf
         self._api_key = api_key
+        self.meta_images, self.meta_ms = 0, 0.0  # billed images so far, the last call's time
 
     async def _one(self, client: AsyncOpenAI, data_url: str, label: str) -> list[Detection]:
         async with client.responses.stream(
@@ -262,7 +263,11 @@ class Sam31Finder:
 
     def find_jobs(self, jobs: list[tuple[np.ndarray, list[str]]]) -> list[list[Detection]]:
         """Several images, each with its own labels, in one round of parallel calls."""
-        return asyncio.run(self._all(jobs))
+        t0 = time.perf_counter()
+        out = asyncio.run(self._all(jobs))
+        self.meta_images += sum(len(labels) for _, labels in jobs)
+        self.meta_ms = 1000 * (time.perf_counter() - t0)
+        return out
 
     def find(self, bgr: np.ndarray, labels: list[str]) -> list[Detection]:
         return self.find_jobs([(bgr, labels)])[0]
@@ -296,6 +301,7 @@ class HybridFinder:
         self.items, self.interval = set(s.meta_items), s.meta_interval_s
         self.last_meta = 0.0
         self.meta_images = 0  # billed images so far this run
+        self.meta_ms = 0.0  # how long the last SAM 3.1 call took, for the judge view
 
     def find(self, bgr: np.ndarray, labels: list[str]) -> list[Detection]:
         local = self.local.find(bgr, labels)
@@ -319,7 +325,9 @@ class HybridFinder:
             jobs = self._jobs(bgr, local, glimpsed, ask)
             self.meta_images += sum(len(labels) for _, labels, _ in jobs)
             try:
+                t0 = time.perf_counter()
                 found = self.meta.find_jobs([(img, labels) for img, labels, _ in jobs])
+                self.meta_ms = 1000 * (time.perf_counter() - t0)
             except Exception as e:  # the map keeps building on the local finder
                 log.warning("SAM 3.1 failed: %s", e)
                 found = []

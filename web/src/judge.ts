@@ -99,10 +99,15 @@ function placeFrame(s: Safety | null) {
   const near = s?.hazards?.length ? s.hazards.reduce((a, b) => (b.dist < a.dist ? b : a)) : null;
   if (near && h > sh) want = Math.min(1, Math.max(0, (near.tag[1] * h - sh * 0.62) / (h - sh)));
   focus += (want - focus) * 0.03;
-  frameBox.style.width = `${w}px`;
-  frameBox.style.height = `${h}px`;
-  frameBox.style.left = `${(sw - w) / 2}px`;
-  frameBox.style.top = `${-(h - sh) * focus}px`;
+  // Size only when it changes (a layout); the slide is a transform, which the compositor moves
+  // without laying the page out again every frame.
+  const size = `${w}x${h}`;
+  if (frameBox.dataset.size !== size) {
+    frameBox.dataset.size = size;
+    frameBox.style.width = `${w}px`;
+    frameBox.style.height = `${h}px`;
+  }
+  frameBox.style.transform = `translate3d(${(sw - w) / 2}px, ${-(h - sh) * focus}px, 0)`;
 }
 
 // The caption: the question while it is heard, then the answer and its Braille, then gone.
@@ -110,6 +115,7 @@ const caption = $("caption");
 const question = $("question");
 let answerPin: PinJson | null = null;
 let answerText = "";
+let answerLive = false;
 let hideAt = 0;
 let playing = false;
 function holdCaption(seconds: number) {
@@ -117,6 +123,7 @@ function holdCaption(seconds: number) {
   caption.classList.add("show");
 }
 net.on("transcript", (t) => {
+  if (t.final) modelStart("muse");
   question.textContent = t.text;
   caption.classList.remove("answered", "touch");
   caption.classList.add("asking");
@@ -124,14 +131,17 @@ net.on("transcript", (t) => {
   if (t.final) reach("ask");
 });
 net.on("answer", (a) => {
+  modelDone("muse", a.language === "muse-spark" && a.ms != null ? seconds(a.ms) : null);
   answerPin = a.pin;
   answerText = a.text;
+  answerLive = a.live ?? false;
   reach("ask");
   const thumb = $<HTMLImageElement>("answer-thumb");
   thumb.src = a.pin?.thumb ? `data:image/jpeg;base64,${a.pin.thumb}` : "";
   thumb.style.display = a.pin?.thumb ? "" : "none";
   $("answer-label").textContent = a.label ?? a.text;
   $("answer-seen").textContent = seenLine();
+  $("answer-by").textContent = byLine(a.live ? undefined : a.pin?.source, a.language);
   caption.classList.remove("asking");
   caption.classList.add("answered");
   holdCaption(3);
@@ -139,9 +149,23 @@ net.on("answer", (a) => {
 });
 
 function seenLine(): string {
+  if (answerLive) return "in view now";
   if (!answerPin) return answerText;
   const near = answerPin.near[0] ? `by the ${answerPin.near[0]}` : "";
   return [near, `seen ${ago(answerPin.ts * 1000, Date.now())}`].filter(Boolean).join(" · ");
+}
+
+// The provider names the server reports, as people say them.
+const MODEL_NAMES: Record<string, string> = {
+  "muse-spark": "Muse Spark",
+  "sam-3.1": "SAM 3.1",
+  "yoloe-26l-seg": "YOLOE",
+  "yoloe + sam-3.1": "YOLOE + SAM 3.1",
+};
+function byLine(finder: string | undefined, language: string | undefined): string {
+  const found = finder && finder !== "tap" ? `found by ${MODEL_NAMES[finder] ?? finder}` : "";
+  const said = language && language !== "template" ? `answer by ${MODEL_NAMES[language] ?? language}` : "";
+  return [found, said].filter(Boolean).join(" · ");
 }
 
 // The same answer by touch: the wrist band's six motors are the six dots of one Braille cell.
@@ -190,7 +214,42 @@ net.on("braille", (m) => {
   }
 });
 
+// The Meta models in the loop, one small pill each with the one number measured on its last run,
+// lit while it works: mapping while windows keep landing, SAM 3.1 when it was called in the
+// last window, Muse Spark from the end of the question to the answer, DAT while the glasses
+// stream.
+const modelEls = new Map(
+  [...document.querySelectorAll<HTMLElement>("#models li")].map((li) => [li.dataset.model!, li]),
+);
+const busyUntil = new Map<string, number>();
+const seconds = (ms: number) => (ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)} s`);
+function modelStart(name: string, holdMs = 15000) {
+  busyUntil.set(name, performance.now() + holdMs);
+  modelEls.get(name)!.classList.add("seen");
+}
+function modelDone(name: string, value: string | null, holdMs = 0) {
+  busyUntil.set(name, performance.now() + holdMs);
+  const li = modelEls.get(name)!;
+  if (value) {
+    li.querySelector("b")!.textContent = value;
+    li.classList.add("seen");
+  }
+}
+let samImages = 0;
+net.on("memory", (m) => {
+  // Windows land every few seconds while the walk is mapped; a gap this long means it stopped.
+  modelDone("map", seconds(m.infer_ms), 12000);
+  if (m.sam_images != null && m.sam_images > samImages && m.sam_ms) {
+    modelDone("sam", seconds(m.sam_ms), 12000);
+  }
+  samImages = m.sam_images ?? samImages;
+});
+
 setInterval(() => {
+  const now = performance.now();
+  const dat = latest?.camera === "glasses" && now - lastFrameAt < 1000 && latest.in_fps;
+  if (dat) modelDone("dat", `${Math.round(dat)} fps`, 1000);
+  for (const [name, li] of modelEls) li.classList.toggle("on", now < (busyUntil.get(name) ?? 0));
   said = filter.shown && { ...filter.shown };
   if (answerPin) $("answer-seen").textContent = seenLine();
   if (caption.classList.contains("show") && !playing && Date.now() > hideAt) {
@@ -305,7 +364,7 @@ function frame() {
   const s = bySeq.get(viewSeq) ?? latest;
   const fresh = performance.now() - lastFrameAt < 2000;
   placeFrame(fresh ? s : null);
-  drawOverlay(camOverlay, cam.width, cam.height, fresh ? agreeing(s) : null);
+  drawOverlay(camOverlay, cam.width, cam.height, fresh ? agreeing(s) : null, true);
   drawBelt(latest);
   requestAnimationFrame(frame);
 }

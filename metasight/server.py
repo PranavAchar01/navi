@@ -82,6 +82,7 @@ class Server:
         self.source_ws = None  # the client sending camera frames (phone, glasses app, browser)
         self.profile_hfov = settings.hfov_deg
         self.lenses: dict[WebSocket, float] = {}  # field of view a client measured on its camera
+        self.cameras: dict[WebSocket, str] = {}  # what a client streams from: glasses, iphone
         self.walks: dict[WebSocket, WalkRecorder] = {}  # clients saving their walk on this Mac
         self.guide: dict | None = None  # the item the belt is pointing to, after a question
         self.found_until = 0.0
@@ -96,6 +97,7 @@ class Server:
         self.trail: list[list[float]] = []
         self.latest: tuple[float, int, bytes] | None = None
         self.latest_arrived = 0.0  # monotonic time the latest camera frame reached the server
+        self.in_fps = 0.0  # frames a second arriving from the camera (DAT on the glasses)
         self.belt = BeltLink(
             settings.belt, settings.belt_addr, self._belt_state, relay=self._belt_relay
         )
@@ -143,6 +145,7 @@ class Server:
 
     def on_camera(self, sock: WebSocket, m: dict) -> None:
         """A client describes its camera, and whether to save its walk here."""
+        self.cameras[sock] = str(m.get("source", ""))
         hfov = m.get("hfov")
         if isinstance(hfov, (int, float)) and 20 <= hfov <= 150:
             self.lenses[sock] = round(float(hfov), 2)
@@ -191,6 +194,7 @@ class Server:
     def drop_client(self, sock: WebSocket) -> None:
         self.hub.clients.discard(sock)
         self.lenses.pop(sock, None)
+        self.cameras.pop(sock, None)
         if walk := self.walks.pop(sock, None):
             walk.close()
 
@@ -372,6 +376,8 @@ class Server:
                         for o in res.objects
                     ],
                     "fps": round(self.fps, 1),
+                    "in_fps": round(self.in_fps, 1),
+                    "camera": self.cameras.get(self.source_ws, ""),
                     "ms": {k: round(v, 1) for k, v in res.timings_ms.items()},
                     "scale": round(self.safety.scale, 3),
                     "map_age": round(now - self.map_pose_ts, 1) if self.map_pose_ts else None,
@@ -586,7 +592,9 @@ class Server:
         }
 
     async def answer(self, text: str) -> dict:
+        t0 = time.perf_counter()
         res = await self.loop.run_in_executor(self.llm_pool, self._answer_sync, text)
+        res["ms"] = round(1000 * (time.perf_counter() - t0))
         await self.hub.json(res)
         if self.braille:
             res["cues"] = self.braille.say(res["text"])
@@ -656,7 +664,11 @@ def create_app(settings: Settings | None = None, session: str | None = None) -> 
                     data = msg["bytes"]
                     ts, seq = struct.unpack("<dI", data[:12])
                     srv.latest = (ts, seq, data[12:])
-                    srv.latest_arrived = time.monotonic()
+                    t = time.monotonic()
+                    if srv.latest_arrived:
+                        inst = 1.0 / max(1e-3, t - srv.latest_arrived)
+                        srv.in_fps = inst if srv.in_fps == 0 else 0.9 * srv.in_fps + 0.1 * inst
+                    srv.latest_arrived = t
                     if sock is not srv.source_ws:
                         srv.use_source(sock)
                     if walk := srv.walks.get(sock):

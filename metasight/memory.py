@@ -816,6 +816,9 @@ class MemoryEngine:
                 "map_points": len(self._map_pts),
                 "pins_found": found,
                 "stitch_scale": float(s_),
+                # SAM 3.1: the last call's time and the billed images so far.
+                "sam_ms": getattr(self.finder, "meta_ms", None),
+                "sam_images": getattr(self.finder, "meta_images", None),
             }
         )
         out = self._to_global(events)

@@ -43,6 +43,8 @@ export interface Safety {
   guide: { label: string; dist: number | null; bearing: number | null } | null;
   found: boolean;
   fps: number;
+  in_fps?: number; // frames a second arriving from the camera
+  camera?: string; // what the source streams from: "glasses" (DAT), "iphone", or "" for a replay
   ms: Record<string, number>;
   scale: number;
   map_age: number | null;
@@ -67,6 +69,9 @@ export interface Answer {
   text: string;
   pin: PinJson | null;
   language?: string;
+  /** True when the camera sees it right now and the answer comes from that, not from memory. */
+  live?: boolean;
+  ms?: number; // ask received to answer sent, on the server
 }
 export interface Alert {
   type: "alert";
@@ -89,6 +94,8 @@ export interface MemoryStats {
   total_ms: number;
   map_points: number;
   stitch_scale: number;
+  sam_ms?: number | null; // hybrid finder: the last SAM 3.1 call
+  sam_images?: number | null; // hybrid finder: billed images so far
 }
 export interface Status {
   type: "status";

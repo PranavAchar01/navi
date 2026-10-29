@@ -65,7 +65,18 @@ function edgePath(ctx: CanvasRenderingContext2D, p: number[], ox: number, oy: nu
   }
 }
 
-function drawHazards(ctx: CanvasRenderingContext2D, hz: Hazard[], ox: number, oy: number, w: number, h: number) {
+// `thin`: a narrow inner band and almost no flat tint, for a camera that fills the screen, where
+// the regular fade over a close obstacle covers a third of the picture.
+function drawHazards(
+  ctx: CanvasRenderingContext2D,
+  hz: Hazard[],
+  ox: number,
+  oy: number,
+  w: number,
+  h: number,
+  thin: boolean,
+) {
+  const band = thin ? { width: w / 220, blur: w / 160, tint: 0.3 } : { width: w / 70, blur: w / 45, tint: 1 };
   const now = performance.now();
   const shown = hz.map((x) => [x, look(x, now)] as const);
   looks = looks.filter((l) => now - l.seen < 400);
@@ -79,11 +90,11 @@ function drawHazards(ctx: CanvasRenderingContext2D, hz: Hazard[], ox: number, oy
     ctx.save();
     ctx.clip();
     ctx.shadowColor = `rgba(${r},${g},${b},${(0.55 * l.alpha * beat).toFixed(3)})`;
-    ctx.shadowBlur = w / 45;
+    ctx.shadowBlur = band.blur;
     ctx.strokeStyle = `rgba(${r},${g},${b},${(0.22 * l.alpha * beat).toFixed(3)})`;
-    ctx.lineWidth = w / 70;
+    ctx.lineWidth = band.width;
     ctx.stroke();
-    ctx.fillStyle = `rgba(${r},${g},${b},${((red ? 0.1 : 0.05) * l.alpha).toFixed(3)})`;
+    ctx.fillStyle = `rgba(${r},${g},${b},${((red ? 0.1 : 0.05) * band.tint * l.alpha).toFixed(3)})`;
     ctx.fill();
     ctx.restore();
     // Crisp contour.
@@ -119,7 +130,7 @@ function drawHazards(ctx: CanvasRenderingContext2D, hz: Hazard[], ox: number, oy
 }
 
 /** The in-path obstacles over the live video. */
-export function drawOverlay(canvas: HTMLCanvasElement, vw: number, vh: number, s: Safety | null) {
+export function drawOverlay(canvas: HTMLCanvasElement, vw: number, vh: number, s: Safety | null, thin = false) {
   const dpr = window.devicePixelRatio || 1;
   const cw = canvas.clientWidth;
   const ch = canvas.clientHeight;
@@ -135,7 +146,7 @@ export function drawOverlay(canvas: HTMLCanvasElement, vw: number, vh: number, s
   const scale = Math.min(cw / vw, ch / vh);
   const w = vw * scale;
   const h = vh * scale;
-  drawHazards(ctx, s.hazards, (cw - w) / 2, (ch - h) / 2, w, h);
+  drawHazards(ctx, s.hazards, (cw - w) / 2, (ch - h) / 2, w, h, thin);
 }
 
 const MODE_RGB: Record<string, [number, number, number]> = {
