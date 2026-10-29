@@ -4,7 +4,8 @@ The server is a separate copy on a free port (never the live one on 8445), with 
 sessions, walks and a copy of the home map, so nothing it does reaches the live service. It is
 fed one of Pranav's recorded walks at real speed, synthetic speech (macOS `say`) and the
 two-voice stereo track from bench/people/make_two_voices.py, and every check reads the server's
-own events and APIs. Each feature gets PASS, FAIL or NOT-BUILT with one number or one reason.
+own events and APIs. Each feature gets PASS, FAIL, NOT-BUILT or SKIP (unmeasurable on this walk)
+with one number or one reason.
 
 .venv/bin/python scripts/feature_check.py [--walk 20261028-135040-iphone] [--work DIR]
 
@@ -49,7 +50,10 @@ RESULTS = ROOT / "bench" / "results" / "morning-check.json"
 JARVIS_LOG = ROOT.parent / "jarvis" / "log"
 STOP_MODES = ("solid", "stop")  # the belt's stop layer: about to touch
 CAMERA_SECTORS = ("front-left", "front", "front-right")
-BASELINE_FRONT_PCT = 38.0  # top of the 27-38% no-priors range in docs/haptics-sim.md
+# Cue scoring against bench/labels (lead's call 02:35: a raw on-rate cannot tell a right belt
+# from a broken one on a cluttered walk).
+FALSE_NAME, FALSE_M, FALSE_SCALE, FALSE_MIN = "False front cue vs labels", 2.0, 1.16, 20
+URGENT_NAME, URGENT_M, URGENT_MAX_PCT = "Over-urgent solid cue vs labels", 1.5, 10
 SKIP_FIND = {"person", "wall", "floor", "window", "curtain", "rug"}
 
 
@@ -303,6 +307,113 @@ def row(key, feature, owner, status, number="", evidence=""):
 def src(path: str) -> str:
     p = ROOT / path
     return p.read_text() if p.exists() else ""
+
+
+def cue_rows(safety: list, walk: Path) -> list:
+    """Belt cues scored against the walk's ground-truth labels (make_sector_labels.py), not a raw
+    on-rate: a cluttered walk needs a busy belt. A label frame is every 2nd recorded frame, so a
+    safety event's seq maps to label seq % len(rows) // 2 on even rows. Labels hold the nearest
+    obstacle per camera third; a cue counts as on at 26/255, the skin model's floor."""
+    lab_path = ROOT / "bench" / "labels" / f"{walk.name}-sectors.json"
+    if not safety or not lab_path.exists():
+        why = "no safety frames" if not safety else f"no labels at {lab_path.relative_to(ROOT)}"
+        return [
+            row(k, n, "metasight-compare", "SKIP", "", why)
+            for k, n in (("falsecue", FALSE_NAME), ("urgent", URGENT_NAME))
+        ]
+    import numpy as np
+
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from replay_false_buzz import CACHE, commands
+
+    labels = json.loads(lab_path.read_text())["frames"]
+    n_rows = sum(1 for x in (walk / "frames.jsonl").read_text().splitlines() if x)
+    d = np.load(CACHE)
+    w = walk.name
+    offline = commands(
+        d[f"{w}/strips"], d[f"{w}/path"], d[f"{w}/ttc"], float(d[f"{w}/hfov"][0]), "sector", 2, 26
+    ).any(axis=1)  # the sector scheme has only the three front motors, no priors
+
+    def nearest(f: dict) -> float:
+        return min((v for v in f["fov_thirds"] if v is not None), default=9.0)
+
+    front_on = solid = 0
+    far = far_on = 0
+    far_idx: set[int] = set()
+    solid_lab = solid_far = 0
+    for _, e in safety:
+        front = [q for n, q in zip(e["names"], e["cues"], strict=False) if n in CAMERA_SECTORS]
+        f_on = any(q["mode"] != "off" and q["intensity"] >= 26 / 255 for q in front)
+        s_on = any(q["mode"] in STOP_MODES and q["intensity"] > 0 for q in e["cues"])
+        front_on += f_on
+        solid += s_on
+        r = e["seq"] % n_rows
+        if r % 2 or r // 2 >= len(labels) or not labels[r // 2]["tracked"]:
+            continue
+        i = r // 2
+        near = nearest(labels[i])
+        if near * FALSE_SCALE >= FALSE_M:
+            far += 1
+            far_on += f_on
+            far_idx.add(i)
+        if s_on:
+            solid_lab += 1
+            solid_far += near > URGENT_M
+    pri = [e["priors"] for _, e in safety if e.get("priors")]
+    info = (
+        f"info: front on {100 * front_on / len(safety):.0f}% and solid/stop "
+        f"{100 * solid / len(safety):.0f}% of {len(safety)} frames; "
+        + (
+            f"priors in shadow mode, active in {len(pri)} frames, would have changed "
+            f"{sum('after' in p for p in pri)}"
+            if pri and all(p.get("shadow") for p in pri)
+            else f"priors applied in {len(pri)} frames"
+            if pri
+            else "no priors in the frame events"
+        )
+    )
+    out = []
+    if far < FALSE_MIN:
+        out.append(
+            row(
+                "falsecue",
+                FALSE_NAME,
+                "metasight-compare",
+                "SKIP",
+                f"{far} frames",
+                f"unmeasurable on this walk ({far} frames with nothing labelled inside "
+                f"{FALSE_M} m in view at labels x{FALSE_SCALE}, need {FALSE_MIN}); {info}",
+            )
+        )
+    else:
+        live_pct = 100 * far_on / far
+        off_pct = 100 * float(offline[sorted(far_idx)].mean())
+        out.append(
+            row(
+                "falsecue",
+                FALSE_NAME,
+                "metasight-compare",
+                "PASS" if live_pct <= off_pct + 5 else "FAIL",
+                f"{far_on} of {far} ({live_pct:.0f}%)",
+                f"front cue on while the nearest labelled obstacle in view is {FALSE_M} m or "
+                f"more (labels x{FALSE_SCALE}); offline sector scheme on the same "
+                f"{len(far_idx)} label frames {off_pct:.0f}%, FAIL above {off_pct + 5:.0f}%; "
+                + info,
+            )
+        )
+    u_pct = 100 * solid_far / solid_lab if solid_lab else 0.0
+    out.append(
+        row(
+            "urgent",
+            URGENT_NAME,
+            "metasight-compare",
+            "PASS" if u_pct <= URGENT_MAX_PCT else "FAIL",
+            f"{solid_far} of {solid_lab} ({u_pct:.0f}%)",
+            f"solid/stop cue while the nearest labelled obstacle in view is beyond {URGENT_M} m "
+            f"(labels x1.0), over solid frames on labelled frames; FAIL above {URGENT_MAX_PCT}%",
+        )
+    )
+    return out
 
 
 async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
@@ -787,36 +898,7 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
         # How often the belt buzzes ahead. Baseline: the sector scheme with no priors has its three
         # front motors on 27 to 38% of the time on his walks (docs/haptics-sim.md, Tracker
         # section); a cue counts as on at 26/255, the skin model's floor (scripts/score_labels.py).
-        front_on = solid = 0
-        for _, e in safety:
-            front = [q for n, q in zip(e["names"], e["cues"], strict=False) if n in CAMERA_SECTORS]
-            front_on += any(q["mode"] != "off" and q["intensity"] >= 26 / 255 for q in front)
-            solid += any(q["mode"] in STOP_MODES and q["intensity"] > 0 for q in e["cues"])
-        # Priors in shadow mode log the command they would have sent ("after") without applying it.
-        pri = [e["priors"] for _, e in safety if e.get("priors")]
-        shadow_note = (
-            f"; priors in shadow mode, active in {len(pri)} frames, would have changed "
-            f"{sum('after' in p for p in pri)}"
-            if pri and all(p.get("shadow") for p in pri)
-            else f"; priors applied in {len(pri)} frames"
-            if pri
-            else "; no priors in the frame events"
-        )
-        if safety:
-            f_pct, s_pct = 100 * front_on / len(safety), 100 * solid / len(safety)
-            results.append(
-                row(
-                    "cuerate",
-                    "Buzz rate ahead vs the no-priors baseline",
-                    "metasight-compare",
-                    "PASS" if f_pct <= BASELINE_FRONT_PCT + 10 else "FAIL",
-                    f"front on {f_pct:.0f}%",
-                    f"front motors on in {front_on} of {len(safety)} frames, solid/stop cue in "
-                    f"{s_pct:.0f}%; baseline 27 to 38% front on (sector scheme, no priors, "
-                    f"docs/haptics-sim.md), FAIL above {BASELINE_FRONT_PCT + 10:.0f}%"
-                    + shadow_note,
-                )
-            )
+        results += cue_rows(safety, walk)
         mapped = sum(
             1
             for _, e in safety
@@ -867,7 +949,8 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
 ORDER = [
     "stop",
     "belt-",
-    "cuerate",
+    "falsecue",
+    "urgent",
     "mapreflex",
     "guide",
     "nav",
@@ -892,8 +975,10 @@ def write_report(results: list, meta: dict, walk: str, stamp: str, note: str) ->
         return ORDER.index(k) if k in ORDER else 99
 
     results.sort(key=rank)
-    n = {s: sum(r["status"] == s for r in results) for s in ("PASS", "FAIL", "NOT-BUILT")}
-    summary = f"{n['PASS']} pass, {n['FAIL']} fail, {n['NOT-BUILT']} not built"
+    n = {s: sum(r["status"] == s for r in results) for s in ("PASS", "FAIL", "NOT-BUILT", "SKIP")}
+    summary = f"{n['PASS']} pass, {n['FAIL']} fail, {n['NOT-BUILT']} not built" + (
+        f", {n['SKIP']} unmeasurable" if n["SKIP"] else ""
+    )
     earlier = []
     if DOC.exists():
         old = DOC.read_text()
