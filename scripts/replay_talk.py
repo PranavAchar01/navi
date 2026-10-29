@@ -31,6 +31,7 @@ async def main():
     ap.add_argument("--seconds", type=float, default=20)
     ap.add_argument("--spacing", type=float, default=0.14)
     ap.add_argument("--mono", action="store_true")
+    ap.add_argument("--onsets", default="", help="seconds where a voice starts, for latency")
     a = ap.parse_args()
     ch = 1 if a.mono else 2
     pcm = subprocess.run(
@@ -59,6 +60,8 @@ async def main():
     src_fps = cap.get(cv2.CAP_PROP_FPS) or 30
     step = max(1, round(src_fps / a.fps))
     log = []
+    cues, belts, rtt, chunk_sent, frame_sent = [], [], [], {}, {}
+    onsets = [float(x) for x in a.onsets.split(",") if x]
     async with websockets.connect(a.url, max_size=None) as ws:
 
         async def reader():
@@ -69,7 +72,12 @@ async def main():
                 if d["type"] == "people":
                     log.append(d)
                 elif d["type"] == "speaker_cue":
+                    cues.append((time.time(), d))
                     print(f"  cue: turn {d['turn']} ({d['bearing']} deg) motors {d['motors']}")
+                elif d["type"] == "belt":
+                    belts.append((time.time(), d))
+                elif d["type"] == "safety" and d["seq"] in frame_sent:
+                    rtt.append(time.time() - frame_sent[d["seq"]])
 
         rd = asyncio.create_task(reader())
         t0, seq, i, sent = time.time(), 0, 0, 0
@@ -87,12 +95,14 @@ async def main():
                     "spacing": a.spacing,
                     "pcm": base64.b64encode(blk).decode(),
                 }
+                chunk_sent[sent] = time.time()
                 await ws.send(json.dumps(msg))
                 sent += 1
             if i % step == 0:
                 small = cv2.resize(frame, (640, 360))
                 _, jpg = cv2.imencode(".jpg", small, [cv2.IMWRITE_JPEG_QUALITY, 75])
                 await ws.send(struct.pack("<dI", time.time() * 1000, seq) + jpg.tobytes())
+                frame_sent[seq] = time.time()
                 seq += 1
                 await asyncio.sleep(max(0, t0 + (i + step) / src_fps - time.time()))
             i += 1
@@ -105,6 +115,28 @@ async def main():
     print("max people in view", max((len(e["tracks"]) for e in log), default=0))
     for row in spk[:: max(1, len(spk) // 12)]:
         print("  t={:.1f} speaker={} doa={} evidence={}".format(*row))
+
+    print(
+        f"frame round trip (send to safety reply): median "
+        f"{1000 * sorted(rtt)[len(rtt) // 2]:.0f} ms"
+        if rtt
+        else "no safety replies"
+    )
+    print(f"cues {len(cues)}, belt messages {len(belts)}")
+    if belts:
+        print("  belt sample:", json.dumps(belts[len(belts) // 2][1])[:300])
+    for on in onsets:
+        t_on = chunk_sent.get(int(on / CHUNK_S))
+        after = [c for c in cues if t_on and c[0] >= t_on]
+        if after:
+            c = after[0]
+            print(
+                f"voice at {on}s: first cue {1000 * (c[0] - t_on):.0f} ms after "
+                "its audio was sent, "
+                f"bearing {c[1]['bearing']}"
+            )
+        else:
+            print(f"voice at {on}s: no cue")
 
 
 asyncio.run(main())

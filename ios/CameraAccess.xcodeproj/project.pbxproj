@@ -58,6 +58,7 @@
 		E6DA451E2E79A63100E3F688 /* CardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6DA45172E79A63100E3F688 /* CardView.swift */; };
 		E6DA451F2E79A63100E3F688 /* MockDeviceKitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6DA451A2E79A63100E3F688 /* MockDeviceKitView.swift */; };
 		FACE0000000000000000FA02 /* TipRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0000000000000000FA01 /* TipRow.swift */; };
+		5E5E5E5E00000000000007A2 /* ConversationAudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E5E5E5E00000000000007A1 /* ConversationAudio.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -157,6 +158,7 @@
 		E6DA45182E79A63100E3F688 /* MockDeviceCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockDeviceCardView.swift; sourceTree = "<group>"; };
 		E6DA451A2E79A63100E3F688 /* MockDeviceKitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockDeviceKitView.swift; sourceTree = "<group>"; };
 		FACE0000000000000000FA01 /* TipRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TipRow.swift; sourceTree = "<group>"; };
+		5E5E5E5E00000000000007A1 /* ConversationAudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationAudio.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -228,6 +230,7 @@
 				5E5E5E5E0000000000000110 /* GlassesDisplay.swift */,
 				5E5E5E5E0000000000000102 /* AnswerSpeaker.swift */,
 				5E5E5E5E0000000000000602 /* SpatialBeeper.swift */,
+				5E5E5E5E00000000000007A1 /* ConversationAudio.swift */,
 				5E5E5E5E0000000000000601 /* BeepCue.swift */,
 				5E5E5E5E0000000000000603 /* BeltAudio.swift */,
 				5E5E5E5E0000000000000604 /* BeltBLE.swift */,
@@ -553,6 +556,7 @@
 				5E5E5E5E0000000000000210 /* GlassesDisplay.swift in Sources */,
 				5E5E5E5E0000000000000202 /* AnswerSpeaker.swift in Sources */,
 				5E5E5E5E0000000000000612 /* SpatialBeeper.swift in Sources */,
+				5E5E5E5E00000000000007A2 /* ConversationAudio.swift in Sources */,
 				5E5E5E5E0000000000000611 /* BeepCue.swift in Sources */,
 				5E5E5E5E0000000000000613 /* BeltAudio.swift in Sources */,
 				5E5E5E5E0000000000000614 /* BeltBLE.swift in Sources */,

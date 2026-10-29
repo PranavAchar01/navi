@@ -150,6 +150,8 @@ final class ServerLink {
   @ObservationIgnored private let speaker = AnswerSpeaker()
   /// Spatial beeps for the proximity bands, through the active output (the glasses).
   @ObservationIgnored let beeper = SpatialBeeper()
+  /// The microphone, sent so the server can hear who is talking and from where.
+  @ObservationIgnored let talk = ConversationAudio()
   /// "Find my X" on the phone's haptics, from the guide distance.
   let finder = FindHaptics()
   /// The belt's motors (and haptic Braille pulses) as stereo tones, for testing without a belt.
@@ -280,6 +282,10 @@ final class ServerLink {
     frameGate.setOpen(true)
     statusLine = "Connected"
     if let hello { send(json: hello) }
+    talk.start { [weak self] message in
+      nonisolated(unsafe) let message = message
+      DispatchQueue.main.async { self?.send(json: message) }
+    }
   }
 
   private func receiveLoop(on task: URLSessionWebSocketTask) {
@@ -307,6 +313,7 @@ final class ServerLink {
     connection = .disconnected
     frameGate.setOpen(false)
     motionBuffer.removeAll()
+    talk.stop()
     statusLine = "Server offline, retrying"
   }
 
