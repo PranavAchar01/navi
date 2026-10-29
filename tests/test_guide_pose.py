@@ -113,3 +113,35 @@ def test_a_never_seen_answer_promises_no_buzz():
     assert NO_DIRECTION not in never["text"]
     found = asyncio.run(run("desk", "I saw the desk 9 hours ago."))
     assert found["text"].endswith(NO_DIRECTION)
+
+
+def keys(pid: int, pos, placed: bool, ts: float) -> Pin:
+    return Pin(pid, "keys", "object", list(pos), ts, ts, seen=2, score=0.6, placed=placed)
+
+
+def test_guide_switches_mid_run_to_a_newer_placed_pin_and_never_back():
+    """Compare's keys replay: the answer named an old keys pin memory had not placed, so the
+    belt had no route; memory placed this walk's keys later and the guide must move to them."""
+    t = time.time()
+    old = keys(HOME_ID + 15, [9.0, 0.0, 9.0], placed=False, ts=t - 9 * 3600)
+    srv, now = server(5.0, [old])
+    srv.guide = {"pin": old.id, "label": "keys", "until": now + 90.0, "seen": now - 1}
+    routed = []
+    srv._navigator = lambda key, pin: routed.append(key)
+    assert guide(srv, now)["bearing"] is None and routed == []
+
+    found = keys(40, [2.0, 0.0, 2.0], placed=True, ts=t - 2)  # memory places them mid-guide
+    srv.pins.replace_all([old.to_json(), found.to_json()])
+    g = guide(srv, now)
+    assert g["bearing"] is not None and srv.guide["pin"] == 40 and routed[-1] == 40
+    assert "seen" not in srv.guide  # the lock on the old bearing is dropped
+
+    other = keys(41, [-2.0, 0.0, 2.0], placed=True, ts=t - 30)  # an older placed sighting
+    srv.pins.replace_all([old.to_json(), found.to_json(), other.to_json()])
+    guide(srv, now)
+    assert srv.guide["pin"] == 40  # not strictly newer: stays
+
+    seen_again = {**other.to_json(), "ts": t}  # the other one seen again, now the newest
+    srv.pins.replace_all([old.to_json(), found.to_json(), seen_again])
+    guide(srv, now)
+    assert srv.guide["pin"] == 41

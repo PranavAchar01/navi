@@ -621,13 +621,19 @@ class Server:
         }
 
     def _guide_pin(self, g: dict):
-        """The pin to point at: the one answered, or, when that is a saved home pin this walk
-        has not placed yet, this walk's newest sighting of the same thing."""
+        """The pin to point at: the one answered, until memory places a newer pin of the same
+        thing (this walk's sighting of a saved home pin not placed yet, or the item seen again
+        elsewhere). Only a strictly newer placed pin takes over, so the target never flips back
+        and forth; the switch sticks, and the route and camera lock start again from it."""
         pin = self.pins.pins.get(g["pin"]) if g["pin"] is not None else None
-        if pin is not None and pin.placed:
-            return pin
         here = [p for p in self.pins.pins.values() if p.label == g["label"] and p.placed]
-        return max(here, key=lambda p: p.ts, default=pin)
+        newest = max(here, key=lambda p: p.ts, default=None)
+        if newest is None or (pin is not None and pin.placed and newest.ts <= pin.ts):
+            return pin
+        if newest.id != g["pin"]:
+            g["pin"] = newest.id
+            g.pop("seen", None)  # the lock vetted the camera against the old pin's bearing
+        return newest
 
     def can_point(self, g: dict, now: float) -> bool:
         """Whether the belt has a direction for the guide: in view now, or a placed pin and a
