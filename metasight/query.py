@@ -90,6 +90,27 @@ def time_ago(seconds: float) -> str:
     return f"{h} hour{'s' if h != 1 else ''} ago"
 
 
+# No public API reads where an AirTag is (docs/ARCHITECTURE.md, Find My and AirTags), so the
+# fallback for something the house has not seen is to point at the Find My app.
+_ASKED = re.compile(
+    r"\b(?:where(?:'s| is| are)?|find|lost|seen)\s+(?:my|the|our)\s+([a-z][a-z ]{1,30}?)\s*$"
+)
+
+
+def asked_for(text: str) -> str | None:
+    """The thing a 'where is my X' question names, when it is nothing the house knows."""
+    m = _ASKED.search(re.sub(r"[^a-z' ]", " ", text.lower()).strip())
+    return m.group(1) if m else None
+
+
+def unseen_answer(label: str) -> str:
+    it = "them" if label.endswith("s") else "it"
+    return (
+        f"I haven't seen your {label} yet. If {it} has an AirTag, Find My on your phone can "
+        f"play a sound; or walk past where you left {it} and ask again."
+    )
+
+
 def template_answer(
     label: str, pin: Pin | None, pose: np.ndarray | None, now: float, stand_in: bool = False
 ) -> str:
@@ -97,7 +118,7 @@ def template_answer(
     noun = f"your {label}"
     was = "were" if label.endswith("s") else "was"
     if pin is None:
-        return f"I haven't seen {noun} yet. Walk past where you left them and ask again."
+        return unseen_answer(label)
     ago = time_ago(now - pin.ts)
     where = f" near the {pin.near[0]}" if pin.near else ""
     if stand_in:

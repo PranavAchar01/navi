@@ -5,6 +5,10 @@ open one on this Mac (Muse Glimmer).
 Input is the change log the pins already keep (`Tools.what_changed_since`: moved or new
 objects, with what they were near). Output, per change: does it matter, is it something to walk
 into, and one short sentence the wearer could be told. Nothing is called when nothing changed.
+
+The same model also makes plans ("get ready to leave" -> keys, then the door) and nudges (a
+thing not seen for a long time). Both only ever name things in the memory bank: `grounded`
+drops anything else before it reaches the wearer.
 """
 
 from __future__ import annotations
@@ -30,7 +34,24 @@ SYSTEM = (
 )
 
 
-def parse(text: str) -> list[dict]:
+PLAN_SYSTEM = (
+    "You plan a short errand for a blind person at home. You get the request and the things "
+    "in their home memory, with what each was last seen near. Reply with one JSON object per "
+    'step, in order, nothing else: {"object": str, "say": str}. object must be copied exactly '
+    "from the memory list; if something the request needs is not in it, leave it out. say: one "
+    "short sentence for that step."
+)
+
+NUDGE_SYSTEM = (
+    "You help a blind person keep track of their home. You get the things in their home memory "
+    "and how many hours since each was last seen. Pick at most 3 worth a glance next time they "
+    "walk past (things they carry or use, not walls or doors). Reply with one JSON object per "
+    'line, nothing else: {"object": str, "say": str}. object must be copied exactly from the '
+    "list. say: one short sentence."
+)
+
+
+def _objects(text: str) -> list[dict]:
     out = []
     for m in re.finditer(r"\{[^{}]*\}", text):
         try:
@@ -38,15 +59,69 @@ def parse(text: str) -> list[dict]:
         except json.JSONDecodeError:
             continue
         if isinstance(d.get("object"), str):
-            out.append(
-                {
-                    "object": d["object"],
-                    "matters": bool(d.get("matters")),
-                    "in_the_way": bool(d.get("in_the_way")),
-                    "say": str(d.get("say") or ""),
-                }
-            )
+            out.append(d)
     return out
+
+
+def parse(text: str) -> list[dict]:
+    return [
+        {
+            "object": d["object"],
+            "matters": bool(d.get("matters")),
+            "in_the_way": bool(d.get("in_the_way")),
+            "say": str(d.get("say") or ""),
+        }
+        for d in _objects(text)
+    ]
+
+
+def bank(pins, now: float) -> dict[str, dict]:
+    """Every object label in memory, newest sighting first: where it was and how long ago."""
+    out: dict[str, dict] = {}
+    for p in sorted(pins.pins.values(), key=lambda p: -p.ts):
+        if p.kind == "object" and p.label != "person" and p.label not in out:
+            out[p.label] = {"near": p.near, "hours": round((now - p.ts) / 3600, 1)}
+    return out
+
+
+def grounded(items: list[dict], labels) -> tuple[list[dict], list[str]]:
+    """Keep only items naming a thing in the bank; return the rest by name, to count them."""
+    known = {x.lower() for x in labels}
+    kept = [i for i in items if i["object"].lower() in known]
+    return kept, [i["object"] for i in items if i["object"].lower() not in known]
+
+
+def _usd(lang) -> float | None:
+    usage = getattr(lang, "usage", None)
+    if usage is None or lang.name not in PRICE:
+        return None
+    pin, pout = PRICE[lang.name]
+    return (usage.prompt_tokens * pin + usage.completion_tokens * pout) / 1e6
+
+
+def _ask(lang, kind: str, system: str, user: str, labels, max_tokens: int) -> dict:
+    t0 = time.perf_counter()
+    raw = lang.complete(system, user, max_tokens=max_tokens)
+    items = [{"object": d["object"], "say": str(d.get("say") or "")} for d in _objects(raw)]
+    kept, invented = grounded(items, labels)
+    res = {"type": kind, "items": kept, "invented": invented, "raw": raw, "model": lang.name}
+    res["ms"] = round(1000 * (time.perf_counter() - t0))
+    if (usd := _usd(lang)) is not None:
+        res["usd"] = usd
+    return res
+
+
+def plan(lang, pins, request: str, now: float) -> dict:
+    """An ordered list of things to pick up or go to for `request`, all from the bank."""
+    b = {k: v["near"] for k, v in bank(pins, now).items()}
+    user = json.dumps({"request": request, "memory": b})
+    return _ask(lang, "plan", PLAN_SYSTEM, user, b, max_tokens=600)
+
+
+def nudges(lang, pins, now: float) -> dict:
+    """Up to three things not seen for a while that are worth a glance."""
+    b = {k: v["hours"] for k, v in bank(pins, now).items()}
+    return _ask(lang, "nudges", NUDGE_SYSTEM, json.dumps(b), b, max_tokens=600)
 
 
 class MapReview:
@@ -74,11 +149,9 @@ class MapReview:
             )
             res["items"] = parse(text)
             res["model"] = self.lang.name
-            usage = getattr(self.lang, "usage", None)
-            if usage is not None and self.lang.name in PRICE:
-                pin, pout = PRICE[self.lang.name]
-                res["usd"] = (usage.prompt_tokens * pin + usage.completion_tokens * pout) / 1e6
-                self.spent_usd += res["usd"]
+            if (usd := _usd(self.lang)) is not None:
+                res["usd"] = usd
+                self.spent_usd += usd
         res["ms"] = round(1000 * (time.perf_counter() - t0))
         self.last = res
         return res

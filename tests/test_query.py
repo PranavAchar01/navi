@@ -2,6 +2,7 @@ import numpy as np
 
 from metasight.pins import Pin, PinStore
 from metasight.query import (
+    asked_for,
     direction_phrase,
     distance_phrase,
     is_question,
@@ -9,6 +10,7 @@ from metasight.query import (
     parse_query,
     template_answer,
     time_ago,
+    unseen_answer,
     valid_sentence,
 )
 
@@ -81,9 +83,15 @@ def test_answer_behind_and_to_the_left():
 
 
 def test_answer_when_never_seen():
-    assert template_answer("keys", None, pose_facing_minus_z(), 0).startswith(
-        "I haven't seen your keys"
-    )
+    text = template_answer("keys", None, pose_facing_minus_z(), 0)
+    assert text.startswith("I haven't seen your keys") and "Find My" in text
+
+
+def test_an_unknown_thing_is_still_named_back():
+    assert asked_for("Where is my umbrella?") == "umbrella"
+    assert asked_for("where are my reading glasses") == "reading glasses"
+    assert asked_for("what's that noise") is None
+    assert "If it has an AirTag" in unseen_answer("umbrella")
 
 
 def test_singular_objects_get_was():

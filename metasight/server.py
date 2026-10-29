@@ -49,6 +49,7 @@ from .providers.finder import LOOKALIKES
 from .providers.tools import Tools, agent_answer
 from .query import (
     SYSTEM,
+    asked_for,
     camera_answer,
     facts_for_language,
     glimpse_answer,
@@ -56,6 +57,7 @@ from .query import (
     needs_tools,
     parse_query,
     template_answer,
+    unseen_answer,
     valid_sentence,
 )
 from .review import MapReview
@@ -676,10 +678,11 @@ class Server:
             except Exception:
                 label = None
         if label is None:
+            noun = asked_for(text)  # "where is my umbrella": named, but never seen
             return {
                 "type": "answer",
                 "label": None,
-                "text": "Which object do you mean?",
+                "text": unseen_answer(noun) if noun else "Which object do you mean?",
                 "pin": None,
             }
         pin = self.pins.latest(label)

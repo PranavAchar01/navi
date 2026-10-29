@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 from metasight.pins import Pin, PinStore
-from metasight.review import MapReview, parse
+from metasight.review import MapReview, bank, grounded, nudges, parse, plan
 
 
 class Fake:
@@ -51,3 +51,22 @@ def test_review_skips_the_model_when_nothing_changed():
     r.since = 995.0
     res = r.run()
     assert res["changes"] == 0 and lang.calls == [] and r.in_the_way() == set()
+
+
+def test_grounded_rejects_anything_not_in_the_bank():
+    items = [{"object": "Chair", "say": ""}, {"object": "wallet", "say": "Grab your wallet."}]
+    kept, invented = grounded(items, bank(pins(), 1000.0))
+    assert [i["object"] for i in kept] == ["Chair"] and invented == ["wallet"]
+
+
+def test_plan_and_nudges_never_name_an_invented_item():
+    lang = Fake(
+        '{"object": "chair", "say": "Your chair is by the door."}\n'
+        '{"object": "wallet", "say": "Grab your wallet."}\n'
+        '{"object": "person", "say": "Say bye."}'
+    )
+    b = bank(pins(), 1000.0)
+    assert set(b) == {"chair"} and b["chair"]["near"] == ["door"]  # newest sighting, no people
+    for res in (plan(lang, pins(), "get ready to leave", 1000.0), nudges(lang, pins(), 1000.0)):
+        assert [i["object"] for i in res["items"]] == ["chair"]
+        assert res["invented"] == ["wallet", "person"] and res["usd"] > 0

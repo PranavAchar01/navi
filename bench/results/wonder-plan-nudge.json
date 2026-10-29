@@ -1,0 +1,93 @@
+{
+ "model": "muse-wonder",
+ "pins": 75,
+ "bank_labels": [
+  "backpack",
+  "bag",
+  "basket",
+  "bed",
+  "box",
+  "clothes",
+  "computer monitor",
+  "cup",
+  "curtain",
+  "desk",
+  "door",
+  "fan",
+  "handbag",
+  "keyboard",
+  "keys",
+  "laptop",
+  "mini fridge",
+  "mirror",
+  "phone",
+  "picture frame",
+  "pillow",
+  "remote control",
+  "shelf",
+  "shoe",
+  "speaker",
+  "stool",
+  "trash can",
+  "tv",
+  "wall",
+  "window"
+ ],
+ "request": "get ready to leave",
+ "plan": {
+  "type": "plan",
+  "items": [
+   {
+    "object": "clothes",
+    "say": "Put on your clothes to get dressed."
+   },
+   {
+    "object": "shoe",
+    "say": "Put on your shoes."
+   },
+   {
+    "object": "phone",
+    "say": "Take your phone with you."
+   },
+   {
+    "object": "keys",
+    "say": "Pick up your keys."
+   },
+   {
+    "object": "handbag",
+    "say": "Take your handbag."
+   },
+   {
+    "object": "door",
+    "say": "Head to the door to leave."
+   }
+  ],
+  "invented": [],
+  "raw": "{\"object\": \"clothes\", \"say\": \"Put on your clothes to get dressed.\"}\n{\"object\": \"shoe\", \"say\": \"Put on your shoes.\"}\n{\"object\": \"phone\", \"say\": \"Take your phone with you.\"}\n{\"object\": \"keys\", \"say\": \"Pick up your keys.\"}\n{\"object\": \"handbag\", \"say\": \"Take your handbag.\"}\n{\"object\": \"door\", \"say\": \"Head to the door to leave.\"}",
+  "model": "muse-wonder",
+  "ms": 2969,
+  "usd": 0.007228
+ },
+ "nudges": {
+  "type": "nudges",
+  "items": [
+   {
+    "object": "keys",
+    "say": "Your keys haven't been seen in about 8 hours, so they're worth a quick check."
+   },
+   {
+    "object": "phone",
+    "say": "Your phone hasn't been seen in about 8 hours, so it's worth a quick check."
+   },
+   {
+    "object": "remote control",
+    "say": "Your remote control hasn't been seen in about 8 hours, so it's worth a quick check."
+   }
+  ],
+  "invented": [],
+  "raw": "{\"object\": \"keys\", \"say\": \"Your keys haven't been seen in about 8 hours, so they're worth a quick check.\"}\n{\"object\": \"phone\", \"say\": \"Your phone hasn't been seen in about 8 hours, so it's worth a quick check.\"}\n{\"object\": \"remote control\", \"say\": \"Your remote control hasn't been seen in about 8 hours, so it's worth a quick check.\"}",
+  "model": "muse-wonder",
+  "ms": 3573,
+  "usd": 0.004824
+ }
+}
