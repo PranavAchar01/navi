@@ -57,6 +57,9 @@ HORIZON_S = 2.5
 BODY_R_M = 0.2
 CONTACT_S = 1.0  # a predicted contact sooner than this raises its sector
 MAX_POS_ERR_M = 0.6
+CORRIDOR_M = 0.4  # the walking path: this far either side of the heading line...
+PATH_AHEAD_M = 2.0  # ...and this far ahead. Off it, a mapped thing gets a slow cue at most
+GHOST_FRAMES = 5  # the camera sees through a mapped cell this many frames running: it is gone
 
 _MOVES = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)]
 
@@ -319,6 +322,60 @@ class Priors:
     contact_bearing: float  # degrees from the current heading to what it meets
     active: bool  # the pose was fresh enough to use the map at all
     ms: float = 0.0
+    # 8: nearest hidden obstacle inside the walking path (CORRIDOR_M by PATH_AHEAD_M)
+    path_hidden: list[float] = field(default_factory=lambda: [math.inf] * 8)
+    # 8: the live reading in that camera sector lies on the walking path
+    on_path: list[bool] = field(default_factory=lambda: [True] * 8)
+    ghosts: int = 0  # mapped cells cleared this frame because the camera saw through them
+
+
+class Ghosts:
+    """Mapped cells the camera keeps seeing through: the thing has moved or never was. After
+    GHOST_FRAMES frames running, a cell is stale and the priors stop cueing it. Kept by world
+    cell key, so it outlives floor plan rebuilds; a cell the camera sees again where the map has
+    it is cleared. `stale` is what the map should forget. `seen` holds the cells the camera saw
+    where the map has them this walk (and their neighbours); with `need_seen`, only those get a
+    strong cue once they drop out of view, since a ghost under the frame is never seen first."""
+
+    def __init__(self, need_seen: bool = False) -> None:
+        self.count: dict[int, int] = {}
+        self.stale: set[int] = set()
+        self.seen: set[int] = set()
+        self.need_seen = need_seen
+
+    @staticmethod
+    def keys(plan: FloorPlan, ii: np.ndarray, jj: np.ndarray) -> np.ndarray:
+        return (ii.astype(np.int64) + plan.i0) * 1_000_003 + (jj.astype(np.int64) + plan.j0)
+
+    def mask(self, keys: np.ndarray) -> np.ndarray:
+        if not self.stale:
+            return np.zeros(len(keys), bool)
+        return np.isin(keys, np.fromiter(self.stale, np.int64, len(self.stale)))
+
+    def seen_mask(self, keys: np.ndarray) -> np.ndarray:
+        if not self.need_seen:
+            return np.ones(len(keys), bool)
+        if not self.seen:
+            return np.zeros(len(keys), bool)
+        return np.isin(keys, np.fromiter(self.seen, np.int64, len(self.seen)))
+
+    def update(self, through: np.ndarray, confirmed: np.ndarray, matched: np.ndarray) -> int:
+        """`through`: keys the camera saw past this frame; `confirmed`: keys it saw where mapped;
+        `matched`: front faces the reading fits closely, what `seen` is built from. Returns how
+        many turned stale."""
+        new = 0
+        for k in confirmed.tolist():
+            self.count.pop(k, None)
+            self.stale.discard(k)
+        for k in matched.tolist():
+            self.seen.update(k + di * 1_000_003 + dj for di in (-1, 0, 1) for dj in (-1, 0, 1))
+        for k in through.tolist():
+            c = self.count.get(k, 0) + 1
+            self.count[k] = c
+            if c >= GHOST_FRAMES and k not in self.stale:
+                self.stale.add(k)
+                new += 1
+        return new
 
 
 def priors(
@@ -332,10 +389,12 @@ def priors(
     pos_err_m: float = 0.0,
     eye_h_m: float = 1.6,
     below_deg: float = 35.0,
+    ghosts: Ghosts | None = None,
 ) -> Priors:
     """`camera`: the safety loop's front-left, front, front-right distances this frame (inf where
     nothing). `below_deg`: how far below level the bottom edge of the frame looks. `yaw_rate`
-    in Heading units (radians a second, positive turning left)."""
+    in Heading units (radians a second, positive turning left). `ghosts`, when given, is
+    updated from what the camera sees through, and its stale cells are left out."""
     t0 = time.perf_counter()
     inf = math.inf
     out = Priors([inf] * 8, [False] * 8, [None] * 8, inf, inf, 0.0, False)
@@ -350,8 +409,18 @@ def priors(
     b0, b1 = max(0, j - k), max(0, min(plan.blocked.shape[1], j + k + 1))
     win = plan.blocked[a0:a1, b0:b1]
     vis_d, vis_b = np.zeros(0), np.zeros(0)
+    # Ghost checks: g_ are the mapped front faces the camera could see through; c_ are all
+    # visible cells, stale ones too, so a cell seen again where the map has it comes back.
+    g_d, g_b, g_k = np.zeros(0), np.zeros(0), np.zeros(0, np.int64)
+    c_d, c_b, c_k = g_d, g_b, g_k
+    stale_key = np.zeros(0, np.int64)
     if win.any():
         ii, jj = np.nonzero(win)
+        kk = Ghosts.keys(plan, ii + a0, jj + b0) if ghosts is not None else None
+        gone = ghosts.mask(kk) if ghosts is not None else np.zeros(len(ii), bool)
+        sure_cell = ghosts.seen_mask(kk) if ghosts is not None else np.ones(len(ii), bool)
+        if kk is not None:
+            stale_key = kk[gone]
         dx, dz = plan.xs[ii + a0] - x, plan.zs[jj + b0] - z
         f, rgt = (math.sin(yaw), math.cos(yaw)), (-math.cos(yaw), math.sin(yaw))
         ahead, side = dx * f[0] + dz * f[1], dx * rgt[0] + dz * rgt[1]
@@ -363,27 +432,72 @@ def priors(
         in_fov = np.abs(bear) < hfov_deg / 2 - 2
         under = np.arctan2(eye_h_m - top, d) > math.radians(below_deg)  # below the frame
         visible = in_fov & ~under & near
-        hidden = near & ~visible
+        hidden = near & ~visible & ~gone
+        path = (ahead > 0) & (ahead < PATH_AHEAD_M) & (np.abs(side) < CORRIDOR_M + pos_err_m / 2)
         for s in range(8):
             m = hidden & (sec == s)
             if m.any():
                 q = int(np.argmin(np.where(m, d, inf)))
                 out.hidden[s] = float(d[q])
                 out.hidden_low[s] = bool(top[q] < LOW_TOP_M)
-        vis_d, vis_b = d[visible], bear[visible]
+                if (m & path & sure_cell).any():
+                    out.path_hidden[s] = float(d[m & path & sure_cell].min())
+        vis_d, vis_b = d[visible & ~gone], bear[visible & ~gone]
+        if kk is not None:
+            # Only the front face of what the map has, per 2 degree bearing, and only clearly in
+            # view (off the frame's edges and bottom): a box whose near edge is under the frame
+            # says nothing about its far side, and cells behind a front face are not in sight.
+            cand = near & ~gone & (np.abs(bear) < hfov_deg / 2 - 5)
+            bins = np.floor(bear / 2).astype(int)
+            front = np.zeros(len(d), bool)
+            if cand.any():
+                idx = np.flatnonzero(cand)
+                order = idx[np.lexsort((d[idx], bins[idx]))]
+                first = np.ones(len(order), bool)
+                first[1:] = bins[order][1:] != bins[order][:-1]
+                front[order[first]] = True
+            low = np.arctan2(eye_h_m - top, d) > math.radians(below_deg - 5)
+            sure = front & ~low
+            seen = visible & (np.abs(bear) < hfov_deg / 2 - 5)
+            g_d, g_b, g_k = d[sure], bear[sure], kk[sure]
+            c_d, c_b, c_k = d[seen], bear[seen], kk[seen]
+    through, seen_there, matched = [], [], []
     for n, s in enumerate(CAMERA_IDX):  # (b) does the map explain what the camera reads?
         live = camera[n]
         if not math.isfinite(live) or live >= REACH_M:
+            if len(g_b):
+                lo = -hfov_deg / 2 + n * hfov_deg / 3
+                m = (g_b >= lo + 1) & (g_b < lo + hfov_deg / 3 - 1) & (g_d < REACH_M - 0.5)
+                through.append(g_k[m])
+            out.on_path[s] = False
             continue
         lo = -hfov_deg / 2 + n * hfov_deg / 3  # that third of the view, not the 45 degree sector
         m = (vis_b >= lo) & (vis_b < lo + hfov_deg / 3)
+        if len(g_b):
+            # The third's reading is its nearest strip, so a mapped cell nearer than it, by more
+            # than the depth error, was seen through. Inf (nothing in range) sees through all.
+            gm = (g_b >= lo + 1) & (g_b < lo + hfov_deg / 3 - 1)
+            through.append(g_k[gm & (g_d < live - (0.3 + 0.15 * g_d + pos_err_m))])
+            matched.append(g_k[gm & (np.abs(g_d - live) < 0.1 + 0.05 * g_d + pos_err_m)])
+        if len(c_b):
+            cm = (c_b >= lo) & (c_b < lo + hfov_deg / 3)
+            seen_there.append(c_k[cm & (np.abs(c_d - live) < 0.3 + 0.15 * c_d + pos_err_m)])
+        b = math.radians((n - 1) * hfov_deg / 3)  # that third's centre, from the heading
+        out.on_path[s] = abs(live * math.sin(b)) < CORRIDOR_M + BODY_R_M and live < PATH_AHEAD_M
         if not m.any():  # nothing mapped there: new, if the map saw that floor at all
-            b = yaw - math.radians((n - 1) * hfov_deg / 3)  # that third's centre
+            b = yaw - math.radians((n - 1) * hfov_deg / 3)  # in the map's frame
             li, lj = plan.ij(x + live * math.sin(b), z + live * math.cos(b))
             if plan.inside(li, lj) and plan.seen[li, lj]:
                 out.known[s] = False
             continue
         out.known[s] = live >= float(vis_d[m].min()) - (0.3 + 0.15 * live + pos_err_m)
+    if ghosts is not None:
+        cat = np.concatenate
+        out.ghosts = ghosts.update(
+            cat(through) if through else np.zeros(0, np.int64),
+            cat(seen_there) if seen_there else np.zeros(0, np.int64),
+            cat(matched) if matched else np.zeros(0, np.int64),
+        )
     if speed_mps >= 0.2:
         psi, px, pz = yaw, x, z
         for step in range(1, int(HORIZON_S / 0.1) + 1):
@@ -395,6 +509,11 @@ def priors(
                 # what the body meets: the obstacle cell nearest the contact point
                 lo_i, lo_j = max(0, ci - 4), max(0, cj - 4)
                 ob = np.argwhere(plan.blocked[lo_i : ci + 5, lo_j : cj + 5]) + [lo_i, lo_j]
+                if ghosts is not None and len(ob):
+                    ok = Ghosts.keys(plan, ob[:, 0], ob[:, 1])
+                    ob = ob[~np.isin(ok, stale_key) & ghosts.seen_mask(ok)]
+                    if not len(ob):
+                        continue  # only a ghost, or nothing seen this walk: walk on through it
                 if len(ob):
                     a, b = ob[np.argmin(np.hypot(ob[:, 0] - ci, ob[:, 1] - cj))]
                     px, pz = plan.xs[a], plan.zs[b]
@@ -416,10 +535,23 @@ def _stronger(cue: tuple[int, int], d: float) -> tuple[int, int]:
     return cue
 
 
-def apply(cmd: list[tuple[int, int]], pri: Priors, sectors: list[float]) -> dict:
+def apply(
+    cmd: list[tuple[int, int]],
+    pri: Priors,
+    sectors: list[float],
+    off_path: str = "slow",
+    raise_new: bool = False,
+    hidden: bool = True,
+) -> dict:
     """Change the belt command in place with the map's priors. `sectors` are the eight distances
     the command was planned from. Priors only add or raise cues on the camera sectors; the one
-    downgrade is a map-only fast cue beside or behind you to slow. Returns what changed."""
+    downgrade is a map-only fast cue beside or behind you to slow. Strong cues from the map are
+    for the walking path (CORRIDOR_M by PATH_AHEAD_M, or a predicted contact); a hidden thing off
+    it gets a slow cue at most (`off_path="slow"`) or none (`"none"`). A new reading on the path is
+    only raised with `raise_new`: in the simulator that raise made the walker swerve into things
+    (collisions 0.53 to 0.67 per walk over seeds 3000-3059). `hidden=False` drops rule (a) and
+    leaves the predicted contact as the only map cue ahead: with `Ghosts(need_seen=True)` that
+    is the simulator's best trade (docs/navigation.md, "Path gating"). Returns what changed."""
     did = {"hidden": 0, "calm": 0, "new": 0, "contact": 0}
     if not pri.active:
         return did
@@ -431,8 +563,13 @@ def apply(cmd: list[tuple[int, int]], pri: Priors, sectors: list[float]) -> dict
         # sectors already cue. On his recorded walk the floor plan's side cues more than doubled
         # the onsets (about one in ten was then seen by the camera), and its 1 to 2 m slow pulse
         # flickered at the 2 m edge with every wobble of the pose: 9 short buzzes a minute.
-        if s in CAMERA_IDX and pri.hidden[s] < SLOW_M:
-            new = _stronger(cmd[s], pri.hidden[s])
+        if hidden and s in CAMERA_IDX and pri.hidden[s] < SLOW_M:
+            if pri.path_hidden[s] < SLOW_M:
+                new = _stronger(cmd[s], pri.path_hidden[s])
+            elif off_path == "slow" and cmd[s][0] in (MODES["off"], MODES["unknown"]):
+                new = (slow, 150)
+            else:
+                new = cmd[s]
             if new != cmd[s]:
                 cmd[s] = new
                 did["hidden"] += 1
@@ -443,7 +580,17 @@ def apply(cmd: list[tuple[int, int]], pri: Priors, sectors: list[float]) -> dict
             # depth (the camera sectors) is never weakened, and nothing is calmed below slow.
             cmd[s] = (slow, min(cmd[s][1], 150))
             did["calm"] += 1
-        elif k is False and sectors[s] < OFF_M and cmd[s][0] in (slow, fast):
+        elif (
+            raise_new
+            and k is False
+            and pri.on_path[s]
+            and sectors[s] < OFF_M
+            and cmd[s][0]
+            in (
+                slow,
+                fast,
+            )
+        ):
             cmd[s] = (cmd[s][0] + 1, max(cmd[s][1], 204))  # (b) new: one step stronger
             did["new"] += 1
     if hit >= 0 and pri.contact_s < CONTACT_S:  # (c) the turn or heading runs into something mapped

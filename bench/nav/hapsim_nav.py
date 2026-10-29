@@ -14,6 +14,17 @@ Belt conditions (the walker, its steering and its skin are identical in all of t
                pose that is 4 to 8 s old (a map window), as the server does now
   priors       today + nav.priors / nav.apply every frame with a fresh pose (the phone's ARKit)
   priors_stale today + priors from the 4 to 8 s old position (glasses today: no live position)
+  gated        priors, but strong map cues only on the walking path (nav.CORRIDOR_M either side,
+               nav.PATH_AHEAD_M ahead, or a predicted contact), off-path ones a slow cue at most,
+               and ghost clearing (nav.Ghosts: cells the camera keeps seeing through are dropped)
+  gated_none   gated, off-path hidden things get no cue at all
+  gated_noghost  gated without ghost clearing
+  gated_new    gated, and a new reading on the path is raised a step (nav.apply raise_new)
+  *_seen       (gated_seen, gated_none_seen) strong cues only for map cells live depth matched
+               earlier in the walk (nav.Ghosts(need_seen=True)): a ghost under the frame is never
+               seen first
+  *-no<rule>   ablation: -nohidden, -nocontact, -nonew, -nocalm drop that nav.apply rule;
+               gated_none_seen-nohidden (contact ahead only) is what the server shadows now
 Routes:
   walls        hapsim's walker: a remembered route through the doors that ignores furniture
   nav          nav.Navigator on the map's floor plan, its bearing every frame
@@ -33,7 +44,7 @@ import math
 import sys
 import time
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from multiprocessing import Pool
 from pathlib import Path
 
@@ -172,10 +183,17 @@ def run(wd: World, cond: str, route: str, seed: int = 0, max_s: float = 90.0) ->
     prev_on, prev_strong = [False] * 8, [False] * 8
     danger_since = [None] * 8
     missed_now = [False] * 8
-    fb = miss = along = 0
+    fb = miss = along = fb_prior = 0
+    fb_rule = {"contact": 0, "hidden": 0, "ghost_near": 0}  # what made the priors' false onsets
+    ghost = wd.map_rects[-1] if len(wd.map_rects) > wd.mapped.sum() else None
+    pri = None
     miss_kind = {"wall": 0, "mapped": 0, "new": 0}
     did_tot = {"hidden": 0, "calm": 0, "new": 0, "contact": 0}
     pri_ms: list[float] = []
+    base = cond.split("-")[0].removesuffix("_seen")
+    need = cond.split("-")[0].endswith("_seen")
+    ghosts = nav.Ghosts(need) if base in ("gated", "gated_none", "gated_new") else None
+    ghost_n = 0
     last_heading = heading
     n = 0
     while t < max_s:
@@ -198,8 +216,9 @@ def run(wd: World, cond: str, route: str, seed: int = 0, max_s: float = 90.0) ->
             merged = list(ms)
             merged[7], merged[0], merged[1] = thirds
             cmd, _ = plan(merged, [True] * 8, path, ttc, math.inf)
+            before = list(cmd)
             if cond != "today":
-                if cond == "priors":
+                if cond != "priors_stale":
                     px, py, err = x, y, 0.05
                 else:
                     px, py = mx, my
@@ -216,10 +235,26 @@ def run(wd: World, cond: str, route: str, seed: int = 0, max_s: float = 90.0) ->
                     pos_err_m=err,
                     eye_h_m=EYE_H,
                     below_deg=BELOW_DEG,
+                    ghosts=ghosts,
                 )
                 pri_ms.append(pri.ms)
-                for key, val in nav.apply(cmd, pri, merged).items():
+                ghost_n += pri.ghosts
+                if not cond.startswith("gated"):  # as first built: no path gate
+                    pri.path_hidden, pri.on_path = list(pri.hidden), [True] * 8
+                off = "none" if cond.startswith("gated_none") else "slow"
+                drop = cond.split("-no")[1] if "-no" in cond else ""  # ablation: gated-nocontact
+                if drop == "hidden":
+                    pri.hidden = pri.path_hidden = [math.inf] * 8
+                elif drop == "new":
+                    pri.known = [None] * 8
+                elif drop == "contact":
+                    pri.contact_s = math.inf
+                new = not cond.startswith("gated") or cond.startswith("gated_new")
+                did = nav.apply(cmd, pri, merged, off_path=off, raise_new=new)
+                for key, val in did.items():
                     did_tot[key] += val
+                if drop == "calm":
+                    cmd = [b if a[0] < b[0] else a for a, b in zip(cmd, before, strict=True)]
             last_heading = heading
             on = [i > 0 and m not in (MODES["off"], MODES["unknown"]) for m, i in cmd]
             strong = [m in (MODES["fast"], MODES["solid"]) for m, _ in cmd]
@@ -227,6 +262,15 @@ def run(wd: World, cond: str, route: str, seed: int = 0, max_s: float = 90.0) ->
             for m in range(8):
                 if on[m] and not prev_on[m] and not h._real_near(truth, m, 2.0):
                     fb += 1
+                    if cmd[m] != before[m]:  # the priors made or changed this cue
+                        fb_prior += 1
+                        alone = list(before)
+                        nav.apply(alone, replace(pri, contact_s=math.inf), merged, off, new)
+                        fb_rule["hidden" if alone[m] == cmd[m] else "contact"] += 1
+                        if ghost is not None:
+                            gx = max(ghost[0] - x, 0, x - ghost[2])
+                            gy = max(ghost[1] - y, 0, y - ghost[3])
+                            fb_rule["ghost_near"] += math.hypot(gx, gy) < 1.5
                 if strong[m] and not prev_strong[m] and math.isinf(into):
                     along += 1
                 danger = truth[1][m] < MISS_M
@@ -290,6 +334,12 @@ def run(wd: World, cond: str, route: str, seed: int = 0, max_s: float = 90.0) ->
             if wi >= len(wps):
                 break
     ok = wi >= len(wps)
+    wrong = 0  # cleared cells that are a real thing (the ghost clearing's own false alarms)
+    for key in ghosts.stale if ghosts is not None else ():
+        gi = round(key / 1_000_003)
+        cz, cx = (gi + 0.5) * nav.CELL, (key - gi * 1_000_003 + 0.5) * nav.CELL
+        e = nav.CELL
+        wrong += any(r[0] - e < cx < r[2] + e and r[1] - e < cz < r[3] + e for r in room.rects)
     return {
         "planned": True,
         "success": ok,
@@ -298,10 +348,14 @@ def run(wd: World, cond: str, route: str, seed: int = 0, max_s: float = 90.0) ->
         "shortest_m": shortest,
         "collisions": coll,
         "false": fb,
+        "false_prior": fb_prior,
+        "false_prior_rule": fb_rule,
         "missed": miss,
         "missed_kind": miss_kind,
         "along": along,
         "did": did_tot,
+        "ghost_cells": ghost_n,
+        "ghost_cells_real": wrong,
         "prior_ms": float(np.median(pri_ms)) if pri_ms else None,
         "prior_ms_p95": float(np.percentile(pri_ms, 95)) if pri_ms else None,
     }
@@ -321,12 +375,19 @@ def summarize(rs: list[dict]) -> dict:
         "time_s": float(np.mean([r["time_s"] for r in ok])) if ok else None,
         "efficiency": float(np.mean([r["shortest_m"] / r["path_m"] for r in ok])) if ok else None,
         "false_per_min": sum(r["false"] for r in planned) / mins,
+        "false_from_priors_per_min": sum(r["false_prior"] for r in planned) / mins,
+        "false_from_priors_by_rule_per_min": {
+            k: sum(r["false_prior_rule"][k] for r in planned) / mins
+            for k in ("contact", "hidden", "ghost_near")
+        },
         "missed_per_min": sum(r["missed"] for r in planned) / mins,
         "runs_with_a_miss": float(np.mean([r["missed"] > 0 for r in planned])) if planned else None,
         "missed_per_min_by_kind": {
             k: sum(r["missed_kind"][k] for r in planned) / mins for k in ("wall", "mapped", "new")
         },
         "along_per_min": sum(r["along"] for r in planned) / mins,
+        "ghost_cells_per_run": float(np.mean([r["ghost_cells"] for r in planned] or [0])),
+        "ghost_cells_real_per_run": float(np.mean([r["ghost_cells_real"] for r in planned] or [0])),
         "prior_changes_per_min": {
             k: sum(r["did"][k] for r in planned) / mins
             for k in ("hidden", "calm", "new", "contact")
@@ -352,6 +413,7 @@ def main() -> None:
     ap.add_argument("--procs", type=int, default=6)
     ap.add_argument("--first", type=int, default=2000)
     ap.add_argument("--out", default="hapsim_nav.json")
+    ap.add_argument("--conds", help="only these conditions, door 0.9 / nav, e.g. today,gated")
     a = ap.parse_args()
     seeds = range(a.first, a.first + a.rooms)  # 3000+ to tune, 2000+ held out
     cases = [
@@ -364,7 +426,12 @@ def main() -> None:
         (0.65, "today", "walls"),
         (0.65, "today", "nav"),
         (0.65, "priors", "nav"),
+        (0.9, "gated", "nav"),
+        (0.9, "gated", "walls"),
+        (0.65, "gated", "nav"),
     ]
+    if a.conds:
+        cases = [(0.9, c, "nav") for c in a.conds.split(",")]
     t0 = time.time()
     with Pool(a.procs) as pool:
         res = pool.map(job, [(s, *c) for c in cases for s in seeds], chunksize=4)
@@ -373,7 +440,7 @@ def main() -> None:
         by.setdefault(key, []).append(r)
     # Fixed inflation at the door: hapsim's own 0.32 m, the planner `walls` uses, vs nav's.
     fixed = {}
-    for door in (0.9, 0.75, 0.65):
+    for door in () if a.conds else (0.9, 0.75, 0.65):
         n_fixed = n_nav = 0
         for s in seeds:
             wd = world(s, door)
@@ -389,6 +456,21 @@ def main() -> None:
         "map": {"period_s": MAP_PERIOD_S, "age_s": MAP_AGE_S, "new": 1, "ghost": 1},
         "route_found": fixed,
         "results": {f"door {k[0]:.2f} / {k[1]} / {k[2]}": summarize(v) for k, v in by.items()},
+        # per room, in seed order, for paired comparisons: false, minutes, collisions, mapped misses
+        "per_room": {
+            f"door {k[0]:.2f} / {k[1]} / {k[2]}": [
+                [
+                    r["false"],
+                    round(r["time_s"] / 60, 3),
+                    r["collisions"],
+                    r["missed_kind"]["mapped"],
+                ]
+                if r["planned"]
+                else None
+                for r in v
+            ]
+            for k, v in by.items()
+        },
         "wall_s": round(time.time() - t0, 1),
     }
     OUT.mkdir(parents=True, exist_ok=True)

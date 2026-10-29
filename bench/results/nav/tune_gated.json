@@ -1,0 +1,184 @@
+{
+ "label": "simulated user model, not a human study",
+ "when": "2026-10-29 02:40",
+ "rooms": 60,
+ "seeds": [
+  3000,
+  3060
+ ],
+ "camera": {
+  "hfov": 105.0,
+  "eye_h": 1.6,
+  "below_deg": 35.0
+ },
+ "map": {
+  "period_s": 4.0,
+  "age_s": 4.0,
+  "new": 1,
+  "ghost": 1
+ },
+ "route_found": {},
+ "results": {
+  "door 0.90 / today / nav": {
+   "runs": 60,
+   "planned": 1.0,
+   "success": 0.95,
+   "collisions_per_run": 0.43333333333333335,
+   "time_s": 9.68385964912269,
+   "efficiency": 1.0852960188341294,
+   "false_per_min": 3.7224465962727287,
+   "missed_per_min": 7.590871490438505,
+   "runs_with_a_miss": 0.35,
+   "missed_per_min_by_kind": {
+    "wall": 0.29195659578609634,
+    "mapped": 1.1678263831443854,
+    "new": 6.131088511508024
+   },
+   "along_per_min": 69.4126806481444,
+   "ghost_cells_per_run": 0.0,
+   "ghost_cells_real_per_run": 0.0,
+   "prior_changes_per_min": {
+    "hidden": 0.0,
+    "calm": 0.0,
+    "new": 0.0,
+    "contact": 0.0
+   }
+  },
+  "door 0.90 / priors / nav": {
+   "runs": 60,
+   "planned": 1.0,
+   "success": 0.95,
+   "collisions_per_run": 0.6833333333333333,
+   "time_s": 10.731578947368282,
+   "efficiency": 1.0358535126359443,
+   "false_per_min": 6.124115405552603,
+   "missed_per_min": 4.627109417528633,
+   "runs_with_a_miss": 0.2,
+   "missed_per_min_by_kind": {
+    "wall": 0.3402286336418113,
+    "mapped": 0.06804572672836225,
+    "new": 4.21883505715846
+   },
+   "along_per_min": 84.716929776811,
+   "ghost_cells_per_run": 0.0,
+   "ghost_cells_real_per_run": 0.0,
+   "prior_changes_per_min": {
+    "hidden": 670.9308655416518,
+    "calm": 3007.144801306513,
+    "new": 131.12411540555405,
+    "contact": 81.24659771366453
+   },
+   "prior_ms_median": 0.38279175032585044,
+   "prior_ms_p95": 2.12044387512833
+  },
+  "door 0.90 / gated / nav": {
+   "runs": 60,
+   "planned": 1.0,
+   "success": 0.9166666666666666,
+   "collisions_per_run": 0.5333333333333333,
+   "time_s": 10.231272727272598,
+   "efficiency": 1.0502488225600515,
+   "false_per_min": 3.9691159337296296,
+   "missed_per_min": 5.4501293418377,
+   "runs_with_a_miss": 0.23333333333333334,
+   "missed_per_min_by_kind": {
+    "wall": 0.355443217945937,
+    "mapped": 0.11848107264864566,
+    "new": 4.9762050512431175
+   },
+   "along_per_min": 56.33775004443101,
+   "ghost_cells_per_run": 21.833333333333332,
+   "ghost_cells_real_per_run": 0.0,
+   "prior_changes_per_min": {
+    "hidden": 377.95462174917964,
+    "calm": 2522.52127722599,
+    "new": 0.0,
+    "contact": 101.83448194151094
+   },
+   "prior_ms_median": 0.6468855003731733,
+   "prior_ms_p95": 2.431650050721145
+  },
+  "door 0.90 / gated_new / nav": {
+   "runs": 60,
+   "planned": 1.0,
+   "success": 0.9333333333333333,
+   "collisions_per_run": 0.6666666666666666,
+   "time_s": 10.591071428571293,
+   "efficiency": 1.0489781011589658,
+   "false_per_min": 5.03577498478782,
+   "missed_per_min": 5.03577498478782,
+   "runs_with_a_miss": 0.2,
+   "missed_per_min_by_kind": {
+    "wall": 0.18884156192954324,
+    "mapped": 0.06294718730984775,
+    "new": 4.783986235548429
+   },
+   "along_per_min": 71.94863509515598,
+   "ghost_cells_per_run": 21.383333333333333,
+   "ghost_cells_real_per_run": 0.016666666666666666,
+   "prior_changes_per_min": {
+    "hidden": 418.97647873434664,
+    "calm": 2743.175475775855,
+    "new": 71.13032166012796,
+    "contact": 99.51950313686929
+   },
+   "prior_ms_median": 0.6126875005065813,
+   "prior_ms_p95": 2.618657524817536
+  },
+  "door 0.90 / gated_none / nav": {
+   "runs": 60,
+   "planned": 1.0,
+   "success": 0.9333333333333333,
+   "collisions_per_run": 0.43333333333333335,
+   "time_s": 10.178214285714157,
+   "efficiency": 1.0535120475594724,
+   "false_per_min": 4.967421456680269,
+   "missed_per_min": 6.128636862137994,
+   "runs_with_a_miss": 0.25,
+   "missed_per_min_by_kind": {
+    "wall": 0.516095735758989,
+    "mapped": 0.19353590090962086,
+    "new": 5.419005225469385
+   },
+   "along_per_min": 61.93148829107868,
+   "ghost_cells_per_run": 20.95,
+   "ghost_cells_real_per_run": 0.0,
+   "prior_changes_per_min": {
+    "hidden": 214.2442423069503,
+    "calm": 2751.951487000869,
+    "new": 0.0,
+    "contact": 106.12218566544212
+   },
+   "prior_ms_median": 0.6212917501215998,
+   "prior_ms_p95": 2.7392522501941112
+  },
+  "door 0.90 / gated_noghost / nav": {
+   "runs": 60,
+   "planned": 1.0,
+   "success": 0.9166666666666666,
+   "collisions_per_run": 0.5333333333333333,
+   "time_s": 10.316363636363509,
+   "efficiency": 1.0474059367143824,
+   "false_per_min": 4.658476658476709,
+   "missed_per_min": 5.425061425061483,
+   "runs_with_a_miss": 0.21666666666666667,
+   "missed_per_min_by_kind": {
+    "wall": 0.294840294840298,
+    "mapped": 0.1179361179361192,
+    "new": 5.012285012285067
+   },
+   "along_per_min": 58.49631449631512,
+   "ghost_cells_per_run": 0.0,
+   "ghost_cells_real_per_run": 0.0,
+   "prior_changes_per_min": {
+    "hidden": 411.597051597056,
+    "calm": 2520.943488943516,
+    "new": 0.0,
+    "contact": 103.72481572481684
+   },
+   "prior_ms_median": 0.3603750010370277,
+   "prior_ms_p95": 2.3307748753268243
+  }
+ },
+ "wall_s": 67.0
+}

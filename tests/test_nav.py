@@ -96,7 +96,7 @@ def test_apply_raises_a_new_obstacle_and_calms_only_map_cues_beside_you():
     pri.known[1] = True  # the wall to the front-right is on the map: live depth, left alone
     pri.known[0] = False  # what is ahead is not
     before = list(cmd)
-    did = nav.apply(cmd, pri, sectors)
+    did = nav.apply(cmd, pri, sectors, raise_new=True)
     assert cmd[1] == before[1]
     assert cmd[2][0] == MODES["slow"] and did["calm"] == 1  # right: map-only, calmed
     assert cmd[0][0] == MODES["solid"] and did["new"] == 1
@@ -123,3 +123,59 @@ def test_priors_never_weaken_a_live_depth_cue():
                 assert cmd[s][0] >= before[s][0] and cmd[s][1] >= before[s][1]
         for s in range(8):
             assert before[s][0] != MODES["solid"] or cmd[s] == before[s]
+
+
+def test_hidden_things_off_the_walking_path_get_a_slow_cue_at_most():
+    p = _plan(TABLE)
+    # The table's near edge 0.7 m ahead and dead centre: on the path, a strong cue.
+    pri = nav.priors(p, [2.0, 1.6, 0.9], 0.0, [math.inf] * 3, hfov_deg=60, below_deg=35)
+    assert pri.path_hidden[0] < 1.0
+    cmd = [(MODES["off"], 0)] * 8
+    nav.apply(cmd, pri, [math.inf] * 8)
+    assert cmd[0][0] in (MODES["fast"], MODES["solid"])
+    # Beside it, 0.8 m to its right edge's side and facing past it: off the path.
+    pri = nav.priors(p, [3.2, 1.6, 0.9], 0.0, [math.inf] * 3, hfov_deg=60, below_deg=35)
+    off = [s for s in nav.CAMERA_IDX if pri.hidden[s] < 1.0 and pri.path_hidden[s] >= 1.0]
+    assert off
+    for mode, want in (("slow", MODES["slow"]), ("none", MODES["off"])):
+        cmd = [(MODES["off"], 0)] * 8
+        nav.apply(cmd, pri, [math.inf] * 8, off_path=mode)
+        assert all(cmd[s][0] == want for s in off)
+
+
+def test_a_mapped_thing_the_camera_keeps_seeing_through_is_dropped():
+    box = (1.5, 2.0, 2.5, 2.4, 1.0)  # knee-high box 1.1 m ahead, in view
+    p = _plan(box)
+    g = nav.Ghosts()
+    pos = [2.0, 1.6, 0.9]
+    first = nav.priors(p, pos, 0.0, [3.5] * 3, hfov_deg=60, speed_mps=1.0, ghosts=g)
+    assert first.contact_s < 2.5 and not g.stale
+    for _ in range(nav.GHOST_FRAMES):
+        nav.priors(p, pos, 0.0, [3.5] * 3, hfov_deg=60, speed_mps=1.0, ghosts=g)
+    assert g.stale  # its front face
+    # Then each layer behind it, as it comes into sight; the head's small turns sweep the
+    # cells on the edges between the view's thirds.
+    for n in range(8 * nav.GHOST_FRAMES):
+        yaw = 0.06 * ((n // nav.GHOST_FRAMES) % 3 - 1)
+        nav.priors(p, pos, yaw, [3.5] * 3, hfov_deg=60, speed_mps=1.0, ghosts=g)
+    gone = nav.priors(p, pos, 0.0, [3.5] * 3, hfov_deg=60, speed_mps=1.0, ghosts=g)
+    assert gone.contact_s > first.contact_s  # walks on through to the next wall
+    # Seen where the map has it again: back.
+    nav.priors(p, pos, 0.0, [1.15] * 3, hfov_deg=60, ghosts=g)
+    assert not g.stale
+
+
+def test_with_need_seen_only_what_live_depth_saw_this_walk_is_cued():
+    box = (1.5, 2.0, 2.5, 2.4, 1.0)  # knee-high box 1.1 m ahead
+    p = _plan(box)
+    pos = [2.0, 1.6, 0.9]
+    g = nav.Ghosts(need_seen=True)
+    blind = nav.priors(p, pos, 0.0, [math.inf] * 3, hfov_deg=60, speed_mps=1.0, ghosts=g)
+    assert blind.contact_s > 2.5  # never seen this walk: no contact with it
+    nav.priors(p, pos, 0.0, [1.15] * 3, hfov_deg=60, speed_mps=1.0, ghosts=g)  # seen there
+    assert g.seen
+    seen = nav.priors(p, pos, 0.0, [1.15] * 3, hfov_deg=60, speed_mps=1.0, ghosts=g)
+    assert seen.contact_s < nav.CONTACT_S
+    cmd = [(0, 0)] * 8
+    nav.apply(cmd, seen, [9.0] * 8, hidden=False)
+    assert cmd[0][0] in (MODES["fast"], MODES["solid"])  # the contact ahead, from the map alone

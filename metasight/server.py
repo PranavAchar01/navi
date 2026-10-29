@@ -165,6 +165,7 @@ class Server:
         self.route_key: tuple | None = None
         self.motion: deque[tuple[float, np.ndarray, float]] = deque(maxlen=30)  # (t, pos, yaw)
         self.priors_off_until = 0.0
+        self.ghosts = nav.Ghosts(need_seen=True)  # map cells live depth confirmed or saw through
         self.cam_aspect = 9 / 16  # width over height of the frames memory solves
         # Phone mode: ARKit tracks every frame, and each memory pose for a tracked frame ties
         # ARKit's world to the map's, so the map pose is current between windows.
@@ -456,7 +457,7 @@ class Server:
                 # Shadow mode (lead, 02:05): priors are logged, not applied, until path-gating
                 # and ghost clearing are scored against the ground-truth labels.
                 shadow = [list(c) for c in cmd]
-                did = nav.apply(shadow, pri, merged)
+                did = nav.apply(shadow, pri, merged, off_path="none", hidden=False)
                 changed = any(did.values())
                 priors_did = {**did, "ms": round(pri.ms, 2), "shadow": True}
                 if changed:  # the command the priors would have sent, for replays
@@ -709,6 +710,7 @@ class Server:
         if self.motion and float(np.linalg.norm(pos - self.motion[-1][1])) > RETIE_M:
             self.motion.clear()
             self.priors_off_until = now + 1.0
+            self.ghosts = nav.Ghosts(need_seen=True)  # the map moved under us: start over
         self.motion.append((now, pos.copy(), yaw))
         if now < self.priors_off_until:
             return None
@@ -732,6 +734,7 @@ class Server:
             0.05 + speed * (now - self.pose_ts()),
             self.s.eye_height_m,
             min(80.0, max(10.0, vfov / 2 + pitch)),
+            self.ghosts,
         )
 
     def pose_ts(self) -> float:
