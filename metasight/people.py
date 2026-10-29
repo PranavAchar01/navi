@@ -47,6 +47,7 @@ SPEAK_MIN = 0.35
 DOA_SIGMA_DEG = 18.0
 CUE_NEW_DEG = 40.0  # a cue this far from the last one is a new talker, not a repeat
 DOA_OVERRIDE_DEG = 35.0  # a speaker this far from the heard direction is not the one to turn to
+DOA_FACING_GAP_DEG = 20.0  # the same, when the lip-picked face is already ahead (no turn cue)
 STICKY_S = 1.0  # the speaker is held this long after the evidence thins
 
 
@@ -321,9 +322,14 @@ class Conversation:
             tr = next((x for x in tracks if x.id == self.speaker), None)
             if tr is not None:
                 target = (self.speaker, self.bearing(tr.box))
-                if doa_deg is not None and abs(target[1] - doa_deg) > DOA_OVERRIDE_DEG:
+                gap = None if doa_deg is None else abs(target[1] - doa_deg)
+                if gap is not None and (
+                    gap > DOA_OVERRIDE_DEG
+                    or (gap > DOA_FACING_GAP_DEG and bearing_cue(target[1]) is None)
+                ):
                     # A mouth that moved in front of the wearer, but the voice comes from the
-                    # side: the direction heard outranks a lip match.
+                    # side: the direction heard outranks a lip match. A face already ahead gives
+                    # no cue at all, so a voice well off to the side must not be left silent.
                     target = (None, doa_deg)
         if target is None and voice and doa_deg is not None:
             # A steady voice direction nobody was called for: from where nobody is in view, or

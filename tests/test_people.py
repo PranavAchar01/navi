@@ -205,6 +205,22 @@ def test_voice_from_the_side_outranks_a_mouth_moving_ahead():
     assert cues and cues[0]["turn"] == "right"
 
 
+def test_voice_well_off_to_the_side_cues_even_when_the_moving_mouth_is_nearly_ahead():
+    """A face about 9 degrees right moves its mouth; the voice is at 39. Facing it gives no cue,
+    so the heard direction has to be the one that turns the wearer."""
+    rng = np.random.default_rng(8)
+    base = rng.integers(60, 200, size=(480, 640)).astype(np.uint8)
+    conv = Conversation(hfov_deg=90.0)
+    near = (0.5, 0.1, 0.7, 0.9)
+    cues = []
+    for k in range(40):
+        g = base.copy()
+        g[86:125, 350:426] = rng.integers(0, 255, size=(39, 76))
+        ev = conv.step(k / 15, [Det(near, 0.9, 2.0)], g, voice=True, doa_deg=39.0)
+        cues += [ev["cue"]] if ev["cue"] and k >= 4 else []
+    assert cues and cues[0]["turn"] == "right"
+
+
 def test_steady_voice_near_a_face_that_is_not_read_still_cues():
     """Someone stands where the voice is but the mouth gives nothing: the cue still turns."""
     rng = np.random.default_rng(6)
