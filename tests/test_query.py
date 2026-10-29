@@ -1,5 +1,6 @@
 import numpy as np
 
+from metasight.config import Settings
 from metasight.pins import Pin, PinStore
 from metasight.query import (
     asked_for,
@@ -196,6 +197,7 @@ def test_a_never_seen_wallet_is_not_answered_with_the_handbag():
         pose=None,
         map_pose_ts=0.0,
         guide=None,
+        s=Settings(),
     )
     text = Server._answer_sync(srv, "where is my wallet")["text"]
     assert text.startswith("I haven't seen your wallet.") and "handbag" in text
@@ -219,6 +221,7 @@ def test_plural_shoes_answer_with_the_shoe_not_the_bed():
         pose=None,
         map_pose_ts=0.0,
         guide=None,
+        s=Settings(),
     )
     res = Server._answer_sync(srv, "Where are my shoes?")
     assert res["label"] == "shoe" and "sink" in res["text"] and "bed" not in res["text"]
@@ -239,6 +242,7 @@ def test_a_model_guess_is_only_offered_as_a_maybe():
         pose=None,
         map_pose_ts=0.0,
         guide=None,
+        s=Settings(),
     )
     text = Server._answer_sync(srv, "where are my sneakers")["text"]
     assert text.startswith("I haven't seen your sneakers.") and "maybe" in text
@@ -277,6 +281,7 @@ def test_a_live_sighting_beats_an_old_memory():
         pose=None,
         map_pose_ts=0.0,
         guide=None,
+        s=Settings(),
         live_seen=(time.time(), [("laptop", 3.0, 1.4)]),
         live_last={},
     )
@@ -316,6 +321,7 @@ def test_a_weak_glimpse_this_walk_is_offered_as_a_maybe():
         pose=None,
         map_pose_ts=0.0,
         guide=None,
+        s=Settings(),
         live_seen=(0.0, []),
         live_last={},
     )

@@ -9,6 +9,7 @@ from types import SimpleNamespace
 
 import numpy as np
 
+from metasight.config import Settings
 from metasight.heading import Heading
 from metasight.memory import HOME_ID
 from metasight.pins import Pin, PinStore
@@ -23,6 +24,7 @@ def server(pose_age_s: float, pins: list[Pin], ar_age_s: float = float("inf")):
     now = time.time()
     srv = SimpleNamespace(
         pins=store,
+        s=Settings(),
         heading=heading,
         map_pose_ts=now - pose_age_s,
         ar_pose_ts=now - ar_age_s,
@@ -177,3 +179,65 @@ def test_a_never_seen_thing_is_wanted_so_the_camera_looks_for_it():
 
     assert asyncio.run(run()) == {"cmd": "want", "label": "umbrella", "new": True}
     assert sent[-1]["text"] == res["text"]
+
+
+def saved_keys(score: float, source: str = "yoloe-26l-seg") -> Pin:
+    """Shaped like the saved house's keys pin 100015, which is the keyboard."""
+    t = time.time() - 9 * 3600
+    return Pin(HOME_ID + 15, "keys", "object", [2.0, 0.0, 2.0], t, t - 600, 13, score,
+               ["sink", "TV"], source=source, layer="carried")  # fmt: skip
+
+
+def ask_keys(srv):
+    """The answer event as it goes out, and the guide it left."""
+    srv.language, srv.live_last, srv.pose = SimpleNamespace(name="template"), {}, None
+    sent = []
+
+    async def json(ev, *_):
+        sent.append(ev)
+
+    async def set_activity(*_, **__):
+        pass
+
+    async def run():
+        srv.loop = asyncio.get_running_loop()
+        srv.map_loaded = asyncio.Event()
+        srv.map_loaded.set()
+        srv.hub, srv.in_q, srv.braille = SimpleNamespace(json=json), queue.Queue(), None
+        srv.onboarding, srv.notes = SimpleNamespace(active=False), SimpleNamespace(recording=False)
+        srv.known_labels, srv.set_activity = lambda: ["keys"], set_activity
+        srv.can_point = lambda g, now: Server.can_point(srv, g, now)
+        done = srv.loop.create_future()
+        done.set_result(Server._answer_sync(srv, "where are my keys"))
+        return await Server.answer(srv, "where are my keys", pending=done)
+
+    asyncio.run(run())
+    return sent[-1]
+
+
+def test_a_weak_local_keys_pin_sam_never_saw_is_a_glimpse_with_no_route():
+    """Pin 100015: yoloe at 0.19, seen 13 times, never confirmed by SAM 3.1. Find offers it as a
+    maybe, Guide never routes to it, and the saved pin itself is left exactly as it was."""
+    pin = saved_keys(0.19)
+    before = pin.to_json()
+    srv, now = server(5.0, [pin])
+    srv.guide = None
+    ev = ask_keys(srv)
+    assert ev["text"].startswith("I think I glimpsed your keys by the sink")
+    assert ev["pin_id"] == pin.id and ev["confirmed"] is False
+    assert srv.guide is None and NO_DIRECTION not in ev["text"]
+    # A guide already running for keys does not switch onto it either.
+    srv.guide = {"pin": None, "label": "keys", "until": now + 90.0}
+    assert Server._guide_pin(srv, srv.guide) is None
+    assert pin.to_json() == before
+
+
+def test_a_sure_or_sam_confirmed_keys_pin_is_answered_and_routed_as_before():
+    for pin in (saved_keys(0.6), saved_keys(0.19, source="sam-3.1")):
+        srv, now = server(5.0, [pin])
+        srv.guide = None
+        ev = ask_keys(srv)
+        assert ev["text"].startswith("Your keys were last seen near the sink"), ev["text"]
+        assert ev["pin_id"] == pin.id and ev["confirmed"] is True
+        assert srv.guide["pin"] == pin.id
+        assert guide(srv, now)["bearing"] is not None

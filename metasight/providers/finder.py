@@ -296,6 +296,14 @@ class Sam31Finder:
 
 
 LOCAL_KEEP = 0.3  # a local hit on a personal item this sure stands even when SAM misses it
+
+
+def confirmed(score: float, source: str) -> bool:
+    """A personal-item sighting that stands: SAM 3.1 named it, or the local model was sure.
+    (SAM's own floor is 0.4, so a SAM sighting folded into a weak pin lifts it past this.)"""
+    return score >= LOCAL_KEEP or source == Sam31Finder.name
+
+
 # SAM 3.1 is billed per image and concept, so it looks only for an item the wearer just asked
 # for (and is being guided to), for this long; the house memory runs on the local model alone.
 WANT_S = 90.0

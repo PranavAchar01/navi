@@ -46,7 +46,7 @@ from .loops import (
     turn_deg,
 )
 from .pins import PinStore, layer_of
-from .providers.finder import LANDMARKS, Finder, Sam31Finder
+from .providers.finder import LANDMARKS, Finder, Sam31Finder, confirmed
 
 # A pin that rests on SAM 3.1 alone needs a second sweep to agree, this soon and this close in
 # the map: one box SAM draws round a whole keyboard for "keys" would walk the wearer to the desk.
@@ -498,6 +498,8 @@ class MemoryEngine:
                     and not self._sam_agrees(det.label, pos, ts)
                 ):
                     continue
+                if det.label in self.s.meta_items and not confirmed(det.score, det.source):
+                    continue  # the local model alone (no SAM key, finder = yoloe) is unsure
                 self._observe(
                     w,
                     pos,

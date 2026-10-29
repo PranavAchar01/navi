@@ -20,14 +20,14 @@ def engine(where: dict):
         [],
         [],
     )
-    e.pins, e.s = PinStore(), type("S", (), {"watchlist": ["keys"]})()
+    e.pins, e.s = PinStore(), type("S", (), {"watchlist": ["keys"], "meta_items": ["keys"]})()
     e._locate = lambda placed, box: where[box]
     e._near_landmarks = lambda pos, label: []
     return e
 
 
-def sweep(e, ts: float, dets: list[Detection]) -> None:
-    e.finder = type("F", (), {"find": lambda self, bgr, labels: dets, "name": "yoloe + sam-3.1"})()
+def sweep(e, ts: float, dets: list[Detection], finder: str = "yoloe + sam-3.1") -> None:
+    e.finder = type("F", (), {"find": lambda self, bgr, labels: dets, "name": finder})()
     kf = Keyframe(int(ts), ts, FRAME, None, 1.0, None, [], None)
     e._pin_detections(_Placed(kf, None, None, np.eye(4)), run_finder=True)
 
@@ -69,3 +69,18 @@ def test_a_sam_box_backed_by_a_sure_local_hit_and_local_hits_pin_at_once():
     e = engine({A: [1.0, 0.0, 2.0], B: [3.0, 0.0, 2.0]})
     sweep(e, 100.0, [keys(A, backed=True), Detection("wallet", 0.5, B, "yoloe-26l-seg")])
     assert sorted(p.label for p in e.pins.pins.values()) == ["keys", "wallet"]
+
+
+def test_the_local_model_alone_pins_a_personal_item_only_when_sure():
+    """finder = yoloe, or hybrid with no SAM key: the saved house's "keys" pin was the keyboard
+    at 0.19 this way. A weak local hit on a personal item pins nothing; other things still do."""
+    C = (2.0, 2.0, 12.0, 12.0)
+    e = engine({A: [1.0, 0.0, 2.0], B: [3.0, 0.0, 2.0], C: [5.0, 0.0, 2.0]})
+    weak = Detection("keys", 0.19, A, "yoloe-26l-seg")
+    sure = Detection("keys", 0.35, B, "yoloe-26l-seg")
+    cup = Detection("cup", 0.19, C, "yoloe-26l-seg")
+    sweep(e, 100.0, [weak, sure, cup], finder="yoloe-26l-seg")
+    assert sorted((p.label, p.score) for p in e.pins.pins.values()) == [
+        ("cup", 0.19),
+        ("keys", 0.35),
+    ]
