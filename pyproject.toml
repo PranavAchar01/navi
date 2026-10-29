@@ -16,6 +16,7 @@ dependencies = [
   "websockets",
   "openai",
   "meta-sam-parser",
+  "silero-vad",
 ]
 
 [dependency-groups]

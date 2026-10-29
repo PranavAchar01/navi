@@ -29,6 +29,7 @@ from pydantic import BaseModel
 from .align import map_resolution
 from .belt import FLAG_FOUND, NAMES, BeltLink, guide, plan
 from .config import ROOT, Settings
+from .conversation import Talk
 from .geometry import CAMERA_SECTORS, SECTORS, merge_sectors
 from .haptics import make_output
 from .heading import Heading, wrap
@@ -76,6 +77,7 @@ class Server:
         self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="safety")
         self.llm_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="llm")
         self.fall, self.shake = FallDetector(), ShakeDetector()
+        self.talk = Talk(settings.hfov_deg)
         self.motion_t = 0.0
         self.accel: deque[np.ndarray] = deque(maxlen=40)
         self.pose = None
@@ -135,6 +137,7 @@ class Server:
         """Frames now come from `sock`: use the lens it reported (an iPhone measures its own),
         else the profile's (the glasses report none)."""
         self.source_ws = sock
+        self.talk.reset()
         hfov = self.lenses.get(sock, self.profile_hfov)
         if hfov == self.s.hfov_deg:
             return
@@ -317,6 +320,8 @@ class Server:
             map_fresh = self.memory_ready and self.map_pose_ts and now - self.map_pose_ts < 3.0
             known = [n in CAMERA_SECTORS or bool(map_fresh) for n in SECTORS]
             cmd, flags = plan(merged, known, sc.path_m, res.ttc_s, sc.drop_m)
+            people = self.talk.frame(now, res.obstacles, small, self.heading)
+            cmd = self.talk.overlay(cmd, now)
             # The heading is carried between poses, so guidance tolerates an older position.
             guide_fresh = self.memory_ready and now - self.map_pose_ts < POSE_FRESH_S
             guiding = self._guide(cmd, now, bool(guide_fresh), res.obstacles)
@@ -335,6 +340,9 @@ class Server:
             if not (self.braille and self.braille.owns_belt):  # a Braille cue on the belt wins
                 self.belt.send(cmd, flags, arrived)
             await self.hub.frame(seq, jpeg, self.source_ws)
+            await self.hub.json(people, True)
+            if people["cue"]:
+                await self.hub.json({"type": "speaker_cue", **people["cue"]})
             await self.hub.json(
                 {
                     "type": "safety",
@@ -681,6 +689,8 @@ def create_app(settings: Settings | None = None, session: str | None = None) -> 
                         await srv.on_motion(m["s"])
                     elif kind == "ask":
                         asyncio.create_task(srv.answer(m["text"]))
+                    elif kind == "audio":
+                        srv.talk.audio(m, time.time())
                     elif kind == "camera":
                         srv.on_camera(sock, m)
                     elif kind == "arpose":  # the phone's own tracked pose, kept with its walk
