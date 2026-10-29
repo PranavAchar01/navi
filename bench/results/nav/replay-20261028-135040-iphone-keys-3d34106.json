@@ -1,0 +1,108 @@
+{
+ "walk": "20261028-135040-iphone",
+ "question": "where are my keys",
+ "frames": 970,
+ "minutes": 1.23,
+ "priors_active_frames": 852,
+ "priors_changed_frames": 0,
+ "priors_did": {
+  "hidden": 0,
+  "calm": 0,
+  "new": 0,
+  "contact": 0
+ },
+ "priors_ms": {
+  "p50": 0.18,
+  "p95": 0.26
+ },
+ "with_priors": {
+  "onsets_per_min": 13.1,
+  "short_buzz_per_min": 1.6
+ },
+ "without_priors": {
+  "onsets_per_min": 13.1,
+  "short_buzz_per_min": 1.6
+ },
+ "raised_then_seen": {
+  "raised": 0,
+  "seen_within_3s": 0
+ },
+ "asked_at_s": [
+  3.04,
+  6.1,
+  9.2,
+  12.25,
+  15.3,
+  18.4,
+  21.5,
+  24.6,
+  27.7,
+  30.75,
+  41.46,
+  44.5,
+  47.56,
+  50.66,
+  53.75,
+  56.85,
+  59.9,
+  62.96,
+  66.06,
+  69.15,
+  72.2
+ ],
+ "answers": [
+  "I haven't seen your keys yet. If they have an AirTag, Find My on your phone can play a sound; or walk past where you left them and ask again.",
+  "I haven't seen your keys yet. If they have an AirTag, Find My on your phone can play a sound; or walk past where you left them and ask again.",
+  "I haven't seen your keys yet. If they have an AirTag, Find My on your phone can play a sound; or walk past where you left them and ask again.",
+  "I haven't seen your keys yet. If they have an AirTag, Find My on your phone can play a sound; or walk past where you left them and ask again.",
+  "I haven't seen your keys yet. If they have an AirTag, Find My on your phone can play a sound; or walk past where you left them and ask again.",
+  "I haven't seen your keys yet. If they have an AirTag, Find My on your phone can play a sound; or walk past where you left them and ask again.",
+  "I haven't seen your keys yet. If they have an AirTag, Find My on your phone can play a sound; or walk past where you left them and ask again.",
+  "I haven't seen your keys yet. If they have an AirTag, Find My on your phone can play a sound; or walk past where you left them and ask again.",
+  "I haven't seen your keys yet. If they have an AirTag, Find My on your phone can play a sound; or walk past where you left them and ask again.",
+  "I haven't seen your keys yet. If they have an AirTag, Find My on your phone can play a sound; or walk past where you left them and ask again.",
+  "I haven't seen your keys yet. If they have an AirTag, Find My on your phone can play a sound; or walk past where you left them and ask again.",
+  "I haven't seen your keys yet. If they have an AirTag, Find My on your phone can play a sound; or walk past where you left them and ask again.",
+  "I haven't seen your keys yet. If they have an AirTag, Find My on your phone can play a sound; or walk past where you left them and ask again.",
+  "I haven't seen your keys yet. If they have an AirTag, Find My on your phone can play a sound; or walk past where you left them and ask again.",
+  "I haven't seen your keys yet. If they have an AirTag, Find My on your phone can play a sound; or walk past where you left them and ask again.",
+  "I haven't seen your keys yet. If they have an AirTag, Find My on your phone can play a sound; or walk past where you left them and ask again.",
+  "I haven't seen your keys yet. If they have an AirTag, Find My on your phone can play a sound; or walk past where you left them and ask again.",
+  "I haven't seen your keys yet. If they have an AirTag, Find My on your phone can play a sound; or walk past where you left them and ask again.",
+  "I haven't seen your keys yet. If they have an AirTag, Find My on your phone can play a sound; or walk past where you left them and ask again.",
+  "I haven't seen your keys yet. If they have an AirTag, Find My on your phone can play a sound; or walk past where you left them and ask again.",
+  "I haven't seen your keys yet. If they have an AirTag, Find My on your phone can play a sound; or walk past where you left them and ask again."
+ ],
+ "guide_frames": 0,
+ "guide_frames_on_route": 0,
+ "guide_frames_shown": 0,
+ "guide_frames_with_stop": 0,
+ "guide_shown_during_stop": 0,
+ "found_frames": 0,
+ "picture": "bench/results/nav-replay-keys.png",
+ "pin": {
+  "id": 100015,
+  "label": "keys",
+  "kind": "object",
+  "pos": [
+   -0.08244584411195383,
+   1.0896211259139754,
+   0.7221238187284006
+  ],
+  "ts": 1793232945.258156,
+  "first_ts": 1793232339.231785,
+  "seen": 13,
+  "score": 0.19308327038597753,
+  "near": [
+   "sink",
+   "TV"
+  ],
+  "thumb": "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",
+  "source": "yoloe-26l-seg",
+  "layer": "carried",
+  "placed": false
+ },
+ "route_m": 0,
+ "route": [],
+ "frames_log": []
+}
