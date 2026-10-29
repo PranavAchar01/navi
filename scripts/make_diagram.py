@@ -74,7 +74,7 @@ box(
     R1,
     BW,
     "4  Map and memory",
-    "MapAnything",
+    "MapAnything + DINOv2",
     ["3D map of the house,", "pins: what, where,", "when, what was near"],
     "map window 19.6 s",
 )
@@ -96,9 +96,9 @@ box(
     "8  Answer",
     "speech, lens, haptics",
     [
-        "one sentence read out in the glasses or phone,",
-        "the pin lit up on the screen, and the belt",
-        "buzzes toward obstacles (server to motor 38-56 ms)",
+        "one sentence read out in the glasses or phone and",
+        "the pin lit up. Belt: stop layer for anything",
+        "under 1 m always beats the guide toward the item",
     ],
     "last word to answer 871 ms",
     True,
@@ -109,7 +109,7 @@ box(
     BW + 40,
     "7  Muse Spark 1.3",
     "phrases from the facts",
-    ["starts on the first", "partial words; Glimmer", "30B on the Mac if offline"],
+    ["starts on partial words;", "people questions use", "tools; Glimmer offline"],
     "first word 0.7 to 1.0 s",
     True,
 )
