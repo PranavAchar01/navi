@@ -1,0 +1,92 @@
+{
+ "20261028-114228-iphone sector persist=1": {
+  "minutes": 1.56,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.375
+ },
+ "20261028-114228-iphone sector persist=2": {
+  "minutes": 1.56,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.375
+ },
+ "20261028-114228-iphone sector persist=3": {
+  "minutes": 1.56,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.375
+ },
+ "20261028-114228-iphone panned persist=1": {
+  "minutes": 1.56,
+  "transient_per_min": 59.8,
+  "on_fraction": 0.208
+ },
+ "20261028-114228-iphone panned persist=2": {
+  "minutes": 1.56,
+  "transient_per_min": 51.4,
+  "on_fraction": 0.19
+ },
+ "20261028-114228-iphone panned persist=3": {
+  "minutes": 1.56,
+  "transient_per_min": 36.6,
+  "on_fraction": 0.183
+ },
+ "20261028-114405-iphone sector persist=1": {
+  "minutes": 0.41,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.375
+ },
+ "20261028-114405-iphone sector persist=2": {
+  "minutes": 0.41,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.375
+ },
+ "20261028-114405-iphone sector persist=3": {
+  "minutes": 0.41,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.375
+ },
+ "20261028-114405-iphone panned persist=1": {
+  "minutes": 0.41,
+  "transient_per_min": 58.4,
+  "on_fraction": 0.212
+ },
+ "20261028-114405-iphone panned persist=2": {
+  "minutes": 0.41,
+  "transient_per_min": 46.2,
+  "on_fraction": 0.192
+ },
+ "20261028-114405-iphone panned persist=3": {
+  "minutes": 0.41,
+  "transient_per_min": 36.5,
+  "on_fraction": 0.188
+ },
+ "20261028-135040-iphone sector persist=1": {
+  "minutes": 1.24,
+  "transient_per_min": 16.9,
+  "on_fraction": 0.266
+ },
+ "20261028-135040-iphone sector persist=2": {
+  "minutes": 1.24,
+  "transient_per_min": 13.7,
+  "on_fraction": 0.259
+ },
+ "20261028-135040-iphone sector persist=3": {
+  "minutes": 1.24,
+  "transient_per_min": 13.7,
+  "on_fraction": 0.253
+ },
+ "20261028-135040-iphone panned persist=1": {
+  "minutes": 1.24,
+  "transient_per_min": 66.8,
+  "on_fraction": 0.13
+ },
+ "20261028-135040-iphone panned persist=2": {
+  "minutes": 1.24,
+  "transient_per_min": 54.8,
+  "on_fraction": 0.112
+ },
+ "20261028-135040-iphone panned persist=3": {
+  "minutes": 1.24,
+  "transient_per_min": 45.1,
+  "on_fraction": 0.104
+ }
+}

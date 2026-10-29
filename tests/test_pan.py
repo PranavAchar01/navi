@@ -39,3 +39,30 @@ def test_plan_pan_keeps_unknown_sectors_silent_and_flags_drop():
 def test_simulated_walker_reaches_the_goal_in_a_seeded_room():
     r = h.run(h.make_room(1000), h.Belt(), h.DEFAULT_SKIN, seed=0)
     assert r.time_s > 0 and r.collisions >= 0
+
+
+def test_guide_is_panned_over_two_motors_faint_on_track_and_below_obstacle_cues():
+    on_track = pan.guide_cmd(4.0)
+    assert [i for _, i in on_track].count(0) == 7 and on_track[0] == (MODES["guide"], 90)
+    turn = pan.guide_cmd(60.0)
+    lit = [(m, i) for m, i in turn if i]
+    assert len(lit) == 2 and all(m == MODES["guide"] for m, _ in lit)
+    assert max(i for _, i in turn) < 204  # a close obstacle cue is at least 204
+
+
+def test_stop_overrides_guide_and_fast_cues_are_never_replaced():
+    solid = [(MODES["off"], 0)] * 8
+    solid[4] = (MODES["solid"], 255)
+    out, shown = pan.with_guide(solid, 90.0)
+    assert out == solid and not shown  # silent everywhere while something is about to be hit
+    fast = [(MODES["off"], 0)] * 8
+    fast[2] = (MODES["fast"], 220)
+    out, shown = pan.with_guide(fast, 90.0)
+    assert out[2] == (MODES["fast"], 220) and shown is False
+
+
+def test_persist_filter_drops_a_one_frame_phantom_but_passes_a_real_obstacle():
+    f = pan.Persist(2)
+    assert f([3.0, 3.0]) == [3.0, 3.0]
+    assert f([0.5, 3.0]) == [3.0, 3.0]  # first frame near: not yet
+    assert f([0.5, 3.0]) == [0.5, 3.0]  # second frame near: now it counts

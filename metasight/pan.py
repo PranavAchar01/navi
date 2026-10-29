@@ -17,6 +17,7 @@ a second object closer than `sep_deg` to the winner is read as part of it and dr
 from __future__ import annotations
 
 import math
+from collections import deque
 from dataclasses import dataclass, replace
 
 from .belt import MODES
@@ -194,6 +195,66 @@ def scene_targets(
         if ok and math.isfinite(d) and abs(centre) > half:
             out.append(Target(centre, d))
     return out
+
+
+class Persist:
+    """Depth strips must stay near for `n` frames in a row before they count: each strip reports the
+    farthest of its last n readings, so a one-frame phantom never reaches a motor. A real obstacle
+    is delayed by (n - 1) sensor frames."""
+
+    def __init__(self, n: int = 1):
+        self.n = max(1, n)
+        self.hist: deque[list[float]] = deque(maxlen=self.n)
+
+    def __call__(self, strips: list[float]) -> list[float]:
+        self.hist.append(list(strips))
+        return [max(col) for col in zip(*self.hist, strict=True)]
+
+
+GUIDE_ALIGNED_DEG = 10.0
+GUIDE_SOFT, GUIDE_FIRM = 90, 170  # drive 0..255: always below the obstacle cues (>= 204 close in)
+
+
+def guide_cmd(bearing_deg: float) -> list[tuple[int, int]]:
+    """The Guide cue for a waypoint at `bearing_deg` (positive right, as `nav.Guidance`): the
+    "guide" pattern (two soft taps a second, unlike every obstacle pattern) on the two motors
+    nearest the bearing, linear panning. Aligned within 10 degrees: the front motor alone, faint
+    ("on track"). The further round the turn, the firmer, 90 up to 170 of 255, so it never
+    reaches the strength of a close obstacle."""
+    cmd = [(MODES["off"], 0)] * N
+    b = bearing_deg % 360.0
+    if abs(wrap(bearing_deg)) <= GUIDE_ALIGNED_DEG:
+        cmd[0] = (MODES["guide"], GUIDE_SOFT)
+        return cmd
+    amp = GUIDE_SOFT + (GUIDE_FIRM - GUIDE_SOFT) * min(1.0, abs(wrap(bearing_deg)) / 90.0)
+    a, ga, c, gc = pan_gains(b, "linear")
+    for m, g in ((a, ga), (c, gc)):
+        if g > 0.05:
+            cmd[m] = (MODES["guide"], int(round(amp * g)))
+    return cmd
+
+
+def with_guide(
+    cmd: list[tuple[int, int]], bearing_deg: float, override: bool = True
+) -> tuple[list[tuple[int, int]], bool]:
+    """Overlay the Guide cue on an obstacle command; returns (new command, guide shown).
+
+    Stop always overrides Guide: while any motor is solid (something about to be touched) Guide is
+    silent everywhere, so the wearer feels one message. Otherwise Guide only takes motors that are
+    off, unknown or on the slow far-field pulse; a fast cue is never replaced.
+    `override=False` exists for the simulator's control arm only."""
+    if override and any(m == MODES["solid"] for m, _ in cmd):
+        return list(cmd), False
+    out = list(cmd)
+    g = guide_cmd(bearing_deg)
+    shown = False
+    for i, (gm, gi) in enumerate(g):
+        if gm == MODES["off"]:
+            continue
+        if not override or out[i][0] in (MODES["off"], MODES["unknown"], MODES["slow"]):
+            out[i] = (gm, gi)
+            shown = True
+    return out, shown
 
 
 def with_params(p: Params, **kw) -> Params:

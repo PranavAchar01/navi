@@ -45,7 +45,7 @@ def stereo_gains(i: int) -> tuple[float, float]:
 
 def frequency(i: int, mode: int = MODES["solid"]) -> float:
     f = BASE_HZ * 2 ** (FRONT_BACK_OCTAVES * math.cos(math.radians(angle_deg(i))))
-    return f * GUIDE_RATIO if mode == MODES["guide"] else f
+    return f * GUIDE_RATIO if mode in (MODES["guide"], MODES["find"], MODES["talk"]) else f
 
 
 def amplitude(duty: int) -> float:
@@ -60,6 +60,8 @@ def duty_at(mode: int, inten: int, t_s: float) -> int:
         MODES["fast"]: ms % 250 < 125,
         MODES["solid"]: True,
         MODES["guide"]: ms % 1000 < 70 or 150 <= ms % 1000 < 220,
+        MODES["find"]: ms % 400 < 40,
+        MODES["talk"]: ms % 1500 < 50 or 130 <= ms % 1500 < 180 or 260 <= ms % 1500 < 310,
     }.get(mode, False)
     return inten if on else 0
 

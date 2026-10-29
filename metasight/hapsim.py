@@ -57,6 +57,8 @@ class Belt:
     fast_hz: float = 4.0
     latency_s: float = 0.080
     spinup_s: float = 0.075
+    guide: str = "none"  # none | on | no_override: a waypoint cue (pan.with_guide)
+    persist: int = 1  # frames a strip must stay near (pan.Persist); 1 = off
 
 
 @dataclass(frozen=True)
@@ -66,6 +68,7 @@ class Skin:
     loc_sd_deg: float = 6.0
     adapt_max: float = 0.30
     adapt_s: float = 20.0
+    nav_drift_deg: float = 0.0  # walker's waypoint sense drift per sqrt(s); 0 = knows the way
 
 
 DEFAULT_SKIN = Skin()
@@ -214,7 +217,14 @@ def sense(room: Room, x, y, heading, rng) -> tuple[list[float], list[float]]:
     )
 
 
-def command(belt: Belt, strips, sectors, ttc) -> list[tuple[int, int]]:
+def command(belt: Belt, strips, sectors, ttc, goal_b: float = 0.0) -> list[tuple[int, int]]:
+    cmd = _obstacle_cmd(belt, strips, sectors, ttc)
+    if belt.guide != "none":
+        cmd, _ = pan.with_guide(cmd, goal_b, override=belt.guide == "on")
+    return cmd
+
+
+def _obstacle_cmd(belt: Belt, strips, sectors, ttc) -> list[tuple[int, int]]:
     inf = math.inf
     if belt.scheme == "sector":
         # The original: eight sector distances, front three from the camera, one motor each.
@@ -241,6 +251,10 @@ def duty(mode: int, inten: int, t: float, belt: Belt) -> float:
         on = (t % per) < per / 2
     elif mode == MODES["solid"]:
         on = True
+    elif mode == MODES["find"]:
+        on = (t % 0.4) < 0.04
+    elif mode == MODES["talk"]:
+        on = (t % 1.5) < 0.05 or 0.13 <= (t % 1.5) < 0.18 or 0.26 <= (t % 1.5) < 0.31
     elif mode == MODES["guide"]:
         on = (t % 1.0) < 0.07 or 0.15 <= (t % 1.0) < 0.22
     else:
@@ -384,6 +398,8 @@ def run(
     want, speed, last_speed, last_sense = 0.0, 0.0, 0.0, -1.0
     k_rise = 1 - math.exp(-DT / belt.spinup_s)
     lag = int(REACT_S / DT)
+    persist = pan.Persist(belt.persist)
+    drift = 0.0
     n = 0
     fb, prev_on = 0, [False] * 8
     while t < max_s:
@@ -398,18 +414,25 @@ def run(
                     float(rng.uniform(0.4, 1.8)) if rng.random() < phantom_rate else d
                     for d in strips
                 ]
-            cmd = command(belt, strips, sectors, ttc)
+            gb = wrap_deg(-math.degrees(math.atan2(wps[wi][1] - y, wps[wi][0] - x) - heading))
+            cmd = command(belt, persist(strips), sectors, ttc, gb)
             # False buzz = a motor turns on while nothing real is within range of its 90 degree
             # span (its own sector and the strips that face it).
             on = [i > 0 for _, i in cmd]
             for m in range(8):
-                if on[m] and not prev_on[m] and not _real_near(truth, m, belt.mapping.off_m):
+                if (
+                    on[m]
+                    and not prev_on[m]
+                    and not _real_near(
+                        truth, m, belt.mapping.off_m if belt.scheme == "panned" else 2.0
+                    )
+                ):
                     fb += 1
             prev_on = on
             pending.append((t + belt.latency_s, cmd))
         while pending and pending[0][0] <= t:
             live = pending.popleft()[1]
-        drive = np.array([duty(m, i, t, belt) for m, i in live])
+        drive = np.array([0.0 if m == MODES["guide"] else duty(m, i, t, belt) for m, i in live])
         felt.amp += (drive - felt.amp) * k_rise
         felt.adapt += np.where(felt.amp > skin.floor, DT / skin.adapt_s, -2 * DT / skin.adapt_s)
         felt.adapt = np.clip(felt.adapt, 0, 1)
@@ -418,7 +441,19 @@ def run(
             h = list(felt.hist)
             win = np.array(h[: max(1, len(h) - lag)][-int(WINDOW_S / DT) :])
             gx, gy = wps[wi]
-            goal_b = wrap_deg(-math.degrees(math.atan2(gy - y, gx - x) - heading))
+            goal_true = wrap_deg(-math.degrees(math.atan2(gy - y, gx - x) - heading))
+            # The walker's own sense of where the next waypoint is drifts without a cue (dead
+            # reckoning, skin.nav_drift_deg per sqrt(s)); a felt Guide cue resets it to the
+            # cue's bearing.
+            if skin.nav_drift_deg > 0:
+                drift += rng.normal(0, skin.nav_drift_deg * math.sqrt(0.1))
+            gm = [(k, i) for k, (m, i) in enumerate(live) if m == MODES["guide"] and i > 0]
+            if gm:
+                w = sum(i for _, i in gm)
+                ang = sum(((k if k <= 4 else k - 8) * 45.0) * i for k, i in gm) / w
+                if skin.nav_drift_deg > 0:
+                    drift = wrap_deg(ang + rng.normal(0, skin.loc_sd_deg) - goal_true)
+            goal_b = wrap_deg(goal_true + drift)
             was = side
             want, speed, side = steer(perceive(win, belt, skin, rng), goal_b, belt, side)
             if side and not was:
