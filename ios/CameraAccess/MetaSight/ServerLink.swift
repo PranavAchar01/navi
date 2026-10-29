@@ -441,8 +441,10 @@ struct WarningFilter {
     }
   }
 
-  /// How long the cue must stay below the shown zone before it drops one step.
-  static let fall: TimeInterval = 0.6
+  /// How long the cue must stay below the shown zone before it drops one step. Stop lets
+  /// go sooner: it rises in 0.15 s if the obstacle comes back, and a held Stop on a noisy
+  /// stream turns the lens red for half the walk.
+  static func fall(_ band: ProximityBand) -> TimeInterval { band == .stop ? 0.3 : 0.6 }
   /// The number inside a zone changes at most this often.
   static let numberHold: TimeInterval = 1
   /// Messages arrive about every 60 ms; a hold that is due within a millisecond is due.
@@ -477,7 +479,7 @@ struct WarningFilter {
     } else if rawBand < band {
       let since = belowSince ?? now
       belowSince = since
-      if now.timeIntervalSince(since) >= Self.fall - Self.slack {
+      if now.timeIntervalSince(since) >= Self.fall(band) - Self.slack {
         band = max(ready, ProximityBand(rawValue: band.rawValue - 1) ?? .clear)
         belowSince = rawBand < band ? now : nil
       }

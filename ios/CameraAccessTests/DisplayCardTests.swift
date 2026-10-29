@@ -87,6 +87,17 @@ final class DisplayCardTests: XCTestCase {
     try? image.pngData()?.write(to: out)
   }
 
+  /// An amber obstacle under an answer still shows on the lens, as an edge bar on its side.
+  @MainActor func testAnswerKeepsTheWarningAsAnEdge() {
+    let fast = ProximityWarning(sector: 7, distance: 0.8, band: .fast)
+    let card = DisplayCard.make(warning: fast, guide: nil, answer: note)
+    XCTAssertEqual(card.glyph, .pin)
+    XCTAssertEqual(card.edge, .obstacle(bearing: 315, band: .fast))
+    let out = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+      .appendingPathComponent("build/cards/answer-edge.png")
+    try? GlassesDisplay.image(for: card).pngData()?.write(to: out)
+  }
+
   func testUrgencyRanksCards() {
     let slow = DisplayCard.make(warning: ProximityWarning(sector: 0, distance: 2, band: .slow), guide: nil, answer: nil)
     let fast = DisplayCard.make(warning: ProximityWarning(sector: 0, distance: 0.7, band: .fast), guide: nil, answer: nil)

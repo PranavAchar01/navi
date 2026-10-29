@@ -29,9 +29,9 @@ final class WarningFilterTests: XCTestCase {
     f.update(w(.stop, 0.3), now: t0)
     f.update(w(.stop, 0.3), now: t0.addingTimeInterval(0.2))
     XCTAssertEqual(f.update(nil, now: t0.addingTimeInterval(0.3))?.band, .stop)
-    XCTAssertEqual(f.update(nil, now: t0.addingTimeInterval(0.9))?.band, .fast)
-    XCTAssertEqual(f.update(nil, now: t0.addingTimeInterval(1.5))?.band, .slow)
-    XCTAssertNil(f.update(nil, now: t0.addingTimeInterval(2.1)))
+    XCTAssertEqual(f.update(nil, now: t0.addingTimeInterval(0.6))?.band, .fast)
+    XCTAssertEqual(f.update(nil, now: t0.addingTimeInterval(1.2))?.band, .slow)
+    XCTAssertNil(f.update(nil, now: t0.addingTimeInterval(1.8)))
   }
 
   func testTheNumberMovesAtMostOnceASecond() {

@@ -34,6 +34,10 @@ struct DisplayCard: Equatable, Sendable {
   var glyph: Glyph?
   var title: String
   var detail: String?
+  /// An obstacle that is not a Stop while an item card holds the lens: a bar in its zone
+  /// colour along that side of the card, so the warning on the belt and the phone is
+  /// still on the lens.
+  var edge: Glyph?
   static let clear = DisplayCard(glyph: .clear, title: "Clear")
   /// An answer stays up this long when there is no live guide to the item.
   static let answerSeconds: TimeInterval = 12
@@ -65,10 +69,16 @@ struct DisplayCard: Equatable, Sendable {
     warning: ProximityWarning?, guide: GuideTarget?, answer: AnswerNote?, now: Date = Date()
   ) -> DisplayCard {
     if let warning, warning.band == .stop { return obstacle(warning) }
-    if let guide, guide.dist != nil || guide.bearing != nil { return guiding(guide, answer: answer, now: now) }
+    let edge = warning.map { Glyph.obstacle(bearing: Double($0.sector) * 45, band: $0.band) }
+    func edged(_ card: DisplayCard) -> DisplayCard {
+      var card = card
+      card.edge = edge
+      return card
+    }
+    if let guide, guide.dist != nil || guide.bearing != nil { return edged(guiding(guide, answer: answer, now: now)) }
     if let answer, now.timeIntervalSince(answer.at) < answerSeconds {
-      if let guide, guide.label == answer.label { return guiding(guide, answer: answer, now: now) }
-      return answered(answer, now: now)
+      if let guide, guide.label == answer.label { return edged(guiding(guide, answer: answer, now: now)) }
+      return edged(answered(answer, now: now))
     }
     if let warning { return obstacle(warning) }
     if let guide { return guiding(guide, answer: answer, now: now) }
@@ -308,6 +318,15 @@ final class GlassesDisplay {
     return UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: format).image { ctx in
       UIColor.black.setFill()
       ctx.fill(CGRect(x: 0, y: 0, width: side, height: side))
+      if case let .obstacle(bearing, band) = card.edge {
+        let cg = ctx.cgContext
+        cg.saveGState()
+        cg.translateBy(x: side / 2, y: side / 2)
+        cg.rotate(by: CGFloat(bearing) * .pi / 180)
+        band.lensColor.setFill()
+        UIBezierPath(roundedRect: CGRect(x: -side * 0.22, y: -side / 2 + 6, width: side * 0.44, height: 18), cornerRadius: 9).fill()
+        cg.restoreGState()
+      }
       var y = (side - total) / 2
       if let glyph = card.glyph {
         drawGlyph(glyph, color: color, center: CGPoint(x: side / 2, y: y + glyphHeight / 2), in: ctx.cgContext)
