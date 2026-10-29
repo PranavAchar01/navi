@@ -120,3 +120,14 @@ def test_voice_starts_setup():
     assert wants_setup("Let’s set up")
     assert wants_setup("please learn my home")
     assert not wants_setup("where is my water bottle")
+
+
+def test_patterns_light_the_same_motors_as_the_firmware_signatures():
+    from metasight.belt_modes import signature_duty
+    from metasight.onboarding import PATTERNS, pattern_cmd
+
+    for mode, segments in PATTERNS.items():
+        for ms in range(0, 1200, 10):
+            lit = {i for i, c in enumerate(pattern_cmd(segments, ms / 1000)) if c[0]}
+            sig = {i for i, d in enumerate(signature_duty(mode, ms)) if d}
+            assert lit == sig, (mode, ms)

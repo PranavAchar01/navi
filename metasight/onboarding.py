@@ -52,12 +52,21 @@ def item_label(text: str) -> str | None:
 
 
 # A pattern is segments (start s, end s, bearing deg from the front, belt mode, intensity). These
-# are stand-ins in the belt's own vocabulary; set PATTERNS[mode] to replace one with the final one.
+# are the mode-change signatures (belt_modes.signature_duty) as the belt feels them, at level 180.
+_LEVEL = 180
 PATTERNS: dict[str, list[tuple[float, float, float, str, int]]] = {
-    "guide": [(0.0, 0.4, 0, "slow", 200), (0.7, 1.1, 0, "slow", 200)],
-    "find": [(0.0, 0.6, 45, "slow", 170), (0.9, 1.5, 45, "slow", 170)],
-    "talk": [(0.0, 0.5, -60, "slow", 110), (0.7, 1.2, 60, "slow", 110)],
-    "explore": [(i * 0.35, i * 0.35 + 0.3, 90 * i, "slow", 100) for i in range(4)],
+    "guide": [(a, b, 0, "slow", _LEVEL) for a, b in ((0.0, 0.08), (0.16, 0.24), (0.4, 0.8))],
+    "find": [
+        (i * 0.12, (i + 1) * 0.12, b, "slow", _LEVEL)
+        for i, b in enumerate((-90, -45, 0, 45, 90, 90, 45, 0, -45, -90))
+    ],
+    "talk": [
+        (a, b, side, "slow", _LEVEL)
+        for a, b, side in ((0.0, 0.1, -90), (0.2, 0.3, 90), (0.4, 0.5, -90), (0.6, 0.7, 90))
+    ],
+    "explore": [
+        (0.3 * i, 0.3 * i + 0.2, 45 * i + off, "slow", _LEVEL) for i in range(4) for off in (0, 180)
+    ],
 }
 
 
