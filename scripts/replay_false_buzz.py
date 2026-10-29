@@ -1,7 +1,8 @@
 """Transient buzzes on recorded walks, with the real depth stream (no simulated noise).
 
 Walks recorded on the iPhone (data/walks) are run through the safety loop exactly as the server
-does (stage 1, heavy: depth model, cached in bench/results/walk-strips.npz). Stage 2 turns the
+does (stage 1, heavy: depth model with the glasses profile and each walk's lens, cached in
+bench/results/walk-strips.npz). Stage 2 turns the
 cached depth strips into belt commands with the old sector scheme and with panning, with and
 without the persistence filter, and counts TRANSIENT BUZZES: a motor cue that turns on and is
 gone again in under 0.5 s. The walks have no ground truth, so this is a proxy that over- and
@@ -38,14 +39,16 @@ def extract(names: list[str] | None = None) -> None:
     from metasight.config import Settings
     from metasight.safety import SafetyLoop
 
-    s = Settings.load()
-    loop = SafetyLoop(s)
     out: dict[str, np.ndarray] = {}
     walks = [ROOT / "data" / "walks" / n for n in names] if names else WALKS
     if names and CACHE.exists():
         out = {k: v for k, v in np.load(CACHE).items() if k.split("/")[0] not in names}
     for w in walks:
         cam = json.loads((w / "camera.json").read_text())
+        # the live profile and this walk's lens, a fresh loop (its depth scale adapts per walk)
+        s = Settings.load(ROOT / "metasight.glasses.toml")
+        s.hfov_deg = cam.get("hfov", s.hfov_deg)
+        loop = SafetyLoop(s)
         rows = [json.loads(line) for line in (w / "frames.jsonl").read_text().splitlines()]
         ts, strips, sect, path, ttc = [], [], [], [], []
         for r in rows[::STEP]:
@@ -61,6 +64,8 @@ def extract(names: list[str] | None = None) -> None:
             sect.append(res.sectors)
             path.append(res.scene.path_m)
             ttc.append(res.ttc_s)
+        if not ts:  # a walk with no readable frames
+            continue
         k = w.name
         out[f"{k}/ts"] = np.array(ts)
         out[f"{k}/strips"] = np.array(strips)

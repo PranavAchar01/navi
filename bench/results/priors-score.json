@@ -1,23 +1,23 @@
 {
  "20261028-135040-iphone": {
   "source": "bench/events/20261028-135040-iphone-safety.jsonl",
-  "frames_matched": 555,
+  "frames_matched": 549,
   "frames_tracked": 563,
   "minutes": 1.18,
   "changed_frames": 0,
   "priors_off": {
-   "cue_on_pct": 100.0,
+   "cue_on_pct": 99.5,
    "false_buzz_events_per_min": 0.0,
-   "missed_inside_2m_frames": 0,
-   "missed_inside_1m_frames": 0,
-   "missed_inside_1m_events_per_min": 0.0
+   "missed_inside_2m_frames": 3,
+   "missed_inside_1m_frames": 3,
+   "missed_inside_1m_events_per_min": 2.5
   },
   "priors_on": {
-   "cue_on_pct": 100.0,
+   "cue_on_pct": 99.5,
    "false_buzz_events_per_min": 0.0,
-   "missed_inside_2m_frames": 0,
-   "missed_inside_1m_frames": 0,
-   "missed_inside_1m_events_per_min": 0.0
+   "missed_inside_2m_frames": 3,
+   "missed_inside_1m_frames": 3,
+   "missed_inside_1m_events_per_min": 2.5
   },
   "ok": true
  }
