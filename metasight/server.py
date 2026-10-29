@@ -921,14 +921,15 @@ class Server:
             }
         last = self.live_last.get(label)
         if last is not None and (pin is None or pin.ts < last - LIVE_OVER_PIN_S):
-            # The camera saw it this run, well after memory last placed it: say when, not the
-            # old place. Memory has not placed this sighting, so there is no direction to give.
-            self.guide = {"pin": None, "label": label, "until": time.time() + 90.0}
+            # The camera saw it this run, well after memory last placed it: say when, and the
+            # older place memory has. Memory has not placed this sighting, so no direction from it.
+            now = time.time()
+            self.guide = {"pin": None, "label": label, "until": now + 90.0}
             return {
                 "type": "answer",
                 "label": label,
-                "text": camera_answer(label, time.time() - last),
-                "pin": None,
+                "text": camera_answer(label, now - last, pin, now),
+                "pin": pin.to_json() if pin else None,
                 "language": "template",
             }
         glimpsed = self.pins.glimpse(label, pin.ts) if pin is not None else None

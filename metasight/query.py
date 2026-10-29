@@ -185,11 +185,16 @@ def live_answer(label: str, dist_m: float, bearing_deg: float) -> str:
     return f"Your {label} {was} {place}, in view now."
 
 
-def camera_answer(label: str, seconds: float) -> str:
-    """Seen by the camera this walk, but not yet placed on the map."""
+def camera_answer(label: str, seconds: float, pin: Pin | None = None, now: float = 0.0) -> str:
+    """Seen by the camera this walk, but not yet placed on the map. With a confirmed older pin
+    the answer gives that place too: never "I don't have its place" while it has one."""
     when = time_ago(seconds)
     when = "a moment ago" if when == "just now" else when
-    return f"I saw your {label} {when}, but I don't have its place on the map yet."
+    if pin is None:
+        return f"I saw your {label} {when}, but I don't have its place on the map yet."
+    it = "they were" if label.endswith("s") else "it was"
+    where = f" near the {pin.near[0]}" if pin.near else " on the map"
+    return f"I saw your {label} {when}; {it} last placed{where}, {time_ago(now - pin.ts)}."
 
 
 def glimpse_answer(label: str, pin: Pin, now: float) -> str:

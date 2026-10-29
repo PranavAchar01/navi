@@ -288,12 +288,20 @@ def test_a_live_sighting_beats_an_old_memory():
     res = Server._answer_sync(srv, "where is my laptop")
     assert "hours ago" in res["text"]
 
-    # Seen by the camera 40 s ago, this walk: that beats the six-hour-old place.
+    # Seen by the camera 40 s ago, this walk: that leads, and the six-hour-old place memory has
+    # comes with it. Never "I don't have its place" while it has one (morning check run 13).
     srv.live_last = {"laptop": time.time() - 40}
+    res = Server._answer_sync(srv, "where is my laptop")
+    assert res["text"] == (
+        "I saw your laptop a moment ago; it was last placed near the TV, 6 hours ago."
+    )
+    assert res["pin"]["id"] == old.id
+    store.pins.clear()
     res = Server._answer_sync(srv, "where is my laptop")
     assert (
         res["text"] == "I saw your laptop a moment ago, but I don't have its place on the map yet."
     )
+    store.pins[old.id] = old
     srv.live_last = {"laptop": time.time() - 300}
     res = Server._answer_sync(srv, "where is my laptop")
     assert res["text"].startswith("I saw your laptop 5 minutes ago")
