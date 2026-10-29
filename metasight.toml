@@ -6,6 +6,10 @@ language = "meta"
 finder = "sam31"
 # asr: "meta" (Muse Voice Transcribe on the server, streamed from the mic) | "off" (the client's own speech recognition)
 asr = "meta"
+# offline: "glimmer" (Muse Glimmer on this Mac answers when the API is unreachable) | "" (none)
+offline = "glimmer"
+# review: "wonder" (Muse Wonder reads the map's changes every review_every_min) | "glimmer" | "off"
+review = "wonder"
 
 [models]
 openai_model = "gpt-4.1-mini"

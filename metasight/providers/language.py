@@ -102,13 +102,12 @@ def make_language(s: Settings) -> LanguageModel:
 
 def make_reviewer(s: Settings) -> LanguageModel | None:
     """The deep loop's model: Muse Wonder on the API, or Glimmer here when review = "glimmer"."""
-    if s.review == "glimmer":
-        from .glimmer import GlimmerLanguage
+    from .glimmer import GlimmerLanguage
 
-        return GlimmerLanguage(s.glimmer_url, timeout=60, cap=600)
-    if s.review != "wonder":
-        return None
-    key = secret("META_API_KEY", "MODEL_API_KEY")
+    key = secret("META_API_KEY", "MODEL_API_KEY") if s.review == "wonder" else None
+    if s.review == "glimmer" or (s.review == "wonder" and not key and s.offline == "glimmer"):
+        # 20 changes: 44 s on this Mac against Wonder's 9 to 15 s, and no bill
+        return GlimmerLanguage(s.glimmer_url, timeout=90, cap=600)
     if not key:
         return None
     # minimal effort: 21 changes take 10 s and 1.1k tokens; default effort spent 4k thinking

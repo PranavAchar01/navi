@@ -8,6 +8,7 @@
 [providers]
 language = "meta"
 finder = "hybrid"
+offline = "glimmer"  # Muse Glimmer answers when the API is unreachable
 
 [safety]
 segment = false
