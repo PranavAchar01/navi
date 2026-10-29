@@ -459,6 +459,7 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
                 )
             )
         else:
+            await c.send({"type": "activity", "mode": "guide"})  # hold guide mode for the planner
             t0 = time.time()
             res, ms = await c.ask(f"where is my {label}")
             good = res.get("label") == label and (res.get("pin") or res.get("live"))
@@ -472,7 +473,12 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
                     f"'where is my {label}' -> \"{res.get('text')}\" (via {res.get('language')})",
                 )
             )
-            await asyncio.sleep(8)
+            # At least 10 s of guide frames, longer (up to 30 s) until 20 frames carried a guide.
+            while (dt := time.time() - t0) < 30 and (
+                dt < 10 or sum(e.get("guide") is not None for e in c.since(t0, "safety")) < 20
+            ):
+                await asyncio.sleep(0.5)
+            meta["guide_hold_s"] = round(time.time() - t0, 1)
             guides = [e.get("guide") for e in c.since(t0, "safety") if e.get("guide") is not None]
             with_b = [g for g in guides if g.get("bearing") is not None]
             ages = [e["map_age"] for e in c.since(t0, "safety") if e.get("map_age") is not None]
@@ -538,7 +544,8 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
                         "guide frames carried a route"
                         if route
                         else (
-                            "nav is wired, but no guide frame had a route"
+                            f"nav is wired, but no guide frame had a route ({len(guides)} "
+                            f"guide frames in {meta['guide_hold_s']} s of guide mode)"
                             + ("" if with_b else ": the guide had no bearing (see the row above)")
                         ),
                     )
@@ -785,6 +792,16 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
             front = [q for n, q in zip(e["names"], e["cues"], strict=False) if n in CAMERA_SECTORS]
             front_on += any(q["mode"] != "off" and q["intensity"] >= 26 / 255 for q in front)
             solid += any(q["mode"] in STOP_MODES and q["intensity"] > 0 for q in e["cues"])
+        # Priors in shadow mode log the command they would have sent ("after") without applying it.
+        pri = [e["priors"] for _, e in safety if e.get("priors")]
+        shadow_note = (
+            f"; priors in shadow mode, active in {len(pri)} frames, would have changed "
+            f"{sum('after' in p for p in pri)}"
+            if pri and all(p.get("shadow") for p in pri)
+            else f"; priors applied in {len(pri)} frames"
+            if pri
+            else "; no priors in the frame events"
+        )
         if safety:
             f_pct, s_pct = 100 * front_on / len(safety), 100 * solid / len(safety)
             results.append(
@@ -796,7 +813,8 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
                     f"front on {f_pct:.0f}%",
                     f"front motors on in {front_on} of {len(safety)} frames, solid/stop cue in "
                     f"{s_pct:.0f}%; baseline 27 to 38% front on (sector scheme, no priors, "
-                    f"docs/haptics-sim.md), FAIL above {BASELINE_FRONT_PCT + 10:.0f}%",
+                    f"docs/haptics-sim.md), FAIL above {BASELINE_FRONT_PCT + 10:.0f}%"
+                    + shadow_note,
                 )
             )
         mapped = sum(

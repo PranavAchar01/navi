@@ -1,0 +1,228 @@
+{
+ "at": "2026-10-29 02:23 PDT",
+ "walk": "20261028-135040-iphone",
+ "meta": {
+  "ready_s": 64,
+  "pins": [
+   "TV",
+   "backpack",
+   "bag",
+   "basket",
+   "bed",
+   "box",
+   "chair",
+   "clothes",
+   "computer monitor",
+   "cup",
+   "curtain",
+   "desk",
+   "door",
+   "fan",
+   "handbag",
+   "keyboard",
+   "keys",
+   "laptop",
+   "mini fridge",
+   "mirror",
+   "person",
+   "phone",
+   "picture frame",
+   "pillow",
+   "remote control",
+   "shelf",
+   "shoe",
+   "sink",
+   "sofa",
+   "speaker",
+   "stool",
+   "trash can",
+   "tv",
+   "vacuum cleaner",
+   "wall",
+   "wallet",
+   "window"
+  ],
+  "find_label": "desk",
+  "seconds": 242,
+  "frames_sent": 4169
+ },
+ "results": [
+  {
+   "key": "stop",
+   "feature": "Stop cue and its latency",
+   "owner": "metasight-rust",
+   "status": "PASS",
+   "number": "p95 97 ms",
+   "evidence": "1902 stop frames of 2883; frame sent to belt command median 58 ms, p95 97 ms; server to emulated motor median 66 ms; server at background priority, target < 250 ms"
+  },
+  {
+   "key": "belt-belt_reflex",
+   "feature": "Reflex cue reaches the belt emulator",
+   "owner": "metasight-braille",
+   "status": "PASS",
+   "number": "",
+   "evidence": "obstacle at 0.3 m ahead -> emulated motor duty [255, 0, 0, 0, 0, 0, 0, 0]"
+  },
+  {
+   "key": "belt-belt_persist",
+   "feature": "Persist(2) wired and filtering",
+   "owner": "metasight-braille",
+   "status": "PASS",
+   "number": "",
+   "evidence": "server wiring True; one-frame glitch passes False; 2 frames pass True"
+  },
+  {
+   "key": "belt-belt_signatures",
+   "feature": "Mode signature plays for each mode",
+   "owner": "metasight-braille",
+   "status": "PASS",
+   "number": "",
+   "evidence": "talk motors [2, 6]; find motors [0, 1, 2, 6, 7]; explore motors [0, 1, 2, 3, 4, 5, 6, 7]; guide motors [0]"
+  },
+  {
+   "key": "belt-belt_stop_guide",
+   "feature": "Stop silences Guide",
+   "owner": "metasight-braille",
+   "status": "PASS",
+   "number": "",
+   "evidence": "2000 random commands with a solid motor: 0 changed; sim walk to goal reached, 72 stop frames, 72 silenced Guide, 0 violations"
+  },
+  {
+   "key": "belt-belt_priors_labels",
+   "feature": "Priors do not add misses inside 1 m",
+   "owner": "metasight-braille",
+   "status": "NOT-BUILT",
+   "number": "",
+   "evidence": "SKIP, blocked on metasight-compare's priors commit (no priors scheme yet)"
+  },
+  {
+   "key": "cuerate",
+   "feature": "Buzz rate ahead vs the no-priors baseline",
+   "owner": "metasight-compare",
+   "status": "FAIL",
+   "number": "front on 98%",
+   "evidence": "front motors on in 2816 of 2883 frames, solid/stop cue in 66%; baseline 27 to 38% front on (sector scheme, no priors, docs/haptics-sim.md), FAIL above 48%; priors in shadow mode, active in 2531 frames, would have changed 1316"
+  },
+  {
+   "key": "mapreflex",
+   "feature": "Map fills sectors the camera cannot see",
+   "owner": "metasight-compare",
+   "status": "PASS",
+   "number": "2883 of 2883 frames",
+   "evidence": "frames where a fresh map pose gave a distance in a sector the camera had none for"
+  },
+  {
+   "key": "guide",
+   "feature": "Guide bearings after a find",
+   "owner": "metasight-compare",
+   "status": "PASS",
+   "number": "36 of 36 frames",
+   "evidence": "median frame: 141.7 deg, 1.69 m, in view False"
+  },
+  {
+   "key": "nav",
+   "feature": "Route planner (nav.py) drives the guide",
+   "owner": "metasight-compare",
+   "status": "PASS",
+   "number": "35 frames with a route",
+   "evidence": "guide frames carried a route"
+  },
+  {
+   "key": "patterns",
+   "feature": "Per-mode belt patterns in the intro",
+   "owner": "metasight-braille",
+   "status": "PASS",
+   "number": "4 of 4 modes",
+   "evidence": "intro named guide, find, talk, explore; 398 belt states with motors on"
+  },
+  {
+   "key": "find",
+   "feature": "Find a seen item",
+   "owner": "metasight-display",
+   "status": "PASS",
+   "number": "609 ms",
+   "evidence": "'where is my desk' -> \"I just saw the desk near the sink about 1.5 metres on your right around eye level.\" (via muse-spark)"
+  },
+  {
+   "key": "findmy",
+   "feature": "Find My line for an unseen item",
+   "owner": "metasight-muse",
+   "status": "PASS",
+   "number": "6 ms",
+   "evidence": "'where is my glasses case' -> \"I haven't seen your glasses case yet. If it has an AirTag, Find My on your phone can play a sound; or walk past where you left it and ask again.\""
+  },
+  {
+   "key": "voice",
+   "feature": "Spoken question to answer",
+   "owner": "metasight-muse",
+   "status": "PASS",
+   "number": "1926 ms",
+   "evidence": "heard ['Where is my desk?'], answered \"There's a desk about a metre ahead to the right at eye level near the laptop and TV.\"; client saw it 1479 ms after the last word left"
+  },
+  {
+   "key": "changed",
+   "feature": "Tool path: what changed",
+   "owner": "metasight-muse",
+   "status": "PASS",
+   "number": "1974 ms",
+   "evidence": "\"The TV, remote and pillow moved, and a basket, vacuum cleaner, trash can, wallet and someone appeared.\" (tools True)"
+  },
+  {
+   "key": "who",
+   "feature": "Tool path: who is talking",
+   "owner": "metasight-muse",
+   "status": "PASS",
+   "number": "1437 ms",
+   "evidence": "\"No one is talking right now.\" (tools True)"
+  },
+  {
+   "key": "pose",
+   "feature": "Map pose non-empty, map not black",
+   "owner": "metasight-display",
+   "status": "PASS",
+   "number": "768 poses",
+   "evidence": "101411 map points, 79 pins, last pos [-0.42, 1.66, -0.11]; 10 map windows, median 3289 ms"
+  },
+  {
+   "key": "wonder",
+   "feature": "Wonder map review",
+   "owner": "metasight-muse",
+   "status": "PASS",
+   "number": "10632 ms, $0.015",
+   "evidence": "12 changes, 12 items by muse-wonder; e.g. \"Your laptop is no longer near the TV and sink.\""
+  },
+  {
+   "key": "speaker",
+   "feature": "Speaker cue (two voices, -50 and +40 deg)",
+   "owner": "metasight-people",
+   "status": "PASS",
+   "number": "left 870 ms, right 1590 ms",
+   "evidence": "first cue per voice after its onset: turn left at -48.3 deg; turn right at 39.2 deg; 6 cues, 275 people events, doa range -50.0 to 39.2"
+  },
+  {
+   "key": "modes",
+   "feature": "Mode switches by voice (find, talk, explore, guide)",
+   "owner": "metasight-people",
+   "status": "PASS",
+   "number": "4 of 4",
+   "evidence": "each switch sent an activity event with its spoken line; slowest 10 ms"
+  },
+  {
+   "key": "onboarding",
+   "feature": "Onboarding steps (walk, name, belt intro, done)",
+   "owner": "metasight-people",
+   "status": "PASS",
+   "number": "4 steps",
+   "evidence": "steps walk > name > belt > done; walked area 0.5 m2 before 'that's all'; 'Got it, keys.'; belt intro played 4 mode patterns"
+  },
+  {
+   "key": "notes",
+   "feature": "Notes start, stop, summary, question",
+   "owner": "metasight-people",
+   "status": "PASS",
+   "number": "summary 1581 ms",
+   "evidence": "start line said: True; 1 transcript lines; title \"Medication Morning Dose Note\"; 'what did the doctor say?' -> \"Someone said \"The doctor said to take two pills at nine in the morning.\"\""
+  }
+ ],
+ "note": ""
+}
