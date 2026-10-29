@@ -138,7 +138,9 @@ def analyse(
     the floor and below head height; the floor itself never counts. Below the floor by more than
     25 cm is a drop. Ranges are horizontal: what you would actually walk into.
     """
-    w, h = GRID
+    # The grid takes the frame's own orientation: a 9:16 stream squeezed into a 16:9 grid bends
+    # every ray, the floor stops looking level, and the whole lower view reads as an obstacle.
+    w, h = GRID if depth_raw.shape[1] >= depth_raw.shape[0] else GRID[::-1]
     d = cv2.resize(depth_raw.astype(np.float32), (w, h), interpolation=cv2.INTER_AREA)
     f = 0.5 * w / np.tan(np.radians(hfov_deg) / 2)
     u, v = np.meshgrid(np.arange(w) - w / 2 + 0.5, np.arange(h) - h / 2 + 0.5)
