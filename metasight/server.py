@@ -71,6 +71,10 @@ MAX_PENDING_KEYFRAMES = 12
 SIGHT_AGREE_DEG = 50.0  # after a lock, a sighting further than this from it is another object
 SIGHT_HOLD_S = 6.0  # how long a lock vets new sightings
 POSE_FRESH_S = 6.0  # a map pose older than this gives no direction
+# The guide still points from the last pose this long: the heading follows the gyro and the
+# camera's turn between poses, so only the walker's own steps since then are missing.
+GUIDE_POSE_S = 60.0
+NO_DIRECTION = "Turn slowly, I'll buzz when you face it."
 ANSWER_POSE_S = 12.0  # answers accept an older pose: windows take 5 to 11 s during a solve
 LIVE_SEEN_S = 1.0  # a camera sighting this recent answers "where is my X" over memory
 LIVE_OVER_PIN_S = 60.0  # an older camera sighting wins when memory's pin is this much older
@@ -418,7 +422,7 @@ class Server:
             # now; the speaker turn and the item guide ride on the last frame's labels.
             cmd = self.talk.overlay(cmd, now)
             # The heading is carried between poses, so guidance tolerates an older position.
-            guide_fresh = self.memory_ready and now - self.pose_ts() < POSE_FRESH_S
+            guide_fresh = self.memory_ready and now - self.pose_ts() < GUIDE_POSE_S
             guiding = self._guide(cmd, now, bool(guide_fresh), self.last_obstacles)
             if now < self.found_until:
                 flags |= FLAG_FOUND
@@ -520,7 +524,7 @@ class Server:
             self.guide = None
             self.loop.create_task(self.answer(f"where is my {g['want']}"))
             return None
-        pin = self.pins.pins.get(g["pin"])
+        pin = self._guide_pin(g)
         rel = (
             self.heading.to(np.array(pin.pos))
             if pin is not None and pin.placed and map_fresh
@@ -557,6 +561,29 @@ class Server:
             "bearing": round(bearing, 1),
             "in_view": bool(live),  # the camera sees it now, not just the map
         }
+
+    def _guide_pin(self, g: dict):
+        """The pin to point at: the one answered, or, when that is a saved home pin this walk
+        has not placed yet, this walk's newest sighting of the same thing."""
+        pin = self.pins.pins.get(g["pin"]) if g["pin"] is not None else None
+        if pin is not None and pin.placed:
+            return pin
+        here = [p for p in self.pins.pins.values() if p.label == g["label"] and p.placed]
+        return max(here, key=lambda p: p.ts, default=pin)
+
+    def can_point(self, g: dict, now: float) -> bool:
+        """Whether the belt has a direction for the guide: in view now, or a placed pin and a
+        pose recent enough to point from."""
+        t, seen = getattr(self, "live_seen", (0.0, []))
+        if now - t < 1.0 and any(label == g["label"] for label, _b, _d in seen):
+            return True
+        pin = self._guide_pin(g)
+        return (
+            pin is not None
+            and pin.placed
+            and self.heading.to(np.array(pin.pos)) is not None
+            and now - self.pose_ts() < GUIDE_POSE_S
+        )
 
     def pose_ts(self) -> float:
         """When the map pose was last current: a memory window, or ARKit carrying it since."""
@@ -960,6 +987,10 @@ class Server:
                 "early": pending is not None,
                 "speech_end_to_answer_ms": round(1000 * (time.time() - spoken_end)),
             }
+        g = getattr(self, "guide", None)
+        if g and res.get("label") in (g["label"], g.get("want")):
+            if not self.can_point(g, time.time()):  # never a silent belt after a find
+                res["text"] = f"{res['text'].rstrip()} {NO_DIRECTION}"
         await self.hub.json(res)
         if res.get("label"):  # SAM 3.1 looks for it only now, while the wearer is after it
             self.in_q.put({"cmd": "want", "label": res["label"]})
