@@ -389,9 +389,6 @@ async def voice_before_map(c: Client) -> dict:
         t0 = time.time()
         spoken = await c.audio(speech("where are my keys"), 1)
         a, at = await c.wait(t0, "answer", lambda e: True, 8)
-        second = None
-        if a is not None:  # the real answer may follow once the map is in
-            second, _ = await c.wait(at + 0.001, "answer", lambda e: True, 10)
         ready = (await c.state()).get("memory_ready")
         heard = [e["text"] for e in c.since(t0, "transcript") if e.get("final")]
         fin = [
@@ -412,7 +409,6 @@ async def voice_before_map(c: Client) -> dict:
             f"{note}no answer in 8 s after the speech; finals heard {heard}",
         )  # fmt: skip
     ms = 1000 * (at - spoken)
-    then = f'second answer in 10 s: "{second.get("text")}"' if second else "no second answer"
     loading = "still loading" in (a.get("text") or "").lower()
     ok = loading and ms <= 2000
     return row(
@@ -420,9 +416,9 @@ async def voice_before_map(c: Client) -> dict:
         f"spoken 'where are my keys' before memory_ready -> \"{a.get('text')}\" "
         f"{ms:.0f} ms after the speech ended (limit 2000); final transcript at "
         f"{1000 * (fin[0] - spoken):.0f} ms; finals heard {heard}; "
-        f"asr handshake {asr.get('handshake_ms')} ms, warmup {asr.get('warmup_ms')} ms; {then}"
+        f"asr handshake {asr.get('handshake_ms')} ms, warmup {asr.get('warmup_ms')} ms"
         if fin
-        else f"{ms:.0f} ms after the speech ended (limit 2000); no final transcript event; {then}",
+        else f"{ms:.0f} ms after the speech ended (limit 2000); no final transcript event",
     )  # fmt: skip
 
 
