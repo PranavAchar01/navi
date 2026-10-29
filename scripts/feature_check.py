@@ -384,10 +384,12 @@ async def voice_before_map(c: Client, after_handshake: bool = False) -> dict:
         await asyncio.sleep(1)
     else:
         return row(VLOAD, VLOAD_NAME, "metasight-muse", "FAIL", "", "voice service never came up")
+    # The clip is built before connecting, so the question starts while the Transcribe session
+    # is still opening: a wearer's first words after a restart land there.
+    pcm = speech("where are my keys")
     async with websockets.connect(c.url, max_size=None, ping_interval=None) as ws:
         c.ws = ws
         rd = asyncio.create_task(c.reader())
-        pcm = speech("where are my keys")
         t_c = time.time()
         if after_handshake:
             end = time.time() + 15
