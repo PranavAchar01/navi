@@ -26,13 +26,15 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from . import nav
 from .align import map_resolution
-from .belt import FLAG_FOUND, NAMES, BeltLink, guide, plan
+from .belt import FLAG_FOUND, NAMES, BeltLink, plan
 from .config import ROOT, SESSIONS, Settings, secret
 from .conversation import Talk
 from .geometry import CAMERA_SECTORS, SECTORS, merge_sectors
 from .haptics import make_output
 from .heading import Heading, wrap
+from .home import cells as occupied_cells
 from .hub import Hub
 from .memory_worker import run as memory_run
 from .modes import ALL as ACTIVITIES
@@ -42,7 +44,7 @@ from .modes import implied as implied_activity
 from .motion import FallDetector, Sample, ShakeDetector
 from .notes import Notes, asks_notes, caption, notes_command
 from .onboarding import PATTERNS, Onboarding, pattern_length, wants_setup
-from .pan import Persist
+from .pan import Persist, with_guide
 from .pins import PinStore
 from .providers import make_language, make_reviewer
 from .providers.finder import LOOKALIKES
@@ -85,6 +87,8 @@ MAP_LOADING = "I'm still loading your home map. Ask me again in a few seconds."
 HOLD_S = 1.2  # a plan not back by then gets a holding line, so the wearer is not left in silence
 HOLDING = "One sec, putting that together."
 AR_POSE_HZ = 5.0  # ARKit-carried poses go out to viewers at most this often
+FLOOR_EVERY_S = 2.0  # the floor plan for routes and priors is rebuilt from the map this often
+RETIE_M = 0.3  # the pose jumping this far in one frame is a re-tie: the priors sit out a second
 # ARKit's camera is the landscape sensor (x along its long side, y up, z back). Frames go out
 # turned upright, so the image's right is ARKit's +y and its down is ARKit's +x.
 AR_TO_CV = np.array([[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]], dtype=float)
@@ -149,6 +153,16 @@ class Server:
         self.heading = Heading(settings.hfov_deg)  # carries the head's turn between map poses
         self.map_sectors: list[float] = [math.inf] * 8
         self.map_pose_ts = 0.0
+        # The map flattened to a floor plan (nav.py): routes for the item guide, priors for the
+        # reflex. Rebuilt in a thread from the map points as they arrive.
+        self.map_cells: list[np.ndarray] = []
+        self.floor: nav.FloorPlan | None = None
+        self.floor_at, self.floor_dirty, self.floor_job = 0.0, False, False
+        self.route: nav.Navigator | None = None
+        self.route_key: tuple | None = None
+        self.motion: deque[tuple[float, np.ndarray, float]] = deque(maxlen=30)  # (t, pos, yaw)
+        self.priors_off_until = 0.0
+        self.cam_aspect = 9 / 16  # width over height of the frames memory solves
         # Phone mode: ARKit tracks every frame, and each memory pose for a tracked frame ties
         # ARKit's world to the map's, so the map pose is current between windows.
         self.arposes: deque[tuple[int, np.ndarray]] = deque(maxlen=900)  # (frame seq, pose)
@@ -303,6 +317,8 @@ class Server:
             await self.hub.json({"type": "status", "memory": "ready", "finder": ev["finder"]}, True)
         elif t == "map_replace":
             await self.hub.map_replace(ev["n"], ev["points"], ev["colors"], ev.get("sizes", b""))
+            self.map_cells = [self._cells(ev["points"])]
+            self.floor_dirty = True
             if ev["n"] == 0:
                 self.trail = []
                 await self.hub.json({"type": "trail", "points": []}, True)
@@ -311,6 +327,8 @@ class Server:
             await self.hub.json({"type": "mode", "mode": self.mode}, True)
         elif t == "map_chunk":
             await self.hub.map_chunk(ev["n"], ev["points"], ev["colors"])
+            self.map_cells.append(self._cells(ev["points"]))
+            self.floor_dirty = True
         elif t == "change":
             await self.hub.json({"type": "alert", "kind": ev["change"], **ev}, True)
         elif t == "trail_replace":
@@ -337,6 +355,7 @@ class Server:
             self.map_sectors = [math.inf if d is None else d for d in ev["map_sectors"]]
             self.map_yaw = math.atan2(ev["fwd"][0], ev["fwd"][2])
             self.map_pose_ts = time.time()
+            self.cam_aspect = ev.get("aspect", self.cam_aspect)
             out = {"type": "pose", "pos": ev["pos"], "fwd": ev["fwd"], "up": ev["up"]}
             out.update({k: ev[k] for k in ("hfov", "aspect") if k in ev})
             await self.hub.json(out, True)
@@ -419,6 +438,19 @@ class Server:
             map_fresh = self.memory_ready and self.map_pose_ts and now - self.map_pose_ts < 3.0
             known = [n in CAMERA_SECTORS or bool(map_fresh) for n in SECTORS]
             cmd, flags = plan(merged, known, sc.path_m, res.ttc_s, sc.drop_m)
+            # The map's priors may add or raise cues; a cue live depth made is never weakened.
+            self._maybe_floor(now)
+            pri = self._priors(now, live)
+            priors_did = None
+            if pri is not None and pri.active:
+                # Shadow mode (lead, 02:05): priors are logged, not applied, until path-gating
+                # and ghost clearing are scored against the ground-truth labels.
+                shadow = [list(c) for c in cmd]
+                did = nav.apply(shadow, pri, merged)
+                changed = any(did.values())
+                priors_did = {**did, "ms": round(pri.ms, 2), "shadow": True}
+                if changed:  # the command the priors would have sent, for replays
+                    priors_did.update(raw=[list(c) for c in cmd], after=shadow)
             cmd = self.activity.calm(cmd, flags)
             if (demo := self.onboarding.demo_cmd(now)) is not None:
                 cmd = demo  # the belt intro: a mode's pattern, nothing else
@@ -471,6 +503,8 @@ class Server:
                     "floor_scale": res.floor_scale,
                     "eye_h": self.s.eye_height_m,
                     "guide": guiding,
+                    "priors": priors_did,
+                    "pos": None if self.heading.pos is None else self.heading.pos.round(3).tolist(),
                     "found": now < self.found_until,
                     "obstacles": [
                         {
@@ -555,15 +589,24 @@ class Server:
         if rel is None:
             return {"label": g["label"], "dist": None, "bearing": None, "in_view": False}
         dist, bearing = rel
-        if dist < 0.8:
+        # Out of view, the route around walls and furniture gives the direction, not the
+        # straight line to the item.
+        step = None
+        if not live and pin is not None and (nv := self._navigator(pin.id, pin)) is not None:
+            step = nv.step(self.heading.pos, self.heading.yaw)
+        if dist < 0.8 or (step is not None and step.arrived):
             self.guide, self.found_until = None, now + 2.0
             return None
-        guide(cmd, bearing, dist)
+        if step is not None:
+            bearing = step.bearing_deg
+        cmd[:] = with_guide(cmd, bearing)[0]
         return {
             "label": g["label"],
             "dist": round(dist, 2),
             "bearing": round(bearing, 1),
             "in_view": bool(live),  # the camera sees it now, not just the map
+            "route": None if step is None else _finite(step.route_m),
+            "narrow": None if step is None else _finite(step.narrow_m),
         }
 
     def _guide_pin(self, g: dict):
@@ -594,6 +637,85 @@ class Server:
         alone for 15 s."""
         ar = getattr(self, "ar_pose_ts", 0.0)
         return now - ar < GUIDE_POSE_S or now - self.map_pose_ts < GUIDE_DR_S
+
+    @staticmethod
+    def _cells(points: bytes) -> np.ndarray:
+        return occupied_cells(np.frombuffer(points, np.float32).reshape(-1, 3))
+
+    def _maybe_floor(self, now: float) -> None:
+        """Rebuild the floor plan from the map points in a thread, at most every 2 s."""
+        if not self.floor_dirty or self.floor_job or now - self.floor_at < FLOOR_EVERY_S:
+            return
+        keys = [c for c in self.map_cells if len(c)]
+        self.floor_dirty = False
+        if not keys:
+            return
+        self.map_cells = [np.unique(np.concatenate(keys), axis=0)]
+        self.floor_at, self.floor_job = now, True
+
+        def done(f) -> None:
+            self.floor_job = False
+            self.floor = f.result()
+
+        self.loop.run_in_executor(None, nav.floor_plan, self.map_cells[0]).add_done_callback(done)
+
+    def _navigator(self, key: str, pin) -> nav.Navigator | None:
+        """The route to a pin on the current floor plan. A new plan or pin routes again in a
+        thread (one Dijkstra, tens of ms); the old route serves until it lands."""
+        want = (key, tuple(np.round(pin.pos, 2)), id(self.floor))
+        route = self.route
+        if route is not None and not np.allclose(route.goal, pin.pos, atol=0.05):
+            route = None  # a route to somewhere else
+        if self.floor is None or want == self.route_key:
+            return route
+        floor, self.route_key = self.floor, want
+
+        def solve() -> nav.Navigator | None:
+            nv = nav.Navigator(floor)
+            return nv if nv.set_goal(pin.pos, pin.label) else None
+
+        def done(f) -> None:
+            if self.route_key == want:
+                self.route = f.result()
+
+        self.loop.run_in_executor(None, solve).add_done_callback(done)
+        return route
+
+    def _priors(self, now: float, live: list[float]) -> nav.Priors | None:
+        """What the map adds to this frame's cues (nav.priors), or None without a usable pose.
+        The position error grows with the pose's age and the walking speed; a re-tie (the pose
+        jumping more than 0.3 m in a frame) turns them off for a second."""
+        pos, yaw = self.heading.pos, self.heading.yaw
+        if self.floor is None or pos is None or yaw is None or not self.memory_ready:
+            self.motion.clear()
+            return None
+        if self.motion and float(np.linalg.norm(pos - self.motion[-1][1])) > RETIE_M:
+            self.motion.clear()
+            self.priors_off_until = now + 1.0
+        self.motion.append((now, pos.copy(), yaw))
+        if now < self.priors_off_until:
+            return None
+        t0, p0, y0 = self.motion[0]
+        dt = now - t0
+        speed = math.hypot(pos[0] - p0[0], pos[2] - p0[2]) / dt if dt > 0.2 else 0.0
+        turn = wrap(yaw - y0) / dt if dt > 0.2 else 0.0
+        hfov = self.s.hfov_deg
+        vfov = 2 * math.degrees(math.atan(math.tan(math.radians(hfov / 2)) / self.cam_aspect))
+        pitch = 0.0  # degrees the camera looks below level
+        if self.pose is not None:
+            pitch = math.degrees(math.asin(max(-1.0, min(1.0, -float(self.pose[1, 2])))))
+        return nav.priors(
+            self.floor,
+            pos,
+            yaw,
+            live,
+            hfov,
+            speed,
+            turn,
+            0.05 + speed * (now - self.pose_ts()),
+            self.s.eye_height_m,
+            min(80.0, max(10.0, vfov / 2 + pitch)),
+        )
 
     def pose_ts(self) -> float:
         """When the map pose was last current: a memory window, or ARKit carrying it since."""

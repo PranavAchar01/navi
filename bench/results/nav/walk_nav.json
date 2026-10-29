@@ -1,0 +1,27 @@
+{
+ "map": {
+  "cells": 5572,
+  "grid": [
+   72,
+   72
+  ],
+  "blocked_cells": 711,
+  "free_reachable_share": 0.7368827160493827,
+  "build_ms": 24.067708000075072
+ },
+ "pins": 75,
+ "views": 24,
+ "pairs": 1800,
+ "goal_on_floor": 1.0,
+ "routed": 1.0,
+ "detour_median": 1.4545769105785675,
+ "set_goal_ms_median": 8.580000000620203,
+ "set_goal_ms_max": 13.301333000526938,
+ "step_ms_median": 0.03562499978215783,
+ "step_ms_p95": 0.07238539992613367,
+ "priors_ms_median": 0.28947900000275695,
+ "priors_ms_p95": 0.6798062499910884,
+ "camera_sectors_known": 65,
+ "camera_sectors_new": 4,
+ "unrouted": []
+}

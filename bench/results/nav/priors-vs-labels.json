@@ -1,0 +1,154 @@
+{
+ "replay-20261028-135040-iphone-keys.raw.json": {
+  "frames": 359,
+  "minutes": 1.13,
+  "with/front": {
+   "cue_on_pct": 100.0,
+   "x0.84": {
+    "false_per_min": 0.0,
+    "missed_2m_per_min": 0.0,
+    "missed_1m_per_min": 0.0
+   },
+   "x1.0": {
+    "false_per_min": 0.0,
+    "missed_2m_per_min": 0.0,
+    "missed_1m_per_min": 0.0
+   },
+   "x1.16": {
+    "false_per_min": 3.5,
+    "missed_2m_per_min": 0.0,
+    "missed_1m_per_min": 0.0
+   }
+  },
+  "with/all": {
+   "cue_on_pct": 100.0,
+   "x0.84": {
+    "false_per_min": 0.0,
+    "missed_2m_per_min": 0.0,
+    "missed_1m_per_min": 0.0
+   },
+   "x1.0": {
+    "false_per_min": 0.0,
+    "missed_2m_per_min": 0.0,
+    "missed_1m_per_min": 0.0
+   },
+   "x1.16": {
+    "false_per_min": 3.5,
+    "missed_2m_per_min": 0.0,
+    "missed_1m_per_min": 0.0
+   }
+  },
+  "without/front": {
+   "cue_on_pct": 100.0,
+   "x0.84": {
+    "false_per_min": 0.0,
+    "missed_2m_per_min": 0.0,
+    "missed_1m_per_min": 0.0
+   },
+   "x1.0": {
+    "false_per_min": 0.0,
+    "missed_2m_per_min": 0.0,
+    "missed_1m_per_min": 0.0
+   },
+   "x1.16": {
+    "false_per_min": 3.5,
+    "missed_2m_per_min": 0.0,
+    "missed_1m_per_min": 0.0
+   }
+  },
+  "without/all": {
+   "cue_on_pct": 100.0,
+   "x0.84": {
+    "false_per_min": 0.0,
+    "missed_2m_per_min": 0.0,
+    "missed_1m_per_min": 0.0
+   },
+   "x1.0": {
+    "false_per_min": 0.0,
+    "missed_2m_per_min": 0.0,
+    "missed_1m_per_min": 0.0
+   },
+   "x1.16": {
+    "false_per_min": 3.5,
+    "missed_2m_per_min": 0.0,
+    "missed_1m_per_min": 0.0
+   }
+  }
+ },
+ "replay-20261028-135040-iphone.raw.json": {
+  "frames": 864,
+  "minutes": 1.18,
+  "with/front": {
+   "cue_on_pct": 99.9,
+   "x0.84": {
+    "false_per_min": 0.0,
+    "missed_2m_per_min": 0.8,
+    "missed_1m_per_min": 0.8
+   },
+   "x1.0": {
+    "false_per_min": 0.0,
+    "missed_2m_per_min": 0.8,
+    "missed_1m_per_min": 0.8
+   },
+   "x1.16": {
+    "false_per_min": 3.4,
+    "missed_2m_per_min": 0.8,
+    "missed_1m_per_min": 0.8
+   }
+  },
+  "with/all": {
+   "cue_on_pct": 99.9,
+   "x0.84": {
+    "false_per_min": 0.0,
+    "missed_2m_per_min": 0.8,
+    "missed_1m_per_min": 0.8
+   },
+   "x1.0": {
+    "false_per_min": 0.0,
+    "missed_2m_per_min": 0.8,
+    "missed_1m_per_min": 0.8
+   },
+   "x1.16": {
+    "false_per_min": 3.4,
+    "missed_2m_per_min": 0.8,
+    "missed_1m_per_min": 0.8
+   }
+  },
+  "without/front": {
+   "cue_on_pct": 99.9,
+   "x0.84": {
+    "false_per_min": 0.0,
+    "missed_2m_per_min": 0.8,
+    "missed_1m_per_min": 0.8
+   },
+   "x1.0": {
+    "false_per_min": 0.0,
+    "missed_2m_per_min": 0.8,
+    "missed_1m_per_min": 0.8
+   },
+   "x1.16": {
+    "false_per_min": 3.4,
+    "missed_2m_per_min": 0.8,
+    "missed_1m_per_min": 0.8
+   }
+  },
+  "without/all": {
+   "cue_on_pct": 99.9,
+   "x0.84": {
+    "false_per_min": 0.0,
+    "missed_2m_per_min": 0.8,
+    "missed_1m_per_min": 0.8
+   },
+   "x1.0": {
+    "false_per_min": 0.0,
+    "missed_2m_per_min": 0.8,
+    "missed_1m_per_min": 0.8
+   },
+   "x1.16": {
+    "false_per_min": 3.4,
+    "missed_2m_per_min": 0.8,
+    "missed_1m_per_min": 0.8
+   }
+  }
+ }
+}

@@ -1,0 +1,30 @@
+{
+ "frames_sent": 1188,
+ "played_s": 70.0,
+ "cues": 0,
+ "cue_hz": 0.0,
+ "cue_ms": {
+  "p50": null,
+  "p95": null,
+  "max": null
+ },
+ "buzz_ms": {
+  "p50": null,
+  "p95": null,
+  "max": null
+ },
+ "server_ms": {},
+ "det_age_ms": null,
+ "map_windows": 0,
+ "map_age_ms": null,
+ "pose_lead_ms": null,
+ "window_total_ms": {
+  "p50": null,
+  "max": null
+ },
+ "window_infer_ms": {
+  "p50": null,
+  "max": null
+ },
+ "walk": "20261028-135040-iphone"
+}

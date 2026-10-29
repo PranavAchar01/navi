@@ -1,0 +1,38 @@
+{
+ "walk": "20261028-114405-iphone",
+ "question": null,
+ "frames": 257,
+ "minutes": 0.39,
+ "priors_active_frames": 179,
+ "priors_changed_frames": 41,
+ "priors_did": {
+  "hidden": 13,
+  "calm": 36,
+  "new": 27,
+  "contact": 0
+ },
+ "priors_ms": {
+  "p50": 0.08,
+  "p95": 0.11
+ },
+ "with_priors": {
+  "onsets_per_min": 17.7,
+  "short_buzz_per_min": 0.0
+ },
+ "without_priors": {
+  "onsets_per_min": 17.7,
+  "short_buzz_per_min": 0.0
+ },
+ "raised_then_seen": {
+  "raised": 40,
+  "seen_within_3s": 35
+ },
+ "asked_at_s": [],
+ "answers": [],
+ "guide_frames": 0,
+ "guide_frames_on_route": 0,
+ "guide_frames_shown": 0,
+ "guide_frames_with_stop": 0,
+ "guide_shown_during_stop": 0,
+ "found_frames": 0
+}

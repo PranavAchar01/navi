@@ -14,7 +14,8 @@ guidance can say "door ahead".
 
 Priors for the reflex loop (`priors`, then `apply` on the belt command):
   (a) mapped obstacles the camera cannot see now: outside its field of view, or low and close
-      enough to sit under the bottom edge of the frame;
+      enough to sit under the bottom edge of the frame (only the last raises a cue: beside and
+      behind, memory's map sectors already cue);
   (b) new vs known: a live reading the map explains (a wall walked along) gets a calm cue, one
       nearer than anything mapped is new and gets a stronger one;
   (c) contact ahead: the body swept along the current heading and turn for 2.5 s, against the
@@ -36,7 +37,7 @@ from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import dijkstra
 
 from .belt import MODES
-from .geometry import FAST_M, OFF_M, cue_for_distance
+from .geometry import FAST_M, OFF_M, SLOW_M, cue_for_distance
 from .home import OCC_M
 
 CELL = OCC_M
@@ -48,6 +49,7 @@ SOFT_W = 3.0
 UNKNOWN_W = 1.0  # extra cost per metre through columns the map never saw
 NARROW_SIDE_M = 0.6  # blocked on both sides within this: a doorway or tight gap
 LOOKAHEAD_M = 1.5
+SIGHT_M = 0.4  # a shortcut toward the lookahead point keeps this clear where the route does
 ARRIVE_M = 0.7
 SNAP_M = 1.2  # a goal on a table, or a pose drifted into a wall, moves to free floor this near
 REACH_M = 3.0  # map obstacles the priors look at
@@ -244,12 +246,13 @@ class Navigator:
     def clear_goal(self) -> None:
         self.goal = self.togo = self.next = None
 
-    def _sight(self, a: tuple[int, int], b: tuple[int, int]) -> bool:
+    def _sight(self, a: tuple[int, int], b: tuple[int, int], need_m: float) -> bool:
+        """A straight walk from a to b keeps at least need_m from every obstacle."""
         n = max(abs(b[0] - a[0]), abs(b[1] - a[1]), 1)
         for k in range(1, n + 1):
             i = round(a[0] + (b[0] - a[0]) * k / n)
             j = round(a[1] + (b[1] - a[1]) * k / n)
-            if not self.plan.free(i, j):
+            if not self.plan.free(i, j) or self.plan.clear[i, j] < need_m:
                 return False
         return True
 
@@ -279,10 +282,14 @@ class Navigator:
                 narrow = walked
             if walked <= LOOKAHEAD_M:
                 chain.append(cell)
+        # The farthest point along the route still in a straight line. The shortcut must keep the
+        # clearance the route itself keeps (up to SIGHT_M): a line that only just fits the body
+        # cuts the inside of every corner, and a walker who drifts a little off it touches.
+        need = np.minimum.accumulate([min(SIGHT_M, float(p.clear[cell])) for cell in chain])
         target = chain[-1]
-        for cell in reversed(chain):  # farthest point along the route still in a straight line
-            if self._sight(c, cell):
-                target = cell
+        for n in range(len(chain) - 1, -1, -1):
+            if self._sight(c, chain[n], float(need[n]) - CELL / 2):
+                target = chain[n]
                 break
         tx, tz = p.xs[target[0]], p.zs[target[1]]
         if target == c:
@@ -419,7 +426,12 @@ def apply(cmd: list[tuple[int, int]], pri: Priors, sectors: list[float]) -> dict
     slow, fast, solid = MODES["slow"], MODES["fast"], MODES["solid"]
     hit = round(pri.contact_bearing / 45) % 8 if math.isfinite(pri.contact_s) else -1
     for s in range(8):
-        if pri.hidden[s] < OFF_M:  # (a) what the map has that the camera cannot see
+        # (a) what the map has that the camera cannot see, in front only (low things under the
+        # frame's bottom edge) and only nearer than 1 m. Beside and behind, memory's own map
+        # sectors already cue. On his recorded walk the floor plan's side cues more than doubled
+        # the onsets (about one in ten was then seen by the camera), and its 1 to 2 m slow pulse
+        # flickered at the 2 m edge with every wobble of the pose: 9 short buzzes a minute.
+        if s in CAMERA_IDX and pri.hidden[s] < SLOW_M:
             new = _stronger(cmd[s], pri.hidden[s])
             if new != cmd[s]:
                 cmd[s] = new
