@@ -7,29 +7,29 @@ Colours are CSS classes, so the same file reads on a light or a dark page.
 from html import escape
 from pathlib import Path
 
-W, H = 1100, 600
-BW, BH, GAP, X0 = 190, 158, 25, 25  # box width and height, gap, left margin
+W, H = 1100, 690
+LX, X0, BW, GAP, LH = 25, 185, 205, 26, 104  # lane label x, first box x, box width, gap, lane
+BH = 86
 out: list[str] = []
 
 
-def box(x, y, w, title, model, lines, ms, accent=False):
+def box(x, y, title, model, line, ms, accent=False):
     out.append(
-        f'<rect x="{x}" y="{y}" width="{w}" height="{BH}" rx="10" '
+        f'<rect x="{x}" y="{y}" width="{BW}" height="{BH}" rx="10" '
         f'class="{"bx ac" if accent else "bx"}"/>'
     )
-    out.append(f'<text x="{x + 14}" y="{y + 26}" class="t">{escape(title)}</text>')
-    out.append(f'<text x="{x + 14}" y="{y + 46}" class="m">{escape(model)}</text>')
-    for i, line in enumerate(lines):
-        out.append(f'<text x="{x + 14}" y="{y + 66 + 17 * i}" class="s">{escape(line)}</text>')
-    out.append(f'<text x="{x + 14}" y="{y + BH - 14}" class="n">{escape(ms)}</text>')
+    out.append(f'<text x="{x + 12}" y="{y + 22}" class="t">{escape(title)}</text>')
+    out.append(f'<text x="{x + 12}" y="{y + 40}" class="m">{escape(model)}</text>')
+    out.append(f'<text x="{x + 12}" y="{y + 57}" class="s">{escape(line)}</text>')
+    out.append(f'<text x="{x + 12}" y="{y + BH - 11}" class="n">{escape(ms)}</text>')
 
 
 def arrow(x1, y1, x2, y2, label="", dx=0, dy=-7):
     out.append(f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" class="ln" marker-end="url(#a)"/>')
     if label:
         out.append(
-            f'<text x="{(x1 + x2) / 2 + dx}" y="{(y1 + y2) / 2 + dy}" class="s" '
-            f'text-anchor="middle">{escape(label)}</text>'
+            f'<text x="{(x1 + x2) / 2 + dx}" y="{(y1 + y2) / 2 + dy}" class="s">'
+            f"{escape(label)}</text>"
         )
 
 
@@ -37,108 +37,107 @@ def col(i):
     return X0 + i * (BW + GAP)
 
 
-R1, R2 = 60, 330  # row tops
-out.append(f'<text x="{X0}" y="{R1 - 16}" class="lane">ALWAYS RUNNING, EVERY FRAME</text>')
-out.append(f'<text x="{X0}" y="{R2 - 16}" class="lane">WHEN YOU ASK</text>')
+def lane(k, name, when, boxes, accent=False, chain=99):
+    y = 34 + k * (LH + 22)
+    out.append(f'<text x="{LX}" y="{y + 34}" class="t">{escape(name)}</text>')
+    for i, w in enumerate(when):
+        out.append(f'<text x="{LX}" y="{y + 54 + 16 * i}" class="s">{escape(w)}</text>')
+    for i, b in enumerate(boxes):
+        box(col(i), y, *b, accent=accent)
+        if 0 < i < chain:
+            arrow(col(i - 1) + BW, y + BH / 2, col(i), y + BH / 2)
+    return y
 
-box(
-    col(0),
-    R1,
-    BW,
-    "1  Capture",
-    "Ray-Ban Meta or phone",
-    ["camera frames, motion,", "microphone audio", "glasses: Wearables DAT"],
-    "17 frames a second",
-)
-box(
-    col(1),
-    R1,
-    BW,
-    "2  Transport",
-    "WebSocket to the Mac mini",
-    ["one socket carries", "frames, motion and", "16 kHz mic audio"],
-    "inside the 186 ms below",
-)
-box(
-    col(2),
-    R1,
-    BW,
-    "3  Safety loop",
-    "Depth Anything + YOLO26n",
-    ["floor, obstacles and", "8 direction sectors", "on the Mac's GPU"],
-    "frame to cue 186 ms",
-    True,
-)
-box(
-    col(3),
-    R1,
-    BW,
-    "4  Map and memory",
-    "MapAnything + DINOv2",
-    ["3D map of the house,", "pins: what, where,", "when, what was near"],
-    "map window 19.6 s",
-)
-box(
-    col(4),
-    R1,
-    BW,
-    "5  Finder",
-    "YOLOE + Muse SAM 3.1",
-    ["names what is in the", "frame; SAM 3.1 checks", "small things (keys)"],
-    "SAM 3.1: 0.6 to 1.5 s",
-)
 
-AW = 2 * BW + GAP  # the answer box spans two columns
-box(
-    col(0),
-    R2,
-    AW,
-    "8  Answer",
-    "speech, lens, haptics",
+y1 = lane(
+    0,
+    "1  Reflex",
+    ["every frame", "under 250 ms", "no language model"],
     [
-        "one sentence read out in the glasses or phone and",
-        "the pin lit up. Belt: stop layer for anything",
-        "under 1 m always beats the guide toward the item",
+        (
+            "Live depth",
+            "Depth Anything + YOLO26n",
+            "floor, steps, 8 sectors",
+            "frame to cue 186 ms",
+        ),
+        (
+            "Map checks",
+            "scale, out of view, new",
+            "the map feeds the reflex",
+            "distance error 34% to 16%",
+        ),
+        ("STOP buzz", "belt stop layer", "beats everything else", "server to motor 38-56 ms"),
     ],
-    "last word to answer 871 ms",
     True,
 )
-box(
-    col(2) + 50,
-    R2,
-    BW + 40,
-    "7  Muse Spark 1.3",
-    "phrases from the facts",
-    ["starts on partial words;", "people questions use", "tools; Glimmer offline"],
-    "first word 0.7 to 1.0 s",
-    True,
+y2 = lane(
+    1,
+    "2  See, remember",
+    ["every few seconds", "in the background"],
+    [
+        (
+            "Frame picker",
+            "sharpest frame per slot",
+            "1.5 a second at home",
+            "next: novelty, change",
+        ),
+        ("MapAnything", "open, Meta", "3D map with real scale", "19.6 s a window"),
+        ("DINOv2", "open, Meta", "knows a place seen before", "revisit 1.15 m to 0.46 m"),
+        ("Memory bank", "pins + SAM 3.1 check", "what, where, when, near", "SAM 3.1: 0.6 to 1.5 s"),
+    ],
 )
-box(
-    col(4),
-    R2,
-    BW,
-    "6  Question",
-    "Muse Voice Transcribe",
-    ["mic stays open; the", "model hears where the", "question ends"],
-    "turn end 164 ms",
+y3 = lane(
+    2,
+    "3  Talk",
+    ["when you ask", "about 0.9 s"],
+    [
+        ("Transcribe", "Muse Voice Transcribe", "mic open, finds turn end", "turn end 164 ms"),
+        (
+            "Muse Spark 1.3",
+            "memory-bank questions",
+            "tools for people, changes",
+            "first word 0.7-1.0 s",
+        ),
+        ("Answer", "voice in the glasses", "pin lit, belt points", "last word to answer 871 ms"),
+        ("Offline", "Muse Glimmer, open", "stands in for Spark", "one sentence 1.2-2.6 s"),
+    ],
     True,
+    chain=3,
 )
-
-mid = R1 + BH / 2
-for i in range(4):
-    arrow(col(i) + BW, mid, col(i + 1), mid)
-arrow(col(2) + BW / 2, R1 + BH, col(2) + BW / 2 - 60, R2, "obstacle cues", dx=-62, dy=4)
-arrow(col(3) + BW / 2 + 30, R1 + BH, col(3) + BW / 2 - 10, R2, "pins and map", dx=44, dy=4)
-arrow(col(4), R2 + BH / 2, col(2) + 50 + BW + 40, R2 + BH / 2, "words")
-arrow(col(2) + 50, R2 + BH / 2, col(0) + AW, R2 + BH / 2, "")
+y4 = lane(
+    3,
+    "Navigate",
+    ["three layers", "the reflex wins"],
+    [
+        ("Goal", "from Muse", '"take me to my keys"', "a pin"),
+        ("Path planner", "nav.py, no model", "through doorways", "milliseconds; wiring"),
+        ("GUIDE pulses", "belt guide layer", "soft turn-by-turn", "STOP overrides it"),
+    ],
+)
+y5 = lane(
+    4,
+    "4  Deep",
+    ["every few minutes", "nobody waiting"],
+    [
+        ("Map review", "Muse Wonder", "which changes matter", "9-15 s, about $0.15/hour"),
+        ("Plans", "not built", '"get ready to leave"', "goals for Navigate"),
+        ("Nudges", "not built", '"closet: 3 days unseen"', "from last-seen times"),
+    ],
+)
+cx = col(1) + BW / 2
+arrow(cx, y2, cx, y1 + BH, "map scale", dx=8, dy=4)
+mx = col(3) + BW / 2
+arrow(mx, y2 + BH, col(1) + BW / 2 + 40, y3, "pins", dx=10, dy=4)
+arrow(col(1) + BW / 2, y5, col(0) + BW / 2 + 40, y4 + BH, "goals", dx=12, dy=4)
 
 out.append(
-    f'<text x="{X0}" y="{H - 34}" class="s">Measured on the Mac mini (M5 Pro): medians, '
-    "or the range seen. Boxes in blue are on the answer or cue path; "
-    "the map and finder run beside them.</text>"
+    f'<text x="{LX}" y="{H - 34}" class="s">Measured on the Mac mini (M5 Pro): medians or the '
+    "range seen. Blue boxes are on the cue or answer path; the others run beside them. "
+    "Map review marks new obstacles for the reflex.</text>"
 )
 out.append(
-    f'<text x="{X0}" y="{H - 14}" class="s">Sources for every number: docs/ARCHITECTURE.md.</text>'
+    f'<text x="{LX}" y="{H - 14}" class="s">Sources for every number: docs/ARCHITECTURE.md.'
+    " STOP never waits on an AI model.</text>"
 )
 
 STYLE = """
