@@ -104,3 +104,12 @@ def test_hold_never_masks_a_new_closer_obstacle():
     hold([pan.Target(0.0, 1.2)])
     out = hold([pan.Target(80.0, 0.5)])[0]
     assert (out.bearing_deg, out.dist_m) == (80.0, 0.5)
+
+
+def test_planner_guide_reaches_the_goal_and_stop_always_wins():
+    from metasight import hapsim as h
+
+    belt = h.Belt(scheme="sector", guide="on", persist=2, planner=True)
+    r = h.run(h.make_room(1003), belt, h.Skin(nav_drift_deg=12.0), seed=0)
+    assert r.guide_frames > 0 and r.stop_violations == 0
+    assert r.stop_overridden == r.stop_frames

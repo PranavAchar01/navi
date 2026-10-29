@@ -59,6 +59,7 @@ class Belt:
     spinup_s: float = 0.075
     guide: str = "none"  # none | on | no_override: a waypoint cue (pan.with_guide)
     hold: bool = False  # bearing hysteresis on the panned cue (pan.Hold)
+    planner: bool = False  # steer by nav.Navigator's waypoint bearing instead of the sim's BFS
     persist: int = 1  # frames a strip must stay near (pan.Persist); 1 = off
 
 
@@ -220,11 +221,29 @@ def sense(room: Room, x, y, heading, rng) -> tuple[list[float], list[float]]:
 
 def command(
     belt: Belt, strips, sectors, ttc, goal_b: float = 0.0, hold=None
-) -> list[tuple[int, int]]:
-    cmd = _obstacle_cmd(belt, strips, sectors, ttc, hold)
+) -> tuple[list[tuple[int, int]], list[tuple[int, int]], bool]:
+    """(final command, the obstacle command under it, whether Guide was shown)."""
+    obstacle = _obstacle_cmd(belt, strips, sectors, ttc, hold)
+    cmd, shown = obstacle, False
     if belt.guide != "none":
-        cmd, _ = pan.with_guide(cmd, goal_b, override=belt.guide == "on")
-    return cmd
+        cmd, shown = pan.with_guide(obstacle, goal_b, override=belt.guide == "on")
+    return cmd, obstacle, shown
+
+
+def _planner(room: Room):
+    """nav.Navigator on the room, routed to the goal. The sim has x right, y up, heading
+    counter-clockwise from +x; nav has forward (sin yaw, cos yaw), so z = -y and yaw = pi/2 + h."""
+    from metasight import nav
+
+    rects = [
+        (x0, -y1, x1, -y0, 2.5 if i < room.n_walls else 0.9)
+        for i, (x0, y0, x1, y1) in enumerate(room.rects)
+    ]
+    w, hgt = room.size
+    plan = nav.plan_from_rects(rects, -0.3, -hgt - 0.3, w + 0.3, 0.3)
+    n = nav.Navigator(plan)
+    n.set_goal([room.goal[0], 0.0, -room.goal[1]], "keys")
+    return n
 
 
 def _obstacle_cmd(belt: Belt, strips, sectors, ttc, hold=None) -> list[tuple[int, int]]:
@@ -276,6 +295,10 @@ class Result:
     contact_s: float
     min_clear_m: float
     false_buzzes: int = 0  # cue onsets with nothing real within range of that motor
+    guide_frames: int = 0  # frames with a guide cue wanted (a goal and the guide on)
+    stop_frames: int = 0  # of those, frames where an obstacle cue was solid
+    stop_overridden: int = 0  # of those, frames where Guide yielded to Stop
+    stop_violations: int = 0  # frames where a solid motor was changed by the overlay (must be 0)
 
     @property
     def efficiency(self) -> float:
@@ -405,6 +428,9 @@ def run(
     hold = pan.Hold() if belt.hold else None
     drift = 0.0
     n = 0
+    nav = _planner(room) if belt.planner else None
+    gframes = sframes = sover = sviol = 0
+    gtruth = 0.0
     fb, prev_on = 0, [False] * 8
     while t < max_s:
         if t - last_sense >= SENSE_DT - 1e-9:
@@ -419,7 +445,21 @@ def run(
                     for d in strips
                 ]
             gb = wrap_deg(-math.degrees(math.atan2(wps[wi][1] - y, wps[wi][0] - x) - heading))
-            cmd = command(belt, persist(strips), sectors, ttc, gb, hold)
+            if nav is not None:
+                g = nav.step([x, 0.0, -y], math.pi / 2 + heading)
+                if g is not None:
+                    gb = g.bearing_deg
+                gtruth = gb
+            cmd, obstacle, shown = command(belt, persist(strips), sectors, ttc, gb, hold)
+            if belt.guide != "none":
+                gframes += 1
+                if any(m == MODES["solid"] for m, _ in obstacle):
+                    sframes += 1
+                    sover += not shown
+                    sviol += any(
+                        m == MODES["solid"] and cmd[k] != (m, i)
+                        for k, (m, i) in enumerate(obstacle)
+                    )
             # False buzz = a motor turns on while nothing real is within range of its 90 degree
             # span (its own sector and the strips that face it).
             on = [i > 0 for _, i in cmd]
@@ -446,6 +486,8 @@ def run(
             win = np.array(h[: max(1, len(h) - lag)][-int(WINDOW_S / DT) :])
             gx, gy = wps[wi]
             goal_true = wrap_deg(-math.degrees(math.atan2(gy - y, gx - x) - heading))
+            if nav is not None:
+                goal_true = wrap_deg(gtruth)
             # The walker's own sense of where the next waypoint is drifts without a cue (dead
             # reckoning, skin.nav_drift_deg per sqrt(s)); a felt Guide cue resets it to the
             # cue's bearing.
@@ -483,11 +525,17 @@ def run(
         t += DT
         if n % 10 == 0:
             clear = min(clear, _clearance(room.rects, x, y))
-        if math.dist((x, y), wps[wi]) < 0.45:
+        extra = (gframes, sframes, sover, sviol)
+        if nav is not None:
+            if math.dist((x, y), room.goal) < 0.45:
+                return Result(True, t, dist, shortest, coll, contact_t, clear, fb, *extra)
+        elif math.dist((x, y), wps[wi]) < 0.45:
             wi += 1
             if wi >= len(wps):
-                return Result(True, t, dist, shortest, coll, contact_t, clear, fb)
-    return Result(False, t, dist, shortest, coll, contact_t, clear, fb)
+                return Result(True, t, dist, shortest, coll, contact_t, clear, fb, *extra)
+    return Result(
+        False, t, dist, shortest, coll, contact_t, clear, fb, gframes, sframes, sover, sviol
+    )
 
 
 def _real_near(truth, m: int, off_m: float) -> bool:
@@ -555,6 +603,10 @@ def summarize(rs: list[Result]) -> dict:
         "false_per_min": float(
             sum(r.false_buzzes for r in rs) / max(1e-9, sum(r.time_s for r in rs) / 60)
         ),
+        "guide_frames": sum(r.guide_frames for r in rs),
+        "stop_frames": sum(r.stop_frames for r in rs),
+        "stop_overridden": sum(r.stop_overridden for r in rs),
+        "stop_violations": sum(r.stop_violations for r in rs),
         "cost": cost(rs),
     }
 
