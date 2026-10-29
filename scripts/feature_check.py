@@ -53,7 +53,14 @@ CAMERA_SECTORS = ("front-left", "front", "front-right")
 # Cue scoring against bench/labels (lead's call 02:35: a raw on-rate cannot tell a right belt
 # from a broken one on a cluttered walk).
 FALSE_NAME, FALSE_M, FALSE_SCALE, FALSE_MIN = "False front cue vs labels", 2.0, 1.16, 20
-URGENT_NAME, URGENT_M, URGENT_MAX_PCT = "Over-urgent solid cue vs labels", 1.5, 10
+URGENT_NAME, URGENT_M, URGENT_SCALE, URGENT_MAX_PCT = (
+    "Over-urgent solid cue vs labels",
+    1.5,
+    1.16,
+    10,
+)
+MISS_NAME, MISS_M, MISS_SCALE = "Missed near obstacle vs labels", 1.0, 0.84
+# Each row fails only when the belt is wrong even under the depth's 16% scale error.
 SKIP_FIND = {"person", "wall", "floor", "window", "curtain", "rug"}
 
 
@@ -319,7 +326,7 @@ def cue_rows(safety: list, walk: Path) -> list:
         why = "no safety frames" if not safety else f"no labels at {lab_path.relative_to(ROOT)}"
         return [
             row(k, n, "metasight-compare", "SKIP", "", why)
-            for k, n in (("falsecue", FALSE_NAME), ("urgent", URGENT_NAME))
+            for k, n in (("falsecue", FALSE_NAME), ("urgent", URGENT_NAME), ("missnear", MISS_NAME))
         ]
     import numpy as np
 
@@ -341,6 +348,8 @@ def cue_rows(safety: list, walk: Path) -> list:
     far = far_on = 0
     far_idx: set[int] = set()
     solid_lab = solid_far = 0
+    close = close_miss = 0
+    close_idx: set[int] = set()
     for _, e in safety:
         front = [q for n, q in zip(e["names"], e["cues"], strict=False) if n in CAMERA_SECTORS]
         f_on = any(q["mode"] != "off" and q["intensity"] >= 26 / 255 for q in front)
@@ -358,7 +367,11 @@ def cue_rows(safety: list, walk: Path) -> list:
             far_idx.add(i)
         if s_on:
             solid_lab += 1
-            solid_far += near > URGENT_M
+            solid_far += near * URGENT_SCALE > URGENT_M
+        if near * MISS_SCALE < MISS_M:
+            close += 1
+            close_miss += not f_on
+            close_idx.add(i)
     pri = [e["priors"] for _, e in safety if e.get("priors")]
     info = (
         f"info: front on {100 * front_on / len(safety):.0f}% and solid/stop "
@@ -410,9 +423,37 @@ def cue_rows(safety: list, walk: Path) -> list:
             "PASS" if u_pct <= URGENT_MAX_PCT else "FAIL",
             f"{solid_far} of {solid_lab} ({u_pct:.0f}%)",
             f"solid/stop cue while the nearest labelled obstacle in view is beyond {URGENT_M} m "
-            f"(labels x1.0), over solid frames on labelled frames; FAIL above {URGENT_MAX_PCT}%",
+            f"(labels x{URGENT_SCALE}), over solid frames on labelled frames; "
+            f"FAIL above {URGENT_MAX_PCT}%",
         )
     )
+    if close < FALSE_MIN:
+        out.append(
+            row(
+                "missnear",
+                MISS_NAME,
+                "metasight-compare",
+                "SKIP",
+                f"{close} frames",
+                f"unmeasurable on this walk ({close} frames with an obstacle labelled under "
+                f"{MISS_M} m in view at labels x{MISS_SCALE}, need {FALSE_MIN})",
+            )
+        )
+    else:
+        m_pct = 100 * close_miss / close
+        off_miss = 100 * float((~offline[sorted(close_idx)]).mean())
+        out.append(
+            row(
+                "missnear",
+                MISS_NAME,
+                "metasight-compare",
+                "PASS" if m_pct <= off_miss + 5 else "FAIL",
+                f"{close_miss} of {close} ({m_pct:.0f}%)",
+                f"no front cue while the nearest labelled obstacle in view is under {MISS_M} m "
+                f"(labels x{MISS_SCALE}); offline sector scheme misses {off_miss:.0f}% of the "
+                f"same {len(close_idx)} label frames, FAIL above {off_miss + 5:.0f}%",
+            )
+        )
     return out
 
 
@@ -951,6 +992,7 @@ ORDER = [
     "belt-",
     "falsecue",
     "urgent",
+    "missnear",
     "mapreflex",
     "guide",
     "nav",
