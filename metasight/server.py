@@ -42,6 +42,7 @@ from .modes import implied as implied_activity
 from .motion import FallDetector, Sample, ShakeDetector
 from .notes import Notes, asks_notes, notes_command
 from .onboarding import PATTERNS, Onboarding, pattern_length, wants_setup
+from .pan import Persist
 from .pins import PinStore
 from .providers import make_language, make_reviewer
 from .providers.finder import LOOKALIKES
@@ -97,6 +98,7 @@ class Server:
         self.onboarding = Onboarding()  # first run: walk, name things, feel the modes
         self._load_watch(settings)
         self.talk = Talk(settings.hfov_deg)
+        self.persist = Persist(2)  # two frames near before a motor fires
         self.activity = Activity()  # guide, find, talk or explore (modes.py)
         self.talk.cues_enabled = self.activity.profile.speaker_cues
         self.voice: VoiceAsk | None = None  # spoken questions through Muse Voice Transcribe
@@ -374,7 +376,7 @@ class Server:
                 inst = 1.0 / max(1e-3, now - self.last_done)
                 self.fps = inst if self.fps == 0 else 0.85 * self.fps + 0.15 * inst
             self.last_done = now
-            live = res.sectors
+            live = self.persist(res.sectors)
             merged = merge_sectors(live, self._map_sectors_now())
             sc = res.scene
             # Side and back sectors come from the map; trust them only while the pose is fresh.
