@@ -87,8 +87,9 @@ struct CameraAccessApp: App {
         MockDeviceKitView(viewModel: mockDeviceKitViewModel)
       }
       .overlay {
-        // The meta-sight demo pairs its own mock glasses; keep its screen clean.
-        if !DemoLaunch.isEnabled {
+        // The meta-sight demos pair their own mock glasses or phone camera; keep their screen clean
+        // (the button sat on top of "Stop notes").
+        if !DemoLaunch.isEnabled && !DemoLaunch.isPhoneDemo {
           DebugMenuView(showDebugMenu: $showDebugMenu)
         }
       }

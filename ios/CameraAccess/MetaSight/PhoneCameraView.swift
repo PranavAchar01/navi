@@ -148,7 +148,7 @@ struct PhoneCameraView: View {
       VStack(alignment: .leading, spacing: 6) {
         ScrollViewReader { proxy in
           ScrollView {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 4) {
               ForEach(Array(c.lines.enumerated()), id: \.offset) { i, line in
                 Text(line.who.map { "\($0): \(line.text)" } ?? line.text)
                   .font(.system(size: 26, weight: .semibold))
@@ -161,7 +161,7 @@ struct PhoneCameraView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
           }
-          .frame(height: 250)
+          .frame(height: 285)
           .onChange(of: c) { _, _ in proxy.scrollTo("captions_end", anchor: .bottom) }
           .onAppear { proxy.scrollTo("captions_end", anchor: .bottom) }
         }
