@@ -598,7 +598,24 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
         for p in st["pins"]:
             if p["label"] not in SKIP_FIND:
                 counts[p["label"]] = max(counts.get(p["label"], 0), p.get("seen", 0))
-        label = max(counts, key=counts.get) if counts else None
+        # The guide ends as found inside 0.8 m, so ask for something not right beside the wearer:
+        # the most-seen label with a placed pin at least 1.5 m from the latest position.
+        pos = next(
+            (e["pos"] for _, e in reversed(c.events) if e.get("type") == "safety" and e.get("pos")),
+            None,
+        )
+        far = {
+            lab
+            for lab in counts
+            for p in st["pins"]
+            if p["label"] == lab
+            and p.get("placed")
+            and pos is not None
+            and sum((a - b) ** 2 for a, b in zip(p["pos"], pos, strict=False)) ** 0.5 >= 1.5
+        }
+        pool = {k: v for k, v in counts.items() if k in far} or counts
+        label = max(pool, key=pool.get) if pool else None
+        meta["find_far"] = bool(far)
         meta["find_label"] = label
         if label is None:
             results.append(
@@ -633,6 +650,7 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
                 await asyncio.sleep(0.5)
             meta["guide_hold_s"] = round(time.time() - t0, 1)
             guides = [e.get("guide") for e in c.since(t0, "safety") if e.get("guide") is not None]
+            found_at_once = any(e.get("found") for e in c.since(t0, "safety"))
             with_b = [g for g in guides if g.get("bearing") is not None]
             ages = [e["map_age"] for e in c.since(t0, "safety") if e.get("map_age") is not None]
             pin_ts = (res.get("pin") or {}).get("ts")
@@ -654,7 +672,13 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
                         "metasight-compare",
                         "FAIL",
                         "0 frames",
-                        "no safety frame carried a guide after the answer",
+                        "no safety frame carried a guide after the answer"
+                        + (
+                            "; the belt signalled found at once (target under 0.8 m)"
+                            if found_at_once
+                            else ""
+                        )
+                        + ("" if meta["find_far"] else "; no pin was 1.5 m or more away"),
                     )
                 )
             else:
