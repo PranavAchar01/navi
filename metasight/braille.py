@@ -158,8 +158,8 @@ _OCLOCK = re.compile(r"(\d{1,2})\s+o'?clock")
 
 def compress(text: str, max_cells: int = 24) -> str:
     """Cut an answer to a terse cue, e.g. "Your keys are on the table, 4 meters ahead." ->
-    "keys table 4m ahead". Whole trailing words are dropped past `max_cells` Braille cells, since
-    the wearer cannot wait a minute for a sentence."""
+    "keys table 4m ahead". Past `max_cells` Braille cells filler words are dropped first, so
+    the object, distance and direction always survive; the wearer cannot wait for a sentence."""
     t = text.lower().replace("’", "'")
     t = re.sub(r"[.,;!]+(?=\s|$)", " ", t)
     for phrase, short in sorted(PHRASES.items(), key=lambda kv: -len(kv[0])):
@@ -176,12 +176,33 @@ def compress(text: str, max_cells: int = 24) -> str:
         if w:
             words.append(w)
     t = re.sub(r"\s+\?", "?", _NUM_UNIT.sub(r"\1\2", " ".join(words)))
-    out: list[str] = []
-    used = 0
-    for w in t.split():
-        n = len(encode_word(w))
-        if out and used + n + 1 > max_cells:
-            break
-        out.append(w)
-        used += n + 1
-    return " ".join(out)
+    return _fit(t.split(), max_cells)
+
+
+_DIRECTIONS = {"ahead", "behind", "left", "right"}
+_DISTANCE = re.compile(r"^\d+(\.\d+)?(m|ft|min|s)$")
+_CLOCK = re.compile(r"^\d{1,2}oc$")
+
+
+def _fit(words: list[str], max_cells: int) -> str:
+    """Keep the cue within `max_cells`: when it is too long, drop filler words first (the middle
+    ones, then the tail) so the object, the distance and the direction always survive, even if
+    they alone exceed the cap."""
+    cells = [len(encode_word(w)) for w in words]
+    if sum(cells) + len(words) - 1 <= max_cells:
+        return " ".join(words)
+    keep = set()
+    for i, w in enumerate(words):
+        if _DISTANCE.match(w) or _CLOCK.match(w) or w in _DIRECTIONS:
+            keep.add(i)
+            if i and words[i - 1] == "~":
+                keep.add(i - 1)
+    first = next((i for i, w in enumerate(words) if i not in keep and w != "~"), None)
+    if first is not None:
+        keep.add(first)
+    used = sum(cells[i] + 1 for i in keep)
+    for i in range(len(words)):
+        if i not in keep and used + cells[i] + 1 <= max_cells + 1:
+            keep.add(i)
+            used += cells[i] + 1
+    return " ".join(words[i] for i in sorted(keep))

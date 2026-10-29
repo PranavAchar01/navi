@@ -81,7 +81,7 @@ def test_compress_is_shorter_and_capped():
     cue = braille.compress(long)
     assert len(cue) < len(long) / 2
     capped = braille.compress(long, max_cells=10)
-    assert sum(len(c) + 1 for c in braille.encode(capped)) <= 11 and capped.startswith("wallet")
+    assert capped.split() == ["wallet", "~", "2m", "ahead"]  # filler goes, the core stays
 
 
 def test_timeline_gaps_and_total():
@@ -244,3 +244,30 @@ def test_make_output_picks_backends():
     s.braille = "bogus"
     with pytest.raises(ValueError):
         haptics.make_output(s, emit, None)
+
+
+_OBJECTS = ["keys", "wallet", "backpack", "laptop", "water bottle", "glasses", "phone charger"]
+_PLACES = [
+    "on the kitchen counter",
+    "next to the laptop",
+    "on the big wooden table",
+    "in the hallway",
+]
+_WHERE = [
+    ("4 meters ahead of you", "4m", "ahead"),
+    ("12.5 feet on your left", "12.5ft", "left"),
+    ("2 meters behind you", "2m", "behind"),
+    ("3 meters to your right", "3m", "right"),
+    ("about 7 meters, 2 o'clock", "7m", "2oc"),
+]
+
+
+@pytest.mark.parametrize("cap", [24, 16, 12])
+def test_every_cue_template_keeps_object_distance_and_direction_at_the_cap(cap):
+    for obj in _OBJECTS:
+        for place in _PLACES:
+            for where, dist, direction in _WHERE:
+                cue = braille.compress(f"Your {obj} are {place}, {where}.", max_cells=cap)
+                words = cue.split()
+                assert obj.split()[0] in words, cue
+                assert dist in words and direction in words, cue
