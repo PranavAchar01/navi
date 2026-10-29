@@ -90,8 +90,13 @@ async def streamed(question: str, pcm: bytes) -> dict:
             first_partial = t
             f, tf = await until(ws, lambda m: m.get("type") == "transcript" and m["final"])
             a, ta = await until(ws, lambda m: m.get("type") == "answer")
+            nonlocal held
+            if a.get("holding"):  # "One sec": the first thing spoken, then the real answer
+                held = ta
+                a, ta = await until(ws, lambda m: m.get("type") == "answer")
             return f, tf, a, ta
 
+        held = None
         w = asyncio.create_task(watch())
         t_start = time.perf_counter()
         spoken = await stream(ws, pcm, 3.0)
@@ -105,6 +110,7 @@ async def streamed(question: str, pcm: bytes) -> dict:
             "first_partial_from_start_ms": round(1000 * (first_partial - t_start)),
             "final_transcript_ms": round(1000 * (tf - spoken)),
             "answer_ms": round(1000 * (ta - spoken)),
+            "first_spoken_ms": round(1000 * ((held or ta) - spoken)),
             "server_speech_end_to_answer_ms": a.get("voice", {}).get("speech_end_to_answer_ms"),
         }
 
@@ -151,9 +157,9 @@ async def only(question: str) -> None:
     for _ in range(N):
         out["streamed"].append(await streamed(question, pcm))
         print("streamed", out["streamed"][-1], flush=True)
-    out["streamed_median_answer_ms"] = round(
-        statistics.median(r["answer_ms"] for r in out["streamed"])
-    )
+    for k in ("answer_ms", "first_spoken_ms"):
+        v = [r[k] for r in out["streamed"]]
+        out[f"streamed_median_{k}"], out[f"streamed_max_{k}"] = round(statistics.median(v)), max(v)
     print({k: v for k, v in out.items() if k.endswith("_ms")})
     slug = "-".join(question.lower().split())
     (ROOT / f"bench/results/voice-e2e-{slug}.json").write_text(json.dumps(out, indent=1))

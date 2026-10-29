@@ -52,6 +52,10 @@ _ERRAND = re.compile(
 )
 
 
+def is_errand(text: str) -> bool:
+    return bool(_ERRAND.search(text.lower()))
+
+
 def needs_tools(text: str) -> bool:
     return bool(_TOOLS.search(text.lower()) or _ERRAND.search(text.lower()))
 

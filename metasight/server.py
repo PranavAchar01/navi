@@ -53,6 +53,7 @@ from .query import (
     camera_answer,
     facts_for_language,
     glimpse_answer,
+    is_errand,
     live_answer,
     needs_tools,
     parse_query,
@@ -75,6 +76,8 @@ LIVE_SEEN_S = 1.0  # a camera sighting this recent answers "where is my X" over 
 LIVE_OVER_PIN_S = 60.0  # an older camera sighting wins when memory's pin is this much older
 MAP_WAIT_S = 3.0  # right after a restart, how long a question waits for the home map
 MAP_LOADING = "I'm still loading your home map. Ask me again in a few seconds."
+HOLD_S = 1.2  # a plan not back by then gets a holding line, so the wearer is not left in silence
+HOLDING = "One sec, putting that together."
 AR_POSE_HZ = 5.0  # ARKit-carried poses go out to viewers at most this often
 # ARKit's camera is the landscape sensor (x along its long side, y up, z back). Frames go out
 # turned upright, so the image's right is ARKit's +y and its down is ARKit's +x.
@@ -940,7 +943,15 @@ class Server:
         if pending is not None:
             res = await pending
         else:
-            res = await self.loop.run_in_executor(self.llm_pool, self._answer_sync, text)
+            work = self.loop.run_in_executor(self.llm_pool, self._answer_sync, text)
+            if is_errand(text):
+                done, _ = await asyncio.wait({work}, timeout=HOLD_S)
+                if not done:
+                    hold = {"type": "answer", "label": None, "text": HOLDING, "pin": None}
+                    await self.hub.json({**hold, "holding": True})
+                    if self.braille:
+                        self.braille.say(HOLDING)
+            res = await work
         if quiet_unknown and res.get("label") is None and not res.get("tools"):
             return None
         res["ms"] = round(1000 * (time.perf_counter() - t0))

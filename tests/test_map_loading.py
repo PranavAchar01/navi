@@ -65,3 +65,28 @@ def test_a_question_waits_for_a_map_that_loads_in_time(monkeypatch):
 
     res = asyncio.run(run())
     assert res["text"] == "Your keys are by the sink." and answered == ["where are my keys"]
+
+
+def test_a_slow_plan_gets_a_holding_line_first(monkeypatch):
+    import time as _time
+
+    monkeypatch.setattr(server, "HOLD_S", 0.05)
+    answered, sent = [], []
+
+    async def run():
+        srv = fake(answered)
+
+        async def json(ev, *_):
+            sent.append(ev["text"])
+
+        def slow(text):
+            _time.sleep(0.2)
+            return {"type": "answer", "label": None, "text": "Grab your keys.", "pin": None}
+
+        srv.hub, srv._answer_sync = NS(json=json), slow
+        srv.map_loaded.set()
+        srv.loop = asyncio.get_running_loop()
+        return await Server.answer(srv, "get ready to leave")
+
+    res = asyncio.run(run())
+    assert sent == [server.HOLDING, "Grab your keys."] and res["text"] == "Grab your keys."
