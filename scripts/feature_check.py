@@ -991,6 +991,21 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
                     lat[side] = (1000 * (hit[0][0] - sent[i]), hit[0][1]["bearing"])
         people = c.since(t_a, "people")
         doas = [e["doa"] for e in people if e.get("doa") is not None]
+        # every people and speaker event from 1 s before to 3 s after each voice's onset, so a
+        # slow cue can be traced (time in ms from that onset)
+        dump = {}
+        for onset, side in ((1.0, "left"), (10.0, "right")):
+            i = int(onset * SR / 1600)
+            if i < len(sent):
+                t_on = sent[i]
+                dump[side] = [
+                    {"ms": round(1000 * (at - t_on)), **e}
+                    for at, e in c.events
+                    if e.get("type") in ("people", "speaker_cue") and -1 <= at - t_on <= 3
+                ]
+        (ROOT / "bench" / "results" / "morning-check-people.json").write_text(
+            json.dumps(dump, indent=1, default=str)
+        )
         ok = len(lat) == 2
         results.append(
             row(
