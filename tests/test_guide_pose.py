@@ -225,6 +225,7 @@ def test_a_weak_local_keys_pin_sam_never_saw_is_not_answered_or_routed_to():
     ev = ask_keys(srv)
     assert ev["text"].startswith("I haven't seen your keys")
     assert ev["pin"] is None and "pin_id" not in ev and srv.guide is None
+    assert ev["skipped_pin_id"] == pin.id  # so verify can see why
     # A guide already running for keys does not switch onto it either.
     srv.guide = {"pin": None, "label": "keys", "until": now + 90.0}
     assert Server._guide_pin(srv, srv.guide) is None
@@ -239,5 +240,6 @@ def test_a_sure_or_sam_confirmed_keys_pin_is_answered_and_routed_as_before():
         ev = ask_keys(srv)
         assert ev["text"].startswith("Your keys were last seen near the sink"), ev["text"]
         assert ev["pin_id"] == pin.id and ev["confirmed"] is True
+        assert "skipped_pin_id" not in ev
         assert srv.guide["pin"] == pin.id
         assert guide(srv, now)["bearing"] is not None

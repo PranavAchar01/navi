@@ -79,6 +79,11 @@ class PinStore:
     def stands(self, p: Pin) -> bool:
         return p.label not in self.items or confirmed(p.score, p.source)
 
+    def skipped(self, label: str) -> Pin | None:
+        """The most-seen pin of `label` that does not stand, if any."""
+        weak = [p for p in self.pins.values() if p.label == label and not self.stands(p)]
+        return max(weak, key=lambda p: p.seen, default=None)
+
     def observe(
         self,
         label: str,

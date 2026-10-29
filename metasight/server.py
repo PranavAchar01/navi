@@ -977,6 +977,8 @@ class Server:
             "text": text_out,
             "pin": pin.to_json() if pin else None,
             "language": self.language.name if polished else "template",
+            # "Not seen" over a pin the store passed by: say which, so a check can see why.
+            **({"skipped_pin_id": w.id} if pin is None and (w := self.pins.skipped(label)) else {}),
         }
 
     def _load_watch(self, settings: Settings) -> None:
