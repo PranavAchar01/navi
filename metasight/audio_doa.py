@@ -124,10 +124,17 @@ class Doa:
     """
 
     def __init__(
-        self, spacing_m: float, window: int = 12, min_votes: int = 3, peak_min: float = 0.12
+        self,
+        spacing_m: float,
+        window: int = 12,
+        min_votes: int = 6,
+        peak_min: float = 0.16,
+        agree_deg: float = AGREE_DEG,
+        agree_share: float = AGREE_SHARE,
     ):
         self.spacing_m = spacing_m
         self.min_votes, self.peak_min = min_votes, peak_min
+        self.agree_deg, self.agree_share = agree_deg, agree_share
         self.votes: deque[float] = deque(maxlen=window)
 
     def push(self, block: np.ndarray, voiced: bool) -> float | None:
@@ -148,7 +155,7 @@ class Doa:
         v = np.array(self.votes)
         med = float(np.median(v))
         # A real voice makes most votes agree; noise or a smeared lag scatters them across the arc.
-        if float(np.mean(np.abs(v - med) <= AGREE_DEG)) < AGREE_SHARE:
+        if float(np.mean(np.abs(v - med) <= self.agree_deg)) < self.agree_share:
             return None
         return med
 

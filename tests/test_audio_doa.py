@@ -66,3 +66,19 @@ def test_decorrelated_channels_give_no_direction_not_a_wrong_one():
     for _ in range(40):
         d.push(rng.normal(size=(512, 2)) * 0.2, True)
     assert d.bearing() is None
+
+
+def test_noise_only_blocks_rarely_give_a_bearing():
+    """Each false bearing is a belt cue pointing at nobody: 512-sample blocks of independent noise,
+    all flagged as voiced (the VAD's worst mistake), seeds the gate was not tuned on."""
+    hits = 0
+    for seed in range(200, 205):
+        rng = np.random.default_rng(seed)
+        for _ in range(60):
+            d = Doa(0.14)
+            for _ in range(int(rng.integers(8, 41))):
+                d.push(rng.normal(size=(512, 2)) * 0.2, True)
+                if d.bearing() is not None:
+                    hits += 1
+                    break
+    assert hits <= 3  # of 300 runs
