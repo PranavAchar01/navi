@@ -184,13 +184,30 @@ def heavy_slot() -> Path:
             slot.mkdir()
         except FileExistsError:
             try:
-                os.kill(int((slot / "owner").read_text().strip()), 0)
-            except (OSError, ValueError):
+                owner = int((slot / "owner").read_text().strip())
+            except (FileNotFoundError, ValueError):
+                # Just taken, owner not written yet: busy, unless it has sat ownerless ~10 s.
+                try:
+                    young = time.time() - slot.stat().st_mtime < 10
+                except FileNotFoundError:
+                    continue  # released meanwhile: try this slot again
+                if not young:
+                    shutil.rmtree(slot, ignore_errors=True)
+                    continue
+                i += 1
+                continue
+            try:
+                os.kill(owner, 0)
+            except ProcessLookupError:
                 shutil.rmtree(slot, ignore_errors=True)
                 continue
+            except PermissionError:
+                pass  # alive, someone else's process
             i += 1
             continue
-        (slot / "owner").write_text(f"{os.getpid()}\n")
+        tmp = slot / f".owner.{os.getpid()}"
+        tmp.write_text(f"{os.getpid()}\n")
+        tmp.rename(slot / "owner")  # atomic: a reader sees no owner or the whole PID
         return slot
 
 
