@@ -5,6 +5,7 @@ from metasight.query import (
     direction_phrase,
     distance_phrase,
     is_question,
+    live_answer,
     parse_query,
     template_answer,
     time_ago,
@@ -121,3 +122,47 @@ def test_a_look_alike_is_offered_as_unconfirmed():
     text = template_answer("water bottle", cup, pose_facing_minus_z(), 1000.0, stand_in=True)
     assert text.startswith("I'm not sure I saw your water bottle, but a cup was near the desk")
     assert "straight ahead" in text
+
+
+def test_live_answer_names_the_live_place():
+    assert live_answer("laptop", 1.5, -40) == (
+        "Your laptop is about 1.5 metres ahead of you to the left, in view now."
+    )
+    assert live_answer("keys", 0.6, 5) == "Your keys are right in front of you, in view now."
+
+
+def test_a_live_sighting_beats_an_old_memory():
+    """Cycle 10: "near the TV, seen six hours ago" while the laptop was in frame."""
+    import time
+    from types import SimpleNamespace
+
+    from metasight.server import Server
+
+    store = PinStore()
+    old = Pin(
+        id=1,
+        label="laptop",
+        kind="object",
+        pos=[2.0, 1.0, -3.0],
+        ts=time.time() - 6 * 3600,
+        first_ts=time.time() - 7 * 3600,
+        seen=3,
+        score=0.9,
+        near=["TV"],
+    )
+    store.pins[old.id] = old
+    srv = SimpleNamespace(
+        pins=store,
+        language=SimpleNamespace(name="template"),
+        pose=None,
+        map_pose_ts=0.0,
+        guide=None,
+        live_seen=(time.time(), [("laptop", 3.0, 1.4)]),
+    )
+    res = Server._answer_sync(srv, "where is my laptop")
+    assert res["live"] and "in view now" in res["text"] and "hours" not in res["text"]
+    assert srv.guide["label"] == "laptop"
+
+    srv.live_seen = (time.time() - 5, [("laptop", 3.0, 1.4)])  # out of frame for a while
+    res = Server._answer_sync(srv, "where is my laptop")
+    assert "hours ago" in res["text"]

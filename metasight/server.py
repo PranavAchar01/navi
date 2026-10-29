@@ -41,6 +41,7 @@ from .providers.finder import LOOKALIKES
 from .query import (
     SYSTEM,
     facts_for_language,
+    live_answer,
     parse_query,
     template_answer,
     valid_sentence,
@@ -53,6 +54,7 @@ SIGHT_AGREE_DEG = 50.0  # after a lock, a sighting further than this from it is 
 SIGHT_HOLD_S = 6.0  # how long a lock vets new sightings
 POSE_FRESH_S = 6.0  # a map pose older than this gives no direction
 ANSWER_POSE_S = 12.0  # answers accept an older pose: windows take 5 to 11 s during a solve
+LIVE_SEEN_S = 1.0  # a camera sighting this recent answers "where is my X" over memory
 FINDER_LONG_SIDE = 960  # small items vanish at the models' 518 px; the item finder looks here
 log = logging.getLogger("metasight")
 
@@ -81,6 +83,8 @@ class Server:
         self.walks: dict[WebSocket, WalkRecorder] = {}  # clients saving their walk on this Mac
         self.guide: dict | None = None  # the item the belt is pointing to, after a question
         self.found_until = 0.0
+        # (time, [(label, bearing, dist)]) of the last processed frame's detections.
+        self.live_seen: tuple[float, list[tuple[str, float, float]]] = (0.0, [])
         self.heading = Heading(settings.hfov_deg)  # carries the head's turn between map poses
         self.map_sectors: list[float] = [math.inf] * 8
         self.map_pose_ts = 0.0
@@ -308,6 +312,14 @@ class Server:
             # The heading is carried between poses, so guidance tolerates an older position.
             guide_fresh = self.memory_ready and now - self.map_pose_ts < POSE_FRESH_S
             guiding = self._guide(cmd, now, bool(guide_fresh), res.obstacles)
+            self.live_seen = (
+                now,
+                [
+                    (o.label, self.heading.box_bearing(o.box), o.dist_m)
+                    for o in [*res.obstacles, *res.objects]
+                    if math.isfinite(o.dist_m)
+                ],
+            )
             if now < self.found_until:
                 flags |= FLAG_FOUND
             if not (self.braille and self.braille.owns_belt):  # a Braille cue on the belt wins
@@ -411,13 +423,18 @@ class Server:
                 self.heading.sight(np.array(pin.pos), bearing)
             rel = dist, bearing
         if rel is None:
-            return {"label": g["label"], "dist": None, "bearing": None}
+            return {"label": g["label"], "dist": None, "bearing": None, "in_view": False}
         dist, bearing = rel
         if dist < 0.8:
             self.guide, self.found_until = None, now + 2.0
             return None
         guide(cmd, bearing, dist)
-        return {"label": g["label"], "dist": round(dist, 2), "bearing": round(bearing, 1)}
+        return {
+            "label": g["label"],
+            "dist": round(dist, 2),
+            "bearing": round(bearing, 1),
+            "in_view": bool(live),  # the camera sees it now, not just the map
+        }
 
     def _maybe_keyframe(self, now: float, seq: int, small, res, sharp: float, hi) -> None:
         """Send memory the sharpest frame of each keyframe interval. Walking and turning blur
@@ -472,19 +489,23 @@ class Server:
 
     # ------------------------------------------------------------ questions
     def _answer_sync(self, text: str) -> dict:
-        label = parse_query(text, self.pins.labels())
-        if label is None and self.pins.labels() and self.language.name != "template":
+        seen_at, seen = self.live_seen
+        if time.time() - seen_at > LIVE_SEEN_S:
+            seen = []
+        labels = sorted({*self.pins.labels(), *(s[0] for s in seen)})
+        label = parse_query(text, labels)
+        if label is None and labels and self.language.name != "template":
             try:
                 pick = (
                     self.language.complete(
                         "Reply with exactly one item from the list, or none.",
-                        f"Items: {', '.join(self.pins.labels())}\nQuestion: {text}",
+                        f"Items: {', '.join(labels)}\nQuestion: {text}",
                         max_tokens=8,
                     )
                     .strip()
                     .lower()
                 )
-                label = pick if pick in self.pins.labels() else None
+                label = pick if pick in labels else None
             except Exception:
                 label = None
         if label is None:
@@ -495,6 +516,20 @@ class Server:
                 "pin": None,
             }
         pin = self.pins.latest(label)
+        live = [s for s in seen if s[0] == label]
+        if live:
+            # In frame right now: the live sighting wins over memory, however old the pin.
+            _, bearing, dist = min(live, key=lambda s: s[2])
+            pin_id = pin.id if pin else None
+            self.guide = {"pin": pin_id, "label": label, "until": time.time() + 90.0}
+            return {
+                "type": "answer",
+                "label": label,
+                "text": live_answer(label, dist, bearing),
+                "pin": pin.to_json() if pin else None,
+                "language": "template",
+                "live": True,
+            }
         stand_in = False
         if pin is None:
             # The careful detector can miss a motion-blurred item the quick one saw as its

@@ -101,6 +101,16 @@ def template_answer(
     return f"{noun[0].upper() + noun[1:]} {was}{where}, {place}, seen {ago}."
 
 
+def live_answer(label: str, dist_m: float, bearing_deg: float) -> str:
+    """The camera sees it right now: that beats any remembered sighting, however recent."""
+    was = "are" if label.endswith("s") else "is"
+    if dist_m < 1.0:
+        place = "right in front of you"
+    else:
+        place = f"{distance_phrase(dist_m)} {direction_phrase(bearing_deg)}"
+    return f"Your {label} {was} {place}, in view now."
+
+
 def facts_for_language(label: str, pin: Pin, pose: np.ndarray | None, now: float) -> str:
     """Compact JSON-ish facts for the language model: it phrases, it never invents."""
     rel = relative_to(np.array(pin.pos), pose) if pose is not None else None
