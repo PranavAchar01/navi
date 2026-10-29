@@ -37,8 +37,11 @@ struct PhoneCameraView: View {
         VStack(alignment: .leading, spacing: 12) {
           if !link.notes.isRecording { setupButton }
           notesButton
+          // While notes record the captions take the top, so the belt dial comes right under
+          // the controls instead of below the status text, where the Stop button would cover it.
+          if link.notes.isRecording { cameraArea }
           statusRows
-          cameraArea
+          if !link.notes.isRecording { cameraArea }
           nearest
           FindChip(finder: link.finder)
           serverStatus
