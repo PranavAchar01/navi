@@ -143,11 +143,18 @@ def stop_silences_guide():
     )
 
 
+def priors_do_not_add_misses():
+    """Skipped until metasight-compare's map priors land: then this scores the ARKit walk with and
+    without priors (scripts/score_labels.py) and fails if misses inside 1 m get worse."""
+    return True, "SKIP, blocked on metasight-compare's priors commit (no priors scheme yet)"
+
+
 CHECKS = [
     ("belt_reflex", "Reflex cue reaches the belt emulator", reflex_reaches_belt),
     ("belt_persist", "Persist(2) wired and filtering", persist_on),
     ("belt_signatures", "Mode signature plays for each mode", signatures_play),
     ("belt_stop_guide", "Stop silences Guide", stop_silences_guide),
+    ("belt_priors_labels", "Priors do not add misses inside 1 m", priors_do_not_add_misses),
 ]
 
 
