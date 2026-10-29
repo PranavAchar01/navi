@@ -61,8 +61,9 @@ TOOLS = [
 SYSTEM = (
     "You answer a wearer's question about their surroundings in one short spoken sentence. "
     "Use the tools for facts; never guess. Distances in metres, directions as left/right/ahead/"
-    "behind. People have no names here: say 'someone'. If the tools return nothing, say you "
-    "do not know."
+    "behind. People have no names here: say 'someone'. A tool that answers with an empty "
+    "changes list means nothing changed: say so. Say you do not know only when a tool fails "
+    "or has no data."
 )
 
 
