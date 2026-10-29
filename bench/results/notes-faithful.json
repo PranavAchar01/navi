@@ -1,0 +1,143 @@
+{
+ "model": "muse-spark",
+ "answers": 15,
+ "faithful": 15,
+ "correct": "9/10",
+ "rows": [
+  {
+   "visit": 1,
+   "q": "what did the doctor say about the ibuprofen dose",
+   "said": "Someone said \"Take 400 milligrams of ibuprofen twice a day with food.\"",
+   "ms": 2316,
+   "unsupported": [],
+   "expected": "400",
+   "correct": true
+  },
+  {
+   "visit": 1,
+   "q": "when is my next visit",
+   "said": "Someone said \"Come back on December 3rd and we will look at an X-ray.\"",
+   "ms": 2327,
+   "unsupported": [],
+   "expected": "december 3",
+   "correct": true
+  },
+  {
+   "visit": 1,
+   "q": "what did the doctor say about my blood pressure",
+   "said": "I don't know what the doctor said about your blood pressure.",
+   "ms": 1758,
+   "unsupported": [],
+   "expected": null,
+   "correct": null
+  },
+  {
+   "visit": 2,
+   "q": "what was my cholesterol number",
+   "said": "Your cholesterol came back at 210.",
+   "ms": 995,
+   "unsupported": [],
+   "expected": "210",
+   "correct": true
+  },
+  {
+   "visit": 2,
+   "q": "how long should I walk",
+   "said": "Walk thirty minutes a day.",
+   "ms": 1530,
+   "unsupported": [],
+   "expected": "30",
+   "correct": false
+  },
+  {
+   "visit": 2,
+   "q": "what did they say about my sleep",
+   "said": "I don't know what they said about your sleep.",
+   "ms": 1591,
+   "unsupported": [],
+   "expected": null,
+   "correct": null
+  },
+  {
+   "visit": 3,
+   "q": "how often do I use the cream",
+   "said": "The notes say \"Use the cream once at night, a thin layer.\"",
+   "ms": 1839,
+   "unsupported": [],
+   "expected": "once",
+   "correct": true
+  },
+  {
+   "visit": 3,
+   "q": "when should I call the office",
+   "said": "They said \"If it spreads past the wrist, call the office right away.\"",
+   "ms": 1349,
+   "unsupported": [],
+   "expected": "wrist",
+   "correct": true
+  },
+  {
+   "visit": 3,
+   "q": "did the doctor mention an allergy test",
+   "said": "No, the doctor only said the rash should clear in a week and how to use the cream.",
+   "ms": 2245,
+   "unsupported": [],
+   "expected": null,
+   "correct": null
+  },
+  {
+   "visit": 4,
+   "q": "what did the doctor say about the blue pill dose",
+   "said": "Someone said your prescription is 5 milligrams of the blue pill every morning.",
+   "ms": 1451,
+   "unsupported": [],
+   "expected": "5",
+   "correct": true
+  },
+  {
+   "visit": 4,
+   "q": "what should I avoid with it",
+   "said": "Don't take it with grapefruit juice.",
+   "ms": 1646,
+   "unsupported": [],
+   "expected": "grapefruit",
+   "correct": true
+  },
+  {
+   "visit": 4,
+   "q": "what did they say about my diet",
+   "said": "They said, \"Don't take it with grapefruit juice.\"",
+   "ms": 959,
+   "unsupported": [],
+   "expected": null,
+   "correct": null
+  },
+  {
+   "visit": 5,
+   "q": "what did the doctor say about iron",
+   "said": "The doctor said \"The blood test shows low iron. Take one iron tablet with orange juice.\"",
+   "ms": 1589,
+   "unsupported": [],
+   "expected": "tablet",
+   "correct": true
+  },
+  {
+   "visit": 5,
+   "q": "when is the next test",
+   "said": "Test again on January 14th and bring the results to the clinic.",
+   "ms": 1339,
+   "unsupported": [],
+   "expected": "january 14",
+   "correct": true
+  },
+  {
+   "visit": 5,
+   "q": "what did they say about my thyroid",
+   "said": "They said \"The blood test shows low iron\" with no mention of thyroid",
+   "ms": 2035,
+   "unsupported": [],
+   "expected": null,
+   "correct": null
+  }
+ ]
+}

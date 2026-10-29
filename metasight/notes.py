@@ -49,14 +49,53 @@ _STOPWORDS = frozenset(
 SUMMARY_SYSTEM = (
     "You write notes from the transcript of a conversation. First line: a title of at most six "
     "words. Then at most six short bullet lines of what was said, decided or asked. Keep numbers, "
-    "doses, dates and times exactly as spoken. Use only the transcript; add nothing. The "
-    "speakers have no names here, so do not invent any."
+    "doses, dates and times exactly as spoken. Use only the transcript; add nothing. "
+    "Do not copy the transcript line by line: say it shorter."
+)
+LABELS = (
+    ' Lines start with "you" (the wearer) or "person 1", "person 2" (anonymous others): '
+    "use those labels, never a name."
 )
 MERGE_SYSTEM = (
     "You merge partial notes of one conversation into one set. First line: a title of at most "
     "six words. Then at most eight short bullet lines. Keep numbers, doses, dates and times "
     "exactly. Add nothing that is not in the partial notes."
 )
+
+
+def _say(line: dict) -> str:
+    return f"{line['who']}: {line['text']}" if line.get("who") else line["text"]
+
+
+_NUM_WORDS = {
+    w: str(n)
+    for n, w in enumerate(
+        "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen "
+        "fifteen sixteen seventeen eighteen nineteen twenty".split()
+    )
+} | {"thirty": "30", "forty": "40", "fifty": "50", "sixty": "60", "hundred": "100"}
+
+
+def _norm(text: str) -> str:
+    t = re.sub(r"[^a-z0-9. ]", " ", text.lower().replace("\u2019", "'"))
+    t = re.sub(r"(?<=\d),(?=\d)", "", t)
+    t = " ".join(_NUM_WORDS.get(w, w) for w in t.split())
+    return re.sub(r"\.(?!\d)", "", t)
+
+
+def unsupported(answer: str, transcript: str) -> list[str]:
+    """What in a spoken answer the transcript does not back: quoted phrases that were never said,
+    and numbers that never appear (spelled out counts: "twenty" backs 20). Empty means it holds."""
+    said = f" {_norm(transcript)} "
+    bad = []
+    for q in re.findall(r"[\"\u201c]([^\"\u201d]{3,})[\"\u201d]", answer):
+        if f" {_norm(q)} " not in said:
+            bad.append(q)
+    plain = re.sub(r"[\"\u201c][^\"\u201d]*[\"\u201d]", " ", answer)
+    for n in re.findall(r"\d+(?:\.\d+)?", _norm(plain)):
+        if not re.search(rf"(?<![\d.]){re.escape(n)}(?![\d]|\.\d)", said):
+            bad.append(n)
+    return bad
 
 
 def notes_command(text: str) -> str | None:
@@ -84,7 +123,9 @@ class Note:
     summary: str = ""
 
     def text(self) -> str:
-        return "\n".join(line["text"] for line in self.lines)
+        """The transcript, one line per turn; a line carries "you: " or "person 2: " when the
+        direction evidence said who spoke."""
+        return "\n".join(_say(line) for line in self.lines)
 
     def to_json(self) -> dict:
         return {
@@ -102,6 +143,9 @@ class Notes:
         self.root, self.now = Path(root), now
         self.cur: Note | None = None
         self.last_remind = 0.0
+        self.votes: list[tuple[float, object]] = []  # (time, who) for each frame with a voice
+        self.who_ids: dict[object, int] = {}  # who -> the n in "person n", in order first heard
+        self.line_from = 0.0  # start of the next line's window
 
     @property
     def recording(self) -> bool:
@@ -119,14 +163,53 @@ class Notes:
     def start(self) -> dict:
         t = self.now()
         self.cur = Note(time.strftime("%Y%m%d-%H%M%S", time.localtime(t)), t)
-        self.last_remind = t
+        self.last_remind = self.line_from = t
+        self.votes, self.who_ids = [], {}
         self._save(self.cur)
         return self.event("recording", START_LINE)
 
-    def hear(self, text: str) -> dict | None:
+    def vote(self, people: dict, ts: float | None = None) -> None:
+        """One analysed frame's `people` event. While someone is talking it says who, if the
+        camera and the microphones can tell: a tracked person, a voice from where nobody is in
+        view (by side), or "you" (a voice no one in view owns). A lone face on a mono microphone
+        is no evidence either way and is not counted."""
+        if self.cur is None or not people.get("voice"):
+            return
+        ts = self.now() if ts is None else ts
+        if people.get("speaker") is not None and people.get("evidence") != "alone":
+            who: object = ("track", people["speaker"])
+        elif people.get("offscreen") is not None:
+            who = ("off", round(people["offscreen"] / 60))
+        elif people.get("evidence") == "alone":
+            return
+        else:
+            who = "you"
+        self.votes.append((ts, who))
+        del self.votes[:-4000]
+
+    def label(self, start: float, end: float) -> str | None:
+        """Who spoke in [start, end]: the most common voice, if it holds at least half."""
+        got = [w for t, w in self.votes if start <= t <= end]
+        if not got:
+            return None
+        top = max(set(got), key=got.count)
+        if got.count(top) * 2 < len(got):
+            return None
+        if top == "you":
+            return "you"
+        n = self.who_ids.setdefault(top, len(self.who_ids) + 1)
+        return f"person {n}"
+
+    def hear(self, text: str, end: float | None = None) -> dict | None:
         if self.cur is None or not text.strip():
             return None
-        self.cur.lines.append({"t": round(self.now() - self.cur.started, 1), "text": text.strip()})
+        end = self.now() if end is None else end
+        line = {"t": round(self.now() - self.cur.started, 1), "text": text.strip()}
+        if who := self.label(self.line_from, end):
+            line["who"] = who
+        self.line_from = end
+        self.votes = [v for v in self.votes if v[0] > end]
+        self.cur.lines.append(line)
         self._save(self.cur)
         return self.event("recording")
 
@@ -160,7 +243,8 @@ class Notes:
         text = note.text()
         try:
             pieces = [text[i : i + CHUNK_CHARS] for i in range(0, len(text), CHUNK_CHARS)]
-            parts = [language.complete(SUMMARY_SYSTEM, p, max_tokens=400).strip() for p in pieces]
+            system = SUMMARY_SYSTEM + (LABELS if any(x.get("who") for x in note.lines) else "")
+            parts = [language.complete(system, p, max_tokens=400).strip() for p in pieces]
             out = (
                 parts[0]
                 if len(parts) == 1
@@ -215,7 +299,7 @@ class Notes:
             for i, line in enumerate(n.lines):
                 low = set(re.findall(r"[a-z0-9']+", line["text"].lower()))
                 if words & low:
-                    hits.append(" ".join(x["text"] for x in n.lines[max(0, i - 1) : i + 2]))
+                    hits.append(" ".join(_say(x) for x in n.lines[max(0, i - 1) : i + 2]))
             hits = list(dict.fromkeys(hits))
             keep = []
             for h in hits:
@@ -236,6 +320,18 @@ class Notes:
                 }
             )
         return {"notes": out} if out else {"notes": [], "message": "no saved notes"}
+
+    def check(self, answer: str) -> list[str]:
+        """What in `answer` no saved note backs (see `unsupported`)."""
+        words = " ".join(n.text() for n in self.all() if n.ended)
+        return unsupported(answer, words)
+
+    def fallback(self, question: str) -> str:
+        """What to say when an answer is not backed: the matching line itself, or nothing found."""
+        for n in self.find(question)["notes"]:
+            if n["matching_lines"]:
+                return f"Your notes say: {n['matching_lines'][0]}"
+        return "I can't find that in your notes."
 
     def delete(self, note_id: str) -> bool:
         if not re.fullmatch(r"\d{8}-\d{6}", note_id):

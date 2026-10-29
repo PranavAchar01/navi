@@ -176,3 +176,74 @@ def test_find_gives_a_short_note_whole_when_no_word_matches(tmp_path):
     n.summarize(note, Lang())
     got = n.find("what was the dose")["notes"][0]["matching_lines"]
     assert got == ["Ten milligrams before bed.\nCall in two weeks."]
+
+
+def test_labels_you_and_people_from_votes(tmp_path):
+    clock = Clock()
+    n = Notes(tmp_path, now=clock)
+    n.start()
+    t0 = clock.t
+
+    def say(who_event, secs, text):
+        for i in range(secs * 10):
+            n.vote({"voice": True, **who_event}, t0 + i / 10)
+        n.hear(text, t0 + secs)
+
+    say({"speaker": None, "evidence": "none"}, 2, "How is the knee?")
+    t0 += 2
+    say({"speaker": 7, "evidence": "lip+doa"}, 3, "Better, the dose helped.")
+    t0 += 3
+    say({"speaker": 9, "evidence": "doa"}, 2, "Same here.")
+    t0 += 2
+    say({"speaker": 7, "evidence": "lip"}, 2, "Take it daily.")
+    got = [(x.get("who"), x["text"]) for x in n.cur.lines]
+    assert [g[0] for g in got] == ["you", "person 1", "person 2", "person 1"]
+    assert n.cur.text().splitlines()[1] == "person 1: Better, the dose helped."
+
+
+def test_no_direction_evidence_leaves_lines_unlabelled(tmp_path):
+    n = Notes(tmp_path, now=Clock())
+    n.start()
+    n.vote({"voice": True, "speaker": 3, "evidence": "alone"})  # a lone face on a mono mic
+    n.hear("Hello.")
+    n.vote({"voice": True, "speaker": 3, "evidence": "lip"}, n.now() + 1)
+    n.vote({"voice": True, "speaker": None, "evidence": "none"}, n.now() + 1.1)
+    n.vote({"voice": True, "speaker": 4, "evidence": "doa"}, n.now() + 1.2)
+    n.hear("Split.", n.now() + 2)
+    assert "who" not in n.cur.lines[0] and "who" not in n.cur.lines[1]
+
+
+def test_offscreen_voice_gets_its_own_person(tmp_path):
+    n = Notes(tmp_path, now=Clock())
+    n.start()
+    n.vote({"voice": True, "speaker": None, "offscreen": 70.0, "evidence": "doa"})
+    n.hear("Over here.")
+    assert n.cur.lines[0]["who"] == "person 1"
+
+
+def test_unsupported_quotes_and_numbers():
+    from metasight.notes import unsupported
+
+    said = "Take ten milligrams an hour before bed. Call in two weeks, or on November 12th."
+    assert unsupported('He said "an hour before bed" and 10 mg.', said) == []
+    assert unsupported("Come back in 2 weeks.", said) == []
+    assert unsupported('He said "twice a day".', said) == ["twice a day"]
+    assert unsupported("Take 20 mg.", said) == ["20"]
+    assert unsupported("It was 10.5 mg.", said) == ["10.5"]
+
+
+def test_label_instruction_only_when_lines_are_labelled(tmp_path):
+    class Spy(Lang):
+        def complete(self, system, user, max_tokens=120):
+            self.calls.append(system)
+            return self.out
+
+    n = Notes(tmp_path, now=Clock())
+    _, note = talk(n)
+    spy = Spy()
+    n.summarize(note, spy)
+    assert "person 1" not in spy.calls[0]
+    note.lines[0]["who"] = "you"
+    spy = Spy()
+    n.summarize(note, spy)
+    assert "person 1" in spy.calls[0]

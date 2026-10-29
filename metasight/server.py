@@ -398,6 +398,7 @@ class Server:
             res, hi = await self.loop.run_in_executor(self.pool, self._label, small, res, bgr)
             self.last_obstacles = res.obstacles
             people = self.talk.frame(now, res.obstacles, small, self.heading)
+            self.notes.vote(people)
             self.live_seen = (
                 now,
                 [
@@ -591,6 +592,8 @@ class Server:
             except Exception:
                 said = ""
             if valid_sentence(said):
+                if asks_notes(text) and self.notes.check(said):
+                    said = self.notes.fallback(text)  # a quote or number the notes never held
                 return {
                     "type": "answer",
                     "label": None,
@@ -751,7 +754,7 @@ class Server:
             if cmd == "start" and not self.notes.recording:
                 return await self.start_notes()
         if self.notes.recording:
-            if h.final and (ev := self.notes.hear(h.text)):
+            if h.final and (ev := self.notes.hear(h.text, h.spoken_end)):
                 await self.hub.json(
                     {"type": "transcript", "text": h.text, "final": True, "source": "notes"}
                 )
