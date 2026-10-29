@@ -111,6 +111,13 @@ def live_answer(label: str, dist_m: float, bearing_deg: float) -> str:
     return f"Your {label} {was} {place}, in view now."
 
 
+def camera_answer(label: str, seconds: float) -> str:
+    """Seen by the camera this walk, but not yet placed on the map."""
+    when = time_ago(seconds)
+    when = "a moment ago" if when == "just now" else when
+    return f"I saw your {label} {when}, but I don't have its place on the map yet."
+
+
 def facts_for_language(label: str, pin: Pin, pose: np.ndarray | None, now: float) -> str:
     """Compact JSON-ish facts for the language model: it phrases, it never invents."""
     rel = relative_to(np.array(pin.pos), pose) if pose is not None else None

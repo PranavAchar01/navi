@@ -50,6 +50,10 @@ class Pin:
         return d
 
 
+MOVED_AFTER_S = 600.0  # a lone sighting this much newer than the firm pin means it moved
+MOVED_SCORE = 0.3  # ...as long as the detector was fairly sure
+
+
 class PinStore:
     """Merges repeat sightings: the same label within `radius` metres is the same thing."""
 
@@ -107,12 +111,20 @@ class PinStore:
 
     def latest(self, label: str, kind: str = "object") -> Pin | None:
         """Where it was last seen, so a moved object answers with its new place: the newest pin
-        with two sightings, or one the crop check scored firmly (score >= 0.5). Only when no
-        pin of the label is firm does the most-seen lone sighting stand in."""
+        with two sightings, or one the crop check scored firmly (score >= 0.5), unless a fair
+        lone sighting came long after it. Only when no pin of the label is firm does the
+        most-seen lone sighting stand in."""
         cands = [p for p in self.pins.values() if p.label == label and p.kind == kind]
         firm = [p for p in cands if p.seen >= 2 or p.score >= 0.5]
         if firm:
-            return max(firm, key=lambda p: p.ts)
+            best = max(firm, key=lambda p: p.ts)
+            # A moved object is often seen once in its new place before the old place is
+            # forgotten: a fair sighting long after the firm pin is where it is now.
+            fair = [p for p in cands if p.score >= MOVED_SCORE]
+            fresh = max(fair, key=lambda p: p.ts, default=best)
+            if fresh.ts - best.ts > MOVED_AFTER_S:
+                return fresh
+            return best
         return max(cands, key=lambda p: (p.seen, p.ts)) if cands else None
 
     def merge(self, radius: float, landmark_radius: float | None = None) -> None:

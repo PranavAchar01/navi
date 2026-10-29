@@ -40,6 +40,7 @@ from .providers import make_language
 from .providers.finder import LOOKALIKES
 from .query import (
     SYSTEM,
+    camera_answer,
     facts_for_language,
     live_answer,
     parse_query,
@@ -55,6 +56,7 @@ SIGHT_HOLD_S = 6.0  # how long a lock vets new sightings
 POSE_FRESH_S = 6.0  # a map pose older than this gives no direction
 ANSWER_POSE_S = 12.0  # answers accept an older pose: windows take 5 to 11 s during a solve
 LIVE_SEEN_S = 1.0  # a camera sighting this recent answers "where is my X" over memory
+LIVE_OVER_PIN_S = 60.0  # an older camera sighting wins when memory's pin is this much older
 FINDER_LONG_SIDE = 960  # small items vanish at the models' 518 px; the item finder looks here
 log = logging.getLogger("metasight")
 
@@ -85,6 +87,8 @@ class Server:
         self.found_until = 0.0
         # (time, [(label, bearing, dist)]) of the last processed frame's detections.
         self.live_seen: tuple[float, list[tuple[str, float, float]]] = (0.0, [])
+        # label -> when the camera last saw it this run, for answers memory has not caught up on.
+        self.live_last: dict[str, float] = {}
         self.heading = Heading(settings.hfov_deg)  # carries the head's turn between map poses
         self.map_sectors: list[float] = [math.inf] * 8
         self.map_pose_ts = 0.0
@@ -320,6 +324,8 @@ class Server:
                     if math.isfinite(o.dist_m)
                 ],
             )
+            for label, _, _ in self.live_seen[1]:
+                self.live_last[label] = now
             if now < self.found_until:
                 flags |= FLAG_FOUND
             if not (self.braille and self.braille.owns_belt):  # a Braille cue on the belt wins
@@ -492,7 +498,7 @@ class Server:
         seen_at, seen = self.live_seen
         if time.time() - seen_at > LIVE_SEEN_S:
             seen = []
-        labels = sorted({*self.pins.labels(), *(s[0] for s in seen)})
+        labels = sorted({*self.pins.labels(), *self.live_last})
         label = parse_query(text, labels)
         if label is None and labels and self.language.name != "template":
             try:
@@ -529,6 +535,18 @@ class Server:
                 "pin": pin.to_json() if pin else None,
                 "language": "template",
                 "live": True,
+            }
+        last = self.live_last.get(label)
+        if last is not None and (pin is None or pin.ts < last - LIVE_OVER_PIN_S):
+            # The camera saw it this run, well after memory last placed it: say when, not the
+            # old place. Memory has not placed this sighting, so there is no direction to give.
+            self.guide = {"pin": None, "label": label, "until": time.time() + 90.0}
+            return {
+                "type": "answer",
+                "label": label,
+                "text": camera_answer(label, time.time() - last),
+                "pin": None,
+                "language": "template",
             }
         stand_in = False
         if pin is None:

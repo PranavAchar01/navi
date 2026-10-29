@@ -70,6 +70,10 @@ async def play(a, url: str) -> None:
     ws = await connect(url, 240)
     ready = asyncio.Event()
     guides = {"any": 0, "dist": 0, "bearing": 0}
+    # Frame sent -> its safety message back (the obstacle cue), and question -> answer, in ms.
+    cue_ms: list[float] = []
+    asked_at: list[float] = []
+    answer_ms: list[float] = []
 
     async def reader():
         async for m in ws:
@@ -77,7 +81,11 @@ async def play(a, url: str) -> None:
                 d = json.loads(m)
                 if d["type"] == "status" and d.get("memory") == "ready":
                     ready.set()
-                elif d["type"] == "safety" and d.get("guide"):
+                elif d["type"] == "safety":
+                    if d.get("ts"):
+                        cue_ms.append(time.time() * 1000 - d["ts"])
+                    if not d.get("guide"):
+                        continue
                     g = d["guide"]
                     guides["any"] += 1
                     guides["dist"] += g.get("dist") is not None
@@ -85,6 +93,8 @@ async def play(a, url: str) -> None:
                 elif d["type"] == "braille" and d["phase"] != "cell":
                     print(f"braille {d['phase']}: {d.get('cues', '')}", flush=True)
                 elif d["type"] == "answer":
+                    if asked_at:
+                        answer_ms.append((time.time() - asked_at.pop(0)) * 1000)
                     print(f"answer: {d['text']}", flush=True)
 
     rd = asyncio.create_task(reader())
@@ -125,15 +135,20 @@ async def play(a, url: str) -> None:
             await ws.send(struct.pack("<dI", time.time() * 1000, lap * 100000 + i) + jpg)
             if not asked and a.ask and at >= a.ask_at:
                 asked = True
-                asyncio.create_task(ask(ws, a.ask))
+                asyncio.create_task(ask(ws, a.ask, asked_at))
         print(f"lap {lap + 1}: {len(frames)} frames in {time.time() - t0:.1f} s", flush=True)
     await asyncio.sleep(a.settle)
     print(f"safety messages with a guide: {guides}", flush=True)
+    if cue_ms:
+        q = sorted(cue_ms)
+        p = lambda f: round(q[min(len(q) - 1, int(f * len(q)))])  # noqa: E731
+        print(f"cue latency ms: n={len(q)} p50={p(0.5)} p95={p(0.95)} max={round(q[-1])}")
+    print(f"answer latency ms (ask sent to answer back): {[round(x) for x in answer_ms]}")
     rd.cancel()
     await ws.close()
 
 
-async def ask(ws, text: str) -> None:
+async def ask(ws, text: str, asked_at: list[float]) -> None:
     """The question as the glasses would hear it: a few partial captions, then the final one."""
     words = text.split()
     for k in range(1, len(words)):
@@ -144,6 +159,7 @@ async def ask(ws, text: str) -> None:
     await ws.send(json.dumps({"type": "transcript", "text": text, "final": True}))
     await asyncio.sleep(0.4)
     await ws.send(json.dumps({"type": "ask", "text": text}))
+    asked_at.append(time.time())
 
 
 def interrupted(*_) -> None:

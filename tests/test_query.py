@@ -117,6 +117,17 @@ def test_latest_prefers_confirmed_sightings_over_a_single_weak_one():
     assert s.latest("keys").ts == 105.0
 
 
+def test_a_fair_sighting_long_after_the_firm_pin_means_it_moved():
+    """The old house pin (seen twice, hours ago) must not outvote this walk's one clear look."""
+    s = PinStore()
+    s.observe("laptop", "object", [1, 0, 1], 100.0, 0.6)
+    s.observe("laptop", "object", [1, 0, 1], 105.0, 0.6)
+    s.observe("laptop", "object", [5, 0, 5], 105.0 + 6 * 3600, 0.4)
+    assert s.latest("laptop").pos == [5, 0, 5]
+    s.observe("laptop", "object", [9, 0, 9], 106.0 + 6 * 3600, 0.2)  # weak: not enough
+    assert s.latest("laptop").pos == [5, 0, 5]
+
+
 def test_a_look_alike_is_offered_as_unconfirmed():
     cup = pin([0.0, 0.9, -2.0], near=["desk"], label="cup")
     text = template_answer("water bottle", cup, pose_facing_minus_z(), 1000.0, stand_in=True)
@@ -158,6 +169,7 @@ def test_a_live_sighting_beats_an_old_memory():
         map_pose_ts=0.0,
         guide=None,
         live_seen=(time.time(), [("laptop", 3.0, 1.4)]),
+        live_last={},
     )
     res = Server._answer_sync(srv, "where is my laptop")
     assert res["live"] and "in view now" in res["text"] and "hours" not in res["text"]
@@ -166,3 +178,13 @@ def test_a_live_sighting_beats_an_old_memory():
     srv.live_seen = (time.time() - 5, [("laptop", 3.0, 1.4)])  # out of frame for a while
     res = Server._answer_sync(srv, "where is my laptop")
     assert "hours ago" in res["text"]
+
+    # Seen by the camera 40 s ago, this walk: that beats the six-hour-old place.
+    srv.live_last = {"laptop": time.time() - 40}
+    res = Server._answer_sync(srv, "where is my laptop")
+    assert (
+        res["text"] == "I saw your laptop a moment ago, but I don't have its place on the map yet."
+    )
+    srv.live_last = {"laptop": time.time() - 300}
+    res = Server._answer_sync(srv, "where is my laptop")
+    assert res["text"].startswith("I saw your laptop 5 minutes ago")

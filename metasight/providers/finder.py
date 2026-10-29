@@ -246,19 +246,34 @@ class Sam31Finder:
             and (r.confidence is None or r.confidence >= self._min_conf)
         ]
 
-    async def _all(self, bgr: np.ndarray, labels: list[str]) -> list[Detection]:
-        ok, jpg = cv2.imencode(".jpg", bgr, [cv2.IMWRITE_JPEG_QUALITY, 85])
-        url = "data:image/jpeg;base64," + base64.b64encode(jpg.tobytes()).decode()
+    async def _all(self, jobs: list[tuple[np.ndarray, list[str]]]) -> list[list[Detection]]:
+        def url(img: np.ndarray) -> str:
+            ok, jpg = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 85])
+            return "data:image/jpeg;base64," + base64.b64encode(jpg.tobytes()).decode()
+
+        calls = [(i, url(img), lb) for i, (img, labels) in enumerate(jobs) for lb in labels]
         # A fresh client per call: each find() runs in its own event loop.
         async with AsyncOpenAI(base_url=META_BASE_URL, api_key=self._api_key, timeout=30.0) as c:
-            results = await asyncio.gather(*(self._one(c, url, lb) for lb in labels))
-        return [d for r in results for d in r]
+            results = await asyncio.gather(*(self._one(c, u, lb) for _, u, lb in calls))
+        out: list[list[Detection]] = [[] for _ in jobs]
+        for (i, _, _), r in zip(calls, results, strict=True):
+            out[i] += r
+        return out
+
+    def find_jobs(self, jobs: list[tuple[np.ndarray, list[str]]]) -> list[list[Detection]]:
+        """Several images, each with its own labels, in one round of parallel calls."""
+        return asyncio.run(self._all(jobs))
 
     def find(self, bgr: np.ndarray, labels: list[str]) -> list[Detection]:
-        return asyncio.run(self._all(bgr, labels))
+        return self.find_jobs([(bgr, labels)])[0]
 
 
 LOCAL_KEEP = 0.3  # a local hit on a personal item this sure stands even when SAM misses it
+# What leaves the Mac for SAM 3.1: a glimpsed item goes as a crop around the local hit (padded
+# by the box's own size each side, at least CROP_MIN px), and the timed sweep as the whole frame
+# shrunk to SWEEP_LONG_SIDE, enough for an item at arm's length but not to read papers or faces.
+CROP_MIN = 256
+SWEEP_LONG_SIDE = 640
 # What the local model calls a personal item when it is small or blurred: with the whole
 # watch-list as its vocabulary, a water bottle on a desk mostly comes out as "cup".
 LOOKALIKES = {
@@ -301,14 +316,55 @@ class HybridFinder:
             ask = [lb for lb in labels if lb in self.items]
         confirmed: list[Detection] = []
         if ask:
-            self.meta_images += len(ask)
+            jobs = self._jobs(bgr, local, glimpsed, ask)
+            self.meta_images += sum(len(labels) for _, labels, _ in jobs)
             try:
-                confirmed = self.meta.find(bgr, ask)
+                found = self.meta.find_jobs([(img, labels) for img, labels, _ in jobs])
             except Exception as e:  # the map keeps building on the local finder
                 log.warning("SAM 3.1 failed: %s", e)
+                found = []
+            for (_, _, (ox, oy, k)), dets in zip(jobs, found, strict=False):
+                confirmed += [
+                    replace(
+                        d,
+                        box=(
+                            d.box[0] / k + ox,
+                            d.box[1] / k + oy,
+                            d.box[2] / k + ox,
+                            d.box[3] / k + oy,
+                        ),
+                    )
+                    for d in dets
+                ]
         have = {d.label for d in confirmed}
         keep = [d for d in local if d.label in self.items and d.label not in have]
         return out + confirmed + [d for d in keep if d.score >= LOCAL_KEEP]
+
+    def _jobs(self, bgr: np.ndarray, local: list[Detection], glimpsed: list[str], ask: list[str]):
+        """(image, labels, (x offset, y offset, scale)) per SAM 3.1 request: a crop for each
+        glimpsed item, one shrunk frame for the rest of a sweep."""
+        h, w = bgr.shape[:2]
+        jobs = []
+        for label in glimpsed:
+            boxes = [
+                d.box for d in local if d.label == label or label in LOOKALIKES.get(d.label, ())
+            ]
+            x0, y0 = min(b[0] for b in boxes), min(b[1] for b in boxes)
+            x1, y1 = max(b[2] for b in boxes), max(b[3] for b in boxes)
+            half_w = max((x1 - x0) * 1.5, CROP_MIN / 2)
+            half_h = max((y1 - y0) * 1.5, CROP_MIN / 2)
+            cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+            x, t = int(max(0, cx - half_w)), int(max(0, cy - half_h))
+            r, b = int(min(w, cx + half_w)), int(min(h, cy + half_h))
+            jobs.append((bgr[t:b, x:r], [label], (x, t, 1.0)))
+        rest = [lb for lb in ask if lb not in glimpsed]
+        if rest:
+            k = min(1.0, SWEEP_LONG_SIDE / max(h, w))
+            small = (
+                bgr if k == 1.0 else cv2.resize(bgr, (round(w * k), round(h * k)), cv2.INTER_AREA)
+            )
+            jobs.append((small, rest, (0, 0, k)))
+        return jobs
 
 
 def make_finder(s: Settings) -> Finder:
