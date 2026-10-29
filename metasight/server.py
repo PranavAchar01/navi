@@ -26,7 +26,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import nav
+from . import band, nav
 from .align import map_resolution
 from .belt import FLAG_FOUND, NAMES, BeltLink, plan
 from .config import ROOT, SESSIONS, Settings, secret
@@ -118,8 +118,12 @@ class Server:
             MapReview(reviewer, self.pins, 60 * settings.review_every_min) if reviewer else None
         )
         self.safety: SafetyLoop | None = None
-        self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="safety")
-        self.llm_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="llm")
+        self.pool = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="safety", initializer=band.stop_path_thread
+        )
+        self.llm_pool = ThreadPoolExecutor(
+            max_workers=2, thread_name_prefix="llm", initializer=band.low_thread
+        )
         self.fall, self.shake = FallDetector(), ShakeDetector()
         self.notes = Notes(SESSIONS / "notes")  # conversation notes (notes.py)
         self._notes_task: asyncio.Task | None = None
@@ -199,6 +203,8 @@ class Server:
     # ------------------------------------------------------------ lifecycle
     async def start(self) -> None:
         self.loop = asyncio.get_running_loop()
+        if band.split():  # started in the background band: only the stop path leaves it
+            self.loop.set_default_executor(ThreadPoolExecutor(initializer=band.low_thread))
         self.safety = await self.loop.run_in_executor(self.pool, SafetyLoop, self.s)
         self.proc = self.ctx.Process(
             target=memory_run,
@@ -207,6 +213,7 @@ class Server:
             daemon=True,
         )
         self.proc.start()
+        band.low_process(self.proc.pid)
         await self.belt.start()
         threading.Thread(target=self._read_memory, daemon=True).start()
         self._frame_task = asyncio.create_task(self.frame_guard())
@@ -464,7 +471,8 @@ class Server:
             if not (self.braille and self.braille.owns_belt):  # a Braille cue on the belt wins
                 self.belt.send(cmd, flags | self.activity.flag_bits(), arrived)
             buzzed = time.perf_counter()
-            res, hi = await self.loop.run_in_executor(self.pool, self._label, small, res, bgr)
+            label = band.low(self._label)  # after the buzz: no longer the stop path
+            res, hi = await self.loop.run_in_executor(self.pool, label, small, res, bgr)
             self.last_obstacles = res.obstacles
             people = self.talk.frame(now, res.obstacles, small, self.heading)
             self.notes.vote(people)

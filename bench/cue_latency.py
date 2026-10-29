@@ -155,6 +155,13 @@ def main() -> None:
         default="",
         help="taskpolicy flags for the memory worker once it is up ('-b'), or 'pause'",
     )
+    ap.add_argument(
+        "--band",
+        choices=["", "bg", "bg-whole"],
+        default="",
+        help="start the server under nice -n 19 taskpolicy -b, as the morning check does; "
+        "bg-whole keeps every thread in the band (the server's band.split turned off)",
+    )
     a = ap.parse_args()
 
     home = Path(tempfile.mkdtemp(prefix="ms-cue-home-"))
@@ -167,8 +174,16 @@ def main() -> None:
     )
     env = {**os.environ, "METASIGHT_CONFIG": str(config), "METASIGHT_HOME": str(home)}
     log = open(tempfile.gettempdir() + f"/ms-cue-{a.port}.log", "w")
+    prefix = ["nice", "-n", "19", "taskpolicy", "-b"] if a.band else []
+    entry = ["-m", "metasight.server"]
+    if a.band == "bg-whole":
+        entry = [
+            "-c",
+            "import metasight.band as b; b.split = lambda: False; "
+            "from metasight.server import main; main()",
+        ]
     server = subprocess.Popen(
-        [sys.executable, "-m", "metasight.server", "--host", "127.0.0.1", "--port", str(a.port),
+        [*prefix, sys.executable, *entry, "--host", "127.0.0.1", "--port", str(a.port),
          "--session", "cue-bench"],
         cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True,
     )  # fmt: skip
@@ -194,6 +209,7 @@ def main() -> None:
             os.killpg(server.pid, signal.SIGKILL)
         shutil.rmtree(home, ignore_errors=True)
     out["walk"] = Path(a.walk).name
+    out["band"] = a.band or "normal"
     path = ROOT / "bench" / "results" / "perf" / f"cue-{a.label}.json"
     path.write_text(json.dumps(out, indent=1))
     print(json.dumps(out, indent=1))
