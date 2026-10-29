@@ -633,9 +633,16 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
         del t_m
 
         # ---- find a seen item, then the guide bearings while frames keep flowing
+        # Only items with a real, confirmed pin (score 0.3 or more, or SAM 3.1), never a known
+        # false one: the backpack when it qualifies, else the most-seen such item.
+        def real(p: dict) -> bool:
+            return p["id"] not in KNOWN_FALSE_PINS and (
+                (p.get("score") or 0) >= WEAK_PIN_SCORE or p.get("source") == "sam-3.1"
+            )
+
         counts = {}
         for p in st["pins"]:
-            if p["label"] not in SKIP_FIND:
+            if p["label"] not in SKIP_FIND and real(p):
                 counts[p["label"]] = max(counts.get(p["label"], 0), p.get("seen", 0))
         # The guide ends as found inside 0.8 m, so ask for something not right beside the wearer:
         # the most-seen label with a placed pin at least 1.5 m from the latest position.
@@ -654,7 +661,11 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
         }
         pool = {k: v for k, v in counts.items() if k in far} or counts
         label = max(pool, key=pool.get) if pool else None
+        why_label = "most-seen item with a confirmed pin" + (" 1.5 m away" if far else "")
+        if "backpack" in counts:
+            label, why_label = "backpack", "backpack has a confirmed pin"
         meta["find_far"] = bool(far)
+        meta["find_choice"] = f"{label} ({why_label})"
         meta["find_label"] = label
         if label is None:
             results.append(
@@ -682,7 +693,7 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
                     f"{ms:.0f} ms",
                     ("known false pin; " if false_pin else "")
                     + f"'where is my {label}' -> \"{res.get('text')}\" "
-                    + f"(via {res.get('language')}); {pnote}",
+                    + f"(via {res.get('language')}); {pnote}; chose {meta['find_choice']}",
                 )
             )
             # Standing next to it ends the guide as found at once; then ask for the next most-seen
@@ -794,6 +805,33 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
                     )
                 )
 
+        # ---- a weak, unconfirmed pin is refused, not answered (display: skipped_pin_id)
+        t_k = time.time()
+        res_k, ms_k = await c.ask("where are my keys")
+        await asyncio.sleep(3)
+        keys_guide = [
+            e["guide"]
+            for e in c.since(t_k, "safety")
+            if e.get("guide") and e["guide"].get("label") == "keys"
+        ]
+        used = res_k.get("pin_id", (res_k.get("pin") or {}).get("id"))
+        text_k = res_k.get("text") or ""
+        never = "haven't seen" in text_k.lower() or "have not seen" in text_k.lower()
+        bad = used in KNOWN_FALSE_PINS or any(g.get("pin") in KNOWN_FALSE_PINS for g in keys_guide)
+        ok = res_k.get("skipped_pin_id") is not None and never and not keys_guide and not bad
+        results.append(
+            row(
+                "falsepin",
+                "False keys pin refused",
+                "metasight-display",
+                "PASS" if ok else "FAIL",
+                f"{ms_k:.0f} ms",
+                f"'where are my keys' -> \"{text_k}\"; skipped_pin_id "
+                f"{res_k.get('skipped_pin_id')}, pin used {used}, "
+                f"{len(keys_guide)} guide frames toward keys in 3 s",
+            )
+        )
+
         # ---- Find My fallback for an item never seen
         # Something the walk never saw: a look-alike candidate first, else one with no look-alike.
         unseen = next(
@@ -807,6 +845,7 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
             status = "PASS" if "Find My" in text else ("FAIL" if findmy_src else "NOT-BUILT")
             results.append(
                 row(
+                    "falsepin",
                     "findmy",
                     "Find My line for an unseen item",
                     "metasight-muse",
@@ -1125,7 +1164,7 @@ DIRTY_ROWS = {
     "metasight/belt.py": ("falsecue", "urgent", "missnear", "priors", "stop", "belt-", "patterns"),
     "metasight/providers/transcribe.py": ("voice", "notes"),
     "metasight/voice.py": ("voice", "notes"),
-    "metasight/providers/finder.py": ("find", "findmy", "guide", "nav", "voice"),
+    "metasight/providers/finder.py": ("find", "falsepin", "findmy", "guide", "nav", "voice"),
     "metasight/people.py": ("speaker", "who"),
     "metasight/audio_doa.py": ("speaker",),
     "metasight/notes.py": ("notes",),
