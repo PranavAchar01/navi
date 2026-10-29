@@ -31,6 +31,7 @@ async def main():
     ap.add_argument("--seconds", type=float, default=20)
     ap.add_argument("--spacing", type=float, default=0.14)
     ap.add_argument("--mono", action="store_true")
+    ap.add_argument("--activity", default="", help="set this activity first (talk: cues)")
     ap.add_argument("--dump", default="", help="write the people events to this JSON file")
     ap.add_argument("--onsets", default="", help="seconds where a voice starts, for latency")
     a = ap.parse_args()
@@ -81,6 +82,8 @@ async def main():
                     rtt.append(time.time() - frame_sent[d["seq"]])
 
         rd = asyncio.create_task(reader())
+        if a.activity:
+            await ws.send(json.dumps({"type": "activity", "mode": a.activity}))
         t0, seq, i, sent = time.time(), 0, 0, 0
         while i / src_fps < a.seconds:
             ok, frame = cap.read()
