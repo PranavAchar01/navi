@@ -12,54 +12,39 @@
     />
   </head>
   <body class="judge">
+    <div class="j-frame" id="frame">
+      <canvas id="cam"></canvas>
+      <canvas id="cam-overlay"></canvas>
+    </div>
     <header class="j-top">
-      <div class="j-brand">meta-sight</div>
-      <ol class="j-steps" id="steps">
+      <div class="j-brand glass">meta-sight</div>
+      <ol class="j-steps glass" id="steps">
         <li data-step="walk">Walk</li>
         <li data-step="obstacle">Obstacle</li>
         <li data-step="ask">Ask</li>
         <li data-step="find">Find</li>
         <li data-step="guide">Guide</li>
       </ol>
-      <div class="j-source" id="source">Waiting for the glasses</div>
+      <div class="j-source glass" id="source">Waiting for the glasses</div>
     </header>
-    <main class="j-grid">
-      <section class="j-panel j-camera">
-        <h2>Glasses camera</h2>
-        <div class="j-frame">
-          <canvas id="cam"></canvas>
-          <canvas id="cam-overlay"></canvas>
+    <section class="j-caption glass" id="caption">
+      <div class="j-q" id="question"></div>
+      <div class="j-a" id="answer">
+        <img id="answer-thumb" alt="" />
+        <div>
+          <b id="answer-label"></b>
+          <span id="answer-seen"></span>
         </div>
-      </section>
-      <section class="j-panel j-map">
-        <h2>House memory</h2>
-        <canvas id="map3d"></canvas>
-      </section>
-      <section class="j-panel j-memory" id="memory">
-        <h2>Asked</h2>
-        <div class="j-q" id="question">Nothing asked yet</div>
-        <div class="j-a" id="answer">
-          <img id="answer-thumb" alt="" />
-          <div>
-            <b id="answer-label"></b>
-            <span id="answer-seen"></span>
-          </div>
-        </div>
-      </section>
-      <section class="j-panel j-braille idle" id="braille">
-        <h2>By touch</h2>
+      </div>
+      <div class="j-braille" id="braille">
         <div class="j-cell" id="cell"><i></i><i></i><i></i><i></i><i></i><i></i></div>
-        <div class="j-words" id="braille-words">Braille wrist band</div>
-      </section>
-      <section class="j-panel j-lens">
-        <h2>On the lens</h2>
-        <canvas id="lens"></canvas>
-      </section>
-      <section class="j-panel j-belt">
-        <h2>On the belt</h2>
-        <canvas id="belt"></canvas>
-      </section>
-    </main>
+        <div class="j-words" id="braille-words"></div>
+      </div>
+    </section>
+    <section class="j-belt glass">
+      <h2>Haptic belt · 8 buzzers</h2>
+      <canvas id="belt"></canvas>
+    </section>
     <script type="module" src="/src/judge.ts"></script>
   </body>
 </html>

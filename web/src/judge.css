@@ -1,13 +1,10 @@
-/* The judge view: one 16:9 screen read from across a room. Big type, pictures first. */
+/* The judge view: the glasses camera fills the screen, and only what the wearer feels floats over
+ * it on glass. Read from across a room: big type, few words. */
 :root {
-  --bg: #05070d;
-  --panel: #0c111d;
-  --line: rgba(255, 255, 255, 0.08);
-  --dim: rgba(255, 255, 255, 0.55);
-  --accent: #5ab0ff;
+  --dim: rgba(255, 255, 255, 0.62);
   --amber: rgb(255, 190, 70);
-  --red: rgb(255, 72, 72);
   --green: rgb(110, 220, 140);
+  --lilac: #c9a6ff;
 }
 * {
   box-sizing: border-box;
@@ -16,40 +13,82 @@ html,
 body.judge {
   margin: 0;
   height: 100%;
-  background: var(--bg);
+  background: #05070d;
   color: #fff;
   font-family: "Atkinson Hyperlegible Next", system-ui, sans-serif;
   overflow: hidden;
 }
+
+/* Liquid glass: the camera shows through, blurred and a little richer, under a thin light rim. */
+.glass {
+  background: rgba(16, 20, 30, 0.34);
+  backdrop-filter: blur(22px) saturate(170%);
+  -webkit-backdrop-filter: blur(22px) saturate(170%);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    inset 0 0 2.4vh rgba(255, 255, 255, 0.06),
+    0 1.2vh 4vh rgba(0, 0, 0, 0.35);
+}
+
+/* The camera, cover-fit: the frame box keeps the picture's own aspect and overhangs the screen;
+ * judge.ts sizes it and slides it so the floor ahead stays in view. */
+.j-frame {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+}
+.j-frame canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+/* The obstacle outline and its distance tag are drawn at half size and doubled, so the tag
+ * reads at this scale. */
+.j-frame #cam-overlay {
+  width: 50%;
+  height: 50%;
+  transform: scale(2);
+  transform-origin: 0 0;
+}
+
 .j-top {
-  height: 9vh;
+  position: absolute;
+  z-index: 2;
+  top: 2.4vh;
+  left: 1.8vw;
+  right: 1.8vw;
   display: flex;
   align-items: center;
-  gap: 3vw;
-  padding: 0 2.2vw;
+  gap: 1.2vw;
 }
 .j-brand {
-  font-size: 3.6vh;
+  font-size: 3.2vh;
   font-weight: 800;
   letter-spacing: -0.02em;
+  padding: 1vh 1.3vw;
+  border-radius: 99px;
 }
 .j-steps {
   display: flex;
-  gap: 0.8vw;
+  gap: 0.4vw;
   margin: 0;
-  padding: 0;
+  padding: 0.6vh 0.5vw;
   list-style: none;
   counter-reset: step;
-  flex: 1;
+  border-radius: 99px;
 }
 .j-steps li {
   counter-increment: step;
   font-size: 2.6vh;
   font-weight: 700;
-  padding: 0.9vh 1.2vw;
+  padding: 0.8vh 1.2vw;
   border-radius: 99px;
-  color: rgba(255, 255, 255, 0.3);
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.45);
   transition: all 0.4s;
 }
 .j-steps li::before {
@@ -58,19 +97,17 @@ body.judge {
 }
 .j-steps li.done {
   color: #fff;
-  border-color: rgba(255, 255, 255, 0.35);
 }
 .j-steps li.now {
   color: #05070d;
-  background: #fff;
-  border-color: #fff;
+  background: rgba(255, 255, 255, 0.92);
 }
 .j-source {
-  font-size: 2.2vh;
-  font-weight: 600;
-  padding: 0.8vh 1.1vw;
+  margin-left: auto;
+  font-size: 2.3vh;
+  font-weight: 700;
+  padding: 1.1vh 1.2vw;
   border-radius: 99px;
-  background: rgba(255, 255, 255, 0.08);
   color: var(--dim);
   white-space: nowrap;
 }
@@ -80,194 +117,143 @@ body.judge {
 .j-source.replay {
   color: var(--amber);
 }
-.j-grid {
-  height: 91vh;
-  padding: 0 1.4vw 1.4vw;
-  display: grid;
-  /* The glasses stream is 9:16 portrait, so the camera is a full-height column. */
-  grid-template-columns: calc((91vh - 1.4vw - 4.4vh) * 9 / 16) 1fr 16vw 26vw;
-  grid-template-rows: 1.12fr 0.88fr;
-  gap: 1.2vw;
-}
-.j-panel {
-  position: relative;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 1.4vw;
-  overflow: hidden;
-  min-height: 0;
-}
-.j-panel h2 {
+
+/* The belt: always on, bottom right. */
+.j-belt {
   position: absolute;
-  z-index: 3;
-  top: 1.4vh;
-  left: 1.1vw;
-  margin: 0;
-  font-size: 2.2vh;
+  z-index: 2;
+  right: 1.8vw;
+  bottom: 3vh;
+  width: 34vh;
+  padding: 1.4vh 1.4vh 0.6vh;
+  border-radius: 4vh;
+}
+.j-belt h2 {
+  margin: 0 0 0 0.8vh;
+  font-size: 2vh;
   font-weight: 700;
   color: var(--dim);
-  letter-spacing: 0.02em;
-  pointer-events: none;
 }
-.j-camera {
-  grid-column: 1;
-  grid-row: 1 / 3;
-  display: flex;
-  flex-direction: column;
-}
-.j-frame {
-  position: relative;
-  flex: 1;
-  margin-top: 4.4vh;
-}
-.j-frame canvas {
-  position: absolute;
-  inset: 0;
+.j-belt canvas {
+  display: block;
   width: 100%;
-  height: 100%;
-  object-fit: contain;
+  aspect-ratio: 1;
 }
-.j-map {
-  grid-column: 2 / 4;
-  grid-row: 1;
-}
-.j-memory {
-  grid-column: 2;
-  grid-row: 2;
-}
-.j-braille {
-  grid-column: 3;
-  grid-row: 2;
-}
-.j-lens {
-  grid-column: 4;
-  grid-row: 1;
-}
-.j-belt {
-  grid-column: 4;
-  grid-row: 2;
-}
-.j-map #map3d {
+
+/* The one transient caption: the question as it is heard, then the answer with its crop and,
+ * while it plays, the same answer as Braille. Fades out a few seconds after it is done. */
+.j-caption {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-.j-memory {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 1.6vh;
-  padding: 5.4vh 1.4vw 1.6vh;
-}
-.j-q {
-  font-size: 4vh;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.3);
-}
-.j-q.show {
-  color: #fff;
-}
-.j-q.show::before {
-  content: "\201C";
-  color: var(--accent);
-  margin-right: 0.15em;
-}
-.j-q.show::after {
-  content: "\201D";
-  color: var(--accent);
-  margin-left: 0.1em;
-}
-.j-a {
+  z-index: 2;
+  left: 50%;
+  bottom: 4vh;
+  max-width: 72vw;
+  transform: translate(-50%, 2vh);
   display: flex;
   align-items: center;
-  gap: 1.4vw;
+  gap: 2vw;
+  padding: 1.6vh 2vw 1.6vh 1.6vh;
+  border-radius: 3.4vh;
   opacity: 0;
-  transform: translateY(1vh);
-  transition: all 0.4s 0.15s;
+  transition:
+    opacity 0.5s,
+    transform 0.5s;
 }
-.j-a.show {
+.j-caption.show {
   opacity: 1;
-  transform: none;
+  transform: translate(-50%, 0);
+}
+.j-q {
+  display: none;
+  font-size: 4.4vh;
+  font-weight: 800;
+  padding-left: 1vw;
+}
+.j-caption.asking .j-q {
+  display: block;
+}
+.j-q::before {
+  content: "\201C";
+  color: var(--dim);
+}
+.j-q::after {
+  content: "\201D";
+  color: var(--dim);
+}
+.j-a {
+  display: none;
+  align-items: center;
+  gap: 1.4vw;
+}
+.j-caption.answered .j-a {
+  display: flex;
 }
 .j-a img {
-  width: 17vh;
-  height: 17vh;
+  width: 12vh;
+  height: 12vh;
   object-fit: cover;
-  border-radius: 1.4vh;
-  border: 3px solid var(--accent);
-  background: #000;
+  border-radius: 2vh;
+  border: 2px solid rgba(255, 255, 255, 0.5);
 }
 .j-a b {
   display: block;
-  font-size: 5.4vh;
+  font-size: 5.2vh;
   font-weight: 800;
   line-height: 1.05;
 }
 .j-a span {
   display: block;
-  margin-top: 0.8vh;
-  font-size: 2.6vh;
+  white-space: nowrap;
+  font-size: 2.8vh;
+  font-weight: 600;
   color: var(--dim);
+  margin-top: 0.4vh;
 }
-.j-lens,
-.j-belt {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.j-lens canvas {
-  height: 84%;
-  aspect-ratio: 1;
-  margin-top: 3vh;
-  border-radius: 1vh;
-}
-.j-belt canvas {
-  height: 92%;
-  aspect-ratio: 1;
-  margin-top: 2vh;
-}
-/* The answer by touch: one Braille cell, its dots lit as the wrist band buzzes them. */
+
+/* Braille in the caption: one cell lit as the wrist band buzzes it, the cue under it. */
 .j-braille {
-  display: flex;
-  flex-direction: column;
+  display: none;
   align-items: center;
-  justify-content: center;
-  gap: 1.4vh;
-  padding-top: 3.6vh;
+  gap: 1.2vw;
+  padding-left: 2vw;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+}
+.j-caption.touch .j-braille {
+  display: flex;
 }
 .j-cell {
   display: grid;
-  grid-template-columns: repeat(2, 6.2vh);
-  grid-template-rows: repeat(3, 6.2vh);
+  grid-template-columns: repeat(2, 3.4vh);
+  grid-template-rows: repeat(3, 3.4vh);
   grid-auto-flow: column;
-  gap: 1.6vh 2.6vh;
-  padding: 1.6vh 2.2vh;
-  border-radius: 2vh;
-  background: rgba(255, 255, 255, 0.04);
+  gap: 0.9vh 1.3vh;
 }
 .j-cell i {
   border-radius: 50%;
-  background: rgba(40, 48, 70, 1);
-  transition: background 0.06s, box-shadow 0.06s;
+  background: rgba(255, 255, 255, 0.16);
+  transition:
+    background 0.06s,
+    box-shadow 0.06s;
 }
 .j-cell i.on {
-  background: #c9a6ff;
-  box-shadow: 0 0 2.4vh rgba(201, 166, 255, 0.75);
+  background: var(--lilac);
+  box-shadow: 0 0 1.6vh rgba(201, 166, 255, 0.9);
 }
 .j-words {
-  max-width: 100%;
-  padding: 0 1vw;
-  text-align: center;
-  font-size: 2.4vh;
+  max-width: 20vw;
+  font-size: 2.6vh;
+  font-weight: 700;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.45);
+}
+.j-words small {
+  display: block;
+  white-space: nowrap;
+  font-size: 1.9vh;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.3);
-  overflow-wrap: anywhere;
+  color: var(--lilac);
 }
 .j-words b {
   color: #fff;
   font-weight: 800;
-}
-.j-braille.idle .j-cell {
-  opacity: 0.45;
 }

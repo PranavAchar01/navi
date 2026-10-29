@@ -60,10 +60,15 @@ export function cueWarning(s: Safety): Warning | null {
 }
 
 /** Distances in steps a glance can use: 0.1 m under 1 m, 0.5 m to 3 m, whole metres beyond. */
+/** Metres as the lens says them: tenths under 1 m, halves to 3 m, whole metres beyond. */
+export function roundDistance(d: number): number {
+  const per = d < 1 ? 10 : d < 3 ? 2 : 1;
+  return Math.max(1, Math.round(d * per)) / per;
+}
+
 export function distanceText(d: number | null): string {
   if (d === null) return "close";
-  const per = d < 1 ? 10 : d < 3 ? 2 : 1;
-  return `${(Math.max(1, Math.round(d * per)) / per).toFixed(1)} m`;
+  return `${roundDistance(d).toFixed(1)} m`;
 }
 
 /** "just now", "4 min ago", "1 h ago", rounded as the spoken answer is. */

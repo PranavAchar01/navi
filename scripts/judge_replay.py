@@ -54,7 +54,9 @@ async def connect(url: str, timeout: float):
     t0 = time.time()
     while True:
         try:
-            return await websockets.connect(url, max_size=None)
+            # No keepalive: the server runs at background priority and can miss a ping under load;
+            # on a loopback link a dropped socket shows up as an error anyway.
+            return await websockets.connect(url, max_size=None, ping_interval=None)
         except OSError:
             if time.time() - t0 > timeout:
                 raise
