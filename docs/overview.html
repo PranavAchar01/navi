@@ -1,0 +1,121 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+  :root{--bg:#0f1115;--card:#181b22;--line:#2a2f3a;--tx:#e8eaf0;--mut:#9aa3b2;
+    --r:#ff6b6b;--b:#5aa9ff;--g:#4cd38a;--y:#ffc857;--p:#b892ff;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.35 -apple-system,"SF Pro Text",Helvetica,Arial,sans-serif;width:1600px;padding:36px 40px}
+  h1{font-size:30px;margin:0 0 4px}
+  .sub{color:var(--mut);margin:0 0 22px;font-size:16px}
+  .wrap{display:grid;grid-template-columns:210px 1fr 230px;gap:18px}
+  .col{display:flex;flex-direction:column;gap:12px}
+  .head{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);margin-bottom:2px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .card b{display:block;font-size:16px;margin-bottom:3px}
+  .card span{color:var(--mut);font-size:13.5px}
+  .lane{display:grid;grid-template-columns:150px 1fr;gap:12px;align-items:stretch;background:#13161c;border:1px solid var(--line);border-left:6px solid var(--c);border-radius:14px;padding:12px}
+  .lab{display:flex;flex-direction:column;justify-content:center}
+  .lab .n{font-size:20px;font-weight:700;color:var(--c)}
+  .lab .t{font-size:13px;color:var(--mut)}
+  .flow{display:flex;align-items:center;gap:8px;flex-wrap:nowrap}
+  .flow .card{flex:1;min-width:0}
+  .ar{color:var(--c);font-size:22px;flex:0 0 auto}
+  .tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;margin-top:5px;border:1px solid var(--line);color:var(--mut)}
+  .open{border-color:var(--g);color:var(--g)}
+  .live{border-color:var(--b);color:var(--b)}
+  .bld{border-color:var(--y);color:var(--y)}
+  .lanes{display:flex;flex-direction:column;gap:14px}
+  .out .card{border-left:4px solid var(--c)}
+  .foot{margin-top:22px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .foot .card{font-size:14px}
+  .rule{color:var(--r);font-weight:600}
+</style></head><body>
+<h1>Meta-sight: how it works</h1>
+<p class="sub">Four speeds. Each job goes to the slowest model that is still fast enough. Safety never waits on an AI model.</p>
+
+<div class="wrap">
+  <div class="col">
+    <div class="head">Inputs</div>
+    <div class="card"><b>Glasses camera</b><span>Ray-Ban Meta over Meta's toolkit (or the phone camera)</span></div>
+    <div class="card"><b>Your voice</b><span>Glasses or phone mic</span></div>
+    <div class="card"><b>Phone sensors</b><span>Where you are and which way you face (ARKit); stereo mics for sound direction</span></div>
+    <div class="card"><b>Saved home map</b><span>Built from your first walk-through, improves every walk</span></div>
+  </div>
+
+  <div class="lanes">
+    <div class="lane" style="--c:var(--r)">
+      <div class="lab"><div class="n">1 · Reflex</div><div class="t">Every frame<br>target under 0.25 s<br>no AI model</div></div>
+      <div class="flow">
+        <div class="card"><b>Live depth</b><span>Distance to everything in view, plus a floor check (steps, edges)</span><div class="tag live">live</div></div>
+        <div class="ar">→</div>
+        <div class="card"><b>Map checks</b><span>Map fixes depth scale (34% → 16% error). Warns about things outside the camera view. New obstacle = strong buzz, known wall = calm</span><div class="tag live">scale live</div> <div class="tag bld">priors building</div></div>
+        <div class="ar">→</div>
+        <div class="card"><b>STOP buzz</b><span>Belt buzzes toward the obstacle. Overrides everything</span><div class="tag live">live</div></div>
+      </div>
+    </div>
+
+    <div class="lane" style="--c:var(--b)">
+      <div class="lab"><div class="n">2 · See &amp; remember</div><div class="t">Every few seconds<br>in the background</div></div>
+      <div class="flow">
+        <div class="card"><b>Frame picker</b><span>Keeps a frame only if it adds something: new spot, new angle, or something changed</span><div class="tag live">live</div></div>
+        <div class="ar">→</div>
+        <div class="card"><b>MapAnything</b><span>Turns frames into a 3D map with real distances</span><div class="tag open">open · Meta</div></div>
+        <div class="ar">→</div>
+        <div class="card"><b>DINOv2</b><span>"I've been here before", fixes drift. Gives each object its fingerprint (your "token")</span><div class="tag open">open · Meta</div></div>
+        <div class="ar">→</div>
+        <div class="card"><b>Memory bank</b><span>Each object + 3D spot + when last seen. Lookup takes milliseconds</span><div class="tag live">live</div></div>
+      </div>
+    </div>
+
+    <div class="lane" style="--c:var(--g)">
+      <div class="lab"><div class="n">3 · Talk</div><div class="t">About 0.9 s from<br>your last word</div></div>
+      <div class="flow">
+        <div class="card"><b>Muse Voice Transcribe</b><span>Speech to text, done 0.16 s after you stop</span><div class="tag live">live</div></div>
+        <div class="ar">→</div>
+        <div class="card"><b>Muse Spark</b><span>Answers memory-bank questions ("where are my keys?") using lookup tools</span><div class="tag live">live</div> <div class="tag bld">tools wiring</div></div>
+        <div class="ar">→</div>
+        <div class="card"><b>SAM 3.1</b><span>Only when you ask: finds that exact object live to confirm it's still there</span><div class="tag open">open · Meta</div></div>
+        <div class="ar">→</div>
+        <div class="card"><b>Answer</b><span>One sentence in the glasses + belt points the way. Offline: Muse Glimmer (open)</span><div class="tag live">live</div></div>
+      </div>
+    </div>
+
+    <div class="lane" style="--c:var(--y)">
+      <div class="lab"><div class="n">Navigate</div><div class="t">Your own GPS<br>indoors</div></div>
+      <div class="flow">
+        <div class="card"><b>Goal</b><span>From Muse: "take me to my keys", "to the door"</span></div>
+        <div class="ar">→</div>
+        <div class="card"><b>Path planner</b><span>Plain algorithm on the map, milliseconds, routes through doorways</span><div class="tag bld">building</div></div>
+        <div class="ar">→</div>
+        <div class="card"><b>GUIDE pulses</b><span>Gentle turn-by-turn buzz. Reflex STOP always wins</span><div class="tag bld">building</div></div>
+      </div>
+    </div>
+
+    <div class="lane" style="--c:var(--p)">
+      <div class="lab"><div class="n">4 · Deep</div><div class="t">Minutes<br>nobody waiting</div></div>
+      <div class="flow">
+        <div class="card"><b>Muse Wonder</b><span>Reviews the map: which changes matter ("chair now in the hallway")</span><div class="tag bld">building</div></div>
+        <div class="ar">·</div>
+        <div class="card"><b>Plans</b><span>"Get ready to leave" → keys, then wallet, then door</span><div class="tag bld">building</div></div>
+        <div class="ar">·</div>
+        <div class="card"><b>Nudges</b><span>"Haven't seen the closet in 3 days, glance at it"</span><div class="tag bld">building</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col out">
+    <div class="head">What you feel and hear</div>
+    <div class="card" style="--c:var(--r)"><b>Belt: STOP</b><span>Solid buzz under 0.5 m, slow pulses from 1 m, silent past 2 m</span></div>
+    <div class="card" style="--c:var(--y)"><b>Belt: GUIDE</b><span>Soft pulse on the direction to walk</span></div>
+    <div class="card" style="--c:var(--g)"><b>Voice in glasses</b><span>Short answers, mode changes ("Find mode")</span></div>
+    <div class="card" style="--c:var(--b)"><b>Turn toward a speaker</b><span>Beep and buzz from the talker's direction</span></div>
+    <div class="card" style="--c:var(--p)"><b>Belt ~$60 + glasses $299</b><span>vs OrCam $4,490, Envision $3,499. None of those remember your home</span></div>
+  </div>
+</div>
+
+<div class="foot">
+  <div class="card"><span class="rule">Rule 1.</span> The STOP buzz never waits on an AI model.</div>
+  <div class="card"><span class="rule">Rule 2.</span> Open Meta models by default (MapAnything, DINOv2, SAM 3.1, Glimmer). Muse Spark answers memory questions.</div>
+  <div class="card"><span class="rule">Rule 3.</span> No faces or names: people are anonymous tracks. Background memory stays on the Mac. Small crops of the one item you asked about go to Meta's SAM 3.1 for 90 s, nothing otherwise.</div>
+</div>
+</body></html>
