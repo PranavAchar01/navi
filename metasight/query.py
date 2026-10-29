@@ -104,9 +104,9 @@ def asked_for(text: str) -> str | None:
 
 
 def unseen_answer(label: str) -> str:
-    it = "them" if label.endswith("s") else "it"
+    they, has, it = ("they", "have", "them") if label.endswith("s") else ("it", "has", "it")
     return (
-        f"I haven't seen your {label} yet. If {it} has an AirTag, Find My on your phone can "
+        f"I haven't seen your {label} yet. If {they} {has} an AirTag, Find My on your phone can "
         f"play a sound; or walk past where you left {it} and ask again."
     )
 

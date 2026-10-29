@@ -335,7 +335,7 @@ class Tracker:
 
     Each frame's depth objects are matched to tracks by bearing (gate `gate_deg`); a track's
     bearing is smoothed (`alpha`), its distance is the live one. A new object must be seen
-    `confirm` frames before it gets a motor, unless it is already inside `p.solid_m` + 0.3 m (a close
+    `confirm` frames before it gets a motor, unless it is inside `p.solid_m` + 0.3 m (a close
     object is never delayed), and a track survives `coast` missed frames. Used as `hold=` in
     `plan_pan`: it returns the confirmed tracks as Targets and `select` picks the nearest."""
 

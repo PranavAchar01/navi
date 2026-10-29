@@ -92,6 +92,7 @@ def test_an_unknown_thing_is_still_named_back():
     assert asked_for("where are my reading glasses") == "reading glasses"
     assert asked_for("what's that noise") is None
     assert "If it has an AirTag" in unseen_answer("umbrella")
+    assert "If they have an AirTag" in unseen_answer("keys")
 
 
 def test_singular_objects_get_was():
