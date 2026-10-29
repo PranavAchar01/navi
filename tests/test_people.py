@@ -188,3 +188,31 @@ def test_mono_with_two_still_faces_calls_nobody_and_does_not_cue():
         )
         assert ev["cue"] is None
     assert ev["speaker"] is None
+
+
+def test_voice_from_the_side_outranks_a_mouth_moving_ahead():
+    """Someone ahead moves their mouth while the heard voice is 40 degrees right: turn right."""
+    rng = np.random.default_rng(5)
+    base = rng.integers(60, 200, size=(480, 640)).astype(np.uint8)
+    conv = Conversation(hfov_deg=90.0)
+    ahead = (0.4, 0.1, 0.6, 0.9)
+    cues = []
+    for k in range(40):
+        g = base.copy()
+        g[86:125, 256:384] = rng.integers(0, 255, size=(39, 128))
+        ev = conv.step(k / 15, [Det(ahead, 0.9, 2.0)], g, voice=True, doa_deg=40.0)
+        cues += [ev["cue"]] if ev["cue"] else []
+    assert cues and cues[0]["turn"] == "right"
+
+
+def test_steady_voice_near_a_face_that_is_not_read_still_cues():
+    """Someone stands where the voice is but the mouth gives nothing: the cue still turns."""
+    rng = np.random.default_rng(6)
+    g = rng.integers(60, 200, size=(480, 640)).astype(np.uint8)
+    conv = Conversation(hfov_deg=90.0)
+    right = (0.7, 0.1, 0.9, 0.9)
+    cues = []
+    for k in range(40):
+        ev = conv.step(k / 15, [Det(right, 0.9, 2.0)], g, voice=True, doa_deg=40.0)
+        cues += [ev["cue"]] if ev["cue"] else []
+    assert cues and all(c["turn"] == "right" for c in cues)

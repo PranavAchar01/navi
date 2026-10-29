@@ -45,6 +45,7 @@ PATCH = 24
 LIP_FULL = 6.0  # lip activity (grey levels of frame difference) read as "clearly moving"
 SPEAK_MIN = 0.35
 DOA_SIGMA_DEG = 18.0
+DOA_OVERRIDE_DEG = 35.0  # a speaker this far from the heard direction is not the one to turn to
 STICKY_S = 1.0  # the speaker is held this long after the evidence thins
 
 
@@ -318,9 +319,16 @@ class Conversation:
             tr = next((x for x in tracks if x.id == self.speaker), None)
             if tr is not None:
                 target = (self.speaker, self.bearing(tr.box))
-        elif voice and doa_deg is not None and not cands_near(cands, doa_deg):
-            target = (None, doa_deg)  # a voice from where nobody is in view
-            ev["offscreen"] = round(doa_deg, 1)
+                if doa_deg is not None and abs(target[1] - doa_deg) > DOA_OVERRIDE_DEG:
+                    # A mouth that moved in front of the wearer, but the voice comes from the
+                    # side: the direction heard outranks a lip match.
+                    target = (None, doa_deg)
+        if target is None and voice and doa_deg is not None:
+            # A steady voice direction nobody was called for: from where nobody is in view, or
+            # from someone whose mouth the camera could not read. Turn toward it either way.
+            target = (None, doa_deg)
+            if not cands_near(cands, doa_deg):
+                ev["offscreen"] = round(doa_deg, 1)
         if target is not None and t - self.cue_t >= 1.5:
             cue = bearing_cue(target[1])
             if cue is not None:
