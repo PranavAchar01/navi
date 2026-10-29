@@ -50,6 +50,7 @@ from .query import (
     SYSTEM,
     camera_answer,
     facts_for_language,
+    glimpse_answer,
     live_answer,
     needs_tools,
     parse_query,
@@ -649,6 +650,17 @@ class Server:
                 "label": label,
                 "text": camera_answer(label, time.time() - last),
                 "pin": None,
+                "language": "template",
+            }
+        glimpsed = self.pins.glimpse(label, pin.ts) if pin is not None else None
+        if glimpsed is not None:
+            # Too unsure to move the pin, but far fresher than it: offer it, hedged.
+            self.guide = {"pin": glimpsed.id, "label": label, "until": time.time() + 90.0}
+            return {
+                "type": "answer",
+                "label": label,
+                "text": glimpse_answer(label, glimpsed, time.time()),
+                "pin": glimpsed.to_json(),
                 "language": "template",
             }
         stand_in = False

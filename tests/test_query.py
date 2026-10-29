@@ -209,3 +209,34 @@ def test_a_live_sighting_beats_an_old_memory():
     srv.live_last = {"laptop": time.time() - 300}
     res = Server._answer_sync(srv, "where is my laptop")
     assert res["text"].startswith("I saw your laptop 5 minutes ago")
+
+
+def test_a_weak_glimpse_this_walk_is_offered_as_a_maybe():
+    """Too unsure to move the six-hour-old pin, but fresher: say it, hedged, with its place."""
+    import time
+    from types import SimpleNamespace
+
+    from metasight.server import Server
+
+    now = time.time()
+    store = PinStore()
+    store.observe("backpack", "object", [2.0, 0.0, -3.0], now - 6 * 3600, 0.9)
+    store.observe("backpack", "object", [2.0, 0.0, -3.0], now - 6 * 3600 + 5, 0.9)
+    srv = SimpleNamespace(
+        pins=store,
+        language=SimpleNamespace(name="template"),
+        pose=None,
+        map_pose_ts=0.0,
+        guide=None,
+        live_seen=(0.0, []),
+        live_last={},
+    )
+    assert "6 hours ago" in Server._answer_sync(srv, "where is my backpack")["text"]
+
+    store.observe("backpack", "object", [6.0, 0.0, 1.0], now - 60, 0.2)
+    glimpse = max(store.pins.values(), key=lambda p: p.ts)
+    glimpse.near = ["desk"]
+    res = Server._answer_sync(srv, "where is my backpack")
+    assert res["text"] == "I think I glimpsed your backpack by the desk 1 minute ago."
+    assert srv.guide["pin"] == glimpse.id
+    assert store.latest("backpack").score == 0.9  # the sure pin itself has not moved

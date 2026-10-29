@@ -128,6 +128,20 @@ class PinStore:
             return best
         return max(cands, key=lambda p: (p.seen, p.ts)) if cands else None
 
+    def glimpse(self, label: str, after_ts: float, kind: str = "object") -> Pin | None:
+        """The newest weak lone sighting long after `after_ts`: too unsure to move the pin, but
+        fresher than an hours-old memory, so worth offering as a maybe."""
+        weak = [
+            p
+            for p in self.pins.values()
+            if p.label == label
+            and p.kind == kind
+            and p.seen == 1
+            and p.score < MOVED_SCORE
+            and p.ts - after_ts > MOVED_AFTER_S
+        ]
+        return max(weak, key=lambda p: p.ts, default=None)
+
     def merge(self, radius: float, landmark_radius: float | None = None) -> None:
         """Fold pins of one label that sit within `radius` of each other into the better seen
         one (position averaged by sightings). Map drift splits one object into several pins

@@ -130,6 +130,12 @@ def camera_answer(label: str, seconds: float) -> str:
     return f"I saw your {label} {when}, but I don't have its place on the map yet."
 
 
+def glimpse_answer(label: str, pin: Pin, now: float) -> str:
+    """A weak sighting this walk, against an old sure one: offer it, and say it is a maybe."""
+    where = f" by the {pin.near[0]}" if pin.near else ""
+    return f"I think I glimpsed your {label}{where} {time_ago(now - pin.ts)}."
+
+
 def facts_for_language(label: str, pin: Pin, pose: np.ndarray | None, now: float) -> str:
     """Compact JSON-ish facts for the language model: it phrases, it never invents."""
     rel = relative_to(np.array(pin.pos), pose) if pose is not None else None
