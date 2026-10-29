@@ -1,6 +1,8 @@
 """After a find the belt points at the item: from this walk's sighting when the answer named a
 saved home pin not yet placed, from a pose up to a minute old, and never silently."""
 
+import asyncio
+import queue
 import time
 from types import SimpleNamespace
 
@@ -8,7 +10,7 @@ import numpy as np
 
 from metasight.heading import Heading
 from metasight.pins import Pin, PinStore
-from metasight.server import GUIDE_POSE_S, Server
+from metasight.server import GUIDE_POSE_S, NO_DIRECTION, Server
 
 
 def server(pose_age_s: float, pins: list[Pin]):
@@ -60,3 +62,28 @@ def test_only_an_unplaced_pin_cannot_point_unless_the_camera_sees_it():
     assert not Server.can_point(srv, srv.guide, now)
     srv.live_seen = (now, [("desk", 10.0, 1.5)])
     assert Server.can_point(srv, srv.guide, now)
+
+
+def test_a_never_seen_answer_promises_no_buzz():
+    t = time.time()
+    srv, _ = server(GUIDE_POSE_S + 5, [desk(1, [9.0, 0.0, 9.0], placed=False, ts=t - 3600)])
+    sent = []
+
+    async def json(ev, *_):
+        sent.append(ev)
+
+    async def run(label, text):
+        srv.loop = asyncio.get_running_loop()
+        srv.map_loaded = asyncio.Event()
+        srv.map_loaded.set()
+        srv.hub, srv.in_q, srv.braille = SimpleNamespace(json=json), queue.Queue(), None
+        srv.onboarding, srv.notes = SimpleNamespace(active=False), SimpleNamespace(recording=False)
+        srv.known_labels, srv.can_point = lambda: ["desk"], lambda g, now: False
+        done = srv.loop.create_future()
+        done.set_result({"type": "answer", "label": label, "text": text, "pin": None})
+        return await Server.answer(srv, "where is my umbrella", pending=done)
+
+    never = asyncio.run(run(None, "I haven't seen your umbrella yet."))
+    assert NO_DIRECTION not in never["text"]
+    found = asyncio.run(run("desk", "I saw the desk 9 hours ago."))
+    assert found["text"].endswith(NO_DIRECTION)

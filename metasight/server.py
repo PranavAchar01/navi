@@ -990,7 +990,7 @@ class Server:
                 "speech_end_to_answer_ms": round(1000 * (time.time() - spoken_end)),
             }
         g = getattr(self, "guide", None)
-        if g and res.get("label") in (g["label"], g.get("want")):
+        if g and res.get("label") and res["label"] in (g["label"], g.get("want")):
             if not self.can_point(g, time.time()):  # never a silent belt after a find
                 res["text"] = f"{res['text'].rstrip()} {NO_DIRECTION}"
         await self.hub.json(res)
