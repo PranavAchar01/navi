@@ -58,6 +58,7 @@ class Belt:
     latency_s: float = 0.080
     spinup_s: float = 0.075
     guide: str = "none"  # none | on | no_override: a waypoint cue (pan.with_guide)
+    hold: bool = False  # bearing hysteresis on the panned cue (pan.Hold)
     persist: int = 1  # frames a strip must stay near (pan.Persist); 1 = off
 
 
@@ -217,14 +218,16 @@ def sense(room: Room, x, y, heading, rng) -> tuple[list[float], list[float]]:
     )
 
 
-def command(belt: Belt, strips, sectors, ttc, goal_b: float = 0.0) -> list[tuple[int, int]]:
-    cmd = _obstacle_cmd(belt, strips, sectors, ttc)
+def command(
+    belt: Belt, strips, sectors, ttc, goal_b: float = 0.0, hold=None
+) -> list[tuple[int, int]]:
+    cmd = _obstacle_cmd(belt, strips, sectors, ttc, hold)
     if belt.guide != "none":
         cmd, _ = pan.with_guide(cmd, goal_b, override=belt.guide == "on")
     return cmd
 
 
-def _obstacle_cmd(belt: Belt, strips, sectors, ttc) -> list[tuple[int, int]]:
+def _obstacle_cmd(belt: Belt, strips, sectors, ttc, hold=None) -> list[tuple[int, int]]:
     inf = math.inf
     if belt.scheme == "sector":
         # The original: eight sector distances, front three from the camera, one motor each.
@@ -237,7 +240,7 @@ def _obstacle_cmd(belt: Belt, strips, sectors, ttc) -> list[tuple[int, int]]:
         return cmd
     targets = pan.scene_targets(strips, HFOV, sectors, [True] * 8, belt.mapping)
     path = min(strips[STRIPS // 2 - 1 : STRIPS // 2 + 2])
-    cmd, _ = pan.plan_pan(targets, [True] * 8, path, ttc, inf, belt.mapping)
+    cmd, _ = pan.plan_pan(targets, [True] * 8, path, ttc, inf, belt.mapping, hold)
     return cmd
 
 
@@ -399,6 +402,7 @@ def run(
     k_rise = 1 - math.exp(-DT / belt.spinup_s)
     lag = int(REACT_S / DT)
     persist = pan.Persist(belt.persist)
+    hold = pan.Hold() if belt.hold else None
     drift = 0.0
     n = 0
     fb, prev_on = 0, [False] * 8
@@ -415,7 +419,7 @@ def run(
                     for d in strips
                 ]
             gb = wrap_deg(-math.degrees(math.atan2(wps[wi][1] - y, wps[wi][0] - x) - heading))
-            cmd = command(belt, persist(strips), sectors, ttc, gb)
+            cmd = command(belt, persist(strips), sectors, ttc, gb, hold)
             # False buzz = a motor turns on while nothing real is within range of its 90 degree
             # span (its own sector and the strips that face it).
             on = [i > 0 for _, i in cmd]

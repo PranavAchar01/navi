@@ -68,8 +68,9 @@ def extract() -> None:
     np.savez(CACHE, **out)
 
 
-def commands(strips, path, ttc, hfov, scheme, persist):
+def commands(strips, path, ttc, hfov, scheme, persist, felt=1):
     filt = pan.Persist(persist)
+    hold = pan.Hold() if scheme == "panned+hold" else None
     cmds = []
     for st, p, tt in zip(strips, path, ttc, strict=True):
         st = filt(list(st))
@@ -90,8 +91,8 @@ def commands(strips, path, ttc, hfov, scheme, persist):
             c, _ = plan(merged, known, p, tt, math.inf)
         else:
             tg = pan.cluster_strips(st, pan.strip_bearings(len(st), hfov))
-            c, _ = pan.plan_pan(tg, [True] * 8, p, tt, math.inf)
-        cmds.append([i > 0 and m != MODES["unknown"] for m, i in c])
+            c, _ = pan.plan_pan(tg, [True] * 8, p, tt, math.inf, hold=hold)
+        cmds.append([i >= felt and m != MODES["unknown"] for m, i in c])
     return np.array(cmds)
 
 
@@ -125,19 +126,25 @@ def main() -> None:
     for w in sorted({k.split("/")[0] for k in d.files}):
         ts = d[f"{w}/ts"]
         minutes = (ts[-1] - ts[0]) / 60
-        for scheme in ("sector", "panned"):
-            for persist in (1, 2, 3):
-                on = commands(
-                    d[f"{w}/strips"], d[f"{w}/path"], d[f"{w}/ttc"],
-                    float(d[f"{w}/hfov"][0]), scheme, persist,
-                )  # fmt: skip
-                n = transient(on, ts)
-                res[f"{w} {scheme} persist={persist}"] = {
-                    "minutes": round(minutes, 2),
-                    "transient_per_min": round(n / minutes, 1),
-                    "on_fraction": round(float(on.mean()), 3),
-                }
-                print(w, scheme, persist, res[f"{w} {scheme} persist={persist}"])
+        for scheme in ("sector", "panned", "panned+hold"):
+            for persist in (1, 2):
+                for felt in (1, 26):  # 26/255 is the skin model's 0.10 detection floor
+                    on = commands(
+                        d[f"{w}/strips"], d[f"{w}/path"], d[f"{w}/ttc"],
+                        float(d[f"{w}/hfov"][0]), scheme, persist, felt,
+                    )  # fmt: skip
+                    n = transient(on, ts)
+                    key = f"{w} {scheme} persist={persist} felt>={felt}"
+                    res[key] = {
+                        "minutes": round(float(minutes), 2),
+                        "transient_per_min": round(float(n / minutes), 1),
+                        "on_fraction": round(float(on.mean()), 3),
+                    }
+    tot: dict[str, list[float]] = {}
+    for k, v in res.items():
+        tot.setdefault(k.split(" ", 1)[1], []).append(v["transient_per_min"])
+    for k, v in tot.items():
+        print(f"{k:34s} mean transient/min over {len(v)} walks: {sum(v) / len(v):5.1f}")
     (ROOT / "bench" / "results" / "replay-false-buzz.json").write_text(json.dumps(res, indent=1))
 
 

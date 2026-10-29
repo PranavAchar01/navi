@@ -119,14 +119,16 @@ def plan_pan(
     ttc_s: float,
     drop_m: float,
     p: Params = DEFAULT,
+    hold: Hold | None = None,
 ) -> tuple[list[tuple[int, int]], int]:
-    """Same output as `belt.plan` (8 x (mode, intensity), flags), but panned.
+    """Same output as `belt.plan` (8 x (mode, intensity), flags), but panned. With `hold`, the
+    objects first go through that bearing hysteresis (one cue that stays put).
 
     Closing fast (time to contact under 1.2 s) on something within 2.5 m ahead raises the pulse
     one step on the front motors, as `belt.plan` does; a sector with no trusted data and no cue is
     "unknown" (no buzz, the UI says so).
     """
-    ahead = list(targets)
+    ahead = hold(targets, p) if hold else list(targets)
     if math.isfinite(path_m):
         ahead.append(Target(0.0, path_m))
     cmd = plan_targets(ahead, p)
@@ -195,6 +197,73 @@ def scene_targets(
         if ok and math.isfinite(d) and abs(centre) > half:
             out.append(Target(centre, d))
     return out
+
+
+class Hold:
+    """Bearing hysteresis for the single panned cue (k_targets = 1), so it does not hop between
+    motors frame to frame. State: the object currently felt.
+
+    - It keeps its object until another is closer by `switch_m` (nearest-wins flips on ties).
+    - Its bearing moves only when the object has moved more than `band_deg` from where the cue
+      sits, then follows at the band's edge.
+    - It switches off only `release_m` beyond the off distance, so a wall at the edge does not
+      blink.
+    - If it vanishes it stays for `keep` more frames, then goes quiet or hands over.
+    The distance is always the live one, so a closing obstacle still ramps up and a solid cue is
+    never held back."""
+
+    def __init__(
+        self,
+        switch_m: float = 0.3,
+        band_deg: float = 10.0,
+        keep: int = 2,
+        match_deg: float = 25.0,
+        release_m: float = 0.3,
+    ):
+        self.switch_m, self.band_deg, self.keep, self.match_deg = (
+            switch_m,
+            band_deg,
+            keep,
+            match_deg,
+        )
+        self.release_m = release_m
+        self.cur: Target | None = None
+        self.miss = 0
+
+    def __call__(self, targets: list[Target], p: Params = DEFAULT) -> list[Target]:
+        picks = select(targets, p)
+        cand = picks[0] if picks else None
+        if self.cur is not None:
+            near = [
+                t
+                for t in targets
+                if math.isfinite(t.dist_m)
+                and t.dist_m < p.off_m + self.release_m
+                and abs(wrap(t.bearing_deg - self.cur.bearing_deg)) <= self.match_deg
+            ]
+            same = min(
+                near, key=lambda t: abs(wrap(t.bearing_deg - self.cur.bearing_deg)), default=None
+            )
+            if same is not None:
+                self.miss = 0
+                if cand is not None and cand.dist_m < same.dist_m - self.switch_m:
+                    self.cur = cand
+                else:
+                    off = wrap(same.bearing_deg - self.cur.bearing_deg)
+                    move = (
+                        off - math.copysign(self.band_deg, off) if abs(off) > self.band_deg else 0.0
+                    )
+                    self.cur = Target(
+                        wrap(self.cur.bearing_deg + move), min(same.dist_m, p.off_m - 0.01)
+                    )
+            else:
+                self.miss += 1
+                closer = cand is not None and cand.dist_m < self.cur.dist_m - self.switch_m
+                if closer or self.miss > self.keep:
+                    self.cur, self.miss = cand, 0
+        else:
+            self.cur = cand
+        return [self.cur] if self.cur else []
 
 
 class Persist:

@@ -66,3 +66,41 @@ def test_persist_filter_drops_a_one_frame_phantom_but_passes_a_real_obstacle():
     assert f([3.0, 3.0]) == [3.0, 3.0]
     assert f([0.5, 3.0]) == [3.0, 3.0]  # first frame near: not yet
     assert f([0.5, 3.0]) == [0.5, 3.0]  # second frame near: now it counts
+
+
+def test_hold_keeps_the_cue_still_for_small_bearing_jitter():
+    hold = pan.Hold()
+    first = hold([pan.Target(10.0, 1.0)])[0].bearing_deg
+    for jitter in (4.0, -3.0, 6.0, -5.0):
+        assert hold([pan.Target(10.0 + jitter, 1.0)])[0].bearing_deg == first
+
+
+def test_hold_follows_a_real_turn_and_live_distance():
+    hold = pan.Hold()
+    hold([pan.Target(0.0, 1.2)])
+    out = hold([pan.Target(22.0, 0.5)])[0]
+    assert 10.0 < out.bearing_deg <= 22.0
+    assert out.dist_m == 0.5
+
+
+def test_hold_switches_only_for_a_clearly_closer_object():
+    hold = pan.Hold()
+    hold([pan.Target(0.0, 1.0)])
+    both = [pan.Target(0.0, 1.0), pan.Target(90.0, 0.9)]
+    assert hold(both)[0].bearing_deg == 0.0
+    both = [pan.Target(0.0, 1.0), pan.Target(90.0, 0.4)]
+    assert hold(both)[0].bearing_deg == 90.0
+
+
+def test_hold_survives_a_dropout_then_lets_go():
+    hold = pan.Hold(keep=2)
+    hold([pan.Target(0.0, 1.0)])
+    assert hold([]) and hold([])
+    assert not hold([])
+
+
+def test_hold_never_masks_a_new_closer_obstacle():
+    hold = pan.Hold()
+    hold([pan.Target(0.0, 1.2)])
+    out = hold([pan.Target(80.0, 0.5)])[0]
+    assert (out.bearing_deg, out.dist_m) == (80.0, 0.5)
