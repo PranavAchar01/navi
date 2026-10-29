@@ -143,6 +143,46 @@ net.on("answer", (a) => {
   }
 });
 
+// The same answer by touch: the wrist band's six motors are the six dots of one Braille cell.
+// Each dot lights for as long as the server says its motor buzzes; the word being spelled is
+// bright in the cue line under it. On the belt fallback the dots go to belt motors instead.
+const brailleBox = $("braille");
+const dotEls = [...document.querySelectorAll<HTMLElement>("#cell i")];
+const brailleWords = $("braille-words");
+const BELT_OF_DOT = [0, 7, 6, 1, 2, 3]; // dot 1 front, 2 front-left, 3 left, 4 front-right, 5 right, 6 back-right
+let cueWords: string[] = [];
+let onBelt = false;
+let brailleDots: number[] = [];
+let dotsOff = 0;
+function showWord(k: number) {
+  brailleWords.innerHTML = "";
+  cueWords.forEach((w, i) => {
+    const el = document.createElement(i === k ? "b" : "span");
+    el.textContent = w;
+    brailleWords.append(el, " ");
+  });
+}
+function lightDots(dots: number[], ms: number) {
+  clearTimeout(dotsOff);
+  brailleDots = dots;
+  dotEls.forEach((el, i) => el.classList.toggle("on", dots.includes(i + 1)));
+  if (ms > 0) dotsOff = window.setTimeout(() => lightDots([], 0), ms);
+}
+net.on("braille", (m) => {
+  if (m.phase === "start") {
+    cueWords = m.cues.split(" ");
+    onBelt = m.device.includes("belt");
+    brailleBox.classList.remove("idle");
+    showWord(-1);
+  } else if (m.phase === "cell") {
+    showWord(m.word);
+    lightDots(m.dots, m.dur_ms);
+  } else {
+    lightDots([], 0);
+    brailleBox.classList.add("idle");
+  }
+});
+
 function seenLine(): string {
   if (!answerPin) return answer?.text ?? "";
   const near = answerPin.near[0] ? `by the ${answerPin.near[0]}` : "";
@@ -199,8 +239,9 @@ function drawBelt(s: Safety | null) {
     const mode = modes[i] ?? "off";
     const band = (mode === "slow" ? 1 : mode === "fast" ? 2 : mode === "solid" ? 3 : 0) as Band;
     const guide = mode === "guide";
-    const on = band > CLEAR || guide;
-    const rgb = guide ? [90, 176, 255] : BAND_RGB[band];
+    const touch = onBelt && brailleDots.some((d) => BELT_OF_DOT[d - 1] === i);
+    const on = band > CLEAR || guide || touch;
+    const rgb = touch ? [201, 166, 255] : guide ? [90, 176, 255] : BAND_RGB[band];
     const rate = band === 3 ? 0 : band === 2 ? 8 : band === 1 ? 3 : 1.5;
     const pulse = rate ? 0.6 + 0.4 * Math.abs(Math.sin((now / 1000) * Math.PI * rate)) : 1;
     const x = c + R * Math.cos(a);

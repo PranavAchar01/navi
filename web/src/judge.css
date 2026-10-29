@@ -85,7 +85,7 @@ body.judge {
   padding: 0 1.4vw 1.4vw;
   display: grid;
   /* The glasses stream is 9:16 portrait, so the camera is a full-height column. */
-  grid-template-columns: calc((91vh - 1.4vw - 4.4vh) * 9 / 16) 1fr 30vw;
+  grid-template-columns: calc((91vh - 1.4vw - 4.4vh) * 9 / 16) 1fr 16vw 26vw;
   grid-template-rows: 1.12fr 0.88fr;
   gap: 1.2vw;
 }
@@ -128,19 +128,23 @@ body.judge {
   object-fit: contain;
 }
 .j-map {
-  grid-column: 2;
+  grid-column: 2 / 4;
   grid-row: 1;
 }
 .j-memory {
   grid-column: 2;
   grid-row: 2;
 }
-.j-lens {
+.j-braille {
   grid-column: 3;
+  grid-row: 2;
+}
+.j-lens {
+  grid-column: 4;
   grid-row: 1;
 }
 .j-belt {
-  grid-column: 3;
+  grid-column: 4;
   grid-row: 2;
 }
 .j-map #map3d {
@@ -203,7 +207,7 @@ body.judge {
 .j-a span {
   display: block;
   margin-top: 0.8vh;
-  font-size: 3vh;
+  font-size: 2.6vh;
   color: var(--dim);
 }
 .j-lens,
@@ -222,4 +226,48 @@ body.judge {
   height: 92%;
   aspect-ratio: 1;
   margin-top: 2vh;
+}
+/* The answer by touch: one Braille cell, its dots lit as the wrist band buzzes them. */
+.j-braille {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.4vh;
+  padding-top: 3.6vh;
+}
+.j-cell {
+  display: grid;
+  grid-template-columns: repeat(2, 6.2vh);
+  grid-template-rows: repeat(3, 6.2vh);
+  grid-auto-flow: column;
+  gap: 1.6vh 2.6vh;
+  padding: 1.6vh 2.2vh;
+  border-radius: 2vh;
+  background: rgba(255, 255, 255, 0.04);
+}
+.j-cell i {
+  border-radius: 50%;
+  background: rgba(40, 48, 70, 1);
+  transition: background 0.06s, box-shadow 0.06s;
+}
+.j-cell i.on {
+  background: #c9a6ff;
+  box-shadow: 0 0 2.4vh rgba(201, 166, 255, 0.75);
+}
+.j-words {
+  max-width: 100%;
+  padding: 0 1vw;
+  text-align: center;
+  font-size: 2.4vh;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.3);
+  overflow-wrap: anywhere;
+}
+.j-words b {
+  color: #fff;
+  font-weight: 800;
+}
+.j-braille.idle .j-cell {
+  opacity: 0.45;
 }

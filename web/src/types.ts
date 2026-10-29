@@ -126,7 +126,24 @@ export interface Transcript {
   text: string;
   final: boolean;
 }
+/** One Braille cell as it starts to buzz (docs/braille.md). */
+export interface BrailleCell {
+  i: number;
+  word: number;
+  mask: number;
+  dots: number[]; // 1-6: 1-2-3 down the left column, 4-5-6 down the right
+  t_ms: number;
+  dur_ms: number;
+  rest_ms: number;
+}
+/** The answer played as haptic Braille: `start` with the whole schedule, a `cell` as each one
+ *  begins, then `end`. */
+export type BrailleMsg =
+  | { type: "braille"; phase: "start"; device: string; text: string; cues: string; total_ms: number; cells: BrailleCell[] }
+  | ({ type: "braille"; phase: "cell" } & BrailleCell)
+  | { type: "braille"; phase: "end" };
 export type Message =
+  | BrailleMsg
   | Safety
   | Belt
   | Answer

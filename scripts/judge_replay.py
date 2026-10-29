@@ -80,6 +80,8 @@ async def play(a, url: str) -> None:
                     guides["any"] += 1
                     guides["dist"] += g.get("dist") is not None
                     guides["bearing"] += g.get("bearing") is not None
+                elif d["type"] == "braille" and d["phase"] != "cell":
+                    print(f"braille {d['phase']}: {d.get('cues', '')}", flush=True)
                 elif d["type"] == "answer":
                     print(f"answer: {d['text']}", flush=True)
 
@@ -155,6 +157,7 @@ def main() -> None:
     )
     ap.add_argument("--ask", default="where is my laptop")
     ap.add_argument("--ask-at", type=float, default=45)
+    ap.add_argument("--braille", default="emulator", help="off, emulator, wrist or belt")
     ap.add_argument("--laps", type=int, default=1)
     ap.add_argument(
         "--settle", type=float, default=8, help="seconds to keep feeding nothing after the walk"
@@ -174,13 +177,18 @@ def main() -> None:
     slot = take_slot()
     home = Path(tempfile.mkdtemp(prefix="ms-judge-home-"))
     shutil.copytree(ROOT / "data" / "home", home, dirs_exist_ok=True)
-    # The glasses profile with the belt on its own port: the live server's belt emulator listens
-    # on 4210, and a second server sending there would drive it.
+    # The glasses profile with the belt on its own port (the live server's belt emulator listens
+    # on 4210, and a second server sending there would drive it) and the answer also played as
+    # Braille cell events, for the judge view's touch panel.
     config = home / "judge.toml"
     config.write_text(
         (ROOT / "metasight.glasses.toml")
         .read_text()
-        .replace("[safety]\n", f'[safety]\nbelt_addr = "127.0.0.1:{a.belt_port}"\n', 1)
+        .replace(
+            "[safety]\n",
+            f'[safety]\nbelt_addr = "127.0.0.1:{a.belt_port}"\nbraille = "{a.braille}"\n',
+            1,
+        )
     )
     env = {
         **os.environ,
