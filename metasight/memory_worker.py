@@ -95,8 +95,10 @@ def run(
                     engine.s.watchlist.append(msg["label"])
                 continue
             if msg["cmd"] == "want":  # asked for: the billed finder looks for it for a while
+                if msg.get("new") and msg["label"] not in engine.s.watchlist:
+                    engine.s.watchlist.append(msg["label"])  # this run only; never saved
                 if want := getattr(engine.finder, "want", None):
-                    want(msg["label"])
+                    want(msg["label"], new=msg.get("new", False))
                 continue
             if msg["cmd"] == "hfov":  # the frame source changed lens (an iPhone, the glasses)
                 if settings.map_intrinsics:

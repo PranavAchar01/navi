@@ -310,8 +310,12 @@ class HybridFinder:
         self.meta_ms = 0.0  # how long the last SAM 3.1 call took, for the judge view
         self.wanted: dict[str, float] = {}  # item -> until when SAM 3.1 looks for it
 
-    def want(self, label: str, seconds: float = WANT_S) -> None:
-        """Asked for, or being guided to: SAM 3.1 looks for this item from now for `seconds`."""
+    def want(self, label: str, seconds: float = WANT_S, new: bool = False) -> None:
+        """Asked for, or being guided to: SAM 3.1 looks for this item from now for `seconds`.
+        A `new` thing, one the house never saw, becomes a personal item: a weak local hit on it
+        stands only once SAM 3.1 confirms it, so a word neither model can name pins nothing."""
+        if new:
+            self.items.add(label)
         if label in self.items:
             self.wanted[label] = time.monotonic() + seconds
 

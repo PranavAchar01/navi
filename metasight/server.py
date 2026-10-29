@@ -888,12 +888,14 @@ class Server:
                     "text": template_answer(noun, pin, pose, now, stand_in=True),
                     "pin": pin.to_json(),
                     "language": "template",
+                    "want": noun,
                 }
             return {
                 "type": "answer",
                 "label": None,
                 "text": unseen_answer(noun) if noun else "Which object do you mean?",
                 "pin": None,
+                **({"want": noun} if noun else {}),  # never seen: the camera looks for it now
             }
         pin = self.pins.latest(label)
         live = [s for s in seen if s[0] == label]
@@ -1156,6 +1158,8 @@ class Server:
         await self.hub.json(res)
         if res.get("label"):  # SAM 3.1 looks for it only now, while the wearer is after it
             self.in_q.put({"cmd": "want", "label": res["label"]})
+        elif res.get("want"):  # a thing the house never saw: the camera learns the word too
+            self.in_q.put({"cmd": "want", "label": res["want"], "new": True})
         if self.braille:
             res["cues"] = self.braille.say(res["text"])
         return res

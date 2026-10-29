@@ -115,3 +115,16 @@ def test_sam_looks_only_for_what_was_asked_for():
     h.wanted["keys"] = 0.0  # the ask ran out
     h.find(FRAME, ["water bottle", "keys"])
     assert h.meta.calls == [["keys"]]
+
+
+def test_a_never_seen_thing_is_swept_and_a_word_nobody_can_name_pins_nothing():
+    """A new thing becomes a personal item for the ask: SAM 3.1 sweeps it, and a weak local hit
+    on it stands only once SAM confirms it."""
+    h = hybrid([Detection("umbrella", 0.15, (1, 1, 2, 2))], [], interval=0.0)
+    h.wanted = {}
+    h.want("umbrella", new=True)
+    assert h.find(FRAME, ["bed", "umbrella"]) == []  # SAM saw none: the weak local hit is dropped
+    assert h.meta.calls == [["umbrella"]]
+
+    h.want("zorblax", new=True)  # neither model knows the word: no crash, no detection
+    assert h.find(FRAME, ["zorblax"]) == []

@@ -145,3 +145,35 @@ def test_guide_switches_mid_run_to_a_newer_placed_pin_and_never_back():
     srv.pins.replace_all([old.to_json(), found.to_json(), seen_again])
     guide(srv, now)
     assert srv.guide["pin"] == 41
+
+
+def test_a_never_seen_thing_is_wanted_so_the_camera_looks_for_it():
+    """'Where is my umbrella', never seen: the answer is unchanged, and the worker is told to
+    look for an umbrella from now (SAM 3.1 sweeps it, the local model learns the word)."""
+    t = time.time()
+    srv, _ = server(GUIDE_POSE_S + 5, [desk(1, [9.0, 0.0, 9.0], placed=True, ts=t - 60)])
+    srv.language, srv.live_last = SimpleNamespace(name="template"), {}
+    res = Server._answer_sync(srv, "where is my umbrella")
+    assert res["label"] is None and res["want"] == "umbrella"
+    assert res["text"].startswith("I haven't seen your umbrella yet.")
+    assert "want" not in Server._answer_sync(srv, "where is it")  # names nothing: nothing wanted
+
+    sent = []
+
+    async def json(ev, *_):
+        sent.append(ev)
+
+    async def run():
+        srv.loop = asyncio.get_running_loop()
+        srv.map_loaded = asyncio.Event()
+        srv.map_loaded.set()
+        srv.hub, srv.in_q, srv.braille = SimpleNamespace(json=json), queue.Queue(), None
+        srv.onboarding, srv.notes = SimpleNamespace(active=False), SimpleNamespace(recording=False)
+        srv.known_labels, srv.can_point = lambda: ["desk"], lambda g, now: False
+        done = srv.loop.create_future()
+        done.set_result(res)
+        await Server.answer(srv, "where is my umbrella", pending=done)
+        return srv.in_q.get_nowait()
+
+    assert asyncio.run(run()) == {"cmd": "want", "label": "umbrella", "new": True}
+    assert sent[-1]["text"] == res["text"]
