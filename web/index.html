@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#070b18" />
     <title>meta-sight</title>
+    <script>
+      if (new URLSearchParams(location.search).get("view") === "judge") location.replace("/judge.html" + location.hash);
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

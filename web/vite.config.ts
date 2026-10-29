@@ -12,5 +12,10 @@ export default defineConfig({
   },
   // Inline PostCSS config so a stray postcss.config in a parent folder is never picked up.
   css: { postcss: { plugins: [] } },
-  build: { outDir: "dist", sourcemap: false },
+  build: {
+    outDir: "dist",
+    sourcemap: false,
+    // The judge view is a second page: one 16:9 screen for a laptop or a TV.
+    rollupOptions: { input: { main: "index.html", judge: "judge.html" } },
+  },
 });
