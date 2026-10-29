@@ -226,3 +226,23 @@ def test_offline_glimmer_wraps_spark(monkeypatch):
     lm = language.make_language(Settings(language="meta", offline="glimmer"))
     assert isinstance(lm, FallbackLanguage) and lm.primary._client.timeout == 4.0
     assert lm.backup.name == "muse-glimmer"
+
+
+def test_people_and_change_questions_go_to_the_tools():
+    from metasight.query import needs_tools
+
+    assert needs_tools("Who is talking?") and needs_tools("what changed since this morning")
+    assert needs_tools("is anyone in front of me")
+    assert not needs_tools("where are my keys") and not needs_tools("where did I put my wallet")
+
+
+def test_tool_question_is_not_answered_from_an_early_guess():
+    async def main():
+        srv = FakeServer()
+        srv.loop = asyncio.get_running_loop()
+        v = VoiceAsk(srv, "k", [])
+        await v.on_heard(heard("where are my keys", False))
+        await v.on_heard(heard("Where are my keys, did someone move them?", True))
+        return v
+
+    assert asyncio.run(main()).last["early"] is False

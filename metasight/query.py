@@ -38,6 +38,18 @@ def parse_query(text: str, known: list[str] | None = None) -> str | None:
     return best
 
 
+# Questions the pins alone cannot answer: about people, voices, or what changed. These go to
+# Muse Spark with tools (providers/tools.py); plain "where is my X" stays on the one-call path.
+_TOOLS = re.compile(
+    r"\b(who|someone|somebody|anyone|anybody|person|people|talking|speaking|voice|"
+    r"changed?|moved|different|what's new|anything new)\b"
+)
+
+
+def needs_tools(text: str) -> bool:
+    return bool(_TOOLS.search(text.lower()))
+
+
 def is_question(text: str) -> bool:
     return bool(_ASK.search(text.lower())) or text.strip().endswith("?")
 

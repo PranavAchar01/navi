@@ -39,11 +39,13 @@ from .motion import FallDetector, Sample, ShakeDetector
 from .pins import PinStore
 from .providers import make_language
 from .providers.finder import LOOKALIKES
+from .providers.tools import Tools, agent_answer
 from .query import (
     SYSTEM,
     camera_answer,
     facts_for_language,
     live_answer,
+    needs_tools,
     parse_query,
     template_answer,
     valid_sentence,
@@ -516,6 +518,23 @@ class Server:
 
     # ------------------------------------------------------------ questions
     def _answer_sync(self, text: str) -> dict:
+        if needs_tools(text) and hasattr(self.language, "_client"):
+            # People, voices, changes: Spark asks the pins, the map and the people tracks itself.
+            # One to three calls, so only these questions take this path.
+            try:
+                tools = Tools(self.pins, self.heading, lambda: self.hub.last.get("people"))
+                said = agent_answer(self.language, text, tools)
+            except Exception:
+                said = ""
+            if valid_sentence(said):
+                return {
+                    "type": "answer",
+                    "label": None,
+                    "text": said.strip(),
+                    "pin": None,
+                    "language": self.language.name,
+                    "tools": True,
+                }
         seen_at, seen = self.live_seen
         if time.time() - seen_at > LIVE_SEEN_S:
             seen = []
@@ -624,7 +643,7 @@ class Server:
             res = await pending
         else:
             res = await self.loop.run_in_executor(self.llm_pool, self._answer_sync, text)
-        if quiet_unknown and res.get("label") is None:
+        if quiet_unknown and res.get("label") is None and not res.get("tools"):
             return None
         res["ms"] = round(1000 * (time.perf_counter() - t0))
         if spoken_end is not None:

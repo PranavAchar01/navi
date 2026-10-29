@@ -1,0 +1,137 @@
+{
+ "at": "2026-10-29 00:39 PDT",
+ "single": [
+  {
+   "ask": "where is my tv",
+   "answer": "I saw the tv 7 hours ago near the laptop and sink.",
+   "language": "muse-spark",
+   "tools": false,
+   "client_ms": 827,
+   "server_ms": 826
+  },
+  {
+   "ask": "where is my backpack",
+   "answer": "I saw the backpack 7 hours ago near the sink and TV.",
+   "language": "muse-spark",
+   "tools": false,
+   "client_ms": 827,
+   "server_ms": 826
+  },
+  {
+   "ask": "where is my basket",
+   "answer": "I saw the basket 7 hours ago near the bed and chair.",
+   "language": "muse-spark",
+   "tools": false,
+   "client_ms": 675,
+   "server_ms": 674
+  },
+  {
+   "ask": "where is my bed",
+   "answer": "I saw a bed 7 hours ago.",
+   "language": "muse-spark",
+   "tools": false,
+   "client_ms": 535,
+   "server_ms": 535
+  },
+  {
+   "ask": "where is my tv",
+   "answer": "I saw the tv 7 hours ago near the laptop and sink.",
+   "language": "muse-spark",
+   "tools": false,
+   "client_ms": 1253,
+   "server_ms": 1253
+  },
+  {
+   "ask": "where is my backpack",
+   "answer": "I saw the backpack 7 hours ago near the sink and TV.",
+   "language": "muse-spark",
+   "tools": false,
+   "client_ms": 1205,
+   "server_ms": 1204
+  },
+  {
+   "ask": "where is my basket",
+   "answer": "I saw the basket 7 hours ago near the bed and chair.",
+   "language": "muse-spark",
+   "tools": false,
+   "client_ms": 635,
+   "server_ms": 635
+  },
+  {
+   "ask": "where is my bed",
+   "answer": "I saw a bed 7 hours ago.",
+   "language": "muse-spark",
+   "tools": false,
+   "client_ms": 1052,
+   "server_ms": 1051
+  }
+ ],
+ "single_median_ms": 827,
+ "tools": [
+  {
+   "ask": "what changed in the last ten minutes",
+   "answer": "I do not know what changed in the last ten minutes.",
+   "language": "muse-spark",
+   "tools": true,
+   "client_ms": 922,
+   "server_ms": 922
+  },
+  {
+   "ask": "is anyone talking",
+   "answer": "No, no one is talking right now.",
+   "language": "muse-spark",
+   "tools": true,
+   "client_ms": 1252,
+   "server_ms": 1251
+  },
+  {
+   "ask": "how many people are in front of me",
+   "answer": "There is no one in front of you.",
+   "language": "muse-spark",
+   "tools": true,
+   "client_ms": 2053,
+   "server_ms": 2052
+  },
+  {
+   "ask": "did someone move my backpack",
+   "answer": "No, nothing moved in the last thirty minutes.",
+   "language": "muse-spark",
+   "tools": true,
+   "client_ms": 3043,
+   "server_ms": 3042
+  },
+  {
+   "ask": "what changed in the last ten minutes",
+   "answer": "I do not know what changed.",
+   "language": "muse-spark",
+   "tools": true,
+   "client_ms": 929,
+   "server_ms": 928
+  },
+  {
+   "ask": "is anyone talking",
+   "answer": "No, no one is talking right now.",
+   "language": "muse-spark",
+   "tools": true,
+   "client_ms": 1227,
+   "server_ms": 1226
+  },
+  {
+   "ask": "how many people are in front of me",
+   "answer": "There is no one in front of you.",
+   "language": "muse-spark",
+   "tools": true,
+   "client_ms": 1573,
+   "server_ms": 1572
+  },
+  {
+   "ask": "did someone move my backpack",
+   "answer": "No, your backpack is still near the sink and TV.",
+   "language": "muse-spark",
+   "tools": true,
+   "client_ms": 2363,
+   "server_ms": 2363
+  }
+ ],
+ "tools_median_ms": 1412
+}

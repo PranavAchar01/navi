@@ -17,7 +17,7 @@ import numpy as np
 
 from .audio_doa import SR, to_mono16k
 from .providers.transcribe import Heard, Transcriber
-from .query import is_question, parse_query
+from .query import is_question, needs_tools, parse_query
 
 SPEC_FRESH_S = 5.0  # an early answer older than this is stale (the wearer may have moved)
 
@@ -47,8 +47,9 @@ class VoiceAsk:
         if not is_question(h.text):
             return
         label = parse_query(h.text, self.srv.known_labels())
+        tools = needs_tools(h.text)  # the tool path cannot start from a fragment
         if not h.final:
-            if label and (self.spec is None or self.spec[0] != label):
+            if label and not tools and (self.spec is None or self.spec[0] != label):
                 fut = self.srv.loop.run_in_executor(
                     self.srv.llm_pool, self.srv._answer_sync, h.text
                 )
@@ -56,7 +57,7 @@ class VoiceAsk:
             return
         spec, self.spec = self.spec, None
         pending = None
-        if spec and spec[0] == label and time.time() - spec[2] < SPEC_FRESH_S:
+        if spec and not tools and spec[0] == label and time.time() - spec[2] < SPEC_FRESH_S:
             pending = spec[1]
         res = await self.srv.answer(
             h.text, pending=pending, quiet_unknown=True, spoken_end=h.spoken_end
