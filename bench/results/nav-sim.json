@@ -1,35 +1,35 @@
 {
  "none": {
   "runs": 100,
-  "success": 0.97,
-  "collisions": 1.08,
-  "time_s": 10.24701030927822,
-  "efficiency": 1.0104245491559722,
-  "contact_s": 3.0808000000000444,
+  "success": 0.99,
+  "collisions": 0.95,
+  "time_s": 11.55393939393932,
+  "efficiency": 0.992833071129796,
+  "contact_s": 2.535000000000068,
   "false_per_min": 0.0,
   "guide_frames": 0,
   "stop_frames": 0,
   "stop_overridden": 0,
   "stop_violations": 0,
-  "cost": 7.95200999999999
+  "cost": 5.416929999999995
  },
  "on": {
   "runs": 100,
   "success": 1.0,
-  "collisions": 0.62,
-  "time_s": 9.395999999999889,
-  "efficiency": 1.0409988381665694,
-  "contact_s": 0.2906000000000001,
-  "false_per_min": 9.706257982120166,
-  "guide_frames": 23515,
-  "stop_frames": 6698,
-  "stop_overridden": 6698,
+  "collisions": 0.52,
+  "time_s": 9.408799999999887,
+  "efficiency": 1.0373020233584445,
+  "contact_s": 0.2198000000000001,
+  "false_per_min": 9.437972961482979,
+  "guide_frames": 23546,
+  "stop_frames": 6131,
+  "stop_overridden": 6131,
   "stop_violations": 0,
-  "cost": 2.9497999999999944
+  "cost": 2.5504399999999943
  },
  "on_vs_none": [
-  -5.002209999999999,
-  -9.603736499999997,
-  -1.0063167499999992
+  -2.866490000000001,
+  -5.774846000000003,
+  -0.7861122500000005
  ]
 }
