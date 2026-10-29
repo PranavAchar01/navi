@@ -1088,11 +1088,13 @@ def write_report(results: list, meta: dict, walk: str, stamp: str, note: str) ->
         "Differences from the live profile: map review every 2 min (not 10), SAM 3.1 crops every "
         "10 s (not 2), its own belt emulator port.",
         "",
-        "The stop latency here is the private server at background priority while the live "
-        "service and the other agents' jobs share the Mac (load average about 30). The live "
-        "service at normal priority measured frame to belt command p95 73 ms on ab3877b "
-        "(`docs/perf.md`, `bench/results/perf/cue-service-ab3877b.json`). Both are under the "
-        "250 ms target.",
+        "The stop latency here is the private server launched at background priority while the "
+        "live service and the other agents' jobs share the Mac. Since 6ab0b5a the server moves "
+        "its safety and stop path out of the background band on start (memory, solver, model "
+        "and review threads stay in it), but the reflex thread still runs at nice 19 here, "
+        "unlike live. The live service at normal priority measured frame to belt command p95 "
+        "73 ms on ab3877b (`docs/perf.md`, `bench/results/perf/cue-service-ab3877b.json`). The "
+        "target is under 250 ms.",
         "",
         "Two clocks on the spoken question. The Number is the server's own "
         "`speech_end_to_answer_ms`: from where Muse Voice Transcribe puts the end of speech "
