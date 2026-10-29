@@ -422,6 +422,23 @@ async def voice_before_map(c: Client) -> dict:
     )  # fmt: skip
 
 
+def people_dump(events: list, sent: list, out: Path | None = None) -> str:
+    """Every people and speaker event from 1 s before to 3 s after each voice's onset, so a slow
+    cue can be traced (time in ms from that onset)."""
+    out = out or ROOT / "bench" / "results" / "morning-check-people.json"
+    dump = {}
+    for onset, side in ((1.0, "left"), (10.0, "right")):
+        i = int(onset * SR / 1600)
+        if i < len(sent):
+            dump[side] = [
+                {"ms": round(1000 * (at - sent[i])), **e}
+                for at, e in events
+                if e.get("type") in ("people", "speaker_cue") and -1 <= at - sent[i] <= 3
+            ]
+    out.write_text(json.dumps(dump, indent=1, default=str))
+    return f"people events saved ({', '.join(f'{k} {len(v)}' for k, v in dump.items())})"
+
+
 def row(key, feature, owner, status, number="", evidence=""):
     return {
         "key": key,
@@ -991,21 +1008,10 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
                     lat[side] = (1000 * (hit[0][0] - sent[i]), hit[0][1]["bearing"])
         people = c.since(t_a, "people")
         doas = [e["doa"] for e in people if e.get("doa") is not None]
-        # every people and speaker event from 1 s before to 3 s after each voice's onset, so a
-        # slow cue can be traced (time in ms from that onset)
-        dump = {}
-        for onset, side in ((1.0, "left"), (10.0, "right")):
-            i = int(onset * SR / 1600)
-            if i < len(sent):
-                t_on = sent[i]
-                dump[side] = [
-                    {"ms": round(1000 * (at - t_on)), **e}
-                    for at, e in c.events
-                    if e.get("type") in ("people", "speaker_cue") and -1 <= at - t_on <= 3
-                ]
-        (ROOT / "bench" / "results" / "morning-check-people.json").write_text(
-            json.dumps(dump, indent=1, default=str)
-        )
+        try:
+            dump_note = people_dump(c.events, sent)
+        except Exception as e:  # the trace is a help, never a reason to lose the run
+            dump_note = f"people dump failed: {e!r}"
         ok = len(lat) == 2
         results.append(
             row(
@@ -1021,7 +1027,7 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
                     else "no turn cue"
                 )
                 + f"; {len(cues)} cues, {len(people)} people events, "
-                f"doa range {min(doas, default=None)} to {max(doas, default=None)}",
+                f"doa range {min(doas, default=None)} to {max(doas, default=None)}; {dump_note}",
             )
         )
         results.append(
