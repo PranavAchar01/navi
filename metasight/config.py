@@ -41,6 +41,8 @@ class Settings:
     asr: str = "meta"  # spoken questions: "meta" (Muse Voice Transcribe) | "off" (client STT)
     offline: str = ""  # "glimmer": answers fall back to Muse Glimmer here (scripts/glimmer.sh)
     glimmer_url: str = "http://127.0.0.1:8091"
+    review: str = "wonder"  # deep map review: "wonder" | "glimmer" | "off"
+    review_every_min: float = 10.0
     openai_model: str = "gpt-4.1-mini"
     meta_model: str = "muse-spark-1.3"
     sam_model: str = "sam-3.1"
@@ -110,6 +112,8 @@ class Settings:
         s.asr = os.environ.get("METASIGHT_ASR", prov.get("asr", s.asr))
         s.offline = os.environ.get("METASIGHT_OFFLINE", prov.get("offline", s.offline))
         s.glimmer_url = prov.get("glimmer_url", s.glimmer_url)
+        s.review = os.environ.get("METASIGHT_REVIEW", prov.get("review", s.review))
+        s.review_every_min = float(prov.get("review_every_min", s.review_every_min))
         for k in ("openai_model", "meta_model", "sam_model"):
             setattr(s, k, mod.get(k, getattr(s, k)))
         for k in (

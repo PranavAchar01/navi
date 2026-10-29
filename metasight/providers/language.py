@@ -54,6 +54,7 @@ class OpenAICompatLanguage:
             temperature=0.2,
             extra_body=self.extra,
         )
+        self.usage = r.usage
         return (r.choices[0].message.content or "").strip()
 
     def keep_warm(self, every_s: float = 15.0) -> None:
@@ -97,3 +98,25 @@ def make_language(s: Settings) -> LanguageModel:
         if key:
             return OpenAICompatLanguage("openai", s.openai_model, key)
     return TemplateLanguage()
+
+
+def make_reviewer(s: Settings) -> LanguageModel | None:
+    """The deep loop's model: Muse Wonder on the API, or Glimmer here when review = "glimmer"."""
+    if s.review == "glimmer":
+        from .glimmer import GlimmerLanguage
+
+        return GlimmerLanguage(s.glimmer_url, timeout=60, cap=600)
+    if s.review != "wonder":
+        return None
+    key = secret("META_API_KEY", "MODEL_API_KEY")
+    if not key:
+        return None
+    # minimal effort: 21 changes take 10 s and 1.1k tokens; default effort spent 4k thinking
+    return OpenAICompatLanguage(
+        "muse-wonder",
+        "muse-wonder-1.0",
+        key,
+        META_BASE_URL,
+        timeout=90,
+        extra={"reasoning_effort": "minimal"},
+    )

@@ -1,0 +1,142 @@
+{
+ "model": "muse-wonder",
+ "pins": 75,
+ "house_span_h": 0.18,
+ "whole_day": {
+  "changes": 20,
+  "ms": 14557,
+  "usd": 0.028388,
+  "tokens": [
+   617,
+   1296
+  ],
+  "items": [
+   {
+    "object": "keyboard",
+    "matters": true,
+    "in_the_way": false,
+    "say": "A new keyboard is near the laptop and TV."
+   },
+   {
+    "object": "tv",
+    "matters": true,
+    "in_the_way": false,
+    "say": "A new TV is near the laptop and sink."
+   },
+   {
+    "object": "speaker",
+    "matters": false,
+    "in_the_way": false,
+    "say": ""
+   },
+   {
+    "object": "shelf",
+    "matters": true,
+    "in_the_way": true,
+    "say": "The shelf has moved."
+   },
+   {
+    "object": "keys",
+    "matters": true,
+    "in_the_way": false,
+    "say": "Keys are now near the sink and TV."
+   },
+   {
+    "object": "computer monitor",
+    "matters": true,
+    "in_the_way": false,
+    "say": "A new computer monitor is near the TV and sink."
+   },
+   {
+    "object": "picture frame",
+    "matters": false,
+    "in_the_way": false,
+    "say": ""
+   },
+   {
+    "object": "remote control",
+    "matters": true,
+    "in_the_way": false,
+    "say": "A new remote control is near the laptop and TV."
+   },
+   {
+    "object": "stool",
+    "matters": true,
+    "in_the_way": true,
+    "say": "A new stool is near the chair and bed, where you might walk into it."
+   },
+   {
+    "object": "phone",
+    "matters": true,
+    "in_the_way": false,
+    "say": "A phone is now near the laptop and TV."
+   },
+   {
+    "object": "window",
+    "matters": false,
+    "in_the_way": false,
+    "say": ""
+   },
+   {
+    "object": "curtain",
+    "matters": false,
+    "in_the_way": false,
+    "say": ""
+   },
+   {
+    "object": "wall",
+    "matters": false,
+    "in_the_way": false,
+    "say": ""
+   },
+   {
+    "object": "box",
+    "matters": true,
+    "in_the_way": true,
+    "say": "A new box is near the TV and laptop, where you might walk into it."
+   },
+   {
+    "object": "trash can",
+    "matters": true,
+    "in_the_way": true,
+    "say": "A new trash can is near the bed and chair, where you might walk into it."
+   },
+   {
+    "object": "bag",
+    "matters": true,
+    "in_the_way": true,
+    "say": "A bag has moved to near the sink and TV, where you might walk into it."
+   },
+   {
+    "object": "pillow",
+    "matters": true,
+    "in_the_way": false,
+    "say": "The pillow has moved to near the bed and sink."
+   },
+   {
+    "object": "bed",
+    "matters": true,
+    "in_the_way": true,
+    "say": "A new bed is in the room, where you might walk into it."
+   },
+   {
+    "object": "fan",
+    "matters": true,
+    "in_the_way": true,
+    "say": "A new fan is near the TV and sink, where you might walk into it."
+   },
+   {
+    "object": "shoe",
+    "matters": true,
+    "in_the_way": true,
+    "say": "A shoe is on the floor near the sink and bed, where you might trip on it."
+   }
+  ]
+ },
+ "windows": 2,
+ "windows_with_changes": 1,
+ "window_ms_median": 11494,
+ "window_usd_median": 0.025448,
+ "usd_per_hour_busy": 0.1527,
+ "usd_per_hour_observed": 0.1376
+}

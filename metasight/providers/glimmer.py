@@ -29,8 +29,8 @@ def prompt(system: str, user: str) -> str:
 class GlimmerLanguage:
     name = "muse-glimmer"
 
-    def __init__(self, url: str = "http://127.0.0.1:8091", timeout: float = 8.0):
-        self.url = url.rstrip("/")
+    def __init__(self, url: str = "http://127.0.0.1:8091", timeout: float = 8.0, cap: int = 80):
+        self.url, self.cap = url.rstrip("/"), cap
         self._http = httpx.Client(timeout=timeout)
 
     def complete(self, system: str, user: str, max_tokens: int = 120) -> str:
@@ -38,7 +38,7 @@ class GlimmerLanguage:
             f"{self.url}/completion",
             json={
                 "prompt": prompt(system, user),
-                "n_predict": min(max_tokens, 80),
+                "n_predict": min(max_tokens, self.cap),
                 "stop": STOP,
                 "cache_prompt": True,
                 "temperature": 0.2,

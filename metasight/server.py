@@ -30,18 +30,18 @@ from .align import map_resolution
 from .belt import FLAG_FOUND, NAMES, BeltLink, guide, plan
 from .config import ROOT, Settings, secret
 from .conversation import Talk
-from .modes import ALL as ACTIVITIES
-from .modes import Activity
-from .modes import command as activity_command
-from .modes import implied as implied_activity
 from .geometry import CAMERA_SECTORS, SECTORS, merge_sectors
 from .haptics import make_output
 from .heading import Heading, wrap
 from .hub import Hub
 from .memory_worker import run as memory_run
+from .modes import ALL as ACTIVITIES
+from .modes import Activity
+from .modes import command as activity_command
+from .modes import implied as implied_activity
 from .motion import FallDetector, Sample, ShakeDetector
 from .pins import PinStore
-from .providers import make_language
+from .providers import make_language, make_reviewer
 from .providers.finder import LOOKALIKES
 from .providers.tools import Tools, agent_answer
 from .query import (
@@ -54,6 +54,7 @@ from .query import (
     template_answer,
     valid_sentence,
 )
+from .review import MapReview
 from .safety import SafetyLoop, hazards
 from .voice import VoiceAsk
 from .walk import WALKS, WalkRecorder
@@ -80,6 +81,10 @@ class Server:
         self.hub = Hub()
         self.pins = PinStore()
         self.language = make_language(settings)
+        reviewer = make_reviewer(settings)
+        self.review = (
+            MapReview(reviewer, self.pins, 60 * settings.review_every_min) if reviewer else None
+        )
         self.safety: SafetyLoop | None = None
         self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="safety")
         self.llm_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="llm")
@@ -145,6 +150,8 @@ class Server:
         await self.belt.start()
         threading.Thread(target=self._read_memory, daemon=True).start()
         self._frame_task = asyncio.create_task(self.frame_guard())
+        if self.review:
+            self._review_task = asyncio.create_task(self.review_loop())
 
     def use_source(self, sock: WebSocket) -> None:
         """Frames now come from `sock`: use the lens it reported (an iPhone measures its own),
@@ -300,6 +307,20 @@ class Server:
         k = FINDER_LONG_SIDE / max(bgr.shape[:2])
         hi = cv2.resize(bgr, None, fx=k, fy=k, interpolation=cv2.INTER_AREA) if k < 1 else bgr
         return small, self.safety.process(small), gray, sharp, hi
+
+    async def review_loop(self) -> None:
+        """The deep speed: every few minutes the reviewer reads the map's change log. Off the
+        event loop and on the llm pool, so it never holds up a frame or a spoken answer."""
+        while True:
+            await asyncio.sleep(self.review.every_s)
+            try:
+                res = await self.loop.run_in_executor(self.llm_pool, self.review.run)
+            except Exception:
+                log.exception("map review failed")
+                continue
+            if res["changes"]:
+                log.info("map review: %d changes, %s", res["changes"], res.get("usd"))
+                await self.hub.json(res, replay=True)
 
     async def frame_guard(self) -> None:
         """Keep the frame loop alive: log a failure, then carry on with the next frame."""

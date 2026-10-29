@@ -1,7 +1,7 @@
 #!/bin/sh
 # Keep the server running on this Mac for the glasses app: scripts/service.sh install | uninstall | status
-# Listens on the LAN at ws://<LocalHostName>.local:8445/ws with the glasses profile and the local
-# finder (YOLOE, no billed SAM calls). Logs go to ~/Library/Logs/meta-sight.log.
+# Listens on the LAN at ws://<LocalHostName>.local:8445/ws with the glasses profile and the hybrid
+# finder (YOLOE locally, SAM 3.1 on crops; local only without a key). Logs go to ~/Library/Logs/meta-sight.log.
 set -e
 cd "$(dirname "$0")/.."
 LABEL=com.pranavachar.meta-sight
