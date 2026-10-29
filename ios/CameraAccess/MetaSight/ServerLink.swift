@@ -130,6 +130,8 @@ final class ServerLink {
   private(set) var lastAnswer: String?
   /// What the wearer is doing: guide, find, talk or explore. The server owns it.
   private(set) var activity = "guide"
+  /// First-run setup: where it is, how far the walk has got, what has been named.
+  private(set) var onboarding = OnboardingState()
   private(set) var answerNote: AnswerNote?
   /// Sector distances from the latest safety message, as forwarded to the watch.
   private(set) var proximity: ProximityReading?
@@ -221,6 +223,11 @@ final class ServerLink {
   func addMotion(_ sample: [Double]) {
     guard connection == .connected else { return }
     motionBuffer.append(sample)
+  }
+
+  /// Starts or skips the first-run setup ("start" or "skip").
+  func onboard(_ action: String) {
+    send(json: ["type": "onboarding", "action": action])
   }
 
   /// Asks the server to switch between guide, find, talk and explore.
@@ -392,6 +399,16 @@ final class ServerLink {
     let decoder = JSONDecoder()
     guard let envelope = try? decoder.decode(Envelope.self, from: data) else { return }
     switch envelope.type {
+    case "onboarding":
+      // The server leads the setup; each event carries the short line to say.
+      if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        let step = obj["step"] as? String
+      {
+        onboarding = OnboardingState(
+          step: step, progress: obj["progress"] as? Double ?? 0,
+          items: obj["items"] as? [String] ?? [], mode: obj["mode"] as? String)
+        if let say = obj["say"] as? String { speaker.speak(say) }
+      }
     case "activity":
       // The server picked a mode (voice, a question, or the app); it sends the gentle line to say.
       if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -598,4 +615,13 @@ struct WarningFilter {
     }
     return shown
   }
+}
+
+/// Where the first-run setup is: idle, walk, name, belt or done.
+struct OnboardingState: Equatable {
+  var step = "idle"
+  var progress = 0.0
+  var items: [String] = []
+  /// The mode whose belt pattern is playing during the belt intro.
+  var mode: String?
 }

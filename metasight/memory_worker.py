@@ -69,6 +69,10 @@ def run(in_q, out_q, settings: Settings, session: str, new_needed: int = 4) -> N
                 out_q.put({"type": "map_replace", "n": 0, "points": b"", "colors": b""})
                 out_q.put({"type": "pins", "pins": engine._pins_out()})
                 continue
+            if msg["cmd"] == "watch":  # the wearer named a thing: look for it from now on
+                if msg["label"] not in engine.s.watchlist:
+                    engine.s.watchlist.append(msg["label"])
+                continue
             if msg["cmd"] == "hfov":  # the frame source changed lens (an iPhone, the glasses)
                 if settings.map_intrinsics:
                     engine.runner.hfov_deg = msg["hfov"]

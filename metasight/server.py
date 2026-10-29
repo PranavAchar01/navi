@@ -28,7 +28,7 @@ from pydantic import BaseModel
 
 from .align import map_resolution
 from .belt import FLAG_FOUND, NAMES, BeltLink, guide, plan
-from .config import ROOT, Settings, secret
+from .config import ROOT, SESSIONS, Settings, secret
 from .conversation import Talk
 from .geometry import CAMERA_SECTORS, SECTORS, merge_sectors
 from .haptics import make_output
@@ -40,6 +40,7 @@ from .modes import Activity
 from .modes import command as activity_command
 from .modes import implied as implied_activity
 from .motion import FallDetector, Sample, ShakeDetector
+from .onboarding import PATTERNS, Onboarding, pattern_length
 from .pins import PinStore
 from .providers import make_language, make_reviewer
 from .providers.finder import LOOKALIKES
@@ -89,6 +90,8 @@ class Server:
         self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="safety")
         self.llm_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="llm")
         self.fall, self.shake = FallDetector(), ShakeDetector()
+        self.onboarding = Onboarding()  # first run: walk, name things, feel the modes
+        self._load_watch(settings)
         self.talk = Talk(settings.hfov_deg)
         self.activity = Activity()  # guide, find, talk or explore (modes.py)
         self.talk.cues_enabled = self.activity.profile.speaker_cues
@@ -265,9 +268,11 @@ class Server:
             await self.hub.json({"type": "alert", "kind": ev["change"], **ev}, True)
         elif t == "trail_replace":
             self.trail = ev["points"]
+            await self.onboard_trail(ev["points"])
             await self.hub.json({"type": "trail", "points": self.trail}, True)
         elif t == "trail":
             self.trail += ev["points"]
+            await self.onboard_trail(ev["points"])
             await self.hub.json({"type": "trail", "points": self.trail}, True)
         elif t == "pins":
             self.pins.replace_all(ev["pins"])
@@ -357,6 +362,8 @@ class Server:
             known = [n in CAMERA_SECTORS or bool(map_fresh) for n in SECTORS]
             cmd, flags = plan(merged, known, sc.path_m, res.ttc_s, sc.drop_m)
             cmd = self.activity.calm(cmd, flags)
+            if (demo := self.onboarding.demo_cmd(now)) is not None:
+                cmd = demo  # the belt intro: a mode's pattern, nothing else
             people = self.talk.frame(now, res.obstacles, small, self.heading)
             cmd = self.talk.overlay(cmd, now)
             # The heading is carried between poses, so guidance tolerates an older position.
@@ -653,6 +660,47 @@ class Server:
             "language": self.language.name if polished else "template",
         }
 
+    def _load_watch(self, settings: Settings) -> None:
+        """Things the wearer named in earlier runs join the watch list before the worker starts."""
+        try:
+            extra = json.loads((SESSIONS / "watch.json").read_text())
+        except (OSError, ValueError):
+            return
+        settings.watchlist.extend(w for w in extra if w not in settings.watchlist)
+
+    def add_watch(self, label: str) -> None:
+        """Add a named thing to the watch list now, and keep it for the next run."""
+        if label in self.s.watchlist:
+            return
+        self.s.watchlist.append(label)
+        self.in_q.put({"cmd": "watch", "label": label})
+        SESSIONS.mkdir(exist_ok=True)
+        (SESSIONS / "watch.json").write_text(json.dumps(self.s.watchlist))
+
+    async def onboard_trail(self, points: list) -> None:
+        for ev in self.onboarding.trail(points):
+            await self.hub.json(ev, True)
+
+    async def start_onboarding(self) -> None:
+        await self.hub.json(self.onboarding.start(), True)
+
+    async def run_belt_intro(self) -> None:
+        """Each mode in turn: its line, then its pattern on the belt."""
+        for ev, mode in self.onboarding.belt_events():
+            await self.hub.json(ev, True)
+            await asyncio.sleep(2.5)  # the line is spoken first
+            if mode:
+                self.onboarding.demo_mode, self.onboarding.demo_t0 = mode, time.time()
+                # The camera may not be streaming yet, so the pattern is sent from here too.
+                t_end = time.time() + pattern_length(PATTERNS[mode]) + 0.5
+                while time.time() < t_end:
+                    demo = self.onboarding.demo_cmd(time.time())
+                    self.belt.send(demo, self.activity.flag_bits(), time.monotonic())
+                    await asyncio.sleep(0.05)
+                self.onboarding.demo_mode = None
+                self.belt.send([(0, 0)] * 8, self.activity.flag_bits(), time.monotonic())
+        await self.hub.json(self.onboarding.finish(), True)
+
     async def set_activity(self, mode: str, cause: str, speak: bool = True) -> None:
         """Switch guide/find/talk/explore: tell the app (which says the line) and the judge view."""
         ev = self.activity.set(mode, cause, speak)
@@ -675,6 +723,16 @@ class Server:
         `quiet_unknown`: overheard speech that names no known thing gets no reply.
         `spoken_end`: wall time the wearer's last word arrived, for the voice timing."""
         t0 = time.perf_counter()
+        if self.onboarding.active:
+            handled, events, label = self.onboarding.hear(text)
+            if label:
+                self.add_watch(label)
+            for ev in events:
+                await self.hub.json(ev, True)
+            if handled:
+                if self.onboarding.step == "belt":
+                    asyncio.create_task(self.run_belt_intro())
+                return {"type": "onboarding", "text": text}
         if (named := activity_command(text)) is not None:
             await self.set_activity(named, "voice")
             return {"type": "activity", "mode": named, "text": text}
@@ -729,6 +787,7 @@ def create_app(settings: Settings | None = None, session: str | None = None) -> 
                 "pins": [p.to_json(False) for p in srv.pins.pins.values()],
                 "mode": srv.mode,
                 "activity": srv.activity.mode,
+                "onboarding": srv.onboarding.step,
                 "map_points": srv.hub.map_total,
                 "memory": srv.memory_stats,
                 "asr": (
@@ -797,6 +856,14 @@ def create_app(settings: Settings | None = None, session: str | None = None) -> 
                     elif kind == "arpose":  # the phone's own tracked pose, kept with its walk
                         if walk := srv.walks.get(sock):
                             walk.pose(m)
+                    elif kind == "onboarding":
+                        if m.get("action") == "start":
+                            await srv.start_onboarding()
+                        elif m.get("action") == "skip":
+                            await srv.hub.json(srv.onboarding.skip(), True)
+                        elif m.get("action") == "belt" and srv.onboarding.step in ("name", "walk"):
+                            srv.onboarding.step = "belt"
+                            asyncio.create_task(srv.run_belt_intro())
                     elif kind == "activity" and m.get("mode") in ACTIVITIES:
                         await srv.set_activity(m["mode"], "app")
                     elif kind == "mode" and m.get("mode") in ("home", "outside"):
