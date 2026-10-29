@@ -46,6 +46,8 @@ VOICE_RMS = 0.01  # about -40 dBFS; quieter than this counts as silence
 HANGING_S = 0.9  # a final ending on a word that needs another ("where are my") waits this long
 HANGING = {"my", "the", "to", "a", "an", "um", "uh", "your", "of", "is", "are", "where's"}
 WARM_MAX_S = 4.0  # the warm-up turn is done in ~1.5 s; past this, whatever comes is the wearer
+WARM_GAP = b"\0" * int(SR * 0.5) * 2  # silence after the clip, so "ready" never runs into "where"
+EARLY_S = 3.0  # microphone audio kept while the session opens (the handshake takes ~0.65 s)
 _WARM_TEXT = re.compile(r"^\s*ok(ay)?([\s,.]*ready)?[\s.!?,]*", re.I)  # or a partial of it
 
 
@@ -131,6 +133,7 @@ class Transcriber:
         if len(mono16k) and float(np.sqrt(np.mean(mono16k**2))) > VOICE_RMS:
             self.voiced_at = self.buf_arrived
         if not self.connected:
+            del self.buf[: max(0, len(self.buf) - int(SR * EARLY_S) * 2)]
             self.want(True)
 
     # ------------------------------------------------------------ session
@@ -179,9 +182,9 @@ class Transcriber:
             self.stats["sessions"] += 1
             self.connected = True
             self.clock = AudioClock()
-            self.buf.clear()  # audio from before the session has no place on its clock
+            # the first words can come while the session opens: they go in after the warm-up
             if self.warmup:
-                self.buf += self.warmup
+                self.buf[:0] = self.warmup + WARM_GAP
                 self.buf_arrived = time.time()
                 self.warm_until = time.time() + WARM_MAX_S
             log.info("transcribe session %s open", ack["sessionId"])

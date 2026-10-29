@@ -382,3 +382,43 @@ def test_the_rest_of_a_split_question_is_taken_from_its_partial_when_its_final_i
         wait=0.3,
     )
     assert [h.text for h in heard if h.final] == ["Where are my keys"]
+
+
+def test_words_spoken_while_the_session_opens_are_sent_after_the_warm_up():
+    from metasight.providers.transcribe import WARM_GAP, float_to_pcm16
+
+    clip, said = b"\x01\x02" * 1280, np.full(1600, 0.5, np.float32)  # the first 0.1 s of "where"
+
+    async def main():
+        ws = FakeWS([])
+
+        async def connect():  # the handshake takes a moment, and the wearer is already talking
+            await asyncio.sleep(0.1)
+            return ws
+
+        async def on_heard(h):
+            pass
+
+        t = Transcriber("k", on_heard, ["keys"], connect=connect, warmup=clip)
+        t.push(said)  # opens the session, as the first microphone audio does on the server
+        await asyncio.sleep(0.4)
+        t.wanted = False
+        await asyncio.sleep(0.1)
+        t._task.cancel()
+        return b"".join(m for m in ws.sent if isinstance(m, bytes))
+
+    sent = asyncio.run(main())
+    assert sent.startswith(clip + WARM_GAP + float_to_pcm16(said))
+
+
+def test_audio_kept_while_the_session_opens_is_capped():
+    from metasight.providers.transcribe import EARLY_S, SR
+
+    async def main():
+        t = Transcriber("k", None, [], connect=None, warmup=b"")
+        t.want = lambda on: None  # never connects
+        for _ in range(60):  # 6 s of speech
+            t.push(np.full(1600, 0.5, np.float32))
+        return len(t.buf)
+
+    assert asyncio.run(main()) <= int(SR * EARLY_S) * 2 + 1600 * 2
