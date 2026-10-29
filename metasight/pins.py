@@ -50,6 +50,16 @@ class Pin:
         return d
 
 
+SURE_SCORE = 0.3  # a personal item's local sighting this sure stands without SAM 3.1
+SAM_SOURCE = "sam-3.1"  # the source of a SAM 3.1 sighting (Sam31Finder.name)
+
+
+def confirmed(score: float, source: str) -> bool:
+    """A personal-item sighting that stands: SAM 3.1 named it, or the local model was sure.
+    (SAM's own floor is 0.4, so a SAM sighting folded into a weak pin lifts it past this.)"""
+    return score >= SURE_SCORE or source == SAM_SOURCE
+
+
 MOVED_AFTER_S = 600.0  # a lone sighting this much newer than the firm pin means it moved
 MOVED_SCORE = 0.3  # ...as long as the detector was fairly sure
 LONE_REACH = 2.0  # a lone sighting from the same visit folds in from this many merge radii
@@ -58,10 +68,16 @@ LONE_REACH = 2.0  # a lone sighting from the same visit folds in from this many 
 class PinStore:
     """Merges repeat sightings: the same label within `radius` metres is the same thing."""
 
-    def __init__(self, radius: float = 0.5, landmark_radius: float = 1.3):
+    def __init__(self, radius: float = 0.5, landmark_radius: float = 1.3, items=()):
         self.radius, self.landmark_radius = radius, landmark_radius
         self.pins: dict[int, Pin] = {}
         self._next = 1
+        # Personal items whose pins must be confirmed to be answered or routed to. A rule at
+        # read time: a saved weak pin (the keyboard as "keys") stays in the house untouched.
+        self.items = frozenset(items)
+
+    def stands(self, p: Pin) -> bool:
+        return p.label not in self.items or confirmed(p.score, p.source)
 
     def observe(
         self,
@@ -114,8 +130,11 @@ class PinStore:
         """Where it was last seen, so a moved object answers with its new place: the newest pin
         with two sightings, or one the crop check scored firmly (score >= 0.5), unless a fair
         lone sighting came long after it. Only when no pin of the label is firm does the
-        most-seen lone sighting stand in."""
-        cands = [p for p in self.pins.values() if p.label == label and p.kind == kind]
+        most-seen lone sighting stand in. A personal item's pin that does not stand is skipped:
+        better "not seen" than a walk to the keyboard."""
+        cands = [
+            p for p in self.pins.values() if p.label == label and p.kind == kind and self.stands(p)
+        ]
         firm = [p for p in cands if p.seen >= 2 or p.score >= 0.5]
         if firm:
             best = max(firm, key=lambda p: p.ts)
@@ -139,6 +158,7 @@ class PinStore:
             and p.seen == 1
             and p.score < MOVED_SCORE
             and p.ts - after_ts > MOVED_AFTER_S
+            and self.stands(p)
         ]
         return max(weak, key=lambda p: p.ts, default=None)
 

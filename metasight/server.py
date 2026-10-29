@@ -45,9 +45,9 @@ from .motion import FallDetector, Sample, ShakeDetector
 from .notes import Notes, asks_notes, caption, notes_command
 from .onboarding import PATTERNS, Onboarding, pattern_length, wants_setup
 from .pan import Persist, with_guide
-from .pins import PinStore
+from .pins import PinStore, confirmed
 from .providers import make_language, make_reviewer
-from .providers.finder import LOOKALIKES, confirmed
+from .providers.finder import LOOKALIKES
 from .providers.tools import Tools, agent_answer
 from .query import (
     SYSTEM,
@@ -106,21 +106,12 @@ def _finite(x: float) -> float | None:
     return round(x, 2) if math.isfinite(x) else None
 
 
-def unsure(items: list[str], pin) -> bool:
-    """A personal item's pin that only a weak local hit placed and SAM 3.1 never confirmed,
-    like a saved "keys" pin that is the keyboard: offered as a glimpse, never routed to. A rule
-    at read time, so the saved house keeps every pin as it is. No pin counts as unsure."""
-    return pin is None or (
-        pin.kind == "object" and pin.label in items and not confirmed(pin.score, pin.source)
-    )
-
-
 class Server:
     def __init__(self, settings: Settings, session: str):
         self.s = settings
         self.session = session
         self.hub = Hub()
-        self.pins = PinStore()
+        self.pins = PinStore(items=self.s.meta_items)
         self.language = make_language(settings)
         reviewer = make_reviewer(settings)
         self.review = (
@@ -286,7 +277,7 @@ class Server:
             (folder / "pins.json").write_text(
                 json.dumps([p.to_json(False) for p in self.pins.pins.values()], indent=1)
             )
-        self.pins = PinStore()
+        self.pins = PinStore(items=self.s.meta_items)
         # The memory worker keeps the house across walks: it files the old walk and starts the
         # new one from the saved home map.
         self.in_q.put({"cmd": "walk", "prev": prev})
@@ -578,7 +569,7 @@ class Server:
         if g is None or now > g["until"]:
             self.guide = None
             return None
-        if "want" in g and not unsure(self.s.meta_items, self.pins.latest(g["want"])):
+        if "want" in g and self.pins.latest(g["want"]) is not None:
             # Memory confirmed the real item after the look-alike answer: say so, guide there.
             self.guide = None
             self.loop.create_task(self.answer(f"where is my {g['want']}"))
@@ -636,10 +627,10 @@ class Server:
         elsewhere). Only a strictly newer placed pin takes over, so the target never flips back
         and forth; the switch sticks, and the route and camera lock start again from it."""
         pin = self.pins.pins.get(g["pin"]) if g["pin"] is not None else None
-        here = [
+        here = [  # never onto a personal item's pin only a weak local hit placed
             p
             for p in self.pins.pins.values()
-            if p.label == g["label"] and p.placed and not unsure(self.s.meta_items, p)
+            if p.label == g["label"] and p.placed and self.pins.stands(p)
         ]
         newest = max(here, key=lambda p: p.ts, default=None)
         if newest is None or (pin is not None and pin.placed and newest.ts <= pin.ts):
@@ -893,7 +884,7 @@ class Server:
         if label is None:
             noun = asked_for(text)  # "where is my umbrella": named, but never seen
             pin = self.pins.latest(guess) if guess and noun else None
-            if not unsure(self.s.meta_items, pin):  # its other name is only ever a maybe
+            if pin is not None:  # the model's other name for it is only ever offered as a maybe
                 now = time.time()
                 pose = self.pose if now - Server.pose_ts(self) < ANSWER_POSE_S else None
                 pose = pose if pin.placed else None
@@ -918,7 +909,7 @@ class Server:
         if live:
             # In frame right now: the live sighting wins over memory, however old the pin.
             _, bearing, dist = min(live, key=lambda s: s[2])
-            pin_id = None if unsure(self.s.meta_items, pin) else pin.id
+            pin_id = pin.id if pin else None
             self.guide = {"pin": pin_id, "label": label, "until": time.time() + 90.0}
             return {
                 "type": "answer",
@@ -943,26 +934,12 @@ class Server:
         glimpsed = self.pins.glimpse(label, pin.ts) if pin is not None else None
         if glimpsed is not None:
             # Too unsure to move the pin, but far fresher than it: offer it, hedged.
-            self.guide = (
-                None
-                if unsure(self.s.meta_items, glimpsed)
-                else {"pin": glimpsed.id, "label": label, "until": time.time() + 90.0}
-            )
+            self.guide = {"pin": glimpsed.id, "label": label, "until": time.time() + 90.0}
             return {
                 "type": "answer",
                 "label": label,
                 "text": glimpse_answer(label, glimpsed, time.time()),
                 "pin": glimpsed.to_json(),
-                "language": "template",
-            }
-        if pin is not None and unsure(self.s.meta_items, pin):
-            # Seen only by a weak local hit, never by SAM 3.1: a maybe, and no route to it.
-            self.guide = None
-            return {
-                "type": "answer",
-                "label": label,
-                "text": glimpse_answer(label, pin, time.time()),
-                "pin": pin.to_json(),
                 "language": "template",
             }
         stand_in = False

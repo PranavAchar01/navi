@@ -23,6 +23,7 @@ from meta_sam_parser import image_segmentation_format, parse_responses_stream
 from openai import AsyncOpenAI
 
 from ..config import META_BASE_URL, Settings, secret
+from ..pins import SAM_SOURCE, SURE_SCORE
 
 log = logging.getLogger(__name__)
 
@@ -235,7 +236,7 @@ def texture_hit(dets: list[Detection], shape: tuple[int, ...]) -> bool:
 class Sam31Finder:
     """SAM 3.1 via the OpenAI SDK on the Meta Model API; `meta-sam-parser` reads the stream."""
 
-    name = "sam-3.1"
+    name = SAM_SOURCE
 
     def __init__(self, s: Settings, api_key: str, min_conf: float = 0.4):
         self._model, self._min_conf = s.sam_model, min_conf
@@ -295,15 +296,7 @@ class Sam31Finder:
         return self.find_jobs([(bgr, labels)])[0]
 
 
-LOCAL_KEEP = 0.3  # a local hit on a personal item this sure stands even when SAM misses it
-
-
-def confirmed(score: float, source: str) -> bool:
-    """A personal-item sighting that stands: SAM 3.1 named it, or the local model was sure.
-    (SAM's own floor is 0.4, so a SAM sighting folded into a weak pin lifts it past this.)"""
-    return score >= LOCAL_KEEP or source == Sam31Finder.name
-
-
+LOCAL_KEEP = SURE_SCORE  # a local hit on a personal item this sure stands when SAM misses it
 # SAM 3.1 is billed per image and concept, so it looks only for an item the wearer just asked
 # for (and is being guided to), for this long; the house memory runs on the local model alone.
 WANT_S = 90.0

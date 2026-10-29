@@ -79,7 +79,7 @@ def bank(pins, now: float) -> dict[str, dict]:
     """Every object label in memory, newest sighting first: where it was and how long ago."""
     out: dict[str, dict] = {}
     for p in sorted(pins.pins.values(), key=lambda p: -p.ts):
-        if p.kind == "object" and p.label != "person" and p.label not in out:
+        if p.kind == "object" and p.label not in ("person", *out) and pins.stands(p):
             out[p.label] = {"near": p.near, "hours": round((now - p.ts) / 3600, 1)}
     return out
 

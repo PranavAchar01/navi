@@ -45,8 +45,8 @@ from .loops import (
     shared_matches,
     turn_deg,
 )
-from .pins import PinStore, layer_of
-from .providers.finder import LANDMARKS, Finder, Sam31Finder, confirmed
+from .pins import PinStore, confirmed, layer_of
+from .providers.finder import LANDMARKS, Finder, Sam31Finder
 
 # A pin that rests on SAM 3.1 alone needs a second sweep to agree, this soon and this close in
 # the map: one box SAM draws round a whole keyboard for "keys" would walk the wearer to the desk.

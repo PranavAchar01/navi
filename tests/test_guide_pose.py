@@ -9,10 +9,10 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from metasight.config import Settings
 from metasight.heading import Heading
 from metasight.memory import HOME_ID
 from metasight.pins import Pin, PinStore
+from metasight.review import bank
 from metasight.server import GUIDE_DR_S, GUIDE_POSE_S, NO_DIRECTION, Server
 
 
@@ -24,7 +24,6 @@ def server(pose_age_s: float, pins: list[Pin], ar_age_s: float = float("inf")):
     now = time.time()
     srv = SimpleNamespace(
         pins=store,
-        s=Settings(),
         heading=heading,
         map_pose_ts=now - pose_age_s,
         ar_pose_ts=now - ar_age_s,
@@ -215,27 +214,28 @@ def ask_keys(srv):
     return sent[-1]
 
 
-def test_a_weak_local_keys_pin_sam_never_saw_is_a_glimpse_with_no_route():
-    """Pin 100015: yoloe at 0.19, seen 13 times, never confirmed by SAM 3.1. Find offers it as a
-    maybe, Guide never routes to it, and the saved pin itself is left exactly as it was."""
+def test_a_weak_local_keys_pin_sam_never_saw_is_not_answered_or_routed_to():
+    """Pin 100015: yoloe at 0.19, seen 13 times, never confirmed by SAM 3.1, and it is the
+    keyboard. Find says the keys were not seen, Guide never routes to it, errand plans leave it
+    out, and the saved pin itself is left exactly as it was."""
     pin = saved_keys(0.19)
     before = pin.to_json()
     srv, now = server(5.0, [pin])
-    srv.guide = None
+    srv.pins.items, srv.guide = frozenset({"keys"}), None
     ev = ask_keys(srv)
-    assert ev["text"].startswith("I think I glimpsed your keys by the sink")
-    assert ev["pin_id"] == pin.id and ev["confirmed"] is False
-    assert srv.guide is None and NO_DIRECTION not in ev["text"]
+    assert ev["text"].startswith("I haven't seen your keys")
+    assert ev["pin"] is None and "pin_id" not in ev and srv.guide is None
     # A guide already running for keys does not switch onto it either.
     srv.guide = {"pin": None, "label": "keys", "until": now + 90.0}
     assert Server._guide_pin(srv, srv.guide) is None
+    assert "keys" not in bank(srv.pins, now)
     assert pin.to_json() == before
 
 
 def test_a_sure_or_sam_confirmed_keys_pin_is_answered_and_routed_as_before():
     for pin in (saved_keys(0.6), saved_keys(0.19, source="sam-3.1")):
         srv, now = server(5.0, [pin])
-        srv.guide = None
+        srv.pins.items, srv.guide = frozenset({"keys"}), None
         ev = ask_keys(srv)
         assert ev["text"].startswith("Your keys were last seen near the sink"), ev["text"]
         assert ev["pin_id"] == pin.id and ev["confirmed"] is True
