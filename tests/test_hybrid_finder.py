@@ -84,3 +84,14 @@ def test_sam_gets_a_crop_for_a_glimpse_and_a_shrunk_frame_for_the_sweep():
     assert by["keys"] == (192.0, 108.0, 288.0, 216.0)
     x0, y0 = by["water bottle"][:2]
     assert 1000 - 300 < x0 < 1000 and 400 < y0 < 600
+
+
+def test_hybrid_without_a_key_falls_back_to_the_local_finder(monkeypatch):
+    import metasight.providers.finder as fm
+    from metasight.config import Settings
+
+    monkeypatch.setattr(fm, "secret", lambda *names: None)
+    monkeypatch.setattr(fm.YoloeFinder, "__init__", lambda self, s: None)
+    s = Settings()
+    s.finder = "hybrid"
+    assert isinstance(fm.make_finder(s), fm.YoloeFinder)

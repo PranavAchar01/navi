@@ -378,9 +378,10 @@ class HybridFinder:
 def make_finder(s: Settings) -> Finder:
     if s.finder == "hybrid":
         key = secret("META_API_KEY", "MODEL_API_KEY")
-        if not key:
-            raise RuntimeError("finder = hybrid but no META_API_KEY / MODEL_API_KEY found")
-        return HybridFinder(s, key)
+        if key:
+            return HybridFinder(s, key)
+        # The local half alone still finds things; the map must not stop for a missing key.
+        log.warning("finder = hybrid but no META_API_KEY / MODEL_API_KEY: using yoloe alone")
     if s.finder == "sam31":
         key = secret("META_API_KEY", "MODEL_API_KEY")
         if not key:

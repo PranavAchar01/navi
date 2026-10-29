@@ -22,7 +22,7 @@ install)
   </array>
   <key>EnvironmentVariables</key><dict>
     <key>METASIGHT_CONFIG</key><string>$PWD/metasight.glasses.toml</string>
-    <key>METASIGHT_FINDER</key><string>yoloe</string>
+    <key>METASIGHT_FINDER</key><string>hybrid</string>
     <key>PATH</key><string>/opt/homebrew/bin:/usr/bin:/bin</string>
   </dict>
   <key>RunAtLoad</key><true/>
