@@ -84,6 +84,19 @@ def _sharpness(bgr: np.ndarray) -> float:
     return float(cv2.Laplacian(g, cv2.CV_32F).var())
 
 
+def _novel(stamps: list[float], read, hfov: float) -> list[int]:
+    """Indices the novelty policy keeps (metasight/keyframes.py), fed every frame in order."""
+    from metasight.keyframes import KeyframePolicy
+
+    pol, kept = KeyframePolicy(hfov), []
+    for i, t in enumerate(stamps):
+        g = cv2.cvtColor(read(i), cv2.COLOR_BGR2GRAY)
+        k = pol.offer(g, float(cv2.Laplacian(cv2.resize(g, (320, 240)), cv2.CV_32F).var()), t, i)
+        if k is not None:
+            kept.append(k)
+    return kept
+
+
 def _pick(stamps: list[float], hz: float) -> list[list[int]]:
     """Indices grouped into keyframe intervals of 1/hz seconds."""
     groups: list[list[int]] = []
@@ -102,7 +115,7 @@ def _pick(stamps: list[float], hz: float) -> list[list[int]]:
 TUM_HFOV = {"freiburg1": 63.48, "freiburg2": 63.13, "freiburg3": 61.73}
 
 
-def load_tum(folder: Path, hz: float, seconds: float):
+def load_tum(folder: Path, hz: float, seconds: float, policy: str = "slots"):
     rgb = [
         ln.split()
         for ln in (folder / "rgb.txt").read_text().splitlines()
@@ -111,7 +124,11 @@ def load_tum(folder: Path, hz: float, seconds: float):
     stamps = [float(t) for t, _ in rgb]
     stamps = [t for t in stamps if t - stamps[0] <= seconds]
     frames = []
-    for g in _pick(stamps, hz):
+    if policy == "novel":
+        hfov = next((v for k, v in TUM_HFOV.items() if k in folder.name), 62.0)
+        for i in _novel(stamps, lambda i: cv2.imread(str(folder / rgb[i][1])), hfov):
+            frames.append((i, stamps[i], cv2.imread(str(folder / rgb[i][1]))))
+    for g in _pick(stamps, hz) if policy != "novel" else []:
         imgs = [cv2.imread(str(folder / rgb[i][1])) for i in g]
         best = max(range(len(g)), key=lambda k: _sharpness(imgs[k]))
         frames.append((g[best], stamps[g[best]], imgs[best]))
@@ -123,6 +140,30 @@ def load_tum(folder: Path, hz: float, seconds: float):
         ]
     )
     return frames, gt
+
+
+def load_walk(folder: Path, hz: float, seconds: float, policy: str = "slots"):
+    """A walk recorded by the iPhone app: frames plus ARKit poses, which serve as the truth."""
+    fr = [json.loads(ln) for ln in (folder / "frames.jsonl").read_text().splitlines() if ln]
+    stamps = [f["ts"] / 1000 for f in fr]
+    stamps = [t for t in stamps if t - stamps[0] <= seconds]
+
+    def read(i):
+        return cv2.imread(str(folder / "frames" / fr[i]["file"]))
+
+    if policy == "novel":
+        hfov = json.loads((folder / "camera.json").read_text())["hfov"]
+        picks = _novel(stamps, read, hfov)
+    else:
+        picks = [max(g, key=lambda k: _sharpness(read(k))) for g in _pick(stamps, hz)]
+    frames = [(i, stamps[i], read(i)) for i in picks]
+    gt = []
+    for ln in (folder / "poses.jsonl").read_text().splitlines():
+        p = json.loads(ln) if ln else {}
+        if p.get("type") == "arpose":
+            m = p["m"]  # column-major 4x4: translation in 12..14
+            gt.append([p["ts"] / 1000, m[12], m[13], m[14], 0, 0, 0, 1])
+    return frames, np.array(gt)
 
 
 def load_video(path: Path, hz: float, seconds: float, src_hfov: float | None):
@@ -276,6 +317,7 @@ def main():
     ap.add_argument("source")
     ap.add_argument("--seconds", type=float, default=600)
     ap.add_argument("--hz", type=float, default=None, help="keyframes per second")
+    ap.add_argument("--policy", default="slots", help="slots (sharpest per 1/hz) or novel")
     ap.add_argument("--src-hfov", type=float, default=None, help="crop video to glasses view")
     ap.add_argument("--finder", default="yoloe", help="yoloe (free) or hybrid (bills SAM)")
     ap.add_argument("--no-objects", action="store_true")
@@ -297,8 +339,11 @@ def main():
     hz = a.hz or s.keyframe_hz
     src = Path(a.source)
     t_load = time.perf_counter()
-    if src.is_dir():
-        frames, gt = load_tum(src, hz, a.seconds)
+    if (src / "frames.jsonl").exists():
+        frames, gt = load_walk(src, hz, a.seconds, a.policy)
+        cuts = []
+    elif src.is_dir():
+        frames, gt = load_tum(src, hz, a.seconds, a.policy)
         cuts = []
     else:
         frames, gt, cuts = load_video(src, hz, a.seconds, a.src_hfov)
@@ -317,7 +362,8 @@ def main():
     hfov = None
     if a.intrinsics:
         hfov = next((v for k, v in TUM_HFOV.items() if k in src.name), None) or s.hfov_deg
-    runner = CachedRunner(f"{src.resolve()}|{a.src_hfov}|{hz}", ROOT / "data" / "cache", hfov)
+    key = f"{src.resolve()}|{a.src_hfov}|{hz}" + ("|novel" if a.policy == "novel" else "")
+    runner = CachedRunner(key, ROOT / "data" / "cache", hfov)
     finder = NoFinder() if a.no_objects else make_finder(s)
     from metasight.loops import Describer
 
@@ -350,6 +396,8 @@ def main():
         "when": time.strftime("%Y-%m-%d %H:%M"),
         "keyframes": len(kfs),
         "hz": hz,
+        "policy": a.policy,
+        "kf_per_min": round(60 * len(kfs) / max(1e-6, frames[-1][1] - frames[0][1]), 1),
         "run_s": round(run_s, 1),
         "infer_calls": runner.calls,
         "cache_hits": runner.hits,
