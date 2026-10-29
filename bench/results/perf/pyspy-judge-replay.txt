@@ -1,0 +1,13 @@
+py-spy record --idle -r 20 for 170 s on a judge replay of data/walks/20261028-135040-iphone (server under nice 19 + taskpolicy -b).
+Samples at 20 Hz on the thread doing the work; 20 samples = 1 s of wall time.
+   256    12.8 s  safety: depth net
+   227    11.3 s  safety: YOLO26n detect
+   184     9.2 s  memory: finder YOLOE-26l predict
+   172     8.6 s  memory: MapAnything infer
+   123     6.2 s  memory: finder set_classes (text prompts, one-time)
+    87     4.3 s  memory: finder crop check (SigLIP)
+    68     3.4 s  memory: landmarks YOLO26n
+    36     1.8 s  memory: other process_window (python: sim3, voxels, store, fit)
+    36     1.8 s  safety: analyse/geometry
+    23     1.1 s  server: heading
+    21     1.1 s  server: hazards
