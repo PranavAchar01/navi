@@ -2,7 +2,7 @@
 emulator, Persist(2) is wired and filters a one-frame glitch, each mode's signature plays in the
 emulated firmware, and Stop silences Guide.
 
-    PYTHONPATH=. .venv/bin/python scripts/belt_check.py
+    .venv/bin/python scripts/belt_check.py
 
 Prints one PASS/FAIL line per check and exits 1 on any FAIL. Importable: `run() -> list[tuple]`
 of (key, ok, evidence).
@@ -17,11 +17,14 @@ import struct
 import subprocess
 import sys
 import time
+from pathlib import Path
 
-from metasight import belt_modes as bm
-from metasight import hapsim, modes, pan
-from metasight.belt import EMU_BIN, MODES, ensure_emulator, plan
-from metasight.server import Server
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # run from anywhere
+
+from metasight import belt_modes as bm  # noqa: E402
+from metasight import hapsim, modes, pan  # noqa: E402
+from metasight.belt import EMU_BIN, MODES, ensure_emulator, plan  # noqa: E402
+from metasight.server import Server  # noqa: E402
 
 
 def _emulator():
