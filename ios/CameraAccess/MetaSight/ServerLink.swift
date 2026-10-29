@@ -12,6 +12,7 @@
 //   arpose -> {"type":"arpose","seq":n,"ts":ms,"m":[16 floats],"track":"..."} (just before its frame)
 //   answer <- {"type":"answer","text":"...","label":s|null,"pin":{"near":[...],...}|null}
 //   belt   <- {"type":"belt","duty":[8],"modes":[8],"lost":b,"found":b,"latency_ms":n|null}
+//   beltaudio <- {"type":"beltaudio","cmd":[[mode,duty] x 8],"flags":n}  haptic Braille pulses, heard
 //   safety <- {"type":"safety","sectors":[8],"cues":[{"mode":...}],"path":m|null,"guide":{...}|null,"found":b}
 //
 
@@ -140,6 +141,8 @@ final class ServerLink {
   @ObservationIgnored private let speaker = AnswerSpeaker()
   /// Spatial beeps for the proximity bands, through the active output (the glasses).
   @ObservationIgnored let beeper = SpatialBeeper()
+  /// The belt's motors (and haptic Braille pulses) as stereo tones, for testing without a belt.
+  @ObservationIgnored let beltAudio = BeltAudio()
   /// Sent every time the socket connects (and right away when set), so a reconnect
   /// restores what the server needs to know about this camera.
   @ObservationIgnored private var hello: [String: Any]?
@@ -338,6 +341,10 @@ final class ServerLink {
     let latency_ms: Double?
   }
 
+  private struct BeltAudioMessage: Decodable {
+    let cmd: [[Int]]
+  }
+
   private struct SafetyMessage: Decodable {
     struct Cue: Decodable {
       let mode: String
@@ -374,6 +381,10 @@ final class ServerLink {
         found: msg.found ?? false,
         latencyMs: msg.latency_ms
       )
+      beltAudio.update(duty: msg.duty, modes: msg.modes)
+    case "beltaudio":
+      guard let msg = try? decoder.decode(BeltAudioMessage.self, from: data) else { return }
+      beltAudio.updateBraille(cmd: msg.cmd)
     case "safety":
       guard let msg = try? decoder.decode(SafetyMessage.self, from: data) else { return }
       guide = msg.guide

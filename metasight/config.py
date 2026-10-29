@@ -50,7 +50,7 @@ class Settings:
     map_intrinsics: bool = False  # tell MapAnything the lens (hfov_deg) instead of letting it guess
     belt: str = "emulator"  # emulator: spawn firmware/emulator/belt-emu; udp: a real belt
     belt_addr: str = "127.0.0.1:4210"
-    braille: str = "off"  # deafblind mode: off | emulator | wrist | belt (docs/braille.md)
+    braille: str = "off"  # deafblind mode: off | emulator | wrist | belt | audio (docs/braille.md)
     braille_addr: str = ""  # BLE address of the wrist band, for braille = "wrist"
     braille_dot_ms: int = 250  # a cell is on this long (ERM motors need 50-100 ms to spin up)
     braille_cell_gap_ms: int = 150

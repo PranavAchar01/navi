@@ -40,6 +40,7 @@ struct PhoneCameraView: View {
           askRow
           serverRow
           beepRow
+          beltAudioRow
           Toggle("Save this walk on the Mac", isOn: $camera.saveWalk)
             .font(.system(size: 15, weight: .medium))
             .foregroundStyle(.white)
@@ -236,6 +237,15 @@ struct PhoneCameraView: View {
     .pickerStyle(.segmented)
     .accessibilityLabel("Beep volume")
     .accessibilityIdentifier("beep_volume")
+  }
+
+  private var beltAudioRow: some View {
+    @Bindable var beltAudio = link.beltAudio
+    return Toggle("Belt as sound", isOn: $beltAudio.enabled)
+      .font(.system(size: 15, weight: .medium))
+      .foregroundStyle(.white)
+      .accessibilityHint("Plays the belt motors as tones, panned by direction")
+      .accessibilityIdentifier("belt_audio")
   }
 
   private var beepVolumeBinding: Binding<BeepVolume> {

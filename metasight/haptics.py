@@ -18,6 +18,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
 from . import braille
+from .belt import MODES
 
 log = logging.getLogger(__name__)
 
@@ -180,6 +181,7 @@ class BeltBraille(HapticDriver):
     """Dots played one after another as pulses on belt motors. Lower fidelity than the wrist."""
 
     name = "belt"
+    uses_belt = True
 
     def __init__(
         self, send: Callable[[list[tuple[int, int]], int], None], solid: int, inten: int = 255
@@ -216,6 +218,14 @@ class BeltBraille(HapticDriver):
 
     async def end(self) -> None:
         self.send(self._frame(None), 0)
+
+
+class AudioBraille(BeltBraille):
+    """The same serial pulses, heard instead of felt: frames go to the app as `beltaudio`
+    messages and its speaker tones play them (docs/braille.md). The belt itself stays free."""
+
+    name = "audio"
+    uses_belt = False
 
 
 @dataclass
@@ -277,9 +287,8 @@ class BrailleOutput:
     @property
     def driver_uses_belt(self) -> bool:
         d = self.driver
-        return isinstance(d, BeltBraille) or (
-            isinstance(d, Fanout) and any(isinstance(x, BeltBraille) for x in d.drivers)
-        )
+        parts = d.drivers if isinstance(d, Fanout) else [d]
+        return any(getattr(x, "uses_belt", False) for x in parts)
 
     def say(self, text: str) -> str:
         """Start playing `text` as a terse cue and return the cue. Needs a running loop."""
@@ -307,17 +316,24 @@ def make_output(settings, emit: Callable[[dict], Awaitable[None]], belt) -> Brai
     timing = Timing(
         settings.braille_dot_ms, settings.braille_cell_gap_ms, settings.braille_word_gap_ms
     )
-    device = {"belt": "belt fallback", "wrist": "wrist band"}.get(kind, "emulated wrist band")
+    device = {"belt": "belt fallback", "wrist": "wrist band", "audio": "belt audio stand-in"}.get(
+        kind, "emulated wrist band"
+    )
     drivers: list[HapticDriver] = [EmulatorBraille(emit, timing, device)]
     if kind == "wrist":
         drivers.append(WristBraille(ble_writer(settings.braille_addr)))
     elif kind == "belt":
-        from .belt import MODES
-
         drivers.append(
             BeltBraille(lambda cmd, flags: belt.send(cmd, flags, time.monotonic()), MODES["solid"])
         )
+    elif kind == "audio":
+
+        def to_app(cmd, flags):
+            msg = {"type": "beltaudio", "cmd": [[m, i] for m, i in cmd], "flags": flags}
+            asyncio.ensure_future(emit(msg))
+
+        drivers.append(AudioBraille(to_app, MODES["solid"]))
     elif kind != "emulator":
-        raise ValueError(f"braille must be off, emulator, wrist or belt, not {kind!r}")
+        raise ValueError(f"braille must be off, emulator, wrist, belt or audio, not {kind!r}")
     out = drivers[0] if len(drivers) == 1 else Fanout(drivers)
     return BrailleOutput(out, timing, settings.braille_max_cells)

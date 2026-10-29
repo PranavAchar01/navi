@@ -237,6 +237,10 @@ def test_make_output_picks_backends():
     out = haptics.make_output(s, emit, object())
     assert out.driver.drivers[0].device == "belt fallback"
     assert out.driver_uses_belt and not out.owns_belt
+    s.braille = "audio"
+    out = haptics.make_output(s, emit, object())
+    assert out.driver.drivers[0].device == "belt audio stand-in"
+    assert not out.driver_uses_belt  # sound only: the belt keeps its obstacle cues
     s.braille = "bogus"
     with pytest.raises(ValueError):
         haptics.make_output(s, emit, None)
