@@ -24,6 +24,8 @@ import numpy as np
 
 SOUND_MPS = 343.0
 SR = 16000
+AGREE_DEG = 20.0  # votes within this of the median count as agreeing
+AGREE_SHARE = 0.7  # and they must be at least this share of the window
 BAND = (200.0, 4000.0)  # where speech has energy; GCC-PHAT looks only here
 HOP = 512  # Silero's frame at 16 kHz (32 ms)
 
@@ -118,7 +120,7 @@ class Doa:
     Channel 0 is the left microphone, channel 1 the right, `spacing_m` apart on the head's
     left-right axis. `push` takes a (n, 2) float32 block and a flag saying the VAD heard speech;
     only voiced blocks vote. `bearing()` is the median of the recent votes, or None when there are
-    too few or they disagree (a 2 microphone pair that hears two people at once gives a spread).
+    too few or most of them disagree (noise, a smeared lag, or two people talking at once).
     """
 
     def __init__(
@@ -145,7 +147,8 @@ class Doa:
             return None
         v = np.array(self.votes)
         med = float(np.median(v))
-        if float(np.median(np.abs(v - med))) > 25.0:
+        # A real voice makes most votes agree; noise or a smeared lag scatters them across the arc.
+        if float(np.mean(np.abs(v - med) <= AGREE_DEG)) < AGREE_SHARE:
             return None
         return med
 

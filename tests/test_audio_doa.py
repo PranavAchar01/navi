@@ -56,3 +56,13 @@ def test_energy_vad_gates_a_burst():
     assert not v.active()
     v.push(loud)
     assert v.active()
+
+
+def test_decorrelated_channels_give_no_direction_not_a_wrong_one():
+    """Two channels that share no signal (a codec that smeared the lag, a mono mic copied twice
+    with independent noise) must yield None, so the cue logic falls back to the camera."""
+    rng = np.random.default_rng(5)
+    d = Doa(0.14)
+    for _ in range(40):
+        d.push(rng.normal(size=(512, 2)) * 0.2, True)
+    assert d.bearing() is None

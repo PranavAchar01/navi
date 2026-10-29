@@ -31,6 +31,7 @@ async def main():
     ap.add_argument("--seconds", type=float, default=20)
     ap.add_argument("--spacing", type=float, default=0.14)
     ap.add_argument("--mono", action="store_true")
+    ap.add_argument("--dump", default="", help="write the people events to this JSON file")
     ap.add_argument("--onsets", default="", help="seconds where a voice starts, for latency")
     a = ap.parse_args()
     ch = 1 if a.mono else 2
@@ -108,6 +109,9 @@ async def main():
             i += 1
         await asyncio.sleep(1)
         rd.cancel()
+    if a.dump:
+        with open(a.dump, "w") as f:
+            json.dump(log, f)
     spk = [
         (e["t"], e["speaker"], e["doa"], e["evidence"]) for e in log if e["speaker"] or e["voice"]
     ]

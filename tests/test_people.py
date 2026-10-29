@@ -151,3 +151,40 @@ def test_conversation_cues_toward_offscreen_voice_and_marks_map_position():
     assert math.isclose(t["map"][0], 1.0, abs_tol=0.05) and math.isclose(
         t["map"][1], 4.0, abs_tol=0.05
     )
+
+
+def test_mono_microphone_falls_back_to_the_mouth_that_moves():
+    """Glasses audio is mono: no DOA, so whoever's mouth moves when the VAD fires is the speaker
+    and the wearer is cued toward them."""
+    rng = np.random.default_rng(3)
+    base = rng.integers(60, 200, size=(480, 640)).astype(np.uint8)
+    conv = Conversation(hfov_deg=90.0)
+    left, right = (0.1, 0.1, 0.3, 0.9), (0.7, 0.1, 0.9, 0.9)
+    cue = None
+    for k in range(40):
+        g = base.copy()
+        g[86:125, 474:550] = rng.integers(0, 255, size=(39, 76))  # right person's mouth moves
+        ev = conv.step(
+            k / 15, [Det(left, 0.9, 2.0), Det(right, 0.9, 2.0)], g, voice=True, doa_deg=None
+        )
+        cue = cue or ev["cue"]
+    assert ev["doa"] is None and ev["evidence"] == "lip"
+    right_id = max(ev["tracks"], key=lambda t: t["bearing"])["id"]
+    assert ev["speaker"] == right_id
+    assert cue and cue["turn"] == "right"
+
+
+def test_mono_with_two_still_faces_calls_nobody_and_does_not_cue():
+    rng = np.random.default_rng(4)
+    g = rng.integers(60, 200, size=(480, 640)).astype(np.uint8)
+    conv = Conversation(hfov_deg=90.0)
+    for k in range(40):
+        ev = conv.step(
+            k / 15,
+            [Det((0.1, 0.1, 0.3, 0.9), 0.9, 2.0), Det((0.7, 0.1, 0.9, 0.9), 0.9, 2.0)],
+            g,
+            voice=True,
+            doa_deg=None,
+        )
+        assert ev["cue"] is None
+    assert ev["speaker"] is None
