@@ -60,14 +60,14 @@ def _nearest(dist: np.ndarray, near: np.ndarray, mask: np.ndarray) -> float | No
     return round(float(sel.min()), 2) if sel.size else None
 
 
-def label_walk(walk: Path, d: np.lib.npyio.NpzFile) -> dict:
+def kept_cells(walk: Path, d: np.lib.npyio.NpzFile) -> np.ndarray:
+    """Centres (x, z) of the grid cells the walk agreed on, in the ARKit world frame."""
     name = walk.name
     ts, strips, hfov = d[f"{name}/ts"], d[f"{name}/strips"], float(d[f"{name}/hfov"][0])
     poses = _poses(walk)
     rows = [json.loads(line) for line in (walk / "frames.jsonl").read_text().splitlines()]
     seqs = [r["seq"] for r in rows[::STEP]][: len(ts)]
     az = np.radians(pan.strip_bearings(strips.shape[1], hfov))
-
     cells: dict[tuple[int, int], list[float]] = {}  # cell -> sighting times
     for t, seq, st in zip(ts, seqs, strips, strict=True):
         pose = poses.get(seq)
@@ -80,13 +80,22 @@ def label_walk(walk: Path, d: np.lib.npyio.NpzFile) -> dict:
                 continue
             p = pos + dist * (fwd + math.tan(a) * right)
             cells.setdefault((int(p[0] // CELL), int(p[1] // CELL)), []).append(float(t))
-    kept = np.array(
+    return np.array(
         [
             ((i + 0.5) * CELL, (k + 0.5) * CELL)
             for (i, k), seen in cells.items()
             if len(seen) >= MIN_SEEN and max(seen) - min(seen) >= MIN_SPAN_S
         ]
     )
+
+
+def label_walk(walk: Path, d: np.lib.npyio.NpzFile) -> dict:
+    name = walk.name
+    ts, hfov = d[f"{name}/ts"], float(d[f"{name}/hfov"][0])
+    poses = _poses(walk)
+    rows = [json.loads(line) for line in (walk / "frames.jsonl").read_text().splitlines()]
+    seqs = [r["seq"] for r in rows[::STEP]][: len(ts)]
+    kept = kept_cells(walk, d)
 
     half = math.radians(hfov) / 2
     frames = []
@@ -123,7 +132,6 @@ def label_walk(walk: Path, d: np.lib.npyio.NpzFile) -> dict:
         "range_m": RANGE_M,
         "cell_m": CELL,
         "kept_cells": int(len(kept)),
-        "seen_cells": len(cells),
         "frames_total": len(frames),
         "frames_tracked": len(tracked),
         "sector_order": "0 ahead, 1 front-right ... 7 front-left, 45 deg each",
@@ -147,7 +155,7 @@ def main() -> None:
         (OUT / f"{name}-sectors.json").write_text(json.dumps(lab, separators=(",", ":")))
         print(
             name, lab["frames_tracked"], "tracked of", lab["frames_total"],
-            "frames;", lab["kept_cells"], "of", lab["seen_cells"], "cells kept",
+            "frames;", lab["kept_cells"], "cells kept",
         )  # fmt: skip
 
 
