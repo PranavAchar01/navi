@@ -1,0 +1,3117 @@
+{
+ "left": [
+  {
+   "ms": -934,
+   "type": "people",
+   "t": 1793280873.29,
+   "tracks": [],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -882,
+   "type": "people",
+   "t": 1793280873.34,
+   "tracks": [],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -814,
+   "type": "people",
+   "t": 1793280873.41,
+   "tracks": [],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -755,
+   "type": "people",
+   "t": 1793280873.48,
+   "tracks": [],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -718,
+   "type": "people",
+   "t": 1793280873.52,
+   "tracks": [],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -656,
+   "type": "people",
+   "t": 1793280873.57,
+   "tracks": [],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -607,
+   "type": "people",
+   "t": 1793280873.62,
+   "tracks": [],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -542,
+   "type": "people",
+   "t": 1793280873.67,
+   "tracks": [],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -470,
+   "type": "people",
+   "t": 1793280873.75,
+   "tracks": [],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -386,
+   "type": "people",
+   "t": 1793280873.83,
+   "tracks": [],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -334,
+   "type": "people",
+   "t": 1793280873.89,
+   "tracks": [],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -255,
+   "type": "people",
+   "t": 1793280873.95,
+   "tracks": [],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -202,
+   "type": "people",
+   "t": 1793280874.02,
+   "tracks": [],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -146,
+   "type": "people",
+   "t": 1793280874.08,
+   "tracks": [],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -93,
+   "type": "people",
+   "t": 1793280874.13,
+   "tracks": [],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -41,
+   "type": "people",
+   "t": 1793280874.19,
+   "tracks": [],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 7,
+   "type": "people",
+   "t": 1793280874.24,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 52,
+   "type": "people",
+   "t": 1793280874.28,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 99,
+   "type": "people",
+   "t": 1793280874.33,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 148,
+   "type": "people",
+   "t": 1793280874.38,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 203,
+   "type": "people",
+   "t": 1793280874.43,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 260,
+   "type": "people",
+   "t": 1793280874.49,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 324,
+   "type": "people",
+   "t": 1793280874.55,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 388,
+   "type": "people",
+   "t": 1793280874.61,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 466,
+   "type": "people",
+   "t": 1793280874.69,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 539,
+   "type": "people",
+   "t": 1793280874.76,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 609,
+   "type": "people",
+   "t": 1793280874.83,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -48.3,
+   "evidence": "none",
+   "cue": {
+    "bearing": -48.3,
+    "turn": "left",
+    "motors": [
+     [
+      6,
+      0.11
+     ],
+     [
+      7,
+      0.99
+     ]
+    ],
+    "id": null
+   },
+   "offscreen": -48.3,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 609,
+   "type": "speaker_cue",
+   "bearing": -48.3,
+   "turn": "left",
+   "motors": [
+    [
+     6,
+     0.11
+    ],
+    [
+     7,
+     0.99
+    ]
+   ],
+   "id": null
+  },
+  {
+   "ms": 670,
+   "type": "people",
+   "t": 1793280874.9,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -48.3,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -48.3,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 734,
+   "type": "people",
+   "t": 1793280874.96,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -48.3,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -48.3,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 792,
+   "type": "people",
+   "t": 1793280875.02,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -48.3,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -48.3,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 851,
+   "type": "people",
+   "t": 1793280875.08,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -48.3,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -48.3,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 901,
+   "type": "people",
+   "t": 1793280875.14,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -48.3,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -48.3,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 959,
+   "type": "people",
+   "t": 1793280875.19,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -48.3,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -48.3,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1020,
+   "type": "people",
+   "t": 1793280875.25,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -48.3,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -48.3,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1089,
+   "type": "people",
+   "t": 1793280875.32,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -48.3,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -48.3,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1153,
+   "type": "people",
+   "t": 1793280875.38,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -48.3,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -48.3,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1219,
+   "type": "people",
+   "t": 1793280875.45,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -48.3,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -48.3,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1280,
+   "type": "people",
+   "t": 1793280875.51,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -48.3,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -48.3,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1342,
+   "type": "people",
+   "t": 1793280875.57,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -48.3,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -48.3,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1399,
+   "type": "people",
+   "t": 1793280875.63,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -48.3,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -48.3,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1460,
+   "type": "people",
+   "t": 1793280875.69,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -48.3,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -48.3,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1521,
+   "type": "people",
+   "t": 1793280875.75,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -48.3,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -48.3,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1596,
+   "type": "people",
+   "t": 1793280875.82,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -48.3,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -48.3,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1674,
+   "type": "people",
+   "t": 1793280875.9,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -48.3,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -48.3,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1748,
+   "type": "people",
+   "t": 1793280875.97,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -48.3,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -48.3,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1814,
+   "type": "people",
+   "t": 1793280876.04,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -48.3,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -48.3,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1878,
+   "type": "people",
+   "t": 1793280876.1,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -48.3,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -48.3,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1934,
+   "type": "people",
+   "t": 1793280876.17,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1998,
+   "type": "people",
+   "t": 1793280876.22,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2066,
+   "type": "people",
+   "t": 1793280876.29,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2124,
+   "type": "people",
+   "t": 1793280876.36,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -48.3,
+   "evidence": "none",
+   "cue": {
+    "bearing": -48.3,
+    "turn": "left",
+    "motors": [
+     [
+      6,
+      0.11
+     ],
+     [
+      7,
+      0.99
+     ]
+    ],
+    "id": null
+   },
+   "offscreen": -48.3,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2124,
+   "type": "speaker_cue",
+   "bearing": -48.3,
+   "turn": "left",
+   "motors": [
+    [
+     6,
+     0.11
+    ],
+    [
+     7,
+     0.99
+    ]
+   ],
+   "id": null
+  },
+  {
+   "ms": 2177,
+   "type": "people",
+   "t": 1793280876.4,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -48.3,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -48.3,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2231,
+   "type": "people",
+   "t": 1793280876.46,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -48.3,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -48.3,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2284,
+   "type": "people",
+   "t": 1793280876.51,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -48.3,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -48.3,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2347,
+   "type": "people",
+   "t": 1793280876.57,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -49.1,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -49.1,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2409,
+   "type": "people",
+   "t": 1793280876.64,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -50.0,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -50.0,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2465,
+   "type": "people",
+   "t": 1793280876.69,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -50.0,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -50.0,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2513,
+   "type": "people",
+   "t": 1793280876.75,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -50.0,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -50.0,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2566,
+   "type": "people",
+   "t": 1793280876.79,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -50.0,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -50.0,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2618,
+   "type": "people",
+   "t": 1793280876.85,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -50.0,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -50.0,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2684,
+   "type": "people",
+   "t": 1793280876.9,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -50.0,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -50.0,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2757,
+   "type": "people",
+   "t": 1793280876.97,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -50.0,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -50.0,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2823,
+   "type": "people",
+   "t": 1793280877.04,
+   "tracks": [],
+   "speaker": null,
+   "voice": true,
+   "doa": -50.0,
+   "evidence": "none",
+   "cue": null,
+   "offscreen": -50.0,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2898,
+   "type": "people",
+   "t": 1793280877.12,
+   "tracks": [
+    {
+     "id": 11,
+     "box": [
+      0.4459,
+      0.1167,
+      0.9086,
+      0.5351
+     ],
+     "bearing": 7.4,
+     "dist": 0.44,
+     "speaking": 0.0,
+     "lip": null,
+     "lost": false,
+     "age": 0.1,
+     "map": [
+      1.42,
+      -1.24
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": true,
+   "doa": -50.0,
+   "evidence": "doa",
+   "cue": null,
+   "offscreen": -50.0,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2963,
+   "type": "people",
+   "t": 1793280877.19,
+   "tracks": [
+    {
+     "id": 11,
+     "box": [
+      0.6068,
+      0.0674,
+      1.0,
+      0.4832
+     ],
+     "bearing": 12.5,
+     "dist": 0.41,
+     "speaking": 0.0,
+     "lip": 0.0,
+     "lost": false,
+     "age": 0.2,
+     "map": [
+      1.35,
+      -1.28
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": true,
+   "doa": -50.0,
+   "evidence": "lip+doa",
+   "cue": null,
+   "offscreen": -50.0,
+   "mics": 2,
+   "vad": "silero"
+  }
+ ],
+ "right": [
+  {
+   "ms": -974,
+   "type": "people",
+   "t": 1793280882.24,
+   "tracks": [],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -893,
+   "type": "people",
+   "t": 1793280882.34,
+   "tracks": [],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -846,
+   "type": "people",
+   "t": 1793280882.39,
+   "tracks": [],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -794,
+   "type": "people",
+   "t": 1793280882.43,
+   "tracks": [],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -745,
+   "type": "people",
+   "t": 1793280882.48,
+   "tracks": [],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -693,
+   "type": "people",
+   "t": 1793280882.53,
+   "tracks": [],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -641,
+   "type": "people",
+   "t": 1793280882.58,
+   "tracks": [],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -590,
+   "type": "people",
+   "t": 1793280882.64,
+   "tracks": [],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -537,
+   "type": "people",
+   "t": 1793280882.69,
+   "tracks": [],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -486,
+   "type": "people",
+   "t": 1793280882.74,
+   "tracks": [],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -434,
+   "type": "people",
+   "t": 1793280882.79,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5978,
+      0.1406,
+      1.0,
+      0.5975
+     ],
+     "bearing": 12.4,
+     "dist": 0.68,
+     "speaking": 0.0,
+     "lip": null,
+     "lost": false,
+     "age": 0.1,
+     "map": [
+      1.62,
+      -1.47
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -381,
+   "type": "people",
+   "t": 1793280882.85,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.6016,
+      0.1542,
+      1.0,
+      0.5901
+     ],
+     "bearing": 12.4,
+     "dist": 0.68,
+     "speaking": 0.0,
+     "lip": 0.0,
+     "lost": false,
+     "age": 0.2,
+     "map": [
+      1.62,
+      -1.47
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -325,
+   "type": "people",
+   "t": 1793280882.9,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.6086,
+      0.159,
+      1.0,
+      0.6014
+     ],
+     "bearing": 12.6,
+     "dist": 0.66,
+     "speaking": 0.0,
+     "lip": 0.0,
+     "lost": false,
+     "age": 0.2,
+     "map": [
+      1.61,
+      -1.47
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -272,
+   "type": "people",
+   "t": 1793280882.96,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.6011,
+      0.1654,
+      1.0,
+      0.5966
+     ],
+     "bearing": 12.4,
+     "dist": 0.65,
+     "speaking": 0.0,
+     "lip": 0.0,
+     "lost": false,
+     "age": 0.3,
+     "map": [
+      1.6,
+      -1.45
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -224,
+   "type": "people",
+   "t": 1793280883.01,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5917,
+      0.1727,
+      1.0,
+      0.6062
+     ],
+     "bearing": 12.2,
+     "dist": 0.66,
+     "speaking": 0.0,
+     "lip": 0.0,
+     "lost": false,
+     "age": 0.3,
+     "map": [
+      1.61,
+      -1.45
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -164,
+   "type": "people",
+   "t": 1793280883.06,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5822,
+      0.174,
+      1.0,
+      0.6035
+     ],
+     "bearing": 12.0,
+     "dist": 0.67,
+     "speaking": 0.0,
+     "lip": 0.0,
+     "lost": false,
+     "age": 0.4,
+     "map": [
+      1.63,
+      -1.45
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -96,
+   "type": "people",
+   "t": 1793280883.13,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5765,
+      0.1769,
+      1.0,
+      0.6034
+     ],
+     "bearing": 11.9,
+     "dist": 0.67,
+     "speaking": 0.0,
+     "lip": 0.0,
+     "lost": false,
+     "age": 0.4,
+     "map": [
+      1.63,
+      -1.46
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": -23,
+   "type": "people",
+   "t": 1793280883.2,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5657,
+      0.1752,
+      1.0,
+      0.6011
+     ],
+     "bearing": 11.7,
+     "dist": 0.69,
+     "speaking": 0.0,
+     "lip": 0.0,
+     "lost": false,
+     "age": 0.5,
+     "map": [
+      1.65,
+      -1.46
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": false,
+   "doa": null,
+   "evidence": "none",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 32,
+   "type": "people",
+   "t": 1793280883.26,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5656,
+      0.1673,
+      1.0,
+      0.6023
+     ],
+     "bearing": 11.7,
+     "dist": 0.71,
+     "speaking": 0.0,
+     "lip": 0.0,
+     "lost": false,
+     "age": 0.6,
+     "map": [
+      1.67,
+      -1.48
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": true,
+   "doa": -48.3,
+   "evidence": "lip+doa",
+   "cue": {
+    "bearing": -48.3,
+    "turn": "left",
+    "motors": [
+     [
+      6,
+      0.11
+     ],
+     [
+      7,
+      0.99
+     ]
+    ],
+    "id": null
+   },
+   "offscreen": -48.3,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 32,
+   "type": "speaker_cue",
+   "bearing": -48.3,
+   "turn": "left",
+   "motors": [
+    [
+     6,
+     0.11
+    ],
+    [
+     7,
+     0.99
+    ]
+   ],
+   "id": null
+  },
+  {
+   "ms": 77,
+   "type": "people",
+   "t": 1793280883.31,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5647,
+      0.1592,
+      1.0,
+      0.5967
+     ],
+     "bearing": 11.7,
+     "dist": 0.69,
+     "speaking": 0.0,
+     "lip": 0.0,
+     "lost": false,
+     "age": 0.6,
+     "map": [
+      1.65,
+      -1.47
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": true,
+   "doa": -48.3,
+   "evidence": "lip+doa",
+   "cue": null,
+   "offscreen": -48.3,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 129,
+   "type": "people",
+   "t": 1793280883.35,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5576,
+      0.1578,
+      1.0,
+      0.5912
+     ],
+     "bearing": 11.6,
+     "dist": 0.67,
+     "speaking": 0.4,
+     "lip": 0.0,
+     "lost": false,
+     "age": 0.7,
+     "map": [
+      1.64,
+      -1.45
+     ]
+    }
+   ],
+   "speaker": 13,
+   "voice": true,
+   "doa": null,
+   "evidence": "alone+lip",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 180,
+   "type": "people",
+   "t": 1793280883.41,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5554,
+      0.1501,
+      1.0,
+      0.6009
+     ],
+     "bearing": 11.5,
+     "dist": 0.66,
+     "speaking": 0.4,
+     "lip": 0.0,
+     "lost": false,
+     "age": 0.7,
+     "map": [
+      1.64,
+      -1.44
+     ]
+    }
+   ],
+   "speaker": 13,
+   "voice": true,
+   "doa": null,
+   "evidence": "alone+lip",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 232,
+   "type": "people",
+   "t": 1793280883.46,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5366,
+      0.1387,
+      1.0,
+      0.5968
+     ],
+     "bearing": 11.1,
+     "dist": 0.67,
+     "speaking": 0.4,
+     "lip": 0.0,
+     "lost": false,
+     "age": 0.8,
+     "map": [
+      1.65,
+      -1.44
+     ]
+    }
+   ],
+   "speaker": 13,
+   "voice": true,
+   "doa": null,
+   "evidence": "alone+lip",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 289,
+   "type": "people",
+   "t": 1793280883.51,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5371,
+      0.136,
+      1.0,
+      0.5981
+     ],
+     "bearing": 11.1,
+     "dist": 0.66,
+     "speaking": 0.4,
+     "lip": 0.0,
+     "lost": false,
+     "age": 0.8,
+     "map": [
+      -0.89,
+      -0.68
+     ]
+    }
+   ],
+   "speaker": 13,
+   "voice": true,
+   "doa": null,
+   "evidence": "alone+lip",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 352,
+   "type": "people",
+   "t": 1793280883.58,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.576,
+      0.1435,
+      1.0,
+      0.5847
+     ],
+     "bearing": 11.9,
+     "dist": 0.67,
+     "speaking": 0.4,
+     "lip": 0.0,
+     "lost": false,
+     "age": 0.9,
+     "map": [
+      -0.93,
+      -0.69
+     ]
+    }
+   ],
+   "speaker": 13,
+   "voice": true,
+   "doa": null,
+   "evidence": "alone+lip",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 417,
+   "type": "people",
+   "t": 1793280883.64,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.6118,
+      0.1776,
+      1.0,
+      0.6202
+     ],
+     "bearing": 12.6,
+     "dist": 0.68,
+     "speaking": 0.4,
+     "lip": 0.1,
+     "lost": false,
+     "age": 1.0,
+     "map": [
+      -0.94,
+      -0.69
+     ]
+    }
+   ],
+   "speaker": 13,
+   "voice": true,
+   "doa": null,
+   "evidence": "alone+lip",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 491,
+   "type": "people",
+   "t": 1793280883.72,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.6106,
+      0.1804,
+      1.0,
+      0.6258
+     ],
+     "bearing": 12.6,
+     "dist": 0.67,
+     "speaking": 0.4,
+     "lip": 0.06,
+     "lost": false,
+     "age": 1.0,
+     "map": [
+      -0.93,
+      -0.69
+     ]
+    }
+   ],
+   "speaker": 13,
+   "voice": true,
+   "doa": null,
+   "evidence": "alone+lip",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 569,
+   "type": "people",
+   "t": 1793280883.78,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5983,
+      0.1668,
+      1.0,
+      0.6331
+     ],
+     "bearing": 12.4,
+     "dist": 0.68,
+     "speaking": 0.4,
+     "lip": 0.03,
+     "lost": false,
+     "age": 1.1,
+     "map": [
+      -0.92,
+      -0.71
+     ]
+    }
+   ],
+   "speaker": 13,
+   "voice": true,
+   "doa": null,
+   "evidence": "alone+lip",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 628,
+   "type": "people",
+   "t": 1793280883.86,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.571,
+      0.1665,
+      1.0,
+      0.6003
+     ],
+     "bearing": 11.8,
+     "dist": 0.65,
+     "speaking": 0.4,
+     "lip": 0.02,
+     "lost": false,
+     "age": 1.2,
+     "map": [
+      -0.89,
+      -0.69
+     ]
+    }
+   ],
+   "speaker": 13,
+   "voice": true,
+   "doa": null,
+   "evidence": "alone+lip",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 692,
+   "type": "people",
+   "t": 1793280883.91,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5642,
+      0.1639,
+      1.0,
+      0.6069
+     ],
+     "bearing": 11.7,
+     "dist": 0.63,
+     "speaking": 0.4,
+     "lip": 0.01,
+     "lost": false,
+     "age": 1.2,
+     "map": [
+      -0.88,
+      -0.68
+     ]
+    }
+   ],
+   "speaker": 13,
+   "voice": true,
+   "doa": null,
+   "evidence": "alone+lip",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 755,
+   "type": "people",
+   "t": 1793280883.98,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5503,
+      0.1635,
+      1.0,
+      0.6137
+     ],
+     "bearing": 11.4,
+     "dist": 0.62,
+     "speaking": 0.4,
+     "lip": 0.01,
+     "lost": false,
+     "age": 1.3,
+     "map": [
+      -0.87,
+      -0.67
+     ]
+    }
+   ],
+   "speaker": 13,
+   "voice": true,
+   "doa": null,
+   "evidence": "alone+lip",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 824,
+   "type": "people",
+   "t": 1793280884.04,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5347,
+      0.1276,
+      1.0,
+      0.5989
+     ],
+     "bearing": 11.1,
+     "dist": 0.62,
+     "speaking": 0.04,
+     "lip": 0.0,
+     "lost": false,
+     "age": 1.4,
+     "map": [
+      -0.87,
+      -0.67
+     ]
+    }
+   ],
+   "speaker": 13,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": {
+    "bearing": 39.2,
+    "turn": "right",
+    "motors": [
+     [
+      0,
+      0.2
+     ],
+     [
+      1,
+      0.98
+     ]
+    ],
+    "id": null
+   },
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 824,
+   "type": "speaker_cue",
+   "bearing": 39.2,
+   "turn": "right",
+   "motors": [
+    [
+     0,
+     0.2
+    ],
+    [
+     1,
+     0.98
+    ]
+   ],
+   "id": null
+  },
+  {
+   "ms": 912,
+   "type": "people",
+   "t": 1793280884.12,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5265,
+      0.1314,
+      1.0,
+      0.6052
+     ],
+     "bearing": 10.9,
+     "dist": 0.59,
+     "speaking": 0.04,
+     "lip": 0.0,
+     "lost": false,
+     "age": 1.4,
+     "map": [
+      -0.84,
+      -0.65
+     ]
+    }
+   ],
+   "speaker": 13,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 962,
+   "type": "people",
+   "t": 1793280884.19,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5121,
+      0.1359,
+      1.0,
+      0.598
+     ],
+     "bearing": 10.6,
+     "dist": 0.6,
+     "speaking": 0.04,
+     "lip": 0.0,
+     "lost": false,
+     "age": 1.5,
+     "map": [
+      -0.84,
+      -0.66
+     ]
+    }
+   ],
+   "speaker": 13,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1014,
+   "type": "people",
+   "t": 1793280884.24,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5153,
+      0.1302,
+      1.0,
+      0.5974
+     ],
+     "bearing": 10.7,
+     "dist": 0.6,
+     "speaking": 0.04,
+     "lip": 0.0,
+     "lost": false,
+     "age": 1.6,
+     "map": [
+      -0.85,
+      -0.65
+     ]
+    }
+   ],
+   "speaker": 13,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1065,
+   "type": "people",
+   "t": 1793280884.29,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5238,
+      0.1295,
+      1.0,
+      0.6022
+     ],
+     "bearing": 10.9,
+     "dist": 0.59,
+     "speaking": 0.04,
+     "lip": 0.0,
+     "lost": false,
+     "age": 1.6,
+     "map": [
+      -0.85,
+      -0.65
+     ]
+    }
+   ],
+   "speaker": 13,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1157,
+   "type": "people",
+   "t": 1793280884.38,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5325,
+      0.1311,
+      1.0,
+      0.587
+     ],
+     "bearing": 11.0,
+     "dist": 0.6,
+     "speaking": 0.04,
+     "lip": 0.0,
+     "lost": false,
+     "age": 1.7,
+     "map": [
+      -0.85,
+      -0.66
+     ]
+    }
+   ],
+   "speaker": 13,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1240,
+   "type": "people",
+   "t": 1793280884.47,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5247,
+      0.116,
+      1.0,
+      0.5712
+     ],
+     "bearing": 10.9,
+     "dist": 0.6,
+     "speaking": 0.04,
+     "lip": 0.0,
+     "lost": false,
+     "age": 1.8,
+     "map": [
+      -0.85,
+      -0.65
+     ]
+    }
+   ],
+   "speaker": 13,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1289,
+   "type": "people",
+   "t": 1793280884.51,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5343,
+      0.1092,
+      1.0,
+      0.5615
+     ],
+     "bearing": 11.1,
+     "dist": 0.58,
+     "speaking": 0.04,
+     "lip": 0.0,
+     "lost": false,
+     "age": 1.8,
+     "map": [
+      -0.85,
+      -0.63
+     ]
+    }
+   ],
+   "speaker": 13,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1331,
+   "type": "people",
+   "t": 1793280884.56,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5465,
+      0.0992,
+      1.0,
+      0.5756
+     ],
+     "bearing": 11.3,
+     "dist": 0.59,
+     "speaking": 0.05,
+     "lip": 0.0,
+     "lost": false,
+     "age": 1.9,
+     "map": [
+      -0.87,
+      -0.63
+     ]
+    }
+   ],
+   "speaker": 13,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1388,
+   "type": "people",
+   "t": 1793280884.61,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5653,
+      0.0907,
+      1.0,
+      0.5673
+     ],
+     "bearing": 11.7,
+     "dist": 0.61,
+     "speaking": 0.05,
+     "lip": 0.0,
+     "lost": false,
+     "age": 1.9,
+     "map": [
+      -0.88,
+      -0.65
+     ]
+    }
+   ],
+   "speaker": 13,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1521,
+   "type": "people",
+   "t": 1793280884.75,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5621,
+      0.0906,
+      1.0,
+      0.5693
+     ],
+     "bearing": 11.6,
+     "dist": 0.62,
+     "speaking": 0.05,
+     "lip": 0.0,
+     "lost": false,
+     "age": 2.1,
+     "map": [
+      -0.88,
+      -0.66
+     ]
+    }
+   ],
+   "speaker": 13,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1578,
+   "type": "people",
+   "t": 1793280884.8,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5564,
+      0.0953,
+      1.0,
+      0.5646
+     ],
+     "bearing": 11.5,
+     "dist": 0.63,
+     "speaking": 0.05,
+     "lip": 0.0,
+     "lost": false,
+     "age": 2.1,
+     "map": [
+      -0.88,
+      -0.67
+     ]
+    }
+   ],
+   "speaker": 13,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1626,
+   "type": "people",
+   "t": 1793280884.86,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5567,
+      0.1038,
+      1.0,
+      0.5698
+     ],
+     "bearing": 11.5,
+     "dist": 0.66,
+     "speaking": 0.05,
+     "lip": 0.0,
+     "lost": false,
+     "age": 2.2,
+     "map": [
+      -0.89,
+      -0.7
+     ]
+    }
+   ],
+   "speaker": 13,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1686,
+   "type": "people",
+   "t": 1793280884.9,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5487,
+      0.115,
+      1.0,
+      0.5713
+     ],
+     "bearing": 11.4,
+     "dist": 0.65,
+     "speaking": 0.05,
+     "lip": 0.0,
+     "lost": false,
+     "age": 2.2,
+     "map": [
+      -0.89,
+      -0.69
+     ]
+    }
+   ],
+   "speaker": 13,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1787,
+   "type": "people",
+   "t": 1793280885.0,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5446,
+      0.1132,
+      1.0,
+      0.5737
+     ],
+     "bearing": 11.3,
+     "dist": 0.65,
+     "speaking": 0.05,
+     "lip": 0.0,
+     "lost": false,
+     "age": 2.3,
+     "map": [
+      -0.89,
+      -0.69
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "offscreen": 39.2,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1842,
+   "type": "people",
+   "t": 1793280885.07,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5419,
+      0.1045,
+      1.0,
+      0.5649
+     ],
+     "bearing": 11.2,
+     "dist": 0.66,
+     "speaking": 0.04,
+     "lip": 0.0,
+     "lost": false,
+     "age": 2.4,
+     "map": [
+      -0.89,
+      -0.7
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "offscreen": 39.2,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1899,
+   "type": "people",
+   "t": 1793280885.12,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5376,
+      0.0973,
+      1.0,
+      0.5646
+     ],
+     "bearing": 11.1,
+     "dist": 0.65,
+     "speaking": 0.04,
+     "lip": 0.0,
+     "lost": false,
+     "age": 2.4,
+     "map": [
+      -0.88,
+      -0.7
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "offscreen": 39.2,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 1942,
+   "type": "people",
+   "t": 1793280885.18,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5368,
+      0.0899,
+      1.0,
+      0.5524
+     ],
+     "bearing": 11.1,
+     "dist": 0.64,
+     "speaking": 0.04,
+     "lip": 0.0,
+     "lost": false,
+     "age": 2.5,
+     "map": [
+      -0.87,
+      -0.69
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "offscreen": 39.2,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2000,
+   "type": "people",
+   "t": 1793280885.22,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5315,
+      0.0878,
+      1.0,
+      0.555
+     ],
+     "bearing": 11.0,
+     "dist": 0.63,
+     "speaking": 0.04,
+     "lip": 0.0,
+     "lost": false,
+     "age": 2.5,
+     "map": [
+      -0.87,
+      -0.69
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "offscreen": 39.2,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2048,
+   "type": "people",
+   "t": 1793280885.28,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5217,
+      0.0874,
+      1.0,
+      0.5463
+     ],
+     "bearing": 10.8,
+     "dist": 0.63,
+     "speaking": 0.04,
+     "lip": 0.0,
+     "lost": false,
+     "age": 2.6,
+     "map": [
+      -0.86,
+      -0.69
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "offscreen": 39.2,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2091,
+   "type": "people",
+   "t": 1793280885.33,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.519,
+      0.0895,
+      1.0,
+      0.5576
+     ],
+     "bearing": 10.8,
+     "dist": 0.65,
+     "speaking": 0.04,
+     "lip": 0.0,
+     "lost": false,
+     "age": 2.6,
+     "map": [
+      -0.87,
+      -0.7
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "offscreen": 39.2,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2140,
+   "type": "people",
+   "t": 1793280885.38,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5091,
+      0.0936,
+      1.0,
+      0.5556
+     ],
+     "bearing": 10.6,
+     "dist": 0.65,
+     "speaking": 0.04,
+     "lip": 0.0,
+     "lost": false,
+     "age": 2.7,
+     "map": [
+      -0.87,
+      -0.71
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "offscreen": 39.2,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2202,
+   "type": "people",
+   "t": 1793280885.42,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.5018,
+      0.0952,
+      1.0,
+      0.5528
+     ],
+     "bearing": 10.4,
+     "dist": 0.67,
+     "speaking": 0.04,
+     "lip": 0.0,
+     "lost": false,
+     "age": 2.7,
+     "map": [
+      -0.88,
+      -0.72
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "offscreen": 39.2,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2256,
+   "type": "people",
+   "t": 1793280885.48,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.4934,
+      0.0932,
+      1.0,
+      0.5627
+     ],
+     "bearing": 10.3,
+     "dist": 0.69,
+     "speaking": 0.04,
+     "lip": 0.0,
+     "lost": false,
+     "age": 2.8,
+     "map": [
+      -0.88,
+      -0.74
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "offscreen": 39.2,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2311,
+   "type": "people",
+   "t": 1793280885.54,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.4705,
+      0.0901,
+      1.0,
+      0.5723
+     ],
+     "bearing": 9.8,
+     "dist": 0.66,
+     "speaking": 0.03,
+     "lip": 0.0,
+     "lost": false,
+     "age": 2.9,
+     "map": [
+      -0.86,
+      -0.72
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": {
+    "bearing": 39.2,
+    "turn": "right",
+    "motors": [
+     [
+      0,
+      0.2
+     ],
+     [
+      1,
+      0.98
+     ]
+    ],
+    "id": null
+   },
+   "offscreen": 39.2,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2311,
+   "type": "speaker_cue",
+   "bearing": 39.2,
+   "turn": "right",
+   "motors": [
+    [
+     0,
+     0.2
+    ],
+    [
+     1,
+     0.98
+    ]
+   ],
+   "id": null
+  },
+  {
+   "ms": 2371,
+   "type": "people",
+   "t": 1793280885.6,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.4544,
+      0.0851,
+      1.0,
+      0.5562
+     ],
+     "bearing": 9.5,
+     "dist": 0.64,
+     "speaking": 0.03,
+     "lip": 0.0,
+     "lost": false,
+     "age": 2.9,
+     "map": [
+      -0.84,
+      -0.71
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "offscreen": 39.2,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2431,
+   "type": "people",
+   "t": 1793280885.66,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.4313,
+      0.0831,
+      1.0,
+      0.5532
+     ],
+     "bearing": 9.0,
+     "dist": 0.63,
+     "speaking": 0.1,
+     "lip": 0.85,
+     "lost": false,
+     "age": 3.0,
+     "map": [
+      -0.82,
+      -0.71
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "offscreen": 39.2,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2494,
+   "type": "people",
+   "t": 1793280885.72,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.4092,
+      0.0748,
+      1.0,
+      0.5606
+     ],
+     "bearing": 8.5,
+     "dist": 0.62,
+     "speaking": 0.07,
+     "lip": 0.51,
+     "lost": false,
+     "age": 3.0,
+     "map": [
+      -0.81,
+      -0.7
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "offscreen": 39.2,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2559,
+   "type": "people",
+   "t": 1793280885.78,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.4029,
+      0.0784,
+      1.0,
+      0.5515
+     ],
+     "bearing": 8.4,
+     "dist": 0.62,
+     "speaking": 0.06,
+     "lip": 0.35,
+     "lost": false,
+     "age": 3.1,
+     "map": [
+      -0.8,
+      -0.71
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "offscreen": 39.2,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2618,
+   "type": "people",
+   "t": 1793280885.85,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.3667,
+      0.0627,
+      1.0,
+      0.5482
+     ],
+     "bearing": 7.7,
+     "dist": 0.61,
+     "speaking": 0.14,
+     "lip": 1.37,
+     "lost": false,
+     "age": 3.2,
+     "map": [
+      -0.79,
+      -0.71
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "offscreen": 39.2,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2672,
+   "type": "people",
+   "t": 1793280885.9,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.3321,
+      0.0511,
+      0.9812,
+      0.5316
+     ],
+     "bearing": 6.6,
+     "dist": 0.6,
+     "speaking": 0.09,
+     "lip": 0.91,
+     "lost": false,
+     "age": 3.2,
+     "map": [
+      -0.77,
+      -0.71
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "offscreen": 39.2,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2724,
+   "type": "people",
+   "t": 1793280885.95,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.3024,
+      0.0461,
+      0.9742,
+      0.5364
+     ],
+     "bearing": 5.8,
+     "dist": 0.61,
+     "speaking": 0.14,
+     "lip": 1.5,
+     "lost": false,
+     "age": 3.3,
+     "map": [
+      -0.76,
+      -0.73
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "offscreen": 39.2,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2776,
+   "type": "people",
+   "t": 1793280886.0,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.2694,
+      0.048,
+      0.9505,
+      0.533
+     ],
+     "bearing": 4.6,
+     "dist": 0.61,
+     "speaking": 0.13,
+     "lip": 1.36,
+     "lost": false,
+     "age": 3.3,
+     "map": [
+      -0.73,
+      -0.74
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "offscreen": 39.2,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2836,
+   "type": "people",
+   "t": 1793280886.06,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.2086,
+      0.0486,
+      0.8999,
+      0.5327
+     ],
+     "bearing": 2.3,
+     "dist": 0.59,
+     "speaking": 0.11,
+     "lip": 1.24,
+     "lost": false,
+     "age": 3.4,
+     "map": [
+      -0.69,
+      -0.74
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "offscreen": 39.2,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2907,
+   "type": "people",
+   "t": 1793280886.13,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.1268,
+      0.0283,
+      0.8494,
+      0.523
+     ],
+     "bearing": -0.5,
+     "dist": 0.61,
+     "speaking": 0.09,
+     "lip": 1.08,
+     "lost": false,
+     "age": 3.4,
+     "map": [
+      -0.65,
+      -0.78
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "offscreen": 39.2,
+   "mics": 2,
+   "vad": "silero"
+  },
+  {
+   "ms": 2976,
+   "type": "people",
+   "t": 1793280886.2,
+   "tracks": [
+    {
+     "id": 13,
+     "box": [
+      0.0,
+      0.0015,
+      0.753,
+      0.4724
+     ],
+     "bearing": -5.2,
+     "dist": 0.58,
+     "speaking": 0.06,
+     "lip": 0.65,
+     "lost": false,
+     "age": 3.5,
+     "map": [
+      -0.58,
+      -0.77
+     ]
+    }
+   ],
+   "speaker": null,
+   "voice": true,
+   "doa": 39.2,
+   "evidence": "lip+doa",
+   "cue": null,
+   "offscreen": 39.2,
+   "mics": 2,
+   "vad": "silero"
+  }
+ ]
+}

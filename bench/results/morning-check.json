@@ -1,8 +1,8 @@
 {
- "at": "2026-10-29 04:37 PDT",
+ "at": "2026-10-29 06:30 PDT",
  "walk": "20261028-135040-iphone",
  "meta": {
-  "ready_s": 62,
+  "ready_s": 65,
   "pins": [
    "TV",
    "backpack",
@@ -37,7 +37,6 @@
    "stool",
    "trash can",
    "tv",
-   "vacuum cleaner",
    "wall",
    "window"
   ],
@@ -48,12 +47,13 @@
    "backpack"
   ],
   "guide_hold_s": 10.1,
-  "safety_events": 2959,
+  "safety_events": 2906,
   "seconds": 245,
-  "frames_sent": 4240,
-  "score_walk": "hanged_frames\": 3,\n \"priors_off\": {\n  \"cue_on_pct\": 99.5,\n  \"false_buzz_events_per_min\": 0.0,\n  \"missed_inside_2m_frames\": 3,\n  \"missed_inside_1m_frames\": 3,\n  \"missed_inside_1m_events_per_min\": 2.5\n },\n \"priors_on\": {\n  \"cue_on_pct\": 100.0,\n  \"false_buzz_events_per_min\": 0.0,\n  \"missed_inside_2m_frames\": 0,\n  \"missed_inside_1m_frames\": 0,\n  \"missed_inside_1m_events_per_min\": 0.0\n },\n \"ok\": true\n}",
+  "frames_sent": 4248,
+  "score_walk": "anged_frames\": 0,\n \"priors_off\": {\n  \"cue_on_pct\": 100.0,\n  \"false_buzz_events_per_min\": 0.0,\n  \"missed_inside_2m_frames\": 0,\n  \"missed_inside_1m_frames\": 0,\n  \"missed_inside_1m_events_per_min\": 0.0\n },\n \"priors_on\": {\n  \"cue_on_pct\": 100.0,\n  \"false_buzz_events_per_min\": 0.0,\n  \"missed_inside_2m_frames\": 0,\n  \"missed_inside_1m_frames\": 0,\n  \"missed_inside_1m_events_per_min\": 0.0\n },\n \"ok\": true\n}",
+  "live": "0c50830 during the run (rust: 04:21:34 to 06:37:28; restarted onto 7d6d69f at 06:37:28, after this run started)",
   "git": {
-   "head": "dccc6ad",
+   "head": "1d254b6",
    "dirty": []
   },
   "live_data": {
@@ -67,8 +67,8 @@
    "feature": "Stop cue and its latency",
    "owner": "metasight-rust",
    "status": "PASS",
-   "number": "p95 106 ms",
-   "evidence": "1779 stop frames of 2959; frame sent to belt command median 58 ms, p95 105 ms; server to emulated motor median 66 ms; server at background priority, target < 250 ms"
+   "number": "p95 98 ms",
+   "evidence": "1891 stop frames of 2906; frame sent to belt command median 60 ms, p95 103 ms; server to emulated motor median 66 ms; server at background priority, target < 250 ms"
   },
   {
    "key": "belt-belt_reflex",
@@ -108,7 +108,7 @@
    "owner": "metasight-braille",
    "status": "PASS",
    "number": "",
-   "evidence": "20261028-135040-iphone: missed inside 1 m 3 -> 0 frames of 550"
+   "evidence": "20261028-135040-iphone: missed inside 1 m 0 -> 0 frames of 549"
   },
   {
    "key": "falsecue",
@@ -116,7 +116,7 @@
    "owner": "metasight-compare",
    "status": "SKIP",
    "number": "0 frames",
-   "evidence": "unmeasurable on this walk (0 frames with nothing labelled inside 2.0 m in view at labels x1.16, need 20); labels are at the live depth scale (~0.4) while an ARKit check puts the true scale near 0.75, so they will be redone once the iPhone profile's scale is fixed and this may become measurable (docs/haptics-sim.md, \"Correction 2026-10-29\"); info: front on 98% and solid/stop 60% of 2959 frames; priors in shadow mode, active in 2527 frames, would have changed 504"
+   "evidence": "unmeasurable on this walk (0 frames with nothing labelled inside 2.0 m in view at labels x1.16, need 20); labels are at the live depth scale (~0.4) while an ARKit check puts the true scale near 0.75, so they will be redone once the iPhone profile's scale is fixed and this may become measurable (docs/haptics-sim.md, \"Correction 2026-10-29\"); info: front on 98% and solid/stop 65% of 2906 frames; priors in shadow mode, active in 2495 frames, would have changed 415"
   },
   {
    "key": "urgent",
@@ -131,15 +131,15 @@
    "feature": "Missed near obstacle vs labels",
    "owner": "metasight-compare",
    "status": "PASS",
-   "number": "21 of 1258 (2%)",
-   "evidence": "no front cue while the nearest labelled obstacle in view is under 1.0 m (labels x0.84); offline sector scheme misses 0% of the same 550 label frames, FAIL above 5%"
+   "number": "27 of 1313 (2%)",
+   "evidence": "no front cue while the nearest labelled obstacle in view is under 1.0 m (labels x0.84); offline sector scheme misses 0% of the same 549 label frames, FAIL above 5%"
   },
   {
    "key": "mapreflex",
    "feature": "Map fills sectors the camera cannot see",
    "owner": "metasight-compare",
    "status": "PASS",
-   "number": "2959 of 2959 frames",
+   "number": "2906 of 2906 frames",
    "evidence": "frames where a fresh map pose gave a distance in a sector the camera had none for"
   },
   {
@@ -147,16 +147,16 @@
    "feature": "Guide bearings after a find",
    "owner": "metasight-compare",
    "status": "PASS",
-   "number": "70 of 70 frames",
-   "evidence": "median frame: -86.8 deg, 2.0 m, in view False; asked for backpack; no pin"
+   "number": "34 of 34 frames",
+   "evidence": "median frame: -89.9 deg, 1.35 m, in view False; asked for backpack; pin 8 backpack score 0.46 source yoloe-26l-seg, confirmed True"
   },
   {
    "key": "nav",
    "feature": "Route planner (nav.py) drives the guide",
    "owner": "metasight-compare",
    "status": "PASS",
-   "number": "68 frames with a route",
-   "evidence": "guide frames carried a route; no pin"
+   "number": "33 frames with a route",
+   "evidence": "guide frames carried a route; pin 8 backpack score 0.46 source yoloe-26l-seg, confirmed True"
   },
   {
    "key": "patterns",
@@ -164,15 +164,15 @@
    "owner": "metasight-braille",
    "status": "PASS",
    "number": "4 of 4 modes",
-   "evidence": "intro named guide, find, talk, explore; 392 belt states with motors on"
+   "evidence": "intro named guide, find, talk, explore; 386 belt states with motors on"
   },
   {
    "key": "find",
    "feature": "Find a seen item",
    "owner": "metasight-display",
-   "status": "FAIL",
-   "number": "8 ms",
-   "evidence": "'where is my backpack' -> \"I saw your backpack a moment ago, but I don't have its place on the map yet.\" (via template); no pin; chose backpack (backpack has a confirmed pin)"
+   "status": "PASS",
+   "number": "6 ms",
+   "evidence": "'where is my backpack' -> \"I saw your backpack a moment ago; it was last placed near the laptop, 2 minutes ago.\" (via template); pin 8 backpack score 0.46 source yoloe-26l-seg, confirmed True; chose backpack (backpack has a confirmed pin)"
   },
   {
    "key": "falsepin",
@@ -187,39 +187,39 @@
    "feature": "Find My line for an unseen item",
    "owner": "metasight-muse",
    "status": "PASS",
-   "number": "8 ms",
-   "evidence": "'where is my wallet' -> \"I haven't seen your wallet. I did see a handbag near the TV, about 3.5 metres behind you to the right, 1 minute ago; maybe that's it. If it has an AirTag, Find My on your phone can play a sound.\""
+   "number": "5 ms",
+   "evidence": "'where is my wallet' -> \"I haven't seen your wallet. I did see a handbag near the laptop, about a metre straight ahead, just now; maybe that's it. If it has an AirTag, Find My on your phone can play a sound.\""
   },
   {
    "key": "voice",
    "feature": "Spoken question to answer",
    "owner": "metasight-muse",
    "status": "PASS",
-   "number": "673 ms",
-   "evidence": "heard ['Where is my backpack?'], answered \"I saw your backpack a moment ago, but I don't have its place on the map yet.\"; client saw it 355 ms after the last word left"
+   "number": "706 ms",
+   "evidence": "heard ['Where is my backpack'], answered \"I saw your backpack a moment ago; it was last placed near the laptop, 1 minute ago.\"; client saw it 194 ms after the last word left"
   },
   {
    "key": "voiceload",
    "feature": "Spoken question before the map loads",
    "owner": "metasight-muse",
-   "status": "PASS",
-   "number": "191 ms",
-   "evidence": "spoken 'where are my keys' before memory_ready -> \"I'm still loading your home map. Ask me again in a few seconds.\" 191 ms after the speech ended (limit 2000); final transcript at 190 ms; finals heard ['Where are my keys?']; asr handshake 651 ms, warmup 1702 ms"
+   "status": "FAIL",
+   "number": "",
+   "evidence": "no answer in 8 s after the speech; finals heard ['Here are my keys']"
   },
   {
    "key": "changed",
    "feature": "Tool path: what changed",
    "owner": "metasight-muse",
    "status": "PASS",
-   "number": "2067 ms",
-   "evidence": "\"Backpack, keyboard, trash can and vacuum cleaner appeared, and shelf, window and mini fridge moved.\" (tools True)"
+   "number": "2719 ms",
+   "evidence": "\"The shelf, mirror, curtain and box moved in the last ten minutes.\" (tools True)"
   },
   {
    "key": "who",
    "feature": "Tool path: who is talking",
    "owner": "metasight-muse",
    "status": "PASS",
-   "number": "1993 ms",
+   "number": "2182 ms",
    "evidence": "\"No one is talking right now.\" (tools True)"
   },
   {
@@ -227,24 +227,24 @@
    "feature": "Map pose non-empty, map not black",
    "owner": "metasight-display",
    "status": "PASS",
-   "number": "800 poses",
-   "evidence": "150039 map points, 75 pins, last pos [1.43, 1.4, 0.32]; 18 map windows, median 2400 ms"
+   "number": "802 poses",
+   "evidence": "128159 map points, 77 pins, last pos [0.51, 0.73, -0.25]; 19 map windows, median 2477 ms"
   },
   {
    "key": "wonder",
    "feature": "Wonder map review",
    "owner": "metasight-muse",
    "status": "PASS",
-   "number": "5094 ms, $0.011",
-   "evidence": "5 changes, 5 items by muse-wonder; e.g. \"Your backpack has moved.\""
+   "number": "2516 ms, $0.003",
+   "evidence": "1 changes, 1 items by muse-wonder; e.g. \"A new backpack has appeared and could be in your way.\""
   },
   {
    "key": "speaker",
    "feature": "Speaker cue (two voices, -50 and +40 deg)",
    "owner": "metasight-people",
    "status": "PASS",
-   "number": "left 657 ms, right 1865 ms",
-   "evidence": "first cue per voice after its onset: turn left at -48.3 deg; turn right at 39.2 deg; 6 cues, 326 people events, doa range -50.0 to 39.2"
+   "number": "left 609 ms, right 824 ms",
+   "evidence": "first cue per voice after its onset: turn left at -48.3 deg; turn right at 39.2 deg; 7 cues, 330 people events, doa range -50.0 to 39.2; people events saved (left 67, right 70)"
   },
   {
    "key": "modes",
@@ -252,7 +252,7 @@
    "owner": "metasight-people",
    "status": "PASS",
    "number": "4 of 4",
-   "evidence": "each switch sent an activity event with its spoken line; slowest 13 ms"
+   "evidence": "each switch sent an activity event with its spoken line; slowest 4 ms"
   },
   {
    "key": "onboarding",
@@ -260,15 +260,15 @@
    "owner": "metasight-people",
    "status": "PASS",
    "number": "4 steps",
-   "evidence": "steps walk > name > belt > done; walked area 1.2 m2 before 'that's all'; 'Got it, keys.'; belt intro played 4 mode patterns"
+   "evidence": "steps walk > name > belt > done; walked area 1.8 m2 before 'that's all'; 'Got it, keys.'; belt intro played 4 mode patterns"
   },
   {
    "key": "notes",
    "feature": "Notes start, stop, summary, question",
    "owner": "metasight-people",
    "status": "PASS",
-   "number": "summary 3375 ms",
-   "evidence": "start line said: True; 1 transcript lines; title \"Doctor's morning pill instruction\"; 'what did the doctor say?' -> \"Someone said, \"The doctor said to take two pills at nine in the morning.\"\""
+   "number": "summary 2817 ms",
+   "evidence": "start line said: True; 1 transcript lines; title \"Medication Instruction Note\"; 'what did the doctor say?' -> \"The doctor said to take two pills at nine in the morning.\""
   }
  ],
  "note": ""
