@@ -121,15 +121,15 @@ def decode(words: list[list[int]]) -> str:
 # Multi-word phrases are replaced first, then single words. Words absent from both stay as they
 # are; STOP words are dropped. Keep entries lowercase.
 PHRASES = {
-    "in front of you": "ahd",
-    "straight ahead": "ahd",
-    "right in front": "ahd",
-    "to your left": "l",
-    "on your left": "l",
-    "to your right": "r",
-    "on your right": "r",
-    "behind you": "bhd",
-    "next to": "nxt",
+    "in front of you": "ahead",
+    "straight ahead": "ahead",
+    "right in front": "ahead",
+    "to your left": "left",
+    "on your left": "left",
+    "to your right": "right",
+    "on your right": "right",
+    "behind you": "behind",
+    "next to": "beside",
     "on top of": "on",
     "i do not know": "?",
     "i don't know": "?",
@@ -139,20 +139,13 @@ PHRASES = {
     "which object do you mean": "which",
 }
 ABBREV = {
-    "ahead": "ahd", "behind": "bhd", "left": "l", "right": "r", "front": "frt",
-    "table": "tbl", "chair": "chr", "kitchen": "kit", "bedroom": "bed", "bathroom": "bth",
-    "counter": "cntr", "shelf": "shf", "door": "dr", "window": "wnd", "floor": "flr",
-    "stairs": "strs", "staircase": "strs", "person": "ppl", "people": "ppl",
-    "phone": "phn", "wallet": "wlt", "glasses": "gls", "bottle": "btl", "laptop": "lpt",
-    "backpack": "bpk", "remote": "rmt", "couch": "cch", "sofa": "cch",
+    "stairs": "stairs", "staircase": "stairs", "sofa": "couch", "people": "people",
     "meters": "m", "meter": "m", "metres": "m", "metre": "m", "feet": "ft", "foot": "ft",
     "minutes": "min", "minute": "min", "seconds": "s", "second": "s",
     "approximately": "~", "about": "~", "around": "~", "roughly": "~",
-    "and": "&", "with": "w/", "without": "w/o", "near": "close", "nearby": "close",
-    "above": "abv", "below": "blw", "under": "und", "between": "btw",
-    "please": "", "careful": "caution", "warning": "warn", "danger": "warn",
-    "yes": "y", "no": "n", "stop": "stop", "clear": "clr",
-    "hallway": "hall", "corridor": "hall", "entrance": "ent", "elevator": "elev",
+    "and": "&", "with": "w/", "without": "w/o",
+    "please": "", "careful": "caution", "warning": "warning", "danger": "warning",
+    "hallway": "hall", "corridor": "hall", "entrance": "entry", "elevator": "lift",
 }  # fmt: skip
 STOP = {
     "the", "a", "an", "is", "are", "was", "were", "be", "it", "its", "it's", "that", "this",
@@ -165,7 +158,7 @@ _OCLOCK = re.compile(r"(\d{1,2})\s+o'?clock")
 
 def compress(text: str, max_cells: int = 24) -> str:
     """Cut an answer to a terse cue, e.g. "Your keys are on the table, 4 meters ahead." ->
-    "keys tbl 4m ahd". Whole trailing words are dropped past `max_cells` Braille cells, since
+    "keys table 4m ahead". Whole trailing words are dropped past `max_cells` Braille cells, since
     the wearer cannot wait a minute for a sentence."""
     t = text.lower().replace("’", "'")
     t = re.sub(r"[.,;!]+(?=\s|$)", " ", t)

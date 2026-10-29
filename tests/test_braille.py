@@ -53,21 +53,21 @@ def test_punctuation():
 def test_every_symbol_has_a_unique_cell_and_roundtrips():
     cells = [*braille.LETTER_MASK.values(), *braille.PUNCT_MASK.values()]
     assert len(set(cells)) == len(cells)
-    for text in ["keys 4m ahd", "Room 12, left.", "NASA ok?", "3.5 ft"]:
+    for text in ["keys 4m ahead", "Room 12, left.", "NASA ok?", "3.5 ft"]:
         assert braille.decode(braille.encode(text)) == text
 
 
 def test_words_are_kept_apart_and_unknown_characters_dropped():
-    assert len(braille.encode("keys  tbl")) == 2
+    assert len(braille.encode("keys  table")) == 2
     assert braille.encode("☃ ab") == [braille.encode_word("ab")]
 
 
 @pytest.mark.parametrize(
     ("text", "cue"),
     [
-        ("Your keys are on the table, 4 meters ahead.", "keys tbl 4m ahd"),
-        ("The door is on your left.", "dr l"),
-        ("Stairs 2 o'clock, about 3 meters.", "strs 2oc ~ 3m"),
+        ("Your keys are on the table, 4 meters ahead.", "keys table 4m ahead"),
+        ("The door is on your left.", "door left"),
+        ("Stairs 2 o'clock, about 3 meters.", "stairs 2oc ~ 3m"),
         ("I don't know.", "?"),
         ("Which object do you mean?", "which?"),
     ],
@@ -81,7 +81,7 @@ def test_compress_is_shorter_and_capped():
     cue = braille.compress(long)
     assert len(cue) < len(long) / 2
     capped = braille.compress(long, max_cells=10)
-    assert sum(len(c) + 1 for c in braille.encode(capped)) <= 11 and capped.startswith("wlt")
+    assert sum(len(c) + 1 for c in braille.encode(capped)) <= 11 and capped.startswith("wallet")
 
 
 def test_timeline_gaps_and_total():
@@ -194,9 +194,9 @@ def test_output_cancels_the_previous_cue_and_compresses():
         return cue, seen
 
     cue, seen = run(go())
-    assert cue == "keys tbl 4m ahd"
+    assert cue == "keys table 4m ahead"
     starts = [m for m in seen if m["phase"] == "start"]
-    assert [s["cues"] for s in starts] == ["keys tbl 4m ahd", "dr l"]
+    assert [s["cues"] for s in starts] == ["keys table 4m ahead", "door left"]
     assert seen[-1]["phase"] == "end"
 
 

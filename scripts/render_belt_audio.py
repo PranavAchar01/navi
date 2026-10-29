@@ -27,7 +27,7 @@ def main() -> None:
     for k, (mode, i) in enumerate([("slow", 0), ("fast", 0), ("solid", 0), ("guide", 2)]):
         rhythm += [(t + 2 * k, c) for t, c in ba.cue_frames(only(i, mode), 2.0)]
     ba.write_wav(OUT / "belt-audio-rhythms.wav", ba.render(rhythm, 8.0))
-    frames, total = ba.braille_frames("keys tbl 4m ahd")
+    frames, total = ba.braille_frames("keys table 4m ahead")
     ba.write_wav(OUT / "belt-audio-braille.wav", ba.render(frames, total))
     for f in sorted(OUT.glob("belt-audio-*.wav")):
         print(f.name, f.stat().st_size)

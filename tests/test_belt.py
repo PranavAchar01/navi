@@ -47,18 +47,28 @@ def _tel(sock):
 
 def test_emulator_runs_firmware_and_watchdog():
     ensure_emulator()
-    port = 4300 + int(time.time()) % 500
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]  # free now; avoids clashes with other test runs
     proc = subprocess.Popen([str(EMU_BIN), str(port)], stderr=subprocess.DEVNULL)
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.settimeout(1.0)
-        time.sleep(0.2)
+        s.settimeout(0.3)
         body = struct.pack("<BB", MODES["solid"], 200) + b"\0\0" * 7
-        for seq in range(1, 6):
+        seq = 0
+        deadline = time.time() + 15.0  # a loaded machine can be slow to start the emulator
+        while True:  # send until it answers: poll for readiness, not a fixed sleep
+            seq += 1
             s.sendto(struct.pack("<2sBBHI", b"MS", 1, 0, seq, 0) + body, ("127.0.0.1", port))
-            time.sleep(0.02)
-        lost, duty = _tel(s)
-        assert not lost and duty[0] == 200 and duty[1] == 0
+            try:
+                lost, duty = _tel(s)
+            except TimeoutError:
+                assert time.time() < deadline, "emulator never answered"
+                continue
+            if not lost:
+                break
+        s.settimeout(1.0)
+        assert duty[0] == 200 and duty[1] == 0
         time.sleep(0.4)  # stop sending: the belt must fall back to its "lost" taps by itself
         seen = [_tel(s) for _ in range(80)]
         assert all(t[0] == 1 for t in seen[-10:])
