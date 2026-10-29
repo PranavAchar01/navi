@@ -361,14 +361,7 @@ struct CameraView: View {
   private var metaSightPanel: some View {
     VStack(alignment: .leading, spacing: 10) {
       VStack(alignment: .leading, spacing: 6) {
-        if let answer = viewModel.link.lastAnswer {
-          Text(answer)
-            .font(.system(size: 18, weight: .semibold))
-            .foregroundStyle(.white)
-            .lineLimit(3)
-            .fixedSize(horizontal: false, vertical: true)
-            .accessibilityIdentifier("answer_line")
-        }
+        RecentAnswer(note: viewModel.link.answerNote, font: .system(size: 18, weight: .semibold))
         Text(viewModel.link.statusLine)
           .font(.system(size: 14, weight: .medium))
           .foregroundStyle(Color.white.opacity(viewModel.link.lastAnswer == nil ? 0.95 : 0.65))
@@ -682,5 +675,44 @@ extension View {
       .frame(height: 38)
       .background(.ultraThinMaterial)
       .clipShape(Capsule())
+  }
+}
+
+/// The latest answer, up for as long as the lens shows it (12 s), then folded to a
+/// "Last answer · laptop" row; tapping it opens the answer again for another 12 s.
+struct RecentAnswer: View {
+  let note: AnswerNote?
+  var font: Font
+  @State private var reopenedAt: Date?
+
+  var body: some View {
+    if let note {
+      TimelineView(.periodic(from: .now, by: 1)) { context in
+        let open = [note.at, reopenedAt].compactMap { $0 }.contains {
+          context.date.timeIntervalSince($0) < DisplayCard.answerSeconds
+        }
+        if open {
+          Text(note.text)
+            .font(font)
+            .foregroundStyle(.white)
+            .lineLimit(3)
+            .fixedSize(horizontal: false, vertical: true)
+            .onTapGesture { reopenedAt = nil }
+            .accessibilityLabel("Answer: \(note.text)")
+            .accessibilityIdentifier("answer_line")
+        } else {
+          Button {
+            reopenedAt = Date()
+          } label: {
+            Label("Last answer · \(note.label ?? "show again")", systemImage: "arrow.uturn.backward")
+              .font(.system(size: 14, weight: .semibold))
+              .foregroundStyle(Color.white.opacity(0.75))
+          }
+          .buttonStyle(.plain)
+          .accessibilityHint("Shows the last answer again")
+          .accessibilityIdentifier("last_answer")
+        }
+      }
+    }
   }
 }

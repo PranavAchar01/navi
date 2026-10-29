@@ -98,6 +98,15 @@ final class DisplayCardTests: XCTestCase {
     try? GlassesDisplay.image(for: card).pngData()?.write(to: out)
   }
 
+  @MainActor func testFindingFadesWithItsAnswer() {
+    let lost = GuideTarget(label: "keys", dist: nil, bearing: nil)
+    XCTAssertEqual(ServerLink.liveGuide(lost, answer: note), lost)
+    let old = AnswerNote(text: note.text, label: "keys", near: nil, seen: nil, at: Date(timeIntervalSinceNow: -13))
+    XCTAssertNil(ServerLink.liveGuide(lost, answer: old))
+    let fixed = GuideTarget(label: "keys", dist: 2, bearing: nil)
+    XCTAssertEqual(ServerLink.liveGuide(fixed, answer: old), fixed)
+  }
+
   func testUrgencyRanksCards() {
     let slow = DisplayCard.make(warning: ProximityWarning(sector: 0, distance: 2, band: .slow), guide: nil, answer: nil)
     let fast = DisplayCard.make(warning: ProximityWarning(sector: 0, distance: 0.7, band: .fast), guide: nil, answer: nil)

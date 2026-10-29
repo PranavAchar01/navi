@@ -319,10 +319,14 @@ final class GlassesDisplay {
       UIColor.black.setFill()
       ctx.fill(CGRect(x: 0, y: 0, width: side, height: side))
       if case let .obstacle(bearing, band) = card.edge {
+        // A straight bar on the nearest side, never across a corner: the corners are the
+        // dimmest part of the waveguide. Diagonals go to their side (ahead left -> left).
+        let sector = Int((bearing / 45).rounded()) % 8
+        let side90 = [0, 90, 90, 90, 180, 270, 270, 270][sector]
         let cg = ctx.cgContext
         cg.saveGState()
         cg.translateBy(x: side / 2, y: side / 2)
-        cg.rotate(by: CGFloat(bearing) * .pi / 180)
+        cg.rotate(by: CGFloat(side90) * .pi / 180)
         band.lensColor.setFill()
         UIBezierPath(roundedRect: CGRect(x: -side * 0.22, y: -side / 2 + 6, width: side * 0.44, height: 18), cornerRadius: 9).fill()
         cg.restoreGState()

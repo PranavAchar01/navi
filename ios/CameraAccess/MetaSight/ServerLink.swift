@@ -374,7 +374,8 @@ final class ServerLink {
         msg.cues.map { Self.proximity(sectors: sectors, modes: $0.map(\.mode), path: msg.path) }
       }
       warning = warningFilter.update(reading?.cueWarning, now: Date())
-      statusLine = Self.statusLine(warning: warning, guide: msg.guide, found: msg.found ?? false)
+      statusLine = Self.statusLine(
+        warning: warning, guide: Self.liveGuide(msg.guide, answer: answerNote), found: msg.found ?? false)
       if let reading {
         proximity = reading
         WatchLink.shared.send(reading)
@@ -397,6 +398,18 @@ final class ServerLink {
   private static func padded<T>(_ values: [T], with filler: T) -> [T] {
     let head = Array(values.prefix(BeltState.motorCount))
     return head + Array(repeating: filler, count: BeltState.motorCount - head.count)
+  }
+
+  /// The guide worth naming on the status line: one with a fix, or one whose answer is
+  /// still up (the lens's 12 s). A search the server never finishes would otherwise say
+  /// "Finding laptop" for the rest of the walk.
+  static func liveGuide(_ guide: GuideTarget?, answer: AnswerNote?, now: Date = Date()) -> GuideTarget? {
+    guard let guide else { return nil }
+    if guide.dist != nil || guide.bearing != nil { return guide }
+    guard let answer, answer.label == guide.label,
+      now.timeIntervalSince(answer.at) < DisplayCard.answerSeconds
+    else { return nil }
+    return guide
   }
 
   /// "Obstacle ahead, 1.5 m · Finding water bottle, 2.1 m", in the wearer's words. Built

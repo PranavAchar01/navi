@@ -155,22 +155,17 @@ struct PhoneCameraView: View {
 
   /// The nearest obstacle in large, high-contrast type.
   private var nearest: some View {
-    let warning = link.proximity?.warning
+    let warning = link.warning
     let title: String
     if !camera.isRunning && link.proximity == nil {
       title = "Not started"
     } else if let warning {
-      title = "\(warning.directionName) \(warning.distanceText)"
+      title = "\(warning.directionName) \(DisplayCard.distanceText(warning.distance))"
     } else {
       title = "Clear"
     }
-    let colour: Color =
-      switch warning?.band {
-      case .stop: .red
-      case .fast: .orange
-      case .slow: .yellow
-      default: .white
-      }
+    let band = warning?.band ?? .clear
+    let colour = Color(red: band.rgb.red, green: band.rgb.green, blue: band.rgb.blue)
     return Text(title)
       .font(.system(size: 40, weight: .heavy))
       .foregroundStyle(colour)
@@ -189,12 +184,7 @@ struct PhoneCameraView: View {
         .foregroundStyle(.white)
         .lineLimit(2)
         .accessibilityIdentifier("status_line")
-      if let answer = link.lastAnswer {
-        Text(answer)
-          .font(.system(size: 15))
-          .foregroundStyle(Color.white.opacity(0.85))
-          .accessibilityLabel("Answer: \(answer)")
-      }
+      RecentAnswer(note: link.answerNote, font: .system(size: 15))
     }
   }
 
