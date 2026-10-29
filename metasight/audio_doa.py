@@ -127,8 +127,8 @@ class Doa:
         self,
         spacing_m: float,
         window: int = 12,
-        min_votes: int = 6,
-        peak_min: float = 0.16,
+        min_votes: int = 4,
+        peak_min: float = 0.18,
         agree_deg: float = AGREE_DEG,
         agree_share: float = AGREE_SHARE,
     ):

@@ -159,9 +159,6 @@ def main():
     print("VAD", json.dumps(out))
 
 
-main()
-
-
 def two_talkers():
     """Two people talking at once from -40 and +40 degrees: what does Doa say?"""
     rng = np.random.default_rng(3)
@@ -173,4 +170,6 @@ def two_talkers():
     print("TWO_TALKERS", run_doa(x, Vad()))
 
 
-two_talkers()
+if __name__ == "__main__":
+    main()
+    two_talkers()

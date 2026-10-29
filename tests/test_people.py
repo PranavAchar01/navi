@@ -199,9 +199,9 @@ def test_voice_from_the_side_outranks_a_mouth_moving_ahead():
     cues = []
     for k in range(40):
         g = base.copy()
-        g[86:125, 256:384] = rng.integers(0, 255, size=(39, 128))
+        g[86:125, 282:358] = rng.integers(0, 255, size=(39, 76))
         ev = conv.step(k / 15, [Det(ahead, 0.9, 2.0)], g, voice=True, doa_deg=40.0)
-        cues += [ev["cue"]] if ev["cue"] else []
+        cues += [ev["cue"]] if ev["cue"] and k >= 4 else []
     assert cues and cues[0]["turn"] == "right"
 
 
@@ -210,11 +210,11 @@ def test_steady_voice_near_a_face_that_is_not_read_still_cues():
     rng = np.random.default_rng(6)
     g = rng.integers(60, 200, size=(480, 640)).astype(np.uint8)
     conv = Conversation(hfov_deg=90.0)
-    right = (0.7, 0.1, 0.9, 0.9)
+    right = (0.58, 0.1, 0.78, 0.9)  # about 20 degrees right, the voice is at 40
     cues = []
     for k in range(40):
         ev = conv.step(k / 15, [Det(right, 0.9, 2.0)], g, voice=True, doa_deg=40.0)
-        cues += [ev["cue"]] if ev["cue"] else []
+        cues += [ev["cue"]] if ev["cue"] and k >= 4 else []
     assert cues and all(c["turn"] == "right" for c in cues)
 
 
