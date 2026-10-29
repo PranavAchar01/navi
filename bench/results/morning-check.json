@@ -1,8 +1,8 @@
 {
- "at": "2026-10-29 02:23 PDT",
+ "at": "2026-10-29 03:04 PDT",
  "walk": "20261028-135040-iphone",
  "meta": {
-  "ready_s": 64,
+  "ready_s": 117,
   "pins": [
    "TV",
    "backpack",
@@ -37,14 +37,20 @@
    "stool",
    "trash can",
    "tv",
-   "vacuum cleaner",
    "wall",
-   "wallet",
    "window"
   ],
+  "find_far": true,
   "find_label": "desk",
-  "seconds": 242,
-  "frames_sent": 4169
+  "guide_tried": [
+   "desk",
+   "door"
+  ],
+  "guide_hold_s": 10.0,
+  "safety_events": 1748,
+  "seconds": 248,
+  "frames_sent": 4314,
+  "score_walk": "changed_frames\": 0,\n \"priors_off\": {\n  \"cue_on_pct\": 99.3,\n  \"false_buzz_events_per_min\": 0.0,\n  \"missed_inside_2m_frames\": 3,\n  \"missed_inside_1m_frames\": 3,\n  \"missed_inside_1m_events_per_min\": 2.5\n },\n \"priors_on\": {\n  \"cue_on_pct\": 99.3,\n  \"false_buzz_events_per_min\": 0.0,\n  \"missed_inside_2m_frames\": 3,\n  \"missed_inside_1m_frames\": 3,\n  \"missed_inside_1m_events_per_min\": 2.5\n },\n \"ok\": true\n}"
  },
  "results": [
   {
@@ -52,8 +58,8 @@
    "feature": "Stop cue and its latency",
    "owner": "metasight-rust",
    "status": "PASS",
-   "number": "p95 97 ms",
-   "evidence": "1902 stop frames of 2883; frame sent to belt command median 58 ms, p95 97 ms; server to emulated motor median 66 ms; server at background priority, target < 250 ms"
+   "number": "p95 92 ms",
+   "evidence": "1084 stop frames of 1748; frame sent to belt command median 60 ms, p95 93 ms; server to emulated motor median 69 ms; server at background priority, target < 250 ms"
   },
   {
    "key": "belt-belt_reflex",
@@ -91,24 +97,40 @@
    "key": "belt-belt_priors_labels",
    "feature": "Priors do not add misses inside 1 m",
    "owner": "metasight-braille",
-   "status": "NOT-BUILT",
+   "status": "PASS",
    "number": "",
-   "evidence": "SKIP, blocked on metasight-compare's priors commit (no priors scheme yet)"
+   "evidence": "20261028-135040-iphone: missed inside 1 m 3 -> 3 frames of 442"
   },
   {
-   "key": "cuerate",
-   "feature": "Buzz rate ahead vs the no-priors baseline",
+   "key": "falsecue",
+   "feature": "False front cue vs labels",
    "owner": "metasight-compare",
-   "status": "FAIL",
-   "number": "front on 98%",
-   "evidence": "front motors on in 2816 of 2883 frames, solid/stop cue in 66%; baseline 27 to 38% front on (sector scheme, no priors, docs/haptics-sim.md), FAIL above 48%; priors in shadow mode, active in 2531 frames, would have changed 1316"
+   "status": "SKIP",
+   "number": "0 frames",
+   "evidence": "unmeasurable on this walk (0 frames with nothing labelled inside 2.0 m in view at labels x1.16, need 20); labels are at the live depth scale (~0.4) while an ARKit check puts the true scale near 0.75, so they will be redone once the iPhone profile's scale is fixed and this may become measurable (docs/haptics-sim.md, \"Correction 2026-10-29\"); info: front on 98% and solid/stop 62% of 1748 frames; priors in shadow mode, active in 1562 frames, would have changed 684"
+  },
+  {
+   "key": "urgent",
+   "feature": "Over-urgent solid cue vs labels",
+   "owner": "metasight-compare",
+   "status": "SKIP",
+   "number": "0 frames",
+   "evidence": "unmeasurable on this walk (0 frames with nothing labelled within 1.5 m in view at labels x1.16, need 20); labels are at the live depth scale (~0.4) while an ARKit check puts the true scale near 0.75, so they will be redone once the iPhone profile's scale is fixed and this may become measurable (docs/haptics-sim.md, \"Correction 2026-10-29\")"
+  },
+  {
+   "key": "missnear",
+   "feature": "Missed near obstacle vs labels",
+   "owner": "metasight-compare",
+   "status": "PASS",
+   "number": "14 of 764 (2%)",
+   "evidence": "no front cue while the nearest labelled obstacle in view is under 1.0 m (labels x0.84); offline sector scheme misses 0% of the same 442 label frames, FAIL above 5%"
   },
   {
    "key": "mapreflex",
    "feature": "Map fills sectors the camera cannot see",
    "owner": "metasight-compare",
    "status": "PASS",
-   "number": "2883 of 2883 frames",
+   "number": "1748 of 1748 frames",
    "evidence": "frames where a fresh map pose gave a distance in a sector the camera had none for"
   },
   {
@@ -116,15 +138,15 @@
    "feature": "Guide bearings after a find",
    "owner": "metasight-compare",
    "status": "PASS",
-   "number": "36 of 36 frames",
-   "evidence": "median frame: 141.7 deg, 1.69 m, in view False"
+   "number": "91 of 91 frames",
+   "evidence": "median frame: 120.6 deg, 2.11 m, in view False; asked for desk, door"
   },
   {
    "key": "nav",
    "feature": "Route planner (nav.py) drives the guide",
    "owner": "metasight-compare",
    "status": "PASS",
-   "number": "35 frames with a route",
+   "number": "90 frames with a route",
    "evidence": "guide frames carried a route"
   },
   {
@@ -133,46 +155,46 @@
    "owner": "metasight-braille",
    "status": "PASS",
    "number": "4 of 4 modes",
-   "evidence": "intro named guide, find, talk, explore; 398 belt states with motors on"
+   "evidence": "intro named guide, find, talk, explore; 389 belt states with motors on"
   },
   {
    "key": "find",
    "feature": "Find a seen item",
    "owner": "metasight-display",
    "status": "PASS",
-   "number": "609 ms",
-   "evidence": "'where is my desk' -> \"I just saw the desk near the sink about 1.5 metres on your right around eye level.\" (via muse-spark)"
+   "number": "1156 ms",
+   "evidence": "'where is my desk' -> \"I saw the desk about 2.5 metres behind you to the right near the chair below eye level two minutes ago.\" (via muse-spark)"
   },
   {
    "key": "findmy",
    "feature": "Find My line for an unseen item",
    "owner": "metasight-muse",
    "status": "PASS",
-   "number": "6 ms",
-   "evidence": "'where is my glasses case' -> \"I haven't seen your glasses case yet. If it has an AirTag, Find My on your phone can play a sound; or walk past where you left it and ask again.\""
+   "number": "5 ms",
+   "evidence": "'where is my wallet' -> \"I haven't seen your wallet. I did see a handbag, about 2 metres straight ahead, 2 minutes ago; maybe that's it. If it has an AirTag, Find My on your phone can play a sound.\""
   },
   {
    "key": "voice",
    "feature": "Spoken question to answer",
    "owner": "metasight-muse",
    "status": "PASS",
-   "number": "1926 ms",
-   "evidence": "heard ['Where is my desk?'], answered \"There's a desk about a metre ahead to the right at eye level near the laptop and TV.\"; client saw it 1479 ms after the last word left"
+   "number": "1429 ms",
+   "evidence": "heard ['Where is my desk?'], answered \"Your desk was behind you about a metre away around eye level near the laptop and TV a minute ago.\"; client saw it 1111 ms after the last word left"
   },
   {
    "key": "changed",
    "feature": "Tool path: what changed",
    "owner": "metasight-muse",
    "status": "PASS",
-   "number": "1974 ms",
-   "evidence": "\"The TV, remote and pillow moved, and a basket, vacuum cleaner, trash can, wallet and someone appeared.\" (tools True)"
+   "number": "3863 ms",
+   "evidence": "\"Those items moved \u2014 I'll pinpoint their current locations.\" (tools True)"
   },
   {
    "key": "who",
    "feature": "Tool path: who is talking",
    "owner": "metasight-muse",
    "status": "PASS",
-   "number": "1437 ms",
+   "number": "1631 ms",
    "evidence": "\"No one is talking right now.\" (tools True)"
   },
   {
@@ -180,24 +202,24 @@
    "feature": "Map pose non-empty, map not black",
    "owner": "metasight-display",
    "status": "PASS",
-   "number": "768 poses",
-   "evidence": "101411 map points, 79 pins, last pos [-0.42, 1.66, -0.11]; 10 map windows, median 3289 ms"
+   "number": "796 poses",
+   "evidence": "102062 map points, 68 pins, last pos [0.76, 0.95, -0.23]; 8 map windows, median 3022 ms"
   },
   {
    "key": "wonder",
    "feature": "Wonder map review",
    "owner": "metasight-muse",
    "status": "PASS",
-   "number": "10632 ms, $0.015",
-   "evidence": "12 changes, 12 items by muse-wonder; e.g. \"Your laptop is no longer near the TV and sink.\""
+   "number": "26617 ms, $0.007",
+   "evidence": "5 changes, 5 items by muse-wonder"
   },
   {
    "key": "speaker",
    "feature": "Speaker cue (two voices, -50 and +40 deg)",
    "owner": "metasight-people",
    "status": "PASS",
-   "number": "left 870 ms, right 1590 ms",
-   "evidence": "first cue per voice after its onset: turn left at -48.3 deg; turn right at 39.2 deg; 6 cues, 275 people events, doa range -50.0 to 39.2"
+   "number": "left 845 ms, right 944 ms",
+   "evidence": "first cue per voice after its onset: turn left at -48.3 deg; turn right at 39.2 deg; 6 cues, 139 people events, doa range -50.0 to 39.2"
   },
   {
    "key": "modes",
@@ -205,7 +227,7 @@
    "owner": "metasight-people",
    "status": "PASS",
    "number": "4 of 4",
-   "evidence": "each switch sent an activity event with its spoken line; slowest 10 ms"
+   "evidence": "each switch sent an activity event with its spoken line; slowest 4 ms"
   },
   {
    "key": "onboarding",
@@ -213,15 +235,15 @@
    "owner": "metasight-people",
    "status": "PASS",
    "number": "4 steps",
-   "evidence": "steps walk > name > belt > done; walked area 0.5 m2 before 'that's all'; 'Got it, keys.'; belt intro played 4 mode patterns"
+   "evidence": "steps walk > name > belt > done; walked area 1.8 m2 before 'that's all'; 'Got it, keys.'; belt intro played 4 mode patterns"
   },
   {
    "key": "notes",
    "feature": "Notes start, stop, summary, question",
    "owner": "metasight-people",
    "status": "PASS",
-   "number": "summary 1581 ms",
-   "evidence": "start line said: True; 1 transcript lines; title \"Medication Morning Dose Note\"; 'what did the doctor say?' -> \"Someone said \"The doctor said to take two pills at nine in the morning.\"\""
+   "number": "summary 1946 ms",
+   "evidence": "start line said: True; 1 transcript lines; title \"Medication Morning Dose Instructions\"; 'what did the doctor say?' -> \"Someone said \"The doctor said to take two pills at nine in the morning.\"\""
   }
  ],
  "note": ""
