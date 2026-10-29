@@ -21,3 +21,5 @@ showcase/rec/audio/
 ios/**/xcuserdata/
 ios/build/
 site/public/
+showcase/demo/draft/
+showcase/demo/footage/
