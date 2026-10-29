@@ -660,6 +660,19 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
                     f"'where is my {label}' -> \"{res.get('text')}\" (via {res.get('language')})",
                 )
             )
+            # Standing next to it ends the guide as found at once; then ask for the next most-seen
+            # thing (up to 3 more) so the guide gets a target across the room.
+            tried = [label]
+            rest = [k for k in sorted(counts, key=counts.get, reverse=True) if k != label]
+            while rest and len(tried) < 4:
+                await asyncio.sleep(2)
+                after = c.since(t0, "safety")
+                if any(e.get("guide") for e in after) or not any(e.get("found") for e in after):
+                    break
+                tried.append(rest.pop(0))
+                t0 = time.time()
+                await c.ask(f"where is my {tried[-1]}")
+            meta["guide_tried"] = tried
             # At least 10 s of guide frames, longer (up to 30 s) until 20 frames carried a guide.
             while (dt := time.time() - t0) < 30 and (
                 dt < 10 or sum(e.get("guide") is not None for e in c.since(t0, "safety")) < 20
@@ -695,7 +708,8 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
                             if found_at_once
                             else ""
                         )
-                        + ("" if meta["find_far"] else "; no pin was 1.5 m or more away"),
+                        + ("" if meta["find_far"] else "; no pin was 1.5 m or more away")
+                        + f"; asked for {', '.join(tried)}",
                     )
                 )
             else:
@@ -709,7 +723,7 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
                         f"{len(with_b)} of {len(guides)} frames",
                         (
                             f"median frame: {b['bearing']} deg, {b['dist']} m, in view "
-                            f"{b['in_view']}"
+                            f"{b['in_view']}; asked for {', '.join(tried)}"
                             if b
                             else f"guide set but bearing null, not in view; {why}"
                         ),
