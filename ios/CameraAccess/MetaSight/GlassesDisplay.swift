@@ -2,7 +2,7 @@
 // GlassesDisplay.swift
 //
 // Puts meta-sight's cues on the Meta Ray-Ban Display's 600x600 screen: the nearest
-// obstacle (an arrow and its distance, red for fast/stop, yellow for slow), and, after a
+// obstacle (a wall or a stop sign and its distance, in the belt's colours), and, after a
 // "where is" question, the item, where and how long ago it was seen, and an arrow
 // toward it (a pin when there is no live bearing). Black background (clear on the
 // lens), one coloured glyph, at most two lines of large text, drawn as a single image
@@ -21,8 +21,10 @@ import UIKit
 /// One screenful for the glasses.
 struct DisplayCard: Equatable, Sendable {
   enum Glyph: Equatable, Sendable {
-    /// Arrow toward an obstacle; degrees clockwise from straight ahead.
+    /// Wall on the obstacle's side; degrees clockwise from straight ahead.
     case obstacle(bearing: Double, band: ProximityBand)
+    /// Open ring: nothing cued.
+    case clear
     /// Arrow toward the item being guided to.
     case target(bearing: Double)
     /// Map pin: an item with no live fix, from an answer or an earlier walk.
@@ -32,10 +34,7 @@ struct DisplayCard: Equatable, Sendable {
   var glyph: Glyph?
   var title: String
   var detail: String?
-  /// Nothing to report: small, dim text.
-  var quiet = false
-
-  static let clear = DisplayCard(title: "Path clear", quiet: true)
+  static let clear = DisplayCard(glyph: .clear, title: "Clear")
   /// An answer stays up this long when there is no live guide to the item.
   static let answerSeconds: TimeInterval = 12
   /// A new card waits this long after the last one unless it is a new "stop", so the
@@ -44,6 +43,11 @@ struct DisplayCard: Equatable, Sendable {
 
   var isStop: Bool {
     if case .obstacle(_, .stop) = glyph { return true }
+    return false
+  }
+
+  var isObstacle: Bool {
+    if case .obstacle = glyph { return true }
     return false
   }
 
@@ -206,13 +210,14 @@ final class GlassesDisplay {
     }
   }
 
-  /// Four times a second, sends the card when it differs from what is showing.
+  /// Ten times a second, sends the card when it differs from what is showing, so the
+  /// lens follows the phone's warning within a tick.
   private func startRefreshing() {
     refresher?.cancel()
     refresher = Task { [weak self] in
       while !Task.isCancelled {
         await self?.refresh()
-        try? await Task.sleep(for: .milliseconds(250))
+        try? await Task.sleep(for: .milliseconds(100))
       }
     }
   }
@@ -220,13 +225,13 @@ final class GlassesDisplay {
   private func refresh() async {
     guard let display else { return }
     let card = DisplayCard.make(
-      warning: link.proximity?.cueWarning, guide: link.guide, answer: link.answerNote)
+      warning: link.warning, guide: link.guide, answer: link.answerNote)
     guard card != shown else { return }
-    // A change of urgency (white, amber, Stop, either way) goes out at once, so the lens
-    // never shows a different zone from the belt and the phone; a new distance in the same
-    // zone, or a change between item cards, waits out the dwell.
-    let changesZone = card.urgency != (shown?.urgency ?? .clear)
-    guard changesZone || Date().timeIntervalSince(shownAt) >= DisplayCard.minDwell else { return }
+    // Obstacle cards go out at once: `WarningFilter` already holds their zone and number,
+    // and the phone card and belt chip show the same warning. Only changes between item,
+    // answer and clear cards wait out the dwell.
+    let obstacle = card.isObstacle || shown?.isObstacle == true
+    guard obstacle || Date().timeIntervalSince(shownAt) >= DisplayCard.minDwell else { return }
     do {
       try await display.send(Self.view(for: card))
       shown = card
@@ -246,12 +251,7 @@ final class GlassesDisplay {
       direction: .column, spacing: 0, alignment: .center, crossAlignment: .center,
       padding: EdgeInsets(all: 36)
     ) {
-      if card.quiet {
-        Text(card.title, style: .meta, color: .secondary)
-          .alignSelf(.center)
-      } else {
-        Image(image: image(for: card), sizePreset: .fill)
-      }
+      Image(image: image(for: card), sizePreset: .fill)
     }
     .flexGrow(1)
   }
@@ -265,6 +265,7 @@ final class GlassesDisplay {
     let color: UIColor =
       switch card.glyph {
       case let .obstacle(_, band): band.lensColor
+      case .clear: UIColor(red: 110 / 255, green: 220 / 255, blue: 140 / 255, alpha: 1)
       default: .white
       }
     let maxWidth = side - 16
@@ -346,6 +347,14 @@ final class GlassesDisplay {
       pin.close()
       pin.append(UIBezierPath(ovalIn: CGRect(x: -21, y: -51, width: 42, height: 42)).reversing())
       pin.fill()
+      return
+    }
+    if case .clear = glyph {
+      // An open ring: nothing in the way, and nothing that could read as an arrow.
+      let ring = UIBezierPath(ovalIn: CGRect(x: -66, y: -66, width: 132, height: 132))
+      ring.lineWidth = 26
+      color.setStroke()
+      ring.stroke()
       return
     }
     if case let .obstacle(bearing, band) = glyph {

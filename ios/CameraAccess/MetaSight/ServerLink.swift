@@ -118,6 +118,9 @@ final class ServerLink {
   private(set) var answerNote: AnswerNote?
   /// Sector distances from the latest safety message, as forwarded to the watch.
   private(set) var proximity: ProximityReading?
+  /// The obstacle warning the wearer sees on the lens, the belt chip and this card:
+  /// the cued warning, held and smoothed by `WarningFilter`.
+  private(set) var warning: ProximityWarning?
 
   // MARK: - Frame path (read off the main actor)
 
@@ -130,6 +133,7 @@ final class ServerLink {
   @ObservationIgnored private var supervisor: Task<Void, Never>?
   @ObservationIgnored private var motionFlusher: Task<Void, Never>?
   @ObservationIgnored private var motionBuffer: [[Double]] = []
+  @ObservationIgnored private var warningFilter = WarningFilter()
   @ObservationIgnored private let speaker = AnswerSpeaker()
   /// Spatial beeps for the proximity bands, through the active output (the glasses).
   @ObservationIgnored let beeper = SpatialBeeper()
@@ -369,7 +373,8 @@ final class ServerLink {
       let reading = msg.sectors.flatMap { sectors in
         msg.cues.map { Self.proximity(sectors: sectors, modes: $0.map(\.mode), path: msg.path) }
       }
-      statusLine = Self.statusLine(warning: reading?.cueWarning, guide: msg.guide, found: msg.found ?? false)
+      warning = warningFilter.update(reading?.cueWarning, now: Date())
+      statusLine = Self.statusLine(warning: warning, guide: msg.guide, found: msg.found ?? false)
       if let reading {
         proximity = reading
         WatchLink.shared.send(reading)
@@ -415,5 +420,91 @@ final class ServerLink {
       parts.append("Found it")
     }
     return parts.joined(separator: " · ")
+  }
+}
+
+// MARK: - The warning the wearer sees
+
+// Shared by the lens, the belt chip and the phone card so all three show the same zone
+// and the same number. The server's cues flicker with depth noise: a zone is only raised
+// once its cue has held for a moment (less for Stop), it falls back one zone at a time,
+// and the number moves at most once a second inside a zone.
+
+struct WarningFilter {
+  /// How long a cue must hold before its zone is shown: Stop almost at once, a far
+  /// obstacle only once it is clearly there.
+  static func rise(_ band: ProximityBand) -> TimeInterval {
+    switch band {
+    case .stop: 0.15
+    case .fast: 0.3
+    case .slow, .clear: 0.5
+    }
+  }
+
+  /// How long the cue must stay below the shown zone before it drops one step.
+  static let fall: TimeInterval = 0.6
+  /// The number inside a zone changes at most this often.
+  static let numberHold: TimeInterval = 1
+  /// Messages arrive about every 60 ms; a hold that is due within a millisecond is due.
+  private static let slack: TimeInterval = 0.001
+
+  private(set) var shown: ProximityWarning?
+  /// When the raw cue first reached each band, and has stayed at or above it since.
+  private var heldSince: [ProximityBand: Date] = [:]
+  private var belowSince: Date?
+  private var numberAt = Date.distantPast
+
+  /// Feeds one safety message's cued warning; returns the warning to show.
+  @discardableResult
+  mutating func update(_ raw: ProximityWarning?, now: Date) -> ProximityWarning? {
+    let rawBand = raw?.band ?? .clear
+    for band in [ProximityBand.slow, .fast, .stop] {
+      if rawBand >= band {
+        heldSince[band] = heldSince[band] ?? now
+      } else {
+        heldSince[band] = nil
+      }
+    }
+    let ready = [ProximityBand.stop, .fast, .slow].first {
+      guard let since = heldSince[$0] else { return false }
+      return now.timeIntervalSince(since) >= Self.rise($0) - Self.slack
+    } ?? .clear
+    var band = shown?.band ?? .clear
+
+    if ready > band {
+      band = ready
+      belowSince = nil
+    } else if rawBand < band {
+      let since = belowSince ?? now
+      belowSince = since
+      if now.timeIntervalSince(since) >= Self.fall - Self.slack {
+        band = max(ready, ProximityBand(rawValue: band.rawValue - 1) ?? .clear)
+        belowSince = rawBand < band ? now : nil
+      }
+    } else {
+      belowSince = nil
+    }
+
+    guard band > .clear else {
+      shown = nil
+      return nil
+    }
+    let zoneChanged = band != shown?.band
+    if let raw, raw.band >= band, zoneChanged || now.timeIntervalSince(numberAt) >= Self.numberHold - Self.slack {
+      // A fresh reading for this zone: take its sector and number.
+      if zoneChanged || DisplayCard.distanceText(raw.distance) != DisplayCard.distanceText(shown?.distance)
+        || raw.sector != shown?.sector
+      {
+        numberAt = now
+      }
+      shown = ProximityWarning(sector: raw.sector, distance: raw.distance, band: band)
+    } else if let previous = shown {
+      // Falling, or holding the number: same sector and distance, in the zone now shown.
+      shown = ProximityWarning(sector: previous.sector, distance: previous.distance, band: band)
+    } else if let raw {
+      shown = ProximityWarning(sector: raw.sector, distance: raw.distance, band: band)
+      numberAt = now
+    }
+    return shown
   }
 }

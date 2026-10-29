@@ -106,7 +106,7 @@ struct CameraView: View {
           #endif
           Spacer()
           if !beltHiddenForPreview {
-            BeltView(belt: viewModel.link.belt, guideBearing: viewModel.link.guide?.bearing, cues: viewModel.link.proximity)
+            BeltView(belt: viewModel.link.belt, guideBearing: viewModel.link.guide?.bearing, cues: viewModel.link.proximity, warning: viewModel.link.warning)
               .frame(width: 150, height: 150)
               .background(Color.black.opacity(0.6))
               .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))

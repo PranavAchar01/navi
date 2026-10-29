@@ -17,6 +17,8 @@ struct BeltView: View {
   /// The server's safety cues: the nearest obstacle's distance, and the motors when no
   /// belt is connected.
   var cues: ProximityReading?
+  /// The warning shown on the lens and the phone card, for the distance chip.
+  var warning: ProximityWarning?
 
   private static let blue = Color(red: 90 / 255, green: 200 / 255, blue: 255 / 255)
   private static let purple = Color(red: 170 / 255, green: 120 / 255, blue: 255 / 255)
@@ -86,7 +88,7 @@ struct BeltView: View {
       drawMotor(belt, index: i, at: anchor, radius: motorRadius, in: &context, time: t)
     }
 
-    if let warning = cues?.cueWarning, warning.distance != nil {
+    if let warning, warning.distance != nil {
       // "0.4 m" just inside the nearest obstacle's motor, on a dark chip over the wearer.
       let angle = Double(warning.sector) * .pi / 4
       let at = CGPoint(x: center.x + sin(angle) * ringRadius * 0.55, y: center.y - cos(angle) * ringRadius * 0.55)

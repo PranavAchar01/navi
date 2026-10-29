@@ -73,6 +73,20 @@ final class DisplayCardTests: XCTestCase {
     XCTAssertEqual(ProximityBand(mode: "solid"), .stop)
   }
 
+  /// Clear gets the same big square as every other card, in green, never an arrow.
+  @MainActor func testClearIsABigGreenRing() throws {
+    let card = DisplayCard.make(warning: nil, guide: nil, answer: nil)
+    XCTAssertEqual(card.glyph, .clear)
+    XCTAssertEqual(card.title, "Clear")
+    let image = GlassesDisplay.image(for: card)
+    XCTAssertEqual(image.size.width, GlassesDisplay.cardSide)
+    // Kept under the ignored build folder so the drawing can be looked at.
+    let out = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+      .appendingPathComponent("build/cards/clear.png")
+    try? FileManager.default.createDirectory(at: out.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try? image.pngData()?.write(to: out)
+  }
+
   func testUrgencyRanksCards() {
     let slow = DisplayCard.make(warning: ProximityWarning(sector: 0, distance: 2, band: .slow), guide: nil, answer: nil)
     let fast = DisplayCard.make(warning: ProximityWarning(sector: 0, distance: 0.7, band: .fast), guide: nil, answer: nil)
