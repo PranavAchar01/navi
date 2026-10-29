@@ -84,11 +84,13 @@ def _sharpness(bgr: np.ndarray) -> float:
     return float(cv2.Laplacian(g, cv2.CV_32F).var())
 
 
-def _novel(stamps: list[float], read, hfov: float) -> list[int]:
-    """Indices the novelty policy keeps (metasight/keyframes.py), fed every frame in order."""
+def _novel(stamps: list[float], read, hfov: float, policy: str = "novel") -> list[int]:
+    """Indices the novelty policy keeps (metasight/keyframes.py), fed every frame in order.
+    `policy` "novel:10:2.5" sets the turn threshold (degrees) and the longest gap (seconds)."""
     from metasight.keyframes import KeyframePolicy
 
-    pol, kept = KeyframePolicy(hfov), []
+    knobs = dict(zip(("turn_deg", "max_gap_s"), map(float, policy.split(":")[1:]), strict=False))
+    pol, kept = KeyframePolicy(hfov, **knobs), []
     for i, t in enumerate(stamps):
         g = cv2.cvtColor(read(i), cv2.COLOR_BGR2GRAY)
         k = pol.offer(g, float(cv2.Laplacian(cv2.resize(g, (320, 240)), cv2.CV_32F).var()), t, i)
@@ -124,11 +126,11 @@ def load_tum(folder: Path, hz: float, seconds: float, policy: str = "slots"):
     stamps = [float(t) for t, _ in rgb]
     stamps = [t for t in stamps if t - stamps[0] <= seconds]
     frames = []
-    if policy == "novel":
+    if policy.startswith("novel"):
         hfov = next((v for k, v in TUM_HFOV.items() if k in folder.name), 62.0)
-        for i in _novel(stamps, lambda i: cv2.imread(str(folder / rgb[i][1])), hfov):
+        for i in _novel(stamps, lambda i: cv2.imread(str(folder / rgb[i][1])), hfov, policy):
             frames.append((i, stamps[i], cv2.imread(str(folder / rgb[i][1]))))
-    for g in _pick(stamps, hz) if policy != "novel" else []:
+    for g in _pick(stamps, hz) if not policy.startswith("novel") else []:
         imgs = [cv2.imread(str(folder / rgb[i][1])) for i in g]
         best = max(range(len(g)), key=lambda k: _sharpness(imgs[k]))
         frames.append((g[best], stamps[g[best]], imgs[best]))
@@ -151,9 +153,9 @@ def load_walk(folder: Path, hz: float, seconds: float, policy: str = "slots"):
     def read(i):
         return cv2.imread(str(folder / "frames" / fr[i]["file"]))
 
-    if policy == "novel":
+    if policy.startswith("novel"):
         hfov = json.loads((folder / "camera.json").read_text())["hfov"]
-        picks = _novel(stamps, read, hfov)
+        picks = _novel(stamps, read, hfov, policy)
     else:
         picks = [max(g, key=lambda k: _sharpness(read(k))) for g in _pick(stamps, hz)]
     frames = [(i, stamps[i], read(i)) for i in picks]
@@ -317,7 +319,7 @@ def main():
     ap.add_argument("source")
     ap.add_argument("--seconds", type=float, default=600)
     ap.add_argument("--hz", type=float, default=None, help="keyframes per second")
-    ap.add_argument("--policy", default="slots", help="slots (sharpest per 1/hz) or novel")
+    ap.add_argument("--policy", default="slots", help="slots, novel, or novel:TURN:GAP")
     ap.add_argument("--src-hfov", type=float, default=None, help="crop video to glasses view")
     ap.add_argument("--finder", default="yoloe", help="yoloe (free) or hybrid (bills SAM)")
     ap.add_argument("--no-objects", action="store_true")
@@ -362,7 +364,7 @@ def main():
     hfov = None
     if a.intrinsics:
         hfov = next((v for k, v in TUM_HFOV.items() if k in src.name), None) or s.hfov_deg
-    key = f"{src.resolve()}|{a.src_hfov}|{hz}" + ("|novel" if a.policy == "novel" else "")
+    key = f"{src.resolve()}|{a.src_hfov}|{hz}" + (f"|{a.policy}" if a.policy != "slots" else "")
     runner = CachedRunner(key, ROOT / "data" / "cache", hfov)
     finder = NoFinder() if a.no_objects else make_finder(s)
     from metasight.loops import Describer
