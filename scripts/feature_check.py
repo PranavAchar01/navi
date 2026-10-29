@@ -163,7 +163,9 @@ def serve(port: int) -> None:
 
 
 # Ignored by git but needed by the server: model weights, vendored code, the belt emulator.
-LINKED = ("data", "third_party", "weights", "web/dist", "firmware/emulator/belt-emu", "certs")
+# data/ is not linked: the server gets copies of the house and the walk folder through
+# METASIGHT_HOME and METASIGHT_WALKS, and nothing else it opens lives under data/.
+LINKED = ("third_party", "weights", "web/dist", "firmware/emulator/belt-emu", "certs")
 
 
 def worktree(work: Path) -> Path:
@@ -180,6 +182,22 @@ def worktree(work: Path) -> Path:
             (wt / rel).parent.mkdir(parents=True, exist_ok=True)
             (wt / rel).symlink_to(ROOT / rel)
     return wt
+
+
+def live_data() -> dict:
+    """Fingerprint of the live house (content hashes) and walk recordings (size and mtime), to
+    show a run left them untouched."""
+    import hashlib
+
+    out = {}
+    for p in sorted((ROOT / "data" / "home").rglob("*")):
+        if p.is_file():
+            out[str(p.relative_to(ROOT))] = hashlib.sha256(p.read_bytes()).hexdigest()
+    for p in sorted((ROOT / "data" / "walks").rglob("*")):
+        if p.is_file():
+            st = p.stat()
+            out[str(p.relative_to(ROOT))] = f"{st.st_size}:{st.st_mtime_ns}"
+    return out
 
 
 def drop_worktree(wt: Path) -> None:
@@ -371,6 +389,9 @@ async def voice_before_map(c: Client) -> dict:
         t0 = time.time()
         spoken = await c.audio(speech("where are my keys"), 1)
         a, at = await c.wait(t0, "answer", lambda e: True, 8)
+        second = None
+        if a is not None:  # the real answer may follow once the map is in
+            second, _ = await c.wait(at + 0.001, "answer", lambda e: True, 10)
         ready = (await c.state()).get("memory_ready")
         heard = [e["text"] for e in c.since(t0, "transcript") if e.get("final")]
         fin = [
@@ -391,6 +412,7 @@ async def voice_before_map(c: Client) -> dict:
             f"{note}no answer in 8 s after the speech; finals heard {heard}",
         )  # fmt: skip
     ms = 1000 * (at - spoken)
+    then = f'second answer in 10 s: "{second.get("text")}"' if second else "no second answer"
     loading = "still loading" in (a.get("text") or "").lower()
     ok = loading and ms <= 2000
     return row(
@@ -398,9 +420,9 @@ async def voice_before_map(c: Client) -> dict:
         f"spoken 'where are my keys' before memory_ready -> \"{a.get('text')}\" "
         f"{ms:.0f} ms after the speech ended (limit 2000); final transcript at "
         f"{1000 * (fin[0] - spoken):.0f} ms; finals heard {heard}; "
-        f"asr handshake {asr.get('handshake_ms')} ms, warmup {asr.get('warmup_ms')} ms"
+        f"asr handshake {asr.get('handshake_ms')} ms, warmup {asr.get('warmup_ms')} ms; {then}"
         if fin
-        else f"{ms:.0f} ms after the speech ended (limit 2000); no final transcript event",
+        else f"{ms:.0f} ms after the speech ended (limit 2000); no final transcript event; {then}",
     )  # fmt: skip
 
 
@@ -1308,6 +1330,14 @@ def write_report(results: list, meta: dict, walk: str, stamp: str, note: str) ->
         )
         + ".",
         "",
+        f"Live data: {meta['live_data']['files']} files under data/home and data/walks checked "
+        "before and after the run (house by content hash, walks by size and mtime): "
+        + (
+            "unchanged."
+            if not meta["live_data"]["changed"]
+            else "CHANGED: " + ", ".join(f"`{f}`" for f in meta["live_data"]["changed"][:10]) + "."
+        ),
+        "",
         "`scripts/feature_check.py` starts a private server on a free port (never the live one on "
         f"{LIVE_PORT}), with its own notes, sessions and a copy of the home map, at background "
         f"priority. It streams the recorded walk `data/walks/{walk}` at real speed "
@@ -1364,6 +1394,7 @@ def main() -> None:
     walk = ROOT / "data" / "walks" / a.walk
     stamp = time.strftime("%Y-%m-%d %H:%M %Z")
     tree = git_state()  # the private server runs a clean worktree at this HEAD
+    before = live_data()
     if why := preflight():
         print("skipped:", why)
         sys.exit(2)
@@ -1507,6 +1538,9 @@ def main() -> None:
             )
         )
     meta["git"] = tree  # dirty files are listed but not flagged: the server ran from HEAD
+    after = live_data()
+    changed = sorted(k for k in before.keys() | after.keys() if before.get(k) != after.get(k))
+    meta["live_data"] = {"files": len(before), "changed": changed}
     summary = write_report(results, meta, a.walk, stamp, note)
     RESULTS.write_text(
         json.dumps(
