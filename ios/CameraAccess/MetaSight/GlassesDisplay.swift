@@ -47,24 +47,40 @@ struct DisplayCard: Equatable, Sendable {
     return false
   }
 
+  var urgency: ProximityBand {
+    if case let .obstacle(_, band) = glyph { return band }
+    return .clear
+  }
+
+  var isObstacle: Bool {
+    if case .obstacle = glyph { return true }
+    return false
+  }
+
   /// Most urgent first: an obstacle within stopping distance, then the item being guided
-  /// to (or the latest answer), then any nearer-than-2 m obstacle. Indoors something is
-  /// nearly always within a metre, so only "stop" takes the screen from an answer; the
-  /// belt and beeps still carry the slow and fast cues.
+  /// to with a live fix, then a fresh answer, then any cued obstacle, and last the pin of
+  /// an item still being looked for. Indoors something is nearly always within a metre,
+  /// so only "stop" takes the screen from an arrow or an answer; once an answer is
+  /// old and the server has no fix on the item, obstacles get the lens back.
   static func make(
     warning: ProximityWarning?, guide: GuideTarget?, answer: AnswerNote?, now: Date = Date()
   ) -> DisplayCard {
     if let warning, warning.band == .stop { return obstacle(warning) }
-    if let guide { return guiding(guide, answer: answer, now: now) }
-    if let answer, now.timeIntervalSince(answer.at) < answerSeconds { return answered(answer, now: now) }
+    if let guide, guide.dist != nil || guide.bearing != nil { return guiding(guide, answer: answer, now: now) }
+    if let answer, now.timeIntervalSince(answer.at) < answerSeconds {
+      if let guide, guide.label == answer.label { return guiding(guide, answer: answer, now: now) }
+      return answered(answer, now: now)
+    }
     if let warning { return obstacle(warning) }
+    if let guide { return guiding(guide, answer: answer, now: now) }
     return .clear
   }
 
   private static func obstacle(_ w: ProximityWarning) -> DisplayCard {
     let glyph = Glyph.obstacle(bearing: Double(w.sector) * 45, band: w.band)
     if w.band == .stop {
-      return DisplayCard(glyph: glyph, title: "Stop", detail: "\(w.directionName) · \(distanceText(w.distance))")
+      // No number: it would be up to a dwell old, and the belt chip carries the live one.
+      return DisplayCard(glyph: glyph, title: "Stop", detail: w.directionName)
     }
     return DisplayCard(glyph: glyph, title: distanceText(w.distance), detail: w.directionName)
   }
@@ -211,8 +227,11 @@ final class GlassesDisplay {
     let card = DisplayCard.make(
       warning: link.proximity?.cueWarning, guide: link.guide, answer: link.answerNote)
     guard card != shown else { return }
-    let escalates = card.isStop && shown?.isStop != true
-    guard escalates || Date().timeIntervalSince(shownAt) >= DisplayCard.minDwell else { return }
+    // Rising urgency goes out at once (yellow to red, red to Stop), and so does the end
+    // of a Stop unless another obstacle simply takes its place; the rest waits out the dwell.
+    let escalates = card.urgency > (shown?.urgency ?? .clear)
+    let standsDown = shown?.isStop == true && !card.isObstacle
+    guard escalates || standsDown || Date().timeIntervalSince(shownAt) >= DisplayCard.minDwell else { return }
     do {
       try await display.send(Self.view(for: card))
       shown = card
@@ -316,8 +335,9 @@ final class GlassesDisplay {
     return .systemFont(ofSize: floor(size * width / w), weight: weight)
   }
 
-  /// A thick arrow turned toward the bearing, or a map pin when the item has no live
-  /// bearing; both about 176 px tall.
+  /// An arrow only ever means "go this way": toward the item, or a map pin when it has no
+  /// live bearing. An obstacle is a wall on its side of a dot standing for the wearer,
+  /// and a stop is an octagon. All about 176 px tall.
   private static func drawGlyph(_ glyph: DisplayCard.Glyph, color: UIColor, center: CGPoint, in cg: CGContext) {
     cg.saveGState()
     defer { cg.restoreGState() }
@@ -333,12 +353,25 @@ final class GlassesDisplay {
       pin.fill()
       return
     }
-    let bearing: Double =
-      switch glyph {
-      case let .obstacle(b, _): b
-      case let .target(b): b
-      case .pin: 0
+    if case let .obstacle(bearing, band) = glyph {
+      if band == .stop {
+        let octagon = UIBezierPath()
+        for k in 0..<8 {
+          let a = (Double(k) + 0.5) * .pi / 4
+          let p = CGPoint(x: 86 * cos(a), y: 86 * sin(a))
+          k == 0 ? octagon.move(to: p) : octagon.addLine(to: p)
+        }
+        octagon.close()
+        octagon.fill()
+        return
       }
+      // A flat wall on the obstacle's side of the wearer's dot. A curved one read as Wi-Fi.
+      cg.rotate(by: CGFloat(bearing) * .pi / 180)
+      UIBezierPath(ovalIn: CGRect(x: -22, y: 28, width: 44, height: 44)).fill()
+      UIBezierPath(roundedRect: CGRect(x: -80, y: -72, width: 160, height: 34), cornerRadius: 8).fill()
+      return
+    }
+    guard case let .target(bearing) = glyph else { return }
     cg.rotate(by: CGFloat(bearing) * .pi / 180)
     let path = UIBezierPath()
     path.move(to: CGPoint(x: 0, y: -86))

@@ -21,7 +21,7 @@ final class DisplayCardTests: XCTestCase {
     let stop = ProximityWarning(sector: 0, distance: 0.3, band: .stop)
     let card = DisplayCard.make(warning: stop, guide: keys, answer: note)
     XCTAssertEqual(card.title, "Stop")
-    XCTAssertEqual(card.detail, "Ahead · 0.3 m")
+    XCTAssertEqual(card.detail, "Ahead")
     XCTAssertEqual(card.glyph, .obstacle(bearing: 0, band: .stop))
   }
 
@@ -56,6 +56,27 @@ final class DisplayCardTests: XCTestCase {
     XCTAssertEqual(DisplayCard.distanceText(4.4), "4.0 m")
     XCTAssertEqual(DisplayCard.distanceText(2.8), "3.0 m")
     XCTAssertEqual(DisplayCard.distanceText(nil), "close")
+  }
+
+  func testUrgencyRanksCards() {
+    let slow = DisplayCard.make(warning: ProximityWarning(sector: 0, distance: 2, band: .slow), guide: nil, answer: nil)
+    let fast = DisplayCard.make(warning: ProximityWarning(sector: 0, distance: 0.7, band: .fast), guide: nil, answer: nil)
+    let stop = DisplayCard.make(warning: ProximityWarning(sector: 0, distance: 0.3, band: .stop), guide: nil, answer: nil)
+    XCTAssertLessThan(DisplayCard.clear.urgency, slow.urgency)
+    XCTAssertLessThan(slow.urgency, fast.urgency)
+    XCTAssertLessThan(fast.urgency, stop.urgency)
+  }
+
+  func testUnfixedGuideGivesTheLensBackToObstacles() {
+    let lost = GuideTarget(label: "keys", dist: nil, bearing: nil)
+    let fast = ProximityWarning(sector: 0, distance: 0.7, band: .fast)
+    let old = AnswerNote(
+      text: note.text, label: "keys", near: "kitchen counter", seen: note.seen, at: Date(timeIntervalSinceNow: -30))
+    // Fresh answer: the pin holds the lens.
+    XCTAssertEqual(DisplayCard.make(warning: fast, guide: lost, answer: note).glyph, .pin)
+    // Thirty seconds on, still no fix: the obstacle wins, and the pin comes back when clear.
+    XCTAssertEqual(DisplayCard.make(warning: fast, guide: lost, answer: old).title, "0.7 m")
+    XCTAssertEqual(DisplayCard.make(warning: nil, guide: lost, answer: old).glyph, .pin)
   }
 
   func testObstacleWhenNothingWasAsked() {
