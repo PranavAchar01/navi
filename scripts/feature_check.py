@@ -1324,6 +1324,7 @@ def write_report(results: list, meta: dict, walk: str, stamp: str, note: str) ->
             if meta["git"]["dirty"]
             else ""
         )
+        + (f"; the live service runs `{meta['live']}`" if meta.get("live") else "")
         + ".",
         "",
         f"Live data: {meta['live_data']['files']} files under data/home and data/walks checked "
@@ -1383,6 +1384,7 @@ def main() -> None:
     ap.add_argument("--serve", type=int, default=0, help=argparse.SUPPRESS)
     ap.add_argument("--walk", default="20261028-135040-iphone")
     ap.add_argument("--work", default="", help="scratch folder (default: a new temp folder)")
+    ap.add_argument("--live", default="", help="the commit the live service runs, for the report")
     a = ap.parse_args()
     if a.serve:
         serve(a.serve)
@@ -1533,6 +1535,7 @@ def main() -> None:
                 f"scripts/belt_check.py: {e}",
             )
         )
+    meta["live"] = a.live
     meta["git"] = tree  # dirty files are listed but not flagged: the server ran from HEAD
     after = live_data()
     changed = sorted(k for k in before.keys() | after.keys() if before.get(k) != after.get(k))
