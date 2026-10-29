@@ -47,6 +47,12 @@
     "pct": 8.3,
     "kinect_centre_mostly_holes": 0
    },
+   "b_false_front_vs_kinect_path": {
+    "events_per_min": 9.6,
+    "frames": 20,
+    "of_frames": 252,
+    "pct": 7.9
+   },
    "b_false_any_cue": {
     "events_per_min": 9.6,
     "frames": 9,
@@ -78,6 +84,12 @@
     "pct": 8.3,
     "kinect_centre_mostly_holes": 0
    },
+   "b_false_front_vs_kinect_path": {
+    "events_per_min": 9.6,
+    "frames": 20,
+    "of_frames": 252,
+    "pct": 7.9
+   },
    "b_false_any_cue": {
     "events_per_min": 9.6,
     "frames": 9,
@@ -108,6 +120,12 @@
     "of_frames": 222,
     "pct": 4.1,
     "kinect_centre_mostly_holes": 0
+   },
+   "b_false_front_vs_kinect_path": {
+    "events_per_min": 4.8,
+    "frames": 8,
+    "of_frames": 222,
+    "pct": 3.6
    },
    "b_false_any_cue": {
     "events_per_min": 4.8,
@@ -178,6 +196,12 @@
     "pct": 0.0,
     "kinect_centre_mostly_holes": 0
    },
+   "b_false_front_vs_kinect_path": {
+    "events_per_min": 0.0,
+    "frames": 0,
+    "of_frames": 989,
+    "pct": 0.0
+   },
    "b_false_any_cue": {
     "events_per_min": 0.0,
     "frames": 0,
@@ -209,6 +233,12 @@
     "pct": 0.0,
     "kinect_centre_mostly_holes": 0
    },
+   "b_false_front_vs_kinect_path": {
+    "events_per_min": 0.0,
+    "frames": 0,
+    "of_frames": 989,
+    "pct": 0.0
+   },
    "b_false_any_cue": {
     "events_per_min": 0.0,
     "frames": 0,
@@ -239,6 +269,12 @@
     "of_frames": 989,
     "pct": 0.0,
     "kinect_centre_mostly_holes": 0
+   },
+   "b_false_front_vs_kinect_path": {
+    "events_per_min": 0.0,
+    "frames": 0,
+    "of_frames": 989,
+    "pct": 0.0
    },
    "b_false_any_cue": {
     "events_per_min": 0.0,
@@ -309,6 +345,12 @@
     "pct": 59.8,
     "kinect_centre_mostly_holes": 0
    },
+   "b_false_front_vs_kinect_path": {
+    "events_per_min": 12.0,
+    "frames": 395,
+    "of_frames": 731,
+    "pct": 54.0
+   },
    "b_false_any_cue": {
     "events_per_min": 15.5,
     "frames": 246,
@@ -339,6 +381,12 @@
     "of_frames": 737,
     "pct": 60.1,
     "kinect_centre_mostly_holes": 0
+   },
+   "b_false_front_vs_kinect_path": {
+    "events_per_min": 11.2,
+    "frames": 401,
+    "of_frames": 737,
+    "pct": 54.4
    },
    "b_false_any_cue": {
     "events_per_min": 15.5,
@@ -371,6 +419,12 @@
     "pct": 32.0,
     "kinect_centre_mostly_holes": 0
    },
+   "b_false_front_vs_kinect_path": {
+    "events_per_min": 13.2,
+    "frames": 87,
+    "of_frames": 391,
+    "pct": 22.3
+   },
    "b_false_any_cue": {
     "events_per_min": 15.5,
     "frames": 93,
@@ -389,6 +443,2729 @@
     "frames": 0,
     "of_frames": 139,
     "pct": 0.0
+   }
+  }
+ },
+ "pioneer_false_front_diagnosis": {
+  "scale": 1.025,
+  "false_front_frames": 125,
+  "with_floor_fit": 93,
+  "frame_kinds": {
+   "edge_noise": 2,
+   "floor_off_plane": 10,
+   "kinect_hole": 22,
+   "other": 21,
+   "persist_carry": 1,
+   "real_object": 37
+  },
+  "sources": {
+   "path": 92,
+   "centre_wedge": 0,
+   "neither": 1
+  },
+  "kinect_path_under_2m_frames": 31,
+  "near_pixel_rows_from_top": {
+   "0.4-0.5": 0.102,
+   "0.5-0.6": 0.113,
+   "0.6-0.7": 0.115,
+   "0.7-0.8": 0.139,
+   "0.8-0.9": 0.148,
+   "0.9-1.0": 0.127
+  },
+  "near_pixel_strips": {
+   "0": 12630,
+   "1": 10558,
+   "2": 13009,
+   "3": 14101,
+   "4": 7327,
+   "5": 2303,
+   "6": 2339,
+   "7": 2433,
+   "8": 5065,
+   "9": 4427,
+   "10": 3247,
+   "11": 8231,
+   "12": 8952,
+   "13": 8661,
+   "14": 7534
+  },
+  "live_h_median_m": {
+   "median": 0.37,
+   "q1": 0.289,
+   "q3": 0.479
+  },
+  "true_h_median_m": {
+   "median": 0.298,
+   "q1": 0.127,
+   "q3": 0.482
+  },
+  "frames": [
+   {
+    "i": 110,
+    "source": "path",
+    "pixels": 2324,
+    "kind": "floor_off_plane",
+    "kind_share": 0.8,
+    "row_from_top_median": 0.9,
+    "strips": [
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11
+    ],
+    "live_h_median_m": 0.016,
+    "true_h_median_m": 0.018,
+    "kinect_path_m": 2.74
+   },
+   {
+    "i": 209,
+    "source": "path",
+    "pixels": 75,
+    "kind": "real_object",
+    "kind_share": 0.45,
+    "row_from_top_median": 0.6,
+    "strips": [
+     3,
+     4
+    ],
+    "live_h_median_m": 0.325,
+    "true_h_median_m": 0.258,
+    "kinect_path_m": 1.41
+   },
+   {
+    "i": 216,
+    "source": "neither",
+    "kind": "persist_carry"
+   },
+   {
+    "i": 238,
+    "source": "path",
+    "pixels": 186,
+    "kind": "other",
+    "kind_share": 1.0,
+    "row_from_top_median": 0.43,
+    "strips": [
+     8,
+     9
+    ],
+    "live_h_median_m": 0.426,
+    "true_h_median_m": 0.443,
+    "kinect_path_m": 2.38
+   },
+   {
+    "i": 241,
+    "source": "path",
+    "pixels": 93,
+    "kind": "other",
+    "kind_share": 1.0,
+    "row_from_top_median": 0.46,
+    "strips": [
+     8,
+     9
+    ],
+    "live_h_median_m": 0.389,
+    "true_h_median_m": 0.385,
+    "kinect_path_m": 2.28
+   },
+   {
+    "i": 242,
+    "source": "path",
+    "pixels": 166,
+    "kind": "other",
+    "kind_share": 1.0,
+    "row_from_top_median": 0.44,
+    "strips": [
+     8,
+     9
+    ],
+    "live_h_median_m": 0.424,
+    "true_h_median_m": 0.362,
+    "kinect_path_m": 2.21
+   },
+   {
+    "i": 243,
+    "source": "path",
+    "pixels": 126,
+    "kind": "other",
+    "kind_share": 0.99,
+    "row_from_top_median": 0.44,
+    "strips": [
+     8,
+     9
+    ],
+    "live_h_median_m": 0.436,
+    "true_h_median_m": 0.428,
+    "kinect_path_m": 2.16
+   },
+   {
+    "i": 244,
+    "source": "path",
+    "pixels": 83,
+    "kind": "other",
+    "kind_share": 1.0,
+    "row_from_top_median": 0.47,
+    "strips": [
+     8,
+     9
+    ],
+    "live_h_median_m": 0.457,
+    "true_h_median_m": 0.396,
+    "kinect_path_m": 2.21
+   },
+   {
+    "i": 245,
+    "source": "path",
+    "pixels": 141,
+    "kind": "other",
+    "kind_share": 0.91,
+    "row_from_top_median": 0.47,
+    "strips": [
+     8,
+     9
+    ],
+    "live_h_median_m": 0.413,
+    "true_h_median_m": 0.178,
+    "kinect_path_m": 2.1
+   },
+   {
+    "i": 246,
+    "source": "path",
+    "pixels": 361,
+    "kind": "other",
+    "kind_share": 0.85,
+    "row_from_top_median": 0.51,
+    "strips": [
+     8,
+     9
+    ],
+    "live_h_median_m": 0.417,
+    "true_h_median_m": 0.172,
+    "kinect_path_m": 2.09
+   },
+   {
+    "i": 247,
+    "source": "path",
+    "pixels": 150,
+    "kind": "other",
+    "kind_share": 1.0,
+    "row_from_top_median": 0.47,
+    "strips": [
+     8,
+     9
+    ],
+    "live_h_median_m": 0.457,
+    "true_h_median_m": 0.298,
+    "kinect_path_m": 2.1
+   },
+   {
+    "i": 248,
+    "source": "path",
+    "pixels": 510,
+    "kind": "other",
+    "kind_share": 0.95,
+    "row_from_top_median": 0.43,
+    "strips": [
+     8,
+     9
+    ],
+    "live_h_median_m": 0.516,
+    "true_h_median_m": 0.492,
+    "kinect_path_m": 2.09
+   },
+   {
+    "i": 249,
+    "source": "path",
+    "pixels": 533,
+    "kind": "other",
+    "kind_share": 0.92,
+    "row_from_top_median": 0.42,
+    "strips": [
+     8,
+     9
+    ],
+    "live_h_median_m": 0.545,
+    "true_h_median_m": 0.501,
+    "kinect_path_m": 2.04
+   },
+   {
+    "i": 250,
+    "source": "path",
+    "pixels": 629,
+    "kind": "other",
+    "kind_share": 0.93,
+    "row_from_top_median": 0.39,
+    "strips": [
+     8,
+     9
+    ],
+    "live_h_median_m": 0.556,
+    "true_h_median_m": 0.534,
+    "kinect_path_m": 2.03
+   },
+   {
+    "i": 268,
+    "source": "path",
+    "pixels": 751,
+    "kind": "real_object",
+    "kind_share": 0.98,
+    "row_from_top_median": 0.44,
+    "strips": [
+     3,
+     4
+    ],
+    "live_h_median_m": 0.624,
+    "true_h_median_m": 0.505,
+    "kinect_path_m": 1.38
+   },
+   {
+    "i": 282,
+    "source": "path",
+    "pixels": 491,
+    "kind": "other",
+    "kind_share": 0.86,
+    "row_from_top_median": 0.36,
+    "strips": [
+     6,
+     7,
+     8,
+     9,
+     10
+    ],
+    "live_h_median_m": 0.472,
+    "true_h_median_m": 0.361,
+    "kinect_path_m": 2.17
+   },
+   {
+    "i": 283,
+    "source": "path",
+    "pixels": 913,
+    "kind": "other",
+    "kind_share": 0.77,
+    "row_from_top_median": 0.46,
+    "strips": [
+     6,
+     7,
+     8,
+     9,
+     10,
+     11
+    ],
+    "live_h_median_m": 0.344,
+    "true_h_median_m": 0.201,
+    "kinect_path_m": 2.15
+   },
+   {
+    "i": 284,
+    "source": "path",
+    "pixels": 590,
+    "kind": "other",
+    "kind_share": 0.94,
+    "row_from_top_median": 0.44,
+    "strips": [
+     7,
+     8,
+     9,
+     10
+    ],
+    "live_h_median_m": 0.234,
+    "true_h_median_m": 0.245,
+    "kinect_path_m": 2.17
+   },
+   {
+    "i": 285,
+    "source": "path",
+    "pixels": 350,
+    "kind": "other",
+    "kind_share": 0.97,
+    "row_from_top_median": 0.44,
+    "strips": [
+     8,
+     9,
+     10
+    ],
+    "live_h_median_m": 0.212,
+    "true_h_median_m": 0.248,
+    "kinect_path_m": 2.16
+   },
+   {
+    "i": 286,
+    "source": "path",
+    "pixels": 74,
+    "kind": "other",
+    "kind_share": 0.51,
+    "row_from_top_median": 0.65,
+    "strips": [
+     9,
+     10
+    ],
+    "live_h_median_m": -0.076,
+    "true_h_median_m": 0.055,
+    "kinect_path_m": 2.17
+   },
+   {
+    "i": 320,
+    "source": "path",
+    "pixels": 1404,
+    "kind": "real_object",
+    "kind_share": 0.99,
+    "row_from_top_median": 0.75,
+    "strips": [
+     5,
+     11,
+     12,
+     13,
+     14
+    ],
+    "live_h_median_m": 0.203,
+    "true_h_median_m": 0.264,
+    "kinect_path_m": 6.01
+   },
+   {
+    "i": 338,
+    "source": "path",
+    "pixels": 1088,
+    "kind": "real_object",
+    "kind_share": 0.8,
+    "row_from_top_median": 0.36,
+    "strips": [
+     0,
+     10,
+     11,
+     12
+    ],
+    "live_h_median_m": 0.594,
+    "true_h_median_m": 0.301,
+    "kinect_path_m": 0.65
+   },
+   {
+    "i": 339,
+    "source": "path",
+    "pixels": 885,
+    "kind": "real_object",
+    "kind_share": 0.87,
+    "row_from_top_median": 0.52,
+    "strips": [
+     12,
+     13
+    ],
+    "live_h_median_m": 0.356,
+    "true_h_median_m": 0.28,
+    "kinect_path_m": 5.62
+   },
+   {
+    "i": 340,
+    "source": "path",
+    "pixels": 2167,
+    "kind": "kinect_hole",
+    "kind_share": 0.47,
+    "row_from_top_median": 0.59,
+    "strips": [
+     12,
+     13,
+     14
+    ],
+    "live_h_median_m": 0.608,
+    "true_h_median_m": 0.203,
+    "kinect_path_m": 5.52
+   },
+   {
+    "i": 341,
+    "source": "path",
+    "pixels": 1980,
+    "kind": "kinect_hole",
+    "kind_share": 0.52,
+    "row_from_top_median": 0.59,
+    "strips": [
+     10,
+     12,
+     13,
+     14
+    ],
+    "live_h_median_m": 0.661,
+    "true_h_median_m": 0.24,
+    "kinect_path_m": 5.48
+   },
+   {
+    "i": 342,
+    "source": "path",
+    "pixels": 1444,
+    "kind": "kinect_hole",
+    "kind_share": 0.67,
+    "row_from_top_median": 0.64,
+    "strips": [
+     13,
+     14
+    ],
+    "live_h_median_m": 0.411,
+    "true_h_median_m": 0.221,
+    "kinect_path_m": 5.46
+   },
+   {
+    "i": 343,
+    "source": "path",
+    "pixels": 814,
+    "kind": "kinect_hole",
+    "kind_share": 0.77,
+    "row_from_top_median": 0.58,
+    "strips": [
+     13,
+     14
+    ],
+    "live_h_median_m": 0.56,
+    "true_h_median_m": 0.242,
+    "kinect_path_m": 5.41
+   },
+   {
+    "i": 358,
+    "source": "path",
+    "pixels": 8,
+    "kind": "floor_off_plane",
+    "kind_share": 1.0,
+    "row_from_top_median": 0.6,
+    "strips": [
+     9
+    ],
+    "live_h_median_m": 0.109,
+    "true_h_median_m": 0.028,
+    "kinect_path_m": 4.3
+   },
+   {
+    "i": 359,
+    "source": "path",
+    "pixels": 20,
+    "kind": "kinect_hole",
+    "kind_share": 0.5,
+    "row_from_top_median": 0.53,
+    "strips": [
+     9
+    ],
+    "live_h_median_m": 0.217,
+    "true_h_median_m": 0.101,
+    "kinect_path_m": 4.24
+   },
+   {
+    "i": 360,
+    "source": "path",
+    "pixels": 16,
+    "kind": "kinect_hole",
+    "kind_share": 0.5,
+    "row_from_top_median": 0.58,
+    "strips": [
+     9
+    ],
+    "live_h_median_m": 0.103,
+    "true_h_median_m": 0.04,
+    "kinect_path_m": 4.18
+   },
+   {
+    "i": 366,
+    "source": "path",
+    "pixels": 28,
+    "kind": "kinect_hole",
+    "kind_share": 1.0,
+    "row_from_top_median": 0.46,
+    "strips": [
+     9
+    ],
+    "live_h_median_m": 0.325,
+    "true_h_median_m": null,
+    "kinect_path_m": 3.95
+   },
+   {
+    "i": 367,
+    "source": "path",
+    "pixels": 18,
+    "kind": "kinect_hole",
+    "kind_share": 0.94,
+    "row_from_top_median": 0.46,
+    "strips": [
+     9
+    ],
+    "live_h_median_m": 0.331,
+    "true_h_median_m": 0.038,
+    "kinect_path_m": 3.95
+   },
+   {
+    "i": 368,
+    "source": "path",
+    "pixels": 25,
+    "kind": "kinect_hole",
+    "kind_share": 0.96,
+    "row_from_top_median": 0.45,
+    "strips": [
+     9
+    ],
+    "live_h_median_m": 0.327,
+    "true_h_median_m": -0.012,
+    "kinect_path_m": 3.94
+   },
+   {
+    "i": 369,
+    "source": "path",
+    "pixels": 10,
+    "kind": "kinect_hole",
+    "kind_share": 0.8,
+    "row_from_top_median": 0.44,
+    "strips": [
+     9
+    ],
+    "live_h_median_m": 0.352,
+    "true_h_median_m": 0.316,
+    "kinect_path_m": 3.95
+   },
+   {
+    "i": 370,
+    "source": "path",
+    "pixels": 24,
+    "kind": "kinect_hole",
+    "kind_share": 1.0,
+    "row_from_top_median": 0.46,
+    "strips": [
+     9
+    ],
+    "live_h_median_m": 0.329,
+    "true_h_median_m": null,
+    "kinect_path_m": 3.95
+   },
+   {
+    "i": 371,
+    "source": "path",
+    "pixels": 13,
+    "kind": "kinect_hole",
+    "kind_share": 1.0,
+    "row_from_top_median": 0.41,
+    "strips": [
+     9
+    ],
+    "live_h_median_m": 0.395,
+    "true_h_median_m": null,
+    "kinect_path_m": 3.96
+   },
+   {
+    "i": 372,
+    "source": "path",
+    "pixels": 59,
+    "kind": "kinect_hole",
+    "kind_share": 0.61,
+    "row_from_top_median": 0.44,
+    "strips": [
+     9
+    ],
+    "live_h_median_m": 0.285,
+    "true_h_median_m": 0.359,
+    "kinect_path_m": 3.96
+   },
+   {
+    "i": 376,
+    "source": "path",
+    "pixels": 111,
+    "kind": "kinect_hole",
+    "kind_share": 0.48,
+    "row_from_top_median": 0.31,
+    "strips": [
+     6,
+     7
+    ],
+    "live_h_median_m": 0.406,
+    "true_h_median_m": 0.87,
+    "kinect_path_m": 3.84
+   },
+   {
+    "i": 410,
+    "source": "path",
+    "pixels": 101,
+    "kind": "kinect_hole",
+    "kind_share": 0.47,
+    "row_from_top_median": 0.44,
+    "strips": [
+     4,
+     5,
+     6,
+     7
+    ],
+    "live_h_median_m": 0.268,
+    "true_h_median_m": 0.297,
+    "kinect_path_m": 3.38
+   },
+   {
+    "i": 414,
+    "source": "path",
+    "pixels": 148,
+    "kind": "edge_noise",
+    "kind_share": 0.54,
+    "row_from_top_median": 0.29,
+    "strips": [
+     4,
+     5,
+     6,
+     7,
+     8,
+     9
+    ],
+    "live_h_median_m": 0.423,
+    "true_h_median_m": 0.58,
+    "kinect_path_m": 2.86
+   },
+   {
+    "i": 415,
+    "source": "path",
+    "pixels": 161,
+    "kind": "edge_noise",
+    "kind_share": 0.58,
+    "row_from_top_median": 0.33,
+    "strips": [
+     4,
+     5,
+     6
+    ],
+    "live_h_median_m": 0.417,
+    "true_h_median_m": 0.615,
+    "kinect_path_m": 2.76
+   },
+   {
+    "i": 416,
+    "source": "path",
+    "pixels": 6,
+    "kind": "floor_off_plane",
+    "kind_share": 1.0,
+    "row_from_top_median": 0.6,
+    "strips": [
+     6
+    ],
+    "live_h_median_m": 0.083,
+    "true_h_median_m": -0.019,
+    "kinect_path_m": 3.51
+   },
+   {
+    "i": 425,
+    "source": "path",
+    "pixels": 2228,
+    "kind": "real_object",
+    "kind_share": 0.9,
+    "row_from_top_median": 0.51,
+    "strips": [
+     1,
+     2,
+     3
+    ],
+    "live_h_median_m": 0.563,
+    "true_h_median_m": 0.498,
+    "kinect_path_m": 0.94
+   },
+   {
+    "i": 426,
+    "source": "path",
+    "pixels": 2527,
+    "kind": "real_object",
+    "kind_share": 0.82,
+    "row_from_top_median": 0.51,
+    "strips": [
+     0,
+     1,
+     2
+    ],
+    "live_h_median_m": 0.567,
+    "true_h_median_m": 0.566,
+    "kinect_path_m": 0.86
+   },
+   {
+    "i": 427,
+    "source": "path",
+    "pixels": 1947,
+    "kind": "real_object",
+    "kind_share": 0.7,
+    "row_from_top_median": 0.6,
+    "strips": [
+     0,
+     1,
+     10,
+     11
+    ],
+    "live_h_median_m": 0.521,
+    "true_h_median_m": 0.408,
+    "kinect_path_m": 0.86
+   },
+   {
+    "i": 428,
+    "source": "path",
+    "pixels": 1194,
+    "kind": "real_object",
+    "kind_share": 0.55,
+    "row_from_top_median": 0.65,
+    "strips": [
+     0,
+     10,
+     11,
+     12
+    ],
+    "live_h_median_m": 0.399,
+    "true_h_median_m": 0.285,
+    "kinect_path_m": 5.92
+   },
+   {
+    "i": 429,
+    "source": "path",
+    "pixels": 1094,
+    "kind": "real_object",
+    "kind_share": 1.0,
+    "row_from_top_median": 0.64,
+    "strips": [
+     10,
+     11,
+     12
+    ],
+    "live_h_median_m": 0.227,
+    "true_h_median_m": 0.288,
+    "kinect_path_m": 5.82
+   },
+   {
+    "i": 430,
+    "source": "path",
+    "pixels": 728,
+    "kind": "real_object",
+    "kind_share": 0.8,
+    "row_from_top_median": 0.66,
+    "strips": [
+     7,
+     10,
+     11,
+     12
+    ],
+    "live_h_median_m": 0.311,
+    "true_h_median_m": -0.095,
+    "kinect_path_m": 6.25
+   },
+   {
+    "i": 431,
+    "source": "path",
+    "pixels": 706,
+    "kind": "real_object",
+    "kind_share": 0.8,
+    "row_from_top_median": 0.68,
+    "strips": [
+     7,
+     11,
+     12
+    ],
+    "live_h_median_m": 0.296,
+    "true_h_median_m": -0.037,
+    "kinect_path_m": 6.16
+   },
+   {
+    "i": 432,
+    "source": "path",
+    "pixels": 1137,
+    "kind": "real_object",
+    "kind_share": 0.8,
+    "row_from_top_median": 0.69,
+    "strips": [
+     5,
+     6,
+     7,
+     11,
+     12,
+     13
+    ],
+    "live_h_median_m": 0.339,
+    "true_h_median_m": 0.017,
+    "kinect_path_m": 1.09
+   },
+   {
+    "i": 433,
+    "source": "path",
+    "pixels": 2513,
+    "kind": "real_object",
+    "kind_share": 0.51,
+    "row_from_top_median": 0.67,
+    "strips": [
+     11,
+     12,
+     13,
+     14
+    ],
+    "live_h_median_m": 0.385,
+    "true_h_median_m": 0.082,
+    "kinect_path_m": 0.96
+   },
+   {
+    "i": 434,
+    "source": "path",
+    "pixels": 1579,
+    "kind": "real_object",
+    "kind_share": 0.63,
+    "row_from_top_median": 0.66,
+    "strips": [
+     12,
+     13,
+     14
+    ],
+    "live_h_median_m": 0.468,
+    "true_h_median_m": 0.073,
+    "kinect_path_m": 1.05
+   },
+   {
+    "i": 435,
+    "source": "path",
+    "pixels": 3852,
+    "kind": "floor_off_plane",
+    "kind_share": 1.0,
+    "row_from_top_median": 0.84,
+    "strips": [
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11
+    ],
+    "live_h_median_m": 0.011,
+    "true_h_median_m": 0.001,
+    "kinect_path_m": 5.85
+   },
+   {
+    "i": 439,
+    "source": "path",
+    "pixels": 55,
+    "kind": "floor_off_plane",
+    "kind_share": 1.0,
+    "row_from_top_median": 0.8,
+    "strips": [
+     9,
+     10,
+     11
+    ],
+    "live_h_median_m": 0.065,
+    "true_h_median_m": 0.007,
+    "kinect_path_m": 5.78
+   },
+   {
+    "i": 455,
+    "source": "path",
+    "pixels": 4349,
+    "kind": "floor_off_plane",
+    "kind_share": 0.46,
+    "row_from_top_median": 0.81,
+    "strips": [
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11
+    ],
+    "live_h_median_m": 0.037,
+    "true_h_median_m": -0.048,
+    "kinect_path_m": 3.29
+   },
+   {
+    "i": 470,
+    "source": "path",
+    "pixels": 3688,
+    "kind": "floor_off_plane",
+    "kind_share": 1.0,
+    "row_from_top_median": 0.84,
+    "strips": [
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11
+    ],
+    "live_h_median_m": 0.105,
+    "true_h_median_m": -0.001,
+    "kinect_path_m": 3.47
+   },
+   {
+    "i": 500,
+    "source": "path",
+    "pixels": 209,
+    "kind": "real_object",
+    "kind_share": 0.47,
+    "row_from_top_median": 0.56,
+    "strips": [
+     9,
+     10
+    ],
+    "live_h_median_m": 0.176,
+    "true_h_median_m": 0.021,
+    "kinect_path_m": 2.28
+   },
+   {
+    "i": 532,
+    "source": "path",
+    "pixels": 1256,
+    "kind": "real_object",
+    "kind_share": 0.54,
+    "row_from_top_median": 0.49,
+    "strips": [
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8
+    ],
+    "live_h_median_m": 0.337,
+    "true_h_median_m": 0.239,
+    "kinect_path_m": 1.54
+   },
+   {
+    "i": 549,
+    "source": "path",
+    "pixels": 877,
+    "kind": "other",
+    "kind_share": 0.65,
+    "row_from_top_median": 0.53,
+    "strips": [
+     2,
+     3,
+     4,
+     5,
+     6,
+     9,
+     10
+    ],
+    "live_h_median_m": 0.303,
+    "true_h_median_m": 0.278,
+    "kinect_path_m": 1.13
+   },
+   {
+    "i": 550,
+    "source": "path",
+    "pixels": 586,
+    "kind": "other",
+    "kind_share": 0.9,
+    "row_from_top_median": 0.35,
+    "strips": [
+     5,
+     8,
+     9
+    ],
+    "live_h_median_m": 0.52,
+    "true_h_median_m": 0.585,
+    "kinect_path_m": 2.1
+   },
+   {
+    "i": 551,
+    "source": "path",
+    "pixels": 594,
+    "kind": "other",
+    "kind_share": 0.92,
+    "row_from_top_median": 0.34,
+    "strips": [
+     4,
+     7,
+     8
+    ],
+    "live_h_median_m": 0.535,
+    "true_h_median_m": 0.649,
+    "kinect_path_m": 2.05
+   },
+   {
+    "i": 561,
+    "source": "path",
+    "pixels": 1944,
+    "kind": "real_object",
+    "kind_share": 1.0,
+    "row_from_top_median": 0.53,
+    "strips": [
+     3,
+     4,
+     10,
+     11
+    ],
+    "live_h_median_m": 0.638,
+    "true_h_median_m": 0.492,
+    "kinect_path_m": 1.1
+   },
+   {
+    "i": 568,
+    "source": "path",
+    "pixels": 3220,
+    "kind": "real_object",
+    "kind_share": 0.99,
+    "row_from_top_median": 0.49,
+    "strips": [
+     2,
+     3,
+     4,
+     5
+    ],
+    "live_h_median_m": 0.538,
+    "true_h_median_m": 0.539,
+    "kinect_path_m": 0.63
+   },
+   {
+    "i": 569,
+    "source": "path",
+    "pixels": 2504,
+    "kind": "kinect_hole",
+    "kind_share": 0.86,
+    "row_from_top_median": 0.5,
+    "strips": [
+     0,
+     1,
+     10,
+     11
+    ],
+    "live_h_median_m": 0.5,
+    "true_h_median_m": 0.592,
+    "kinect_path_m": Infinity
+   },
+   {
+    "i": 576,
+    "source": "path",
+    "pixels": 1277,
+    "kind": "real_object",
+    "kind_share": 0.96,
+    "row_from_top_median": 0.48,
+    "strips": [
+     3,
+     4
+    ],
+    "live_h_median_m": 0.395,
+    "true_h_median_m": 0.484,
+    "kinect_path_m": 1.38
+   },
+   {
+    "i": 577,
+    "source": "path",
+    "pixels": 1317,
+    "kind": "real_object",
+    "kind_share": 1.0,
+    "row_from_top_median": 0.47,
+    "strips": [
+     3,
+     4
+    ],
+    "live_h_median_m": 0.419,
+    "true_h_median_m": 0.481,
+    "kinect_path_m": 1.35
+   },
+   {
+    "i": 578,
+    "source": "path",
+    "pixels": 1671,
+    "kind": "real_object",
+    "kind_share": 1.0,
+    "row_from_top_median": 0.5,
+    "strips": [
+     2,
+     3
+    ],
+    "live_h_median_m": 0.516,
+    "true_h_median_m": 0.51,
+    "kinect_path_m": 1.18
+   },
+   {
+    "i": 579,
+    "source": "path",
+    "pixels": 1945,
+    "kind": "real_object",
+    "kind_share": 1.0,
+    "row_from_top_median": 0.51,
+    "strips": [
+     0,
+     1,
+     2
+    ],
+    "live_h_median_m": 0.459,
+    "true_h_median_m": 0.505,
+    "kinect_path_m": 4.6
+   },
+   {
+    "i": 580,
+    "source": "path",
+    "pixels": 1137,
+    "kind": "kinect_hole",
+    "kind_share": 0.54,
+    "row_from_top_median": 0.56,
+    "strips": [
+     0,
+     1
+    ],
+    "live_h_median_m": 0.434,
+    "true_h_median_m": 0.445,
+    "kinect_path_m": 4.56
+   },
+   {
+    "i": 603,
+    "source": "path",
+    "pixels": 1467,
+    "kind": "real_object",
+    "kind_share": 0.61,
+    "row_from_top_median": 0.84,
+    "strips": [
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     12,
+     13
+    ],
+    "live_h_median_m": 0.132,
+    "true_h_median_m": 0.153,
+    "kinect_path_m": 6.39
+   },
+   {
+    "i": 604,
+    "source": "path",
+    "pixels": 1229,
+    "kind": "real_object",
+    "kind_share": 0.95,
+    "row_from_top_median": 0.5,
+    "strips": [
+     11,
+     12,
+     13,
+     14
+    ],
+    "live_h_median_m": 0.23,
+    "true_h_median_m": 0.349,
+    "kinect_path_m": 1.2
+   },
+   {
+    "i": 613,
+    "source": "path",
+    "pixels": 2012,
+    "kind": "real_object",
+    "kind_share": 0.94,
+    "row_from_top_median": 0.46,
+    "strips": [
+     2,
+     3,
+     4
+    ],
+    "live_h_median_m": 0.509,
+    "true_h_median_m": 0.627,
+    "kinect_path_m": 0.76
+   },
+   {
+    "i": 615,
+    "source": "path",
+    "pixels": 177,
+    "kind": "kinect_hole",
+    "kind_share": 1.0,
+    "row_from_top_median": 0.19,
+    "strips": [
+     14
+    ],
+    "live_h_median_m": 0.93,
+    "true_h_median_m": null,
+    "kinect_path_m": 7.37
+   },
+   {
+    "i": 616,
+    "source": "path",
+    "pixels": 3078,
+    "kind": "real_object",
+    "kind_share": 0.86,
+    "row_from_top_median": 0.43,
+    "strips": [
+     11,
+     12,
+     13,
+     14
+    ],
+    "live_h_median_m": 0.742,
+    "true_h_median_m": 0.82,
+    "kinect_path_m": 0.93
+   },
+   {
+    "i": 617,
+    "source": "path",
+    "pixels": 2593,
+    "kind": "real_object",
+    "kind_share": 0.97,
+    "row_from_top_median": 0.47,
+    "strips": [
+     11,
+     12,
+     13
+    ],
+    "live_h_median_m": 0.598,
+    "true_h_median_m": 0.542,
+    "kinect_path_m": 0.85
+   },
+   {
+    "i": 618,
+    "source": "path",
+    "pixels": 3928,
+    "kind": "real_object",
+    "kind_share": 0.71,
+    "row_from_top_median": 0.46,
+    "strips": [
+     11,
+     12,
+     13,
+     14
+    ],
+    "live_h_median_m": 0.606,
+    "true_h_median_m": 0.522,
+    "kinect_path_m": 0.78
+   },
+   {
+    "i": 620,
+    "source": "path",
+    "pixels": 44,
+    "kind": "kinect_hole",
+    "kind_share": 1.0,
+    "row_from_top_median": 0.86,
+    "strips": [
+     14
+    ],
+    "live_h_median_m": 0.45,
+    "true_h_median_m": null,
+    "kinect_path_m": 6.33
+   },
+   {
+    "i": 624,
+    "source": "path",
+    "pixels": 54,
+    "kind": "other",
+    "kind_share": 0.7,
+    "row_from_top_median": 0.49,
+    "strips": [
+     4
+    ],
+    "live_h_median_m": 0.182,
+    "true_h_median_m": 0.101,
+    "kinect_path_m": 7.4
+   },
+   {
+    "i": 625,
+    "source": "path",
+    "pixels": 344,
+    "kind": "other",
+    "kind_share": 0.94,
+    "row_from_top_median": 0.48,
+    "strips": [
+     4,
+     5
+    ],
+    "live_h_median_m": 0.291,
+    "true_h_median_m": 0.32,
+    "kinect_path_m": 2.21
+   },
+   {
+    "i": 652,
+    "source": "path",
+    "pixels": 595,
+    "kind": "floor_off_plane",
+    "kind_share": 0.97,
+    "row_from_top_median": 0.83,
+    "strips": [
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10
+    ],
+    "live_h_median_m": 0.072,
+    "true_h_median_m": 0.001,
+    "kinect_path_m": 5.91
+   },
+   {
+    "i": 655,
+    "source": "path",
+    "pixels": 26,
+    "kind": "floor_off_plane",
+    "kind_share": 0.81,
+    "row_from_top_median": 0.91,
+    "strips": [
+     6,
+     7,
+     8,
+     9,
+     10
+    ],
+    "live_h_median_m": 0.062,
+    "true_h_median_m": 0.004,
+    "kinect_path_m": 6.15
+   },
+   {
+    "i": 657,
+    "source": "path",
+    "pixels": 180,
+    "kind": "floor_off_plane",
+    "kind_share": 1.0,
+    "row_from_top_median": 0.89,
+    "strips": [
+     7,
+     8,
+     9,
+     10,
+     11
+    ],
+    "live_h_median_m": 0.063,
+    "true_h_median_m": 0.008,
+    "kinect_path_m": 3.88
+   },
+   {
+    "i": 665,
+    "source": "path",
+    "pixels": 1013,
+    "kind": "kinect_hole",
+    "kind_share": 0.78,
+    "row_from_top_median": 0.54,
+    "strips": [
+     0,
+     9,
+     10,
+     11
+    ],
+    "live_h_median_m": 0.521,
+    "true_h_median_m": 0.281,
+    "kinect_path_m": 3.66
+   },
+   {
+    "i": 667,
+    "source": "path",
+    "pixels": 1402,
+    "kind": "real_object",
+    "kind_share": 0.96,
+    "row_from_top_median": 0.45,
+    "strips": [
+     1,
+     2,
+     3
+    ],
+    "live_h_median_m": 0.337,
+    "true_h_median_m": 0.505,
+    "kinect_path_m": 1.36
+   },
+   {
+    "i": 677,
+    "source": "path",
+    "pixels": 2038,
+    "kind": "real_object",
+    "kind_share": 0.84,
+    "row_from_top_median": 0.67,
+    "strips": [
+     1,
+     2,
+     3
+    ],
+    "live_h_median_m": 0.321,
+    "true_h_median_m": 0.197,
+    "kinect_path_m": 0.76
+   },
+   {
+    "i": 678,
+    "source": "path",
+    "pixels": 2171,
+    "kind": "real_object",
+    "kind_share": 0.81,
+    "row_from_top_median": 0.64,
+    "strips": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "live_h_median_m": 0.356,
+    "true_h_median_m": 0.235,
+    "kinect_path_m": 0.73
+   },
+   {
+    "i": 679,
+    "source": "path",
+    "pixels": 2955,
+    "kind": "real_object",
+    "kind_share": 0.84,
+    "row_from_top_median": 0.65,
+    "strips": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "live_h_median_m": 0.332,
+    "true_h_median_m": 0.372,
+    "kinect_path_m": 0.87
+   },
+   {
+    "i": 680,
+    "source": "path",
+    "pixels": 3800,
+    "kind": "real_object",
+    "kind_share": 0.85,
+    "row_from_top_median": 0.65,
+    "strips": [
+     0,
+     1,
+     2,
+     3,
+     4
+    ],
+    "live_h_median_m": 0.333,
+    "true_h_median_m": 0.428,
+    "kinect_path_m": 0.84
+   },
+   {
+    "i": 681,
+    "source": "path",
+    "pixels": 3754,
+    "kind": "real_object",
+    "kind_share": 0.81,
+    "row_from_top_median": 0.65,
+    "strips": [
+     0,
+     1,
+     2,
+     3,
+     4
+    ],
+    "live_h_median_m": 0.334,
+    "true_h_median_m": 0.437,
+    "kinect_path_m": 0.8
+   },
+   {
+    "i": 682,
+    "source": "path",
+    "pixels": 3990,
+    "kind": "real_object",
+    "kind_share": 0.69,
+    "row_from_top_median": 0.64,
+    "strips": [
+     0,
+     1,
+     2,
+     3,
+     4
+    ],
+    "live_h_median_m": 0.348,
+    "true_h_median_m": 0.449,
+    "kinect_path_m": 0.75
+   },
+   {
+    "i": 683,
+    "source": "path",
+    "pixels": 3799,
+    "kind": "real_object",
+    "kind_share": 0.6,
+    "row_from_top_median": 0.64,
+    "strips": [
+     0,
+     1,
+     2,
+     3
+    ],
+    "live_h_median_m": 0.332,
+    "true_h_median_m": 0.468,
+    "kinect_path_m": 0.69
+   },
+   {
+    "i": 684,
+    "source": "path",
+    "pixels": 3323,
+    "kind": "kinect_hole",
+    "kind_share": 0.8,
+    "row_from_top_median": 0.64,
+    "strips": [
+     0,
+     1,
+     2,
+     3
+    ],
+    "live_h_median_m": 0.314,
+    "true_h_median_m": 0.436,
+    "kinect_path_m": 0.6
+   },
+   {
+    "i": 687,
+    "source": "path",
+    "pixels": 1635,
+    "kind": "kinect_hole",
+    "kind_share": 0.61,
+    "row_from_top_median": 0.67,
+    "strips": [
+     0,
+     1
+    ],
+    "live_h_median_m": 0.393,
+    "true_h_median_m": 0.353,
+    "kinect_path_m": 0.92
+   }
+  ]
+ },
+ "knobs_at_metric_scale": {
+  "stock": {
+   "rgbd_dataset_freiburg1_360": {
+    "cue_on_pct": 89.3,
+    "b_false_front": {
+     "events_per_min": 7.2,
+     "frames": 9,
+     "of_frames": 222,
+     "pct": 4.1,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 4.8,
+     "frames": 8,
+     "of_frames": 222,
+     "pct": 3.6
+    },
+    "c_over_urgent": {
+     "events_per_min": 16.7,
+     "frames": 7,
+     "of_frames": 14,
+     "pct": 50.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 2.4,
+     "frames": 1,
+     "of_frames": 140,
+     "pct": 0.7
+    }
+   },
+   "rgbd_dataset_freiburg2_desk": {
+    "cue_on_pct": 100.0,
+    "b_false_front": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 989,
+     "pct": 0.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 989,
+     "pct": 0.0
+    },
+    "c_over_urgent": {
+     "events_per_min": 7.3,
+     "frames": 23,
+     "of_frames": 53,
+     "pct": 43.4,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 818,
+     "pct": 0.0
+    }
+   },
+   "rgbd_dataset_freiburg2_pioneer_slam": {
+    "cue_on_pct": 72.3,
+    "b_false_front": {
+     "events_per_min": 14.7,
+     "frames": 125,
+     "of_frames": 391,
+     "pct": 32.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 13.2,
+     "frames": 87,
+     "of_frames": 391,
+     "pct": 22.3
+    },
+    "c_over_urgent": {
+     "events_per_min": 1.2,
+     "frames": 6,
+     "of_frames": 6,
+     "pct": 100.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 139,
+     "pct": 0.0
+    }
+   }
+  },
+  "tol=0.06": {
+   "rgbd_dataset_freiburg1_360": {
+    "cue_on_pct": 89.7,
+    "b_false_front": {
+     "events_per_min": 9.6,
+     "frames": 7,
+     "of_frames": 218,
+     "pct": 3.2,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 7.2,
+     "frames": 6,
+     "of_frames": 218,
+     "pct": 2.8
+    },
+    "c_over_urgent": {
+     "events_per_min": 16.7,
+     "frames": 7,
+     "of_frames": 15,
+     "pct": 46.7,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 140,
+     "pct": 0.0
+    }
+   },
+   "rgbd_dataset_freiburg2_desk": {
+    "cue_on_pct": 100.0,
+    "b_false_front": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 989,
+     "pct": 0.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 989,
+     "pct": 0.0
+    },
+    "c_over_urgent": {
+     "events_per_min": 6.1,
+     "frames": 21,
+     "of_frames": 51,
+     "pct": 41.2,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 818,
+     "pct": 0.0
+    }
+   },
+   "rgbd_dataset_freiburg2_pioneer_slam": {
+    "cue_on_pct": 73.0,
+    "b_false_front": {
+     "events_per_min": 15.1,
+     "frames": 126,
+     "of_frames": 394,
+     "pct": 32.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 13.6,
+     "frames": 88,
+     "of_frames": 394,
+     "pct": 22.3
+    },
+    "c_over_urgent": {
+     "events_per_min": 1.2,
+     "frames": 6,
+     "of_frames": 6,
+     "pct": 100.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 139,
+     "pct": 0.0
+    }
+   }
+  },
+  "tol=0.08": {
+   "rgbd_dataset_freiburg1_360": {
+    "cue_on_pct": 89.7,
+    "b_false_front": {
+     "events_per_min": 9.6,
+     "frames": 8,
+     "of_frames": 219,
+     "pct": 3.7,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 7.2,
+     "frames": 7,
+     "of_frames": 219,
+     "pct": 3.2
+    },
+    "c_over_urgent": {
+     "events_per_min": 16.7,
+     "frames": 7,
+     "of_frames": 14,
+     "pct": 50.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 2.4,
+     "frames": 1,
+     "of_frames": 140,
+     "pct": 0.7
+    }
+   },
+   "rgbd_dataset_freiburg2_desk": {
+    "cue_on_pct": 100.0,
+    "b_false_front": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 989,
+     "pct": 0.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 989,
+     "pct": 0.0
+    },
+    "c_over_urgent": {
+     "events_per_min": 4.9,
+     "frames": 19,
+     "of_frames": 49,
+     "pct": 38.8,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 818,
+     "pct": 0.0
+    }
+   },
+   "rgbd_dataset_freiburg2_pioneer_slam": {
+    "cue_on_pct": 73.2,
+    "b_false_front": {
+     "events_per_min": 15.5,
+     "frames": 137,
+     "of_frames": 402,
+     "pct": 34.1,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 13.9,
+     "frames": 99,
+     "of_frames": 402,
+     "pct": 24.6
+    },
+    "c_over_urgent": {
+     "events_per_min": 1.2,
+     "frames": 6,
+     "of_frames": 6,
+     "pct": 100.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 139,
+     "pct": 0.0
+    }
+   }
+  },
+  "hmin=0.08": {
+   "rgbd_dataset_freiburg1_360": {
+    "cue_on_pct": 89.3,
+    "b_false_front": {
+     "events_per_min": 7.2,
+     "frames": 9,
+     "of_frames": 220,
+     "pct": 4.1,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 4.8,
+     "frames": 8,
+     "of_frames": 220,
+     "pct": 3.6
+    },
+    "c_over_urgent": {
+     "events_per_min": 16.7,
+     "frames": 7,
+     "of_frames": 14,
+     "pct": 50.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 2.4,
+     "frames": 1,
+     "of_frames": 140,
+     "pct": 0.7
+    }
+   },
+   "rgbd_dataset_freiburg2_desk": {
+    "cue_on_pct": 100.0,
+    "b_false_front": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 989,
+     "pct": 0.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 989,
+     "pct": 0.0
+    },
+    "c_over_urgent": {
+     "events_per_min": 7.3,
+     "frames": 23,
+     "of_frames": 53,
+     "pct": 43.4,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 818,
+     "pct": 0.0
+    }
+   },
+   "rgbd_dataset_freiburg2_pioneer_slam": {
+    "cue_on_pct": 71.9,
+    "b_false_front": {
+     "events_per_min": 14.3,
+     "frames": 122,
+     "of_frames": 388,
+     "pct": 31.4,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 12.8,
+     "frames": 84,
+     "of_frames": 388,
+     "pct": 21.6
+    },
+    "c_over_urgent": {
+     "events_per_min": 1.2,
+     "frames": 6,
+     "of_frames": 6,
+     "pct": 100.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 139,
+     "pct": 0.0
+    }
+   }
+  },
+  "hmin=0.1": {
+   "rgbd_dataset_freiburg1_360": {
+    "cue_on_pct": 89.3,
+    "b_false_front": {
+     "events_per_min": 7.2,
+     "frames": 9,
+     "of_frames": 219,
+     "pct": 4.1,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 4.8,
+     "frames": 8,
+     "of_frames": 219,
+     "pct": 3.7
+    },
+    "c_over_urgent": {
+     "events_per_min": 16.7,
+     "frames": 7,
+     "of_frames": 14,
+     "pct": 50.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 2.4,
+     "frames": 1,
+     "of_frames": 140,
+     "pct": 0.7
+    }
+   },
+   "rgbd_dataset_freiburg2_desk": {
+    "cue_on_pct": 100.0,
+    "b_false_front": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 989,
+     "pct": 0.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 989,
+     "pct": 0.0
+    },
+    "c_over_urgent": {
+     "events_per_min": 7.3,
+     "frames": 23,
+     "of_frames": 53,
+     "pct": 43.4,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 818,
+     "pct": 0.0
+    }
+   },
+   "rgbd_dataset_freiburg2_pioneer_slam": {
+    "cue_on_pct": 71.4,
+    "b_false_front": {
+     "events_per_min": 14.3,
+     "frames": 122,
+     "of_frames": 387,
+     "pct": 31.5,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 12.8,
+     "frames": 84,
+     "of_frames": 387,
+     "pct": 21.7
+    },
+    "c_over_urgent": {
+     "events_per_min": 1.2,
+     "frames": 6,
+     "of_frames": 6,
+     "pct": 100.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 139,
+     "pct": 0.0
+    }
+   }
+  },
+  "hmin=0.15": {
+   "rgbd_dataset_freiburg1_360": {
+    "cue_on_pct": 87.7,
+    "b_false_front": {
+     "events_per_min": 7.2,
+     "frames": 9,
+     "of_frames": 212,
+     "pct": 4.2,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 4.8,
+     "frames": 8,
+     "of_frames": 212,
+     "pct": 3.8
+    },
+    "c_over_urgent": {
+     "events_per_min": 16.7,
+     "frames": 7,
+     "of_frames": 14,
+     "pct": 50.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 4.8,
+     "frames": 2,
+     "of_frames": 140,
+     "pct": 1.4
+    }
+   },
+   "rgbd_dataset_freiburg2_desk": {
+    "cue_on_pct": 100.0,
+    "b_false_front": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 989,
+     "pct": 0.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 989,
+     "pct": 0.0
+    },
+    "c_over_urgent": {
+     "events_per_min": 7.3,
+     "frames": 23,
+     "of_frames": 53,
+     "pct": 43.4,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 818,
+     "pct": 0.0
+    }
+   },
+   "rgbd_dataset_freiburg2_pioneer_slam": {
+    "cue_on_pct": 69.3,
+    "b_false_front": {
+     "events_per_min": 13.2,
+     "frames": 115,
+     "of_frames": 379,
+     "pct": 30.3,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 11.6,
+     "frames": 77,
+     "of_frames": 379,
+     "pct": 20.3
+    },
+    "c_over_urgent": {
+     "events_per_min": 1.2,
+     "frames": 6,
+     "of_frames": 6,
+     "pct": 100.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 139,
+     "pct": 0.0
+    }
+   }
+  },
+  "drop=0.05": {
+   "rgbd_dataset_freiburg1_360": {
+    "cue_on_pct": 89.3,
+    "b_false_front": {
+     "events_per_min": 7.2,
+     "frames": 9,
+     "of_frames": 222,
+     "pct": 4.1,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 4.8,
+     "frames": 8,
+     "of_frames": 222,
+     "pct": 3.6
+    },
+    "c_over_urgent": {
+     "events_per_min": 16.7,
+     "frames": 7,
+     "of_frames": 14,
+     "pct": 50.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 2.4,
+     "frames": 1,
+     "of_frames": 140,
+     "pct": 0.7
+    }
+   },
+   "rgbd_dataset_freiburg2_desk": {
+    "cue_on_pct": 100.0,
+    "b_false_front": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 989,
+     "pct": 0.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 989,
+     "pct": 0.0
+    },
+    "c_over_urgent": {
+     "events_per_min": 7.3,
+     "frames": 23,
+     "of_frames": 53,
+     "pct": 43.4,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 818,
+     "pct": 0.0
+    }
+   },
+   "rgbd_dataset_freiburg2_pioneer_slam": {
+    "cue_on_pct": 72.2,
+    "b_false_front": {
+     "events_per_min": 14.7,
+     "frames": 124,
+     "of_frames": 389,
+     "pct": 31.9,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 13.2,
+     "frames": 86,
+     "of_frames": 389,
+     "pct": 22.1
+    },
+    "c_over_urgent": {
+     "events_per_min": 1.2,
+     "frames": 6,
+     "of_frames": 6,
+     "pct": 100.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 139,
+     "pct": 0.0
+    }
+   }
+  },
+  "drop=0.1": {
+   "rgbd_dataset_freiburg1_360": {
+    "cue_on_pct": 89.3,
+    "b_false_front": {
+     "events_per_min": 7.2,
+     "frames": 9,
+     "of_frames": 222,
+     "pct": 4.1,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 4.8,
+     "frames": 8,
+     "of_frames": 222,
+     "pct": 3.6
+    },
+    "c_over_urgent": {
+     "events_per_min": 16.7,
+     "frames": 7,
+     "of_frames": 14,
+     "pct": 50.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 2.4,
+     "frames": 1,
+     "of_frames": 140,
+     "pct": 0.7
+    }
+   },
+   "rgbd_dataset_freiburg2_desk": {
+    "cue_on_pct": 100.0,
+    "b_false_front": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 989,
+     "pct": 0.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 989,
+     "pct": 0.0
+    },
+    "c_over_urgent": {
+     "events_per_min": 7.3,
+     "frames": 23,
+     "of_frames": 53,
+     "pct": 43.4,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 818,
+     "pct": 0.0
+    }
+   },
+   "rgbd_dataset_freiburg2_pioneer_slam": {
+    "cue_on_pct": 72.2,
+    "b_false_front": {
+     "events_per_min": 14.7,
+     "frames": 123,
+     "of_frames": 388,
+     "pct": 31.7,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 13.2,
+     "frames": 85,
+     "of_frames": 388,
+     "pct": 21.9
+    },
+    "c_over_urgent": {
+     "events_per_min": 1.2,
+     "frames": 6,
+     "of_frames": 6,
+     "pct": 100.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 139,
+     "pct": 0.0
+    }
+   }
+  },
+  "drop=0.15": {
+   "rgbd_dataset_freiburg1_360": {
+    "cue_on_pct": 89.3,
+    "b_false_front": {
+     "events_per_min": 7.2,
+     "frames": 9,
+     "of_frames": 222,
+     "pct": 4.1,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 4.8,
+     "frames": 8,
+     "of_frames": 222,
+     "pct": 3.6
+    },
+    "c_over_urgent": {
+     "events_per_min": 16.7,
+     "frames": 7,
+     "of_frames": 14,
+     "pct": 50.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 2.4,
+     "frames": 1,
+     "of_frames": 140,
+     "pct": 0.7
+    }
+   },
+   "rgbd_dataset_freiburg2_desk": {
+    "cue_on_pct": 100.0,
+    "b_false_front": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 989,
+     "pct": 0.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 989,
+     "pct": 0.0
+    },
+    "c_over_urgent": {
+     "events_per_min": 7.3,
+     "frames": 23,
+     "of_frames": 53,
+     "pct": 43.4,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 818,
+     "pct": 0.0
+    }
+   },
+   "rgbd_dataset_freiburg2_pioneer_slam": {
+    "cue_on_pct": 72.2,
+    "b_false_front": {
+     "events_per_min": 14.3,
+     "frames": 122,
+     "of_frames": 387,
+     "pct": 31.5,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 12.8,
+     "frames": 84,
+     "of_frames": 387,
+     "pct": 21.7
+    },
+    "c_over_urgent": {
+     "events_per_min": 1.2,
+     "frames": 6,
+     "of_frames": 6,
+     "pct": 100.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 139,
+     "pct": 0.0
+    }
+   }
+  },
+  "drop=0.2": {
+   "rgbd_dataset_freiburg1_360": {
+    "cue_on_pct": 89.3,
+    "b_false_front": {
+     "events_per_min": 7.2,
+     "frames": 9,
+     "of_frames": 221,
+     "pct": 4.1,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 4.8,
+     "frames": 8,
+     "of_frames": 221,
+     "pct": 3.6
+    },
+    "c_over_urgent": {
+     "events_per_min": 16.7,
+     "frames": 7,
+     "of_frames": 14,
+     "pct": 50.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 2.4,
+     "frames": 1,
+     "of_frames": 140,
+     "pct": 0.7
+    }
+   },
+   "rgbd_dataset_freiburg2_desk": {
+    "cue_on_pct": 100.0,
+    "b_false_front": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 989,
+     "pct": 0.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 989,
+     "pct": 0.0
+    },
+    "c_over_urgent": {
+     "events_per_min": 7.3,
+     "frames": 23,
+     "of_frames": 53,
+     "pct": 43.4,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 818,
+     "pct": 0.0
+    }
+   },
+   "rgbd_dataset_freiburg2_pioneer_slam": {
+    "cue_on_pct": 72.2,
+    "b_false_front": {
+     "events_per_min": 13.9,
+     "frames": 121,
+     "of_frames": 386,
+     "pct": 31.3,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 12.4,
+     "frames": 83,
+     "of_frames": 386,
+     "pct": 21.5
+    },
+    "c_over_urgent": {
+     "events_per_min": 1.2,
+     "frames": 6,
+     "of_frames": 6,
+     "pct": 100.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 139,
+     "pct": 0.0
+    }
+   }
+  },
+  "half=0.35": {
+   "rgbd_dataset_freiburg1_360": {
+    "cue_on_pct": 89.3,
+    "b_false_front": {
+     "events_per_min": 7.2,
+     "frames": 9,
+     "of_frames": 220,
+     "pct": 4.1,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 4.8,
+     "frames": 8,
+     "of_frames": 220,
+     "pct": 3.6
+    },
+    "c_over_urgent": {
+     "events_per_min": 16.7,
+     "frames": 7,
+     "of_frames": 14,
+     "pct": 50.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 2.4,
+     "frames": 1,
+     "of_frames": 140,
+     "pct": 0.7
+    }
+   },
+   "rgbd_dataset_freiburg2_desk": {
+    "cue_on_pct": 100.0,
+    "b_false_front": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 989,
+     "pct": 0.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 989,
+     "pct": 0.0
+    },
+    "c_over_urgent": {
+     "events_per_min": 7.3,
+     "frames": 23,
+     "of_frames": 53,
+     "pct": 43.4,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 818,
+     "pct": 0.0
+    }
+   },
+   "rgbd_dataset_freiburg2_pioneer_slam": {
+    "cue_on_pct": 72.3,
+    "b_false_front": {
+     "events_per_min": 15.1,
+     "frames": 108,
+     "of_frames": 370,
+     "pct": 29.2,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 12.0,
+     "frames": 77,
+     "of_frames": 370,
+     "pct": 20.8
+    },
+    "c_over_urgent": {
+     "events_per_min": 1.2,
+     "frames": 6,
+     "of_frames": 6,
+     "pct": 100.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 139,
+     "pct": 0.0
+    }
+   }
+  },
+  "half=0.3": {
+   "rgbd_dataset_freiburg1_360": {
+    "cue_on_pct": 89.3,
+    "b_false_front": {
+     "events_per_min": 7.2,
+     "frames": 9,
+     "of_frames": 220,
+     "pct": 4.1,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 4.8,
+     "frames": 8,
+     "of_frames": 220,
+     "pct": 3.6
+    },
+    "c_over_urgent": {
+     "events_per_min": 16.7,
+     "frames": 7,
+     "of_frames": 14,
+     "pct": 50.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 2.4,
+     "frames": 1,
+     "of_frames": 140,
+     "pct": 0.7
+    }
+   },
+   "rgbd_dataset_freiburg2_desk": {
+    "cue_on_pct": 100.0,
+    "b_false_front": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 989,
+     "pct": 0.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 989,
+     "pct": 0.0
+    },
+    "c_over_urgent": {
+     "events_per_min": 7.3,
+     "frames": 23,
+     "of_frames": 53,
+     "pct": 43.4,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 818,
+     "pct": 0.0
+    }
+   },
+   "rgbd_dataset_freiburg2_pioneer_slam": {
+    "cue_on_pct": 72.0,
+    "b_false_front": {
+     "events_per_min": 13.6,
+     "frames": 94,
+     "of_frames": 353,
+     "pct": 26.6,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 11.2,
+     "frames": 73,
+     "of_frames": 353,
+     "pct": 20.7
+    },
+    "c_over_urgent": {
+     "events_per_min": 1.2,
+     "frames": 6,
+     "of_frames": 6,
+     "pct": 100.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 0.4,
+     "frames": 1,
+     "of_frames": 139,
+     "pct": 0.7
+    }
+   }
+  },
+  "half=0.25": {
+   "rgbd_dataset_freiburg1_360": {
+    "cue_on_pct": 89.3,
+    "b_false_front": {
+     "events_per_min": 7.2,
+     "frames": 9,
+     "of_frames": 219,
+     "pct": 4.1,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 4.8,
+     "frames": 8,
+     "of_frames": 219,
+     "pct": 3.7
+    },
+    "c_over_urgent": {
+     "events_per_min": 16.7,
+     "frames": 7,
+     "of_frames": 14,
+     "pct": 50.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 2.4,
+     "frames": 1,
+     "of_frames": 140,
+     "pct": 0.7
+    }
+   },
+   "rgbd_dataset_freiburg2_desk": {
+    "cue_on_pct": 100.0,
+    "b_false_front": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 989,
+     "pct": 0.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 989,
+     "pct": 0.0
+    },
+    "c_over_urgent": {
+     "events_per_min": 7.3,
+     "frames": 23,
+     "of_frames": 53,
+     "pct": 43.4,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 0.0,
+     "frames": 0,
+     "of_frames": 818,
+     "pct": 0.0
+    }
+   },
+   "rgbd_dataset_freiburg2_pioneer_slam": {
+    "cue_on_pct": 72.0,
+    "b_false_front": {
+     "events_per_min": 13.9,
+     "frames": 82,
+     "of_frames": 338,
+     "pct": 24.3,
+     "kinect_centre_mostly_holes": 0
+    },
+    "b_false_front_vs_kinect_path": {
+     "events_per_min": 10.5,
+     "frames": 69,
+     "of_frames": 338,
+     "pct": 20.4
+    },
+    "c_over_urgent": {
+     "events_per_min": 1.2,
+     "frames": 6,
+     "of_frames": 6,
+     "pct": 100.0,
+     "kinect_centre_mostly_holes": 0
+    },
+    "d_missed_inside_1m": {
+     "events_per_min": 0.4,
+     "frames": 1,
+     "of_frames": 139,
+     "pct": 0.7
+    }
    }
   }
  }
