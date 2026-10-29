@@ -148,7 +148,7 @@ ABBREV = {
     "meters": "m", "meter": "m", "metres": "m", "metre": "m", "feet": "ft", "foot": "ft",
     "minutes": "min", "minute": "min", "seconds": "s", "second": "s",
     "approximately": "~", "about": "~", "around": "~", "roughly": "~",
-    "and": "&", "with": "w/", "without": "w/o", "near": "nr", "nearby": "nr",
+    "and": "&", "with": "w/", "without": "w/o", "near": "close", "nearby": "close",
     "above": "abv", "below": "blw", "under": "und", "between": "btw",
     "please": "", "careful": "caution", "warning": "warn", "danger": "warn",
     "yes": "y", "no": "n", "stop": "stop", "clear": "clr",
