@@ -49,6 +49,7 @@ class Detection:
     score: float
     box: tuple[float, float, float, float]  # x0, y0, x1, y1 in frame pixels
     source: str = ""
+    backed: bool = False  # SAM 3.1's box, with a sure local hit on the same thing in this frame
 
 
 class Finder(Protocol):
@@ -380,6 +381,9 @@ class HybridFinder:
                     )
                     for d in dets
                 ]
+        sure = {d.label for d in local if d.score >= LOCAL_KEEP}
+        sure |= {item for lb in sure for item in LOOKALIKES.get(lb, [])}
+        confirmed = [replace(d, backed=d.label in sure) for d in confirmed]
         have = {d.label for d in confirmed}
         keep = [d for d in local if d.label in self.items and d.label not in have]
         return out + confirmed + [d for d in keep if d.score >= LOCAL_KEEP]

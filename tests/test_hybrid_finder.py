@@ -165,3 +165,11 @@ def test_a_keycap_grid_is_a_texture_and_finds_no_keys():
     for boxes in ([(100, 300, 160, 340)], [(100, 300, 160, 340), (20, 20, 50, 45)]):
         sam = sam_returning({"keys": boxes})
         assert len(sam.find(frame, ["keys"])) == len(boxes)
+
+
+def test_sam_boxes_are_marked_backed_only_with_a_sure_local_hit():
+    sam_box = [Detection("keys", 0.8, (1, 1, 3, 3), "sam-3.1")]
+    for local_score, backed in ((0.2, False), (0.35, True)):
+        h = hybrid([Detection("keys", local_score, (1, 1, 2, 2))], sam_box)
+        out = h.find(FRAME, ["keys"])
+        assert [(d.source, d.backed) for d in out] == [("sam-3.1", backed)]

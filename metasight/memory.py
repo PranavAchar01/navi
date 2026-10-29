@@ -46,7 +46,13 @@ from .loops import (
     turn_deg,
 )
 from .pins import PinStore, layer_of
-from .providers.finder import LANDMARKS, Finder
+from .providers.finder import LANDMARKS, Finder, Sam31Finder
+
+# A pin that rests on SAM 3.1 alone needs a second sweep to agree, this soon and this close in
+# the map: one box SAM draws round a whole keyboard for "keys" would walk the wearer to the desk.
+# A missed pin only means "I haven't seen them"; a wrong one sends him to the wrong place.
+AGREE_S = 30.0
+AGREE_M = 0.5
 
 
 @dataclass
@@ -308,6 +314,7 @@ class MemoryEngine:
         self._last_cost: float | None = None
         self._loop_edges: list[tuple[int, int, Sim3]] = []
         self._obs: list[_Obs] = []
+        self._sam_held: list[tuple[str, np.ndarray, float]] = []  # label, map position, frame ts
         self.loops: list[dict] = []  # every loop check that got as far as a match
         self.pins = PinStore()
         self.voxels = VoxelSet(s.voxel_m)
@@ -343,6 +350,7 @@ class MemoryEngine:
         self._bank, self._bank_new, self._anchors = {}, 0, None
         self._job = None  # a solve still running finishes into the new map; drop its result
         self._kfs, self._sims, self._obs, self.loops = {}, [], [], []
+        self._sam_held = []
         self._seq_rel, self._seq_w, self._loop_edges = [], [], []
         self.load_home()
 
@@ -446,6 +454,18 @@ class MemoryEngine:
         near = self._near_landmarks(pos_l, label) if kind == "object" else None
         self.pins.observe(label, kind, pos_l, ts, score, near, thumb, source)
 
+    def _sam_agrees(self, label: str, pos, ts: float) -> bool:
+        """A SAM-only sighting is held until a sweep of another frame, within AGREE_S, puts the
+        same thing within AGREE_M of it; then it pins."""
+        pos = np.asarray(pos, float)
+        self._sam_held = [h for h in self._sam_held if ts - h[2] <= AGREE_S]
+        for i, (lb, p, t) in enumerate(self._sam_held):
+            if lb == label and t != ts and float(np.linalg.norm(p - pos)) <= AGREE_M:
+                del self._sam_held[i]
+                return True
+        self._sam_held.append((label, pos, ts))
+        return False
+
     def _pin_detections(self, placed: _Placed, run_finder: bool) -> int:
         kf = placed.kf
         ts = kf.ts
@@ -471,6 +491,12 @@ class MemoryEngine:
                 det = replace(det, box=(x0 * sx, y0 * sy, x1 * sx, y1 * sy))
                 pos = self._locate(placed, det.box)
                 if pos is None:
+                    continue
+                if (
+                    det.source == Sam31Finder.name
+                    and not det.backed
+                    and not self._sam_agrees(det.label, pos, ts)
+                ):
                     continue
                 self._observe(
                     w,
