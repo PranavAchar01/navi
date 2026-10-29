@@ -1131,6 +1131,12 @@ class Server:
             implied = implied_activity(text, parse_query(text, self.known_labels()) is not None)
             if implied is not None:
                 await self.set_activity(implied, "question", speak=False)  # the answer speaks
+        if is_errand(text) and (pending is None or not self.map_loaded.is_set()):
+            # waiting for the plan (or for the map) would only leave the wearer in silence
+            hold = {"type": "answer", "label": None, "text": HOLDING, "pin": None}
+            await self.hub.json({**hold, "holding": True})
+            if self.braille:
+                self.braille.say(HOLDING)
         if not self.map_loaded.is_set():
             # Right after a restart the bank is empty until the worker loads the home map, and
             # "I haven't seen your keys" would be a wrong answer. Wait a moment, then say so.
@@ -1139,20 +1145,14 @@ class Server:
                 pending = None  # it was answered from the empty bank
             except TimeoutError:
                 pending = asyncio.get_running_loop().create_future()
-                pending.set_result(
-                    {"type": "answer", "label": None, "text": MAP_LOADING, "pin": None}
-                )
+                loading = {"type": "answer", "label": None, "text": MAP_LOADING, "pin": None}
+                pending.set_result({**loading, "loading": True})
         if pending is not None:
             res = await pending
         else:
-            work = self.loop.run_in_executor(self.llm_pool, self._answer_sync, text)
-            if is_errand(text):  # waiting for the plan would only leave the wearer in silence
-                hold = {"type": "answer", "label": None, "text": HOLDING, "pin": None}
-                await self.hub.json({**hold, "holding": True})
-                if self.braille:
-                    self.braille.say(HOLDING)
-            res = await work
-        if quiet_unknown and res.get("label") is None and not res.get("tools"):
+            res = await self.loop.run_in_executor(self.llm_pool, self._answer_sync, text)
+        unknown = res.get("label") is None and not res.get("tools")
+        if quiet_unknown and unknown and not res.get("loading"):  # "still loading" is still said
             return None
         res["ms"] = round(1000 * (time.perf_counter() - t0))
         if spoken_end is not None:

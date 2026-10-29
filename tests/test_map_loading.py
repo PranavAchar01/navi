@@ -107,3 +107,60 @@ def test_a_where_question_gets_no_holding_line():
 
     asyncio.run(run())
     assert server.HOLDING not in sent
+
+
+def test_a_voice_turn_before_the_map_loads_still_hears_it_is_loading(monkeypatch):
+    monkeypatch.setattr(server, "MAP_WAIT_S", 0.05)
+    answered, sent = [], []
+
+    async def run():
+        srv = fake(answered)
+
+        async def json(ev, *_):
+            sent.append(ev["text"])
+
+        srv.hub = NS(json=json)
+        srv.loop = asyncio.get_running_loop()
+        return await Server.answer(srv, "where are my keys", quiet_unknown=True, spoken_end=0.0)
+
+    res = asyncio.run(run())
+    assert res["text"] == server.MAP_LOADING and sent == [server.MAP_LOADING] and answered == []
+
+
+def test_overheard_speech_after_the_map_loads_still_gets_no_reply():
+    answered, sent = [], []
+
+    async def run():
+        srv = fake(answered)
+
+        async def json(ev, *_):
+            sent.append(ev["text"])
+
+        def unknown(text):
+            answered.append(text)
+            return {"type": "answer", "label": None, "text": "I'm not sure.", "pin": None}
+
+        srv.hub, srv._answer_sync = NS(json=json), unknown
+        srv.map_loaded.set()
+        srv.loop = asyncio.get_running_loop()
+        return await Server.answer(srv, "and the weather tonight", quiet_unknown=True)
+
+    assert asyncio.run(run()) is None and sent == [] and answered == ["and the weather tonight"]
+
+
+def test_a_plan_before_the_map_loads_gets_the_holding_line_first(monkeypatch):
+    monkeypatch.setattr(server, "MAP_WAIT_S", 0.05)
+    answered, sent = [], []
+
+    async def run():
+        srv = fake(answered)
+
+        async def json(ev, *_):
+            sent.append(ev["text"])
+
+        srv.hub = NS(json=json)
+        srv.loop = asyncio.get_running_loop()
+        return await Server.answer(srv, "get ready to leave", quiet_unknown=True)
+
+    res = asyncio.run(run())
+    assert sent == [server.HOLDING, server.MAP_LOADING] and res["text"] == server.MAP_LOADING
