@@ -40,6 +40,7 @@ from .modes import Activity
 from .modes import command as activity_command
 from .modes import implied as implied_activity
 from .motion import FallDetector, Sample, ShakeDetector
+from .notes import Notes, asks_notes, notes_command
 from .onboarding import PATTERNS, Onboarding, pattern_length, wants_setup
 from .pins import PinStore
 from .providers import make_language, make_reviewer
@@ -90,6 +91,8 @@ class Server:
         self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="safety")
         self.llm_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="llm")
         self.fall, self.shake = FallDetector(), ShakeDetector()
+        self.notes = Notes(SESSIONS / "notes")  # conversation notes (notes.py)
+        self._notes_task: asyncio.Task | None = None
         self.onboarding = Onboarding()  # first run: walk, name things, feel the modes
         self._load_watch(settings)
         self.talk = Talk(settings.hfov_deg)
@@ -99,6 +102,7 @@ class Server:
         if settings.asr == "meta" and (key := secret("META_API_KEY", "MODEL_API_KEY")):
             words = list(dict.fromkeys([*settings.watchlist, *settings.meta_items]))
             self.voice = VoiceAsk(self, key, words)
+            self.voice.asr.on_heard = self.heard
         self.motion_t = 0.0
         self.accel: deque[np.ndarray] = deque(maxlen=40)
         self.pose = None
@@ -228,6 +232,8 @@ class Server:
         self.cameras.pop(sock, None)
         if walk := self.walks.pop(sock, None):
             walk.close()
+        if not self.hub.clients:
+            self.stop_notes_soon()
         if self.voice and not self.hub.clients:
             self.voice.asr.want(False)  # nobody left to speak; the session closes itself
 
@@ -573,11 +579,13 @@ class Server:
 
     # ------------------------------------------------------------ questions
     def _answer_sync(self, text: str) -> dict:
-        if needs_tools(text) and hasattr(self.language, "_client"):
+        if (needs_tools(text) or asks_notes(text)) and hasattr(self.language, "_client"):
             # People, voices, changes: Spark asks the pins, the map and the people tracks itself.
             # One to three calls, so only these questions take this path.
             try:
-                tools = Tools(self.pins, self.heading, lambda: self.hub.last.get("people"))
+                tools = Tools(
+                    self.pins, self.heading, lambda: self.hub.last.get("people"), notes=self.notes
+                )
                 said = agent_answer(self.language, text, tools)
             except Exception:
                 said = ""
@@ -721,6 +729,62 @@ class Server:
                 self.belt.send([(0, 0)] * 8, self.activity.flag_bits(), time.monotonic())
         await self.hub.json(self.onboarding.finish(), True)
 
+    # ------------------------------------------------------------ conversation notes
+    async def heard(self, h) -> None:
+        """Every transcript from Muse Voice Transcribe: notes while recording, else questions."""
+        if h.final:
+            cmd = notes_command(h.text)
+            if cmd == "stop" and self.notes.recording:
+                return await self.stop_notes()
+            if cmd == "start" and not self.notes.recording:
+                return await self.start_notes()
+        if self.notes.recording:
+            if h.final and (ev := self.notes.hear(h.text)):
+                await self.hub.json(
+                    {"type": "transcript", "text": h.text, "final": True, "source": "notes"}
+                )
+                await self.hub.json(ev, True)
+            return
+        await self.voice.on_heard(h)
+
+    async def start_notes(self) -> None:
+        if self.voice is None:
+            await self.hub.json(
+                {
+                    "type": "notes",
+                    "state": "idle",
+                    "say": "Notes need the voice service, which is off.",
+                },
+                True,
+            )
+            return
+        await self.hub.json(self.notes.start(), True)
+        self._notes_task = asyncio.create_task(self._notes_reminders())
+
+    async def _notes_reminders(self) -> None:
+        while self.notes.recording:
+            await asyncio.sleep(5)
+            line = self.notes.reminder()
+            if line == "limit":
+                await self.stop_notes()
+            elif line:
+                await self.hub.json(self.notes.event("recording", line), True)
+
+    async def stop_notes(self) -> None:
+        if self._notes_task and self._notes_task is not asyncio.current_task():
+            self._notes_task.cancel()
+        ev, note = self.notes.stop()
+        await self.hub.json(ev, True)
+        if note is not None:
+            done = await self.loop.run_in_executor(
+                self.llm_pool, self.notes.summarize, note, self.language
+            )
+            await self.hub.json(done, True)
+
+    def stop_notes_soon(self) -> None:
+        if self.notes.recording:  # nobody is left to hear the recording cue: end it, keep it
+            asyncio.ensure_future(self.stop_notes())
+
     async def set_activity(self, mode: str, cause: str, speak: bool = True) -> None:
         """Switch guide/find/talk/explore: tell the app (which says the line) and the judge view."""
         ev = self.activity.set(mode, cause, speak)
@@ -753,6 +817,12 @@ class Server:
                 if self.onboarding.step == "belt":
                     asyncio.create_task(self.run_belt_intro())
                 return {"type": "onboarding", "text": text}
+        if (cmd := notes_command(text)) is not None:
+            if cmd == "start" and not self.notes.recording:
+                await self.start_notes()
+            elif cmd == "stop" and self.notes.recording:
+                await self.stop_notes()
+            return {"type": "notes", "text": text}
         if not self.onboarding.active and wants_setup(text):
             await self.start_onboarding()
             return {"type": "onboarding", "text": text}
@@ -811,6 +881,7 @@ def create_app(settings: Settings | None = None, session: str | None = None) -> 
                 "mode": srv.mode,
                 "activity": srv.activity.mode,
                 "onboarding": srv.onboarding.step,
+                "recording": srv.notes.recording,
                 "map_points": srv.hub.map_total,
                 "memory": srv.memory_stats,
                 "asr": (
@@ -879,6 +950,13 @@ def create_app(settings: Settings | None = None, session: str | None = None) -> 
                     elif kind == "arpose":  # the phone's own tracked pose, kept with its walk
                         if walk := srv.walks.get(sock):
                             walk.pose(m)
+                    elif kind == "notes":
+                        if m.get("action") == "start" and not srv.notes.recording:
+                            await srv.start_notes()
+                        elif m.get("action") == "stop" and srv.notes.recording:
+                            await srv.stop_notes()
+                        elif m.get("action") == "delete":
+                            srv.notes.delete(str(m.get("id", "")))
                     elif kind == "onboarding":
                         if m.get("action") == "start":
                             await srv.start_onboarding()

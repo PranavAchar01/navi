@@ -34,6 +34,7 @@ struct PhoneCameraView: View {
       ScrollView {
         VStack(alignment: .leading, spacing: 12) {
           setupButton
+          notesButton
           statusRows
           cameraArea
           nearest
@@ -107,6 +108,29 @@ struct PhoneCameraView: View {
         link.onboard("start")
       }
     }
+  }
+
+  /// Starts or stops a conversation note. Starting is announced aloud (consent).
+  private var notesButton: some View {
+    Button {
+      link.takeNotes(link.notes.isRecording ? "stop" : "start")
+    } label: {
+      Text(link.notes.isRecording ? "Stop notes" : "Take notes")
+        .font(.system(size: 22, weight: .bold))
+        .frame(maxWidth: .infinity, minHeight: 64)
+        .foregroundStyle(.white)
+        .background(
+          link.notes.isRecording ? Color.red : Color.gray.opacity(0.5),
+          in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+    .disabled(link.connection != .connected || link.notes.state == "summarizing")
+    .accessibilityLabel(link.notes.isRecording ? "Stop notes" : "Take notes")
+    .accessibilityHint(
+      link.notes.isRecording
+        ? "Stops recording and writes the notes"
+        : "Records the conversation and says aloud that it is recording; tell the people with you"
+    )
+    .accessibilityIdentifier("notes_button")
   }
 
   // MARK: - Status

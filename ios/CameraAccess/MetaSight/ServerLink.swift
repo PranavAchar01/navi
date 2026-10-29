@@ -132,6 +132,8 @@ final class ServerLink {
   private(set) var activity = "guide"
   /// First-run setup: where it is, how far the walk has got, what has been named.
   private(set) var onboarding = OnboardingState()
+  /// Conversation notes: idle, recording, summarizing or ready, and the last saved title.
+  private(set) var notes = NotesState()
   private(set) var answerNote: AnswerNote?
   /// Sector distances from the latest safety message, as forwarded to the watch.
   private(set) var proximity: ProximityReading?
@@ -223,6 +225,11 @@ final class ServerLink {
   func addMotion(_ sample: [Double]) {
     guard connection == .connected else { return }
     motionBuffer.append(sample)
+  }
+
+  /// Starts or stops a conversation note ("start" or "stop").
+  func takeNotes(_ action: String) {
+    send(json: ["type": "notes", "action": action])
   }
 
   /// Starts or skips the first-run setup ("start" or "skip").
@@ -407,6 +414,16 @@ final class ServerLink {
         onboarding = OnboardingState(
           step: step, progress: obj["progress"] as? Double ?? 0,
           items: obj["items"] as? [String] ?? [], mode: obj["mode"] as? String)
+        if let say = obj["say"] as? String { speaker.speak(say) }
+      }
+    case "notes":
+      // Recording is announced aloud so everyone nearby knows; the server sends each line to say.
+      if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        let state = obj["state"] as? String
+      {
+        notes = NotesState(
+          state: state, title: obj["title"] as? String ?? notes.title,
+          summary: obj["summary"] as? String ?? notes.summary)
         if let say = obj["say"] as? String { speaker.speak(say) }
       }
     case "activity":
@@ -615,6 +632,14 @@ struct WarningFilter {
     }
     return shown
   }
+}
+
+/// Where a conversation note is: idle, recording, summarizing or ready.
+struct NotesState: Equatable {
+  var state = "idle"
+  var title = ""
+  var summary = ""
+  var isRecording: Bool { state == "recording" }
 }
 
 /// Where the first-run setup is: idle, walk, name, belt or done.

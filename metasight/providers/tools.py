@@ -50,6 +50,20 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "search_notes",
+            "description": "The wearer's saved conversation notes: newest first, each with a "
+            "title, a summary and the transcript lines that match the question. Use it for "
+            "what someone said in a past conversation.",
+            "parameters": {
+                "type": "object",
+                "properties": {"query": {"type": "string", "description": "the question"}},
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "people_in_view",
             "description": "How many people are in view, with direction and distance each "
             "(anonymous numbers, no names).",
@@ -63,7 +77,8 @@ SYSTEM = (
     "Use the tools for facts; never guess. Distances in metres, directions as left/right/ahead/"
     "behind. People have no names here: say 'someone'. A tool that answers with an empty "
     "changes list means nothing changed: say so. Say you do not know only when a tool fails "
-    "or has no data."
+    "or has no data. Notes are what people said in past conversations: quote the matching "
+    "lines, never fill in what they did not say."
 )
 
 
@@ -79,8 +94,14 @@ def side(bearing: float) -> str:
 class Tools:
     """`pins` is a PinStore, `heading` a Heading, `people` returns the latest people event."""
 
-    def __init__(self, pins, heading, people: Callable[[], dict | None], now=time.time):
+    def __init__(self, pins, heading, people: Callable[[], dict | None], now=time.time, notes=None):
         self.pins, self.heading, self.people, self.now = pins, heading, people, now
+        self.notes = notes  # a notes.Notes, or None when there are none
+
+    def search_notes(self, query: str) -> dict:
+        if self.notes is None:
+            return {"notes": [], "message": "no saved notes"}
+        return self.notes.find(query)
 
     def where_is(self, object: str) -> dict:
         pin = self.pins.latest(object.lower().strip())
