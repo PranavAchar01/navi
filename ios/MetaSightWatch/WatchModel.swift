@@ -9,6 +9,7 @@
 //   behind       directionDown, two falling taps
 //   stop band    failure, the strongest pattern (closer than 0.5 m, or walking into something)
 //   signal lost  retry, once, so silence is never mistaken for a clear path
+//   find my X    click, faster as the asked-for item gets closer (only with nothing to avoid)
 //
 // While on, an extended runtime session (the "mindfulness" type, which needs no paid
 // entitlement) keeps the app frontmost and playing haptics with the screen dimmed, for up
@@ -97,6 +98,7 @@ final class WatchModel: NSObject {
     case .behind: return .directionDown
     case .stop: return .failure
     case .lost: return .retry
+    case .find: return .click
     }
   }
 

@@ -36,6 +36,7 @@ struct PhoneCameraView: View {
           statusRows
           cameraArea
           nearest
+          FindChip(finder: link.finder)
           serverStatus
           askRow
           serverRow

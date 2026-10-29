@@ -213,3 +213,47 @@ struct BeltView: View {
   .frame(width: 200, height: 200)
   .background(Color.black)
 }
+
+/// The "find my X" chip: what the phone is buzzing toward and how far it is, on glass. The
+/// waves icon pulses at the haptic's own rate while it buzzes; out of view it says so and dims.
+struct FindChip: View {
+  let finder: FindHaptics
+
+  var body: some View {
+    if let target = finder.target {
+      HStack(spacing: 10) {
+        Image(systemName: "dot.radiowaves.left.and.right")
+          .font(.system(size: 18, weight: .semibold))
+          .foregroundStyle(finder.buzzing ? Color.orange : .secondary)
+          .symbolEffect(.pulse, options: .repeating, isActive: finder.buzzing)
+        Text(target)
+          .font(.system(size: 19, weight: .bold))
+        Text(detail)
+          .font(.system(size: 17, weight: .semibold).monospacedDigit())
+          .foregroundStyle(.secondary)
+      }
+      .padding(.horizontal, 16)
+      .padding(.vertical, 10)
+      .modifier(GlassCapsule())
+      .opacity(finder.buzzing ? 1 : 0.7)
+      .accessibilityElement(children: .combine)
+      .accessibilityIdentifier("find_chip")
+    }
+  }
+
+  private var detail: String {
+    guard finder.buzzing else { return "out of view" }
+    return finder.dist.map { String(format: "%.1f m", $0) } ?? ""
+  }
+}
+
+/// Liquid glass where the OS has it, frosted material before.
+private struct GlassCapsule: ViewModifier {
+  func body(content: Content) -> some View {
+    if #available(iOS 26.0, *) {
+      content.glassEffect(.regular, in: .capsule)
+    } else {
+      content.background(.ultraThinMaterial, in: Capsule())
+    }
+  }
+}

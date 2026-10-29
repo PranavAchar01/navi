@@ -21,8 +21,12 @@ struct ProximityReading: Equatable, Sendable {
   var distances: [Double?]
   /// The server's cue per sector: off, slow, fast, solid, unknown or guide.
   var modes: [String]
+  /// Metres to the "find my X" target while the camera sees it; nil when nothing is being
+  /// looked for or it is out of view.
+  var find: Double? = nil
 
-  init(distances: [Double?], modes: [String]) {
+  init(distances: [Double?], modes: [String], find: Double? = nil) {
+    self.find = find
     self.distances = Array((distances + Array(repeating: nil, count: Self.sectorCount)).prefix(Self.sectorCount))
     self.modes = Array((modes + Array(repeating: "unknown", count: Self.sectorCount)).prefix(Self.sectorCount))
   }
@@ -44,14 +48,17 @@ struct ProximityReading: Equatable, Sendable {
 
   // MARK: - WatchConnectivity payload
 
-  /// Property-list form for WCSession: "d" distances (-1 for none), "m" cue names.
+  /// Property-list form for WCSession: "d" distances (-1 for none), "m" cue names, "f" the
+  /// find target's distance when there is one.
   var message: [String: Any] {
-    ["d": distances.map { $0 ?? -1 }, "m": modes]
+    var m: [String: Any] = ["d": distances.map { $0 ?? -1 }, "m": modes]
+    if let find { m["f"] = find }
+    return m
   }
 
   init?(message: [String: Any]) {
     guard let d = message["d"] as? [Double], let m = message["m"] as? [String] else { return nil }
-    self.init(distances: d.map { $0 < 0 ? nil : $0 }, modes: m)
+    self.init(distances: d.map { $0 < 0 ? nil : $0 }, modes: m, find: message["f"] as? Double)
   }
 }
 
@@ -141,6 +148,8 @@ enum ProximityPulse: String, Sendable {
   case stop
   /// Readings stopped arriving: played once so silence is never mistaken for "clear".
   case lost
+  /// The "find my X" target is in view: taps that come faster as you get closer.
+  case find
 }
 
 /// Parking-sensor timing: silent when clear, pulses that come faster as the obstacle gets
@@ -190,7 +199,12 @@ struct ProximityPacer: Sendable {
     hadSignal = true
     guard let w = reading.warning else {
       settle = nil
-      return nil
+      // Nothing to avoid: the find taps, as fast as the watch can tap cleanly.
+      guard let plan = FindHaptic.plan(dist: reading.find, bearing: 0, inView: true),
+        now.timeIntervalSince(lastPulse) >= max(1 / plan.pulseHz, Self.minimumGap)
+      else { return nil }
+      lastPulse = now
+      return .find
     }
 
     var interval = Self.interval(for: w)
@@ -211,5 +225,44 @@ struct ProximityPacer: Sendable {
     case .side: return .side
     case .behind: return .behind
     }
+  }
+}
+
+/// "Find my X" on the phone's (and watch's) haptics: one continuous buzz that gets stronger, sharper and
+/// pulses faster as the target gets closer, from the server's guide distance. Silent whenever
+/// the target is not in view, so a buzz always means "it is in front of you right now".
+struct FindHaptic: Equatable, Sendable {
+  /// 0...1, Core Haptics' intensity and sharpness controls.
+  let intensity: Float
+  let sharpness: Float
+  /// On-off pulses per second.
+  let pulseHz: Double
+
+  /// The server calls the item found, and stops guiding, inside `near`.
+  static let near = 0.8
+  /// From here out the buzz is at its faintest and slowest.
+  static let far = 4.0
+  /// The camera's field of view when nothing better is known (the glasses are about 70 deg).
+  static let defaultHFov = 70.0
+
+  /// `inView` is the server's word when it sends one; otherwise the target counts as in view
+  /// when its bearing is inside the camera's field of view.
+  static func plan(dist: Double?, bearing: Double?, inView: Bool?, hfov: Double = defaultHFov)
+    -> FindHaptic?
+  {
+    guard let dist, let bearing, dist.isFinite else { return nil }
+    guard inView ?? (abs(bearing) <= hfov / 2) else { return nil }
+    let t = min(1, max(0, (far - dist) / (far - near)))
+    return FindHaptic(
+      intensity: Float(0.3 + 0.7 * t),
+      sharpness: Float(0.15 + 0.75 * t),
+      pulseHz: 1.5 + 8.5 * pow(t, 1.5))
+  }
+
+  /// The intensity at `seconds` into the buzz: full for the first half of each pulse, a faint
+  /// floor for the second, so it reads as pulses without ever stopping dead.
+  func level(at seconds: Double) -> Float {
+    let phase = (seconds * pulseHz).truncatingRemainder(dividingBy: 1)
+    return phase < 0.5 ? intensity : intensity * 0.12
   }
 }

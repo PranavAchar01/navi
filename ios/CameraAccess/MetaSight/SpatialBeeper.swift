@@ -11,8 +11,11 @@
 // stream or the answer speaker. Nothing ever plays on a simulator or a Mac: there the beeper
 // is silent, and tests render offline into a buffer with `.offline`.
 //
+// FindHaptics, at the end, is the phone's "find my X" buzz through Core Haptics.
+//
 
 import AVFoundation
+import CoreHaptics
 import Observation
 
 @MainActor
@@ -207,5 +210,118 @@ final class SpatialBeeper {
       samples[i] = Float(sin(2 * .pi * kind.frequency * Double(i) / sampleRate) * envelope)
     }
     return buffer
+  }
+}
+
+// MARK: - Find my X, on the phone's haptics
+
+/// Plays FindHaptic on the phone's Taptic Engine: one looping continuous event whose intensity
+/// and sharpness controls are set 60 times a second, so the pulses speed up smoothly as the
+/// target gets closer. A short double tap when the server says it is found. The chip on the
+/// camera screen reads `target` and `dist`. No Taptic Engine on a simulator or a Mac: there the
+/// chip still shows and nothing buzzes.
+@MainActor
+@Observable
+final class FindHaptics {
+  private(set) var target: String?
+  private(set) var dist: Double?
+  /// True while the buzz is running (the target is in view with a distance).
+  private(set) var buzzing = false
+
+  let canBuzz = CHHapticEngine.capabilitiesForHardware().supportsHaptics
+
+  @ObservationIgnored private var engine: CHHapticEngine?
+  @ObservationIgnored private var player: CHHapticAdvancedPatternPlayer?
+  @ObservationIgnored private var plan: FindHaptic?
+  @ObservationIgnored private var started = Date()
+  @ObservationIgnored private var ticker: Task<Void, Never>?
+  @ObservationIgnored private var wasFound = false
+
+  /// Every safety message: the guide (nil when nothing is being looked for) and `found`.
+  func update(guide: GuideTarget?, found: Bool) {
+    target = guide?.label ?? (found ? target : nil)
+    dist = guide?.dist
+    if found, !wasFound { foundTap() }
+    wasFound = found
+    plan = guide.flatMap { FindHaptic.plan(dist: $0.dist, bearing: $0.bearing, inView: $0.inView) }
+    if plan != nil, !buzzing { begin() } else if plan == nil, buzzing { end() }
+  }
+
+  private func begin() {
+    buzzing = true
+    started = Date()
+    guard canBuzz, startEngine() else { return }
+    let event = CHHapticEvent(
+      eventType: .hapticContinuous,
+      parameters: [
+        CHHapticEventParameter(parameterID: .hapticIntensity, value: 1),
+        CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.5),
+      ],
+      relativeTime: 0, duration: 30)
+    guard let pattern = try? CHHapticPattern(events: [event], parameters: []),
+      let player = try? engine?.makeAdvancedPlayer(with: pattern)
+    else { return }
+    player.loopEnabled = true
+    try? player.start(atTime: CHHapticTimeImmediate)
+    self.player = player
+    ticker = Task { [weak self] in
+      while !Task.isCancelled {
+        self?.tick()
+        try? await Task.sleep(for: .milliseconds(16))
+      }
+    }
+  }
+
+  private func tick() {
+    guard let plan, let player else { return }
+    let level = plan.level(at: Date().timeIntervalSince(started))
+    try? player.sendParameters(
+      [
+        CHHapticDynamicParameter(parameterID: .hapticIntensityControl, value: level, relativeTime: 0),
+        CHHapticDynamicParameter(
+          parameterID: .hapticSharpnessControl, value: plan.sharpness - 0.5, relativeTime: 0),
+      ],
+      atTime: CHHapticTimeImmediate)
+  }
+
+  private func end() {
+    buzzing = false
+    ticker?.cancel()
+    ticker = nil
+    try? player?.stop(atTime: CHHapticTimeImmediate)
+    player = nil
+  }
+
+  private func foundTap() {
+    end()
+    guard canBuzz, startEngine() else { return }
+    let taps = [0.0, 0.14].map {
+      CHHapticEvent(
+        eventType: .hapticTransient,
+        parameters: [
+          CHHapticEventParameter(parameterID: .hapticIntensity, value: 1),
+          CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.9),
+        ],
+        relativeTime: $0)
+    }
+    guard let pattern = try? CHHapticPattern(events: taps, parameters: []) else { return }
+    try? engine?.makePlayer(with: pattern).start(atTime: CHHapticTimeImmediate)
+  }
+
+  /// The engine went away under us: drop it and its player, and let the next update restart.
+  private func lost() {
+    end()
+    engine = nil
+  }
+
+  private func startEngine() -> Bool {
+    if engine == nil {
+      engine = try? CHHapticEngine()
+      // The system stops the engine when the app goes to the background; start it again lazily.
+      engine?.resetHandler = { [weak self] in Task { @MainActor in self?.lost() } }
+      engine?.stoppedHandler = { [weak self] _ in Task { @MainActor in self?.lost() } }
+    }
+    guard let engine else { return false }
+    return (try? engine.start()) != nil
   }
 }

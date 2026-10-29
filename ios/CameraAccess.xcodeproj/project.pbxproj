@@ -22,6 +22,8 @@
 		5E5E5E5E0000000000000409 /* MetaSightWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 5E5E5E5E0000000000000402 /* MetaSightWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		5E5E5E5E0000000000000611 /* BeepCue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E5E5E5E0000000000000601 /* BeepCue.swift */; };
 		5E5E5E5E0000000000000612 /* SpatialBeeper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E5E5E5E0000000000000602 /* SpatialBeeper.swift */; };
+		5E5E5E5E0000000000000613 /* BeltAudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E5E5E5E0000000000000603 /* BeltAudio.swift */; };
+		5E5E5E5E0000000000000614 /* BeltBLE.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E5E5E5E0000000000000604 /* BeltBLE.swift */; };
 		8F8F00782E8ACB4600A4BDAF /* WearablesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F8F00772E8ACB4500A4BDAF /* WearablesViewModel.swift */; };
 		8FD96B7F2E6F0A9800F56AB1 /* CameraAccessApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FD96B792E6F0A9800F56AB1 /* CameraAccessApp.swift */; };
 		8FD96B812E6F0A9800F56AB1 /* HomeScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FD96B722E6F0A9800F56AB1 /* HomeScreenView.swift */; };
@@ -122,6 +124,8 @@
 		5E5E5E5E0000000000000402 /* MetaSightWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MetaSightWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5E5E5E5E0000000000000601 /* BeepCue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeepCue.swift; sourceTree = "<group>"; };
 		5E5E5E5E0000000000000602 /* SpatialBeeper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpatialBeeper.swift; sourceTree = "<group>"; };
+		5E5E5E5E0000000000000603 /* BeltAudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeltAudio.swift; sourceTree = "<group>"; };
+		5E5E5E5E0000000000000604 /* BeltBLE.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeltBLE.swift; sourceTree = "<group>"; };
 		8F8F00772E8ACB4500A4BDAF /* WearablesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WearablesViewModel.swift; sourceTree = "<group>"; };
 		8FD96B6F2E6F0A9800F56AB1 /* CameraViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraViewModel.swift; sourceTree = "<group>"; };
 		8FD96B722E6F0A9800F56AB1 /* HomeScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeScreenView.swift; sourceTree = "<group>"; };
@@ -225,6 +229,8 @@
 				5E5E5E5E0000000000000102 /* AnswerSpeaker.swift */,
 				5E5E5E5E0000000000000602 /* SpatialBeeper.swift */,
 				5E5E5E5E0000000000000601 /* BeepCue.swift */,
+				5E5E5E5E0000000000000603 /* BeltAudio.swift */,
+				5E5E5E5E0000000000000604 /* BeltBLE.swift */,
 				5E5E5E5E0000000000000103 /* BeltView.swift */,
 				5E5E5E5E0000000000000104 /* DemoLaunch.swift */,
 				5E5E5E5E0000000000000105 /* CameraSource.swift */,
@@ -548,6 +554,8 @@
 				5E5E5E5E0000000000000202 /* AnswerSpeaker.swift in Sources */,
 				5E5E5E5E0000000000000612 /* SpatialBeeper.swift in Sources */,
 				5E5E5E5E0000000000000611 /* BeepCue.swift in Sources */,
+				5E5E5E5E0000000000000613 /* BeltAudio.swift in Sources */,
+				5E5E5E5E0000000000000614 /* BeltBLE.swift in Sources */,
 				5E5E5E5E0000000000000203 /* BeltView.swift in Sources */,
 				5E5E5E5E0000000000000204 /* DemoLaunch.swift in Sources */,
 				5E5E5E5E0000000000000205 /* CameraSource.swift in Sources */,

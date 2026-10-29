@@ -118,6 +118,9 @@ struct CameraView: View {
 
         Spacer(minLength: 0)
 
+        FindChip(finder: viewModel.link.finder)
+          .padding(.bottom, 8)
+
         bottomBar
       }
     }

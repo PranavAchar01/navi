@@ -12,7 +12,7 @@
 // a real belt.
 //
 
-import CoreBluetooth
+@preconcurrency import CoreBluetooth
 import Foundation
 import Observation
 
@@ -111,8 +111,8 @@ extension BeltBLE: CBCentralManagerDelegate, CBPeripheralDelegate {
   nonisolated func centralManager(
     _ central: CBCentralManager, willRestoreState dict: [String: Any]
   ) {
+    nonisolated(unsafe) let restored = dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral]
     MainActor.assumeIsolated {
-      let restored = dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral]
       if let p = restored?.first {
         peripheral = p
         p.delegate = self

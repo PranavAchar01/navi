@@ -41,6 +41,14 @@ struct GuideTarget: Equatable, Sendable, Decodable {
   let dist: Double?
   /// Degrees, 0 = straight ahead, positive = to the right.
   let bearing: Double?
+  /// True when this fix is the camera seeing it, false when it comes from the map; nil when
+  /// the server does not say.
+  var inView: Bool? = nil
+
+  enum CodingKeys: String, CodingKey {
+    case label, dist, bearing
+    case inView = "in_view"
+  }
 }
 
 /// The latest answer, with the item it is about and what it was seen near, when the
@@ -142,6 +150,8 @@ final class ServerLink {
   @ObservationIgnored private let speaker = AnswerSpeaker()
   /// Spatial beeps for the proximity bands, through the active output (the glasses).
   @ObservationIgnored let beeper = SpatialBeeper()
+  /// "Find my X" on the phone's haptics, from the guide distance.
+  let finder = FindHaptics()
   /// The belt's motors (and haptic Braille pulses) as stereo tones, for testing without a belt.
   @ObservationIgnored let beltAudio = BeltAudio()
   /// The belt's Bluetooth link: the server's belt commands, relayed to the ESP32.
@@ -400,14 +410,16 @@ final class ServerLink {
     case "safety":
       guard let msg = try? decoder.decode(SafetyMessage.self, from: data) else { return }
       guide = msg.guide
+      finder.update(guide: msg.guide, found: msg.found ?? false)
       let reading = msg.sectors.flatMap { sectors in
         msg.cues.map { Self.proximity(sectors: sectors, modes: $0.map(\.mode), path: msg.path) }
       }
       warning = warningFilter.update(reading?.cueWarning, now: Date())
       statusLine = Self.statusLine(
         warning: warning, guide: Self.liveGuide(msg.guide, answer: answerNote), found: msg.found ?? false)
-      if let reading {
+      if var reading {
         proximity = reading
+        reading.find = finder.buzzing ? finder.dist : nil
         WatchLink.shared.send(reading)
         beeper.update(reading)
       }

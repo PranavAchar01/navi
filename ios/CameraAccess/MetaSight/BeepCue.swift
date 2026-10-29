@@ -3,7 +3,8 @@
 //
 // The wearer's spatial beeps, as pure rules: which proximity band sounds like what, how often
 // it repeats, and where in 3D the beep is placed. The audio engine that plays them is
-// SpatialBeeper; nothing here touches AVFoundation, so every rule is unit tested.
+// SpatialBeeper; nothing here touches AVFoundation, so every rule is unit tested. The phone's
+// "find my X" buzz rule, FindHaptic, lives in Shared/Proximity.swift so the watch uses it too.
 //
 // Bands are the server's (metasight/geometry.py) via ProximityBand: silent at 2 m or more,
 // yellow 2 to 1 m, orange 1 to 0.5 m, red below 0.5 m or when the server says "solid"
@@ -149,3 +150,4 @@ struct BeepScheduler: Sendable {
     return plan
   }
 }
+
