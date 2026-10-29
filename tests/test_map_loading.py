@@ -164,3 +164,18 @@ def test_a_plan_before_the_map_loads_gets_the_holding_line_first(monkeypatch):
 
     res = asyncio.run(run())
     assert sent == [server.HOLDING, server.MAP_LOADING] and res["text"] == server.MAP_LOADING
+
+
+def test_a_voice_turn_before_the_map_loads_is_told_at_once():
+    answered = []
+
+    async def run():
+        srv = fake(answered)
+        srv.loop = asyncio.get_running_loop()
+        srv.loop.call_later(6.0, srv.map_loaded.set)  # a slow house load
+        t0 = asyncio.get_running_loop().time()
+        res = await Server.answer(srv, "where are my keys", quiet_unknown=True, spoken_end=0.0)
+        return res, asyncio.get_running_loop().time() - t0
+
+    res, took = asyncio.run(run())
+    assert res["text"] == server.MAP_LOADING and took < 0.5 and answered == []

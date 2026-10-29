@@ -1139,9 +1139,10 @@ class Server:
                 self.braille.say(HOLDING)
         if not self.map_loaded.is_set():
             # Right after a restart the bank is empty until the worker loads the home map, and
-            # "I haven't seen your keys" would be a wrong answer. Wait a moment, then say so.
+            # "I haven't seen your keys" would be a wrong answer. Wait a moment, then say so; a
+            # spoken question is told at once, since seconds of silence after it sound broken.
             try:
-                await asyncio.wait_for(self.map_loaded.wait(), MAP_WAIT_S)
+                await asyncio.wait_for(self.map_loaded.wait(), 0 if quiet_unknown else MAP_WAIT_S)
                 pending = None  # it was answered from the empty bank
             except TimeoutError:
                 pending = asyncio.get_running_loop().create_future()
