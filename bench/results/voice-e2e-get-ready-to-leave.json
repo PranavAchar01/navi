@@ -1,0 +1,62 @@
+{
+ "at": "2026-10-29 01:39 PDT",
+ "question": "get ready to leave",
+ "streamed": [
+  {
+   "heard": "Get ready to leave.",
+   "answer": "Let's get your clothes on first. After that: shoe, keys, phone, handbag and door.",
+   "label": null,
+   "language": "muse-spark",
+   "early": false,
+   "first_partial_from_start_ms": 976,
+   "final_transcript_ms": 3380,
+   "answer_ms": 6261,
+   "server_speech_end_to_answer_ms": 3506
+  },
+  {
+   "heard": "Get ready to leave.",
+   "answer": "Your shoes are by the sink, let's put them on first. After that: handbag, phone, keys and door.",
+   "label": null,
+   "language": "muse-spark",
+   "early": false,
+   "first_partial_from_start_ms": 951,
+   "final_transcript_ms": 242,
+   "answer_ms": 2130,
+   "server_speech_end_to_answer_ms": 2576
+  },
+  {
+   "heard": "Get ready to leave.",
+   "answer": "Your shoes were last near the sink, let's put them on. After that: handbag, phone, keys and door.",
+   "label": null,
+   "language": "muse-spark",
+   "early": false,
+   "first_partial_from_start_ms": 701,
+   "final_transcript_ms": 455,
+   "answer_ms": 3452,
+   "server_speech_end_to_answer_ms": 3578
+  },
+  {
+   "heard": "Get ready to leave.",
+   "answer": "Your shoes are by the sink and bed. After that: keys, phone, handbag and door.",
+   "label": null,
+   "language": "muse-spark",
+   "early": false,
+   "first_partial_from_start_ms": 765,
+   "final_transcript_ms": 209,
+   "answer_ms": 2184,
+   "server_speech_end_to_answer_ms": 2632
+  },
+  {
+   "heard": "Get ready to leave.",
+   "answer": "Put on your shoes by the sink. After that: keys, phone, handbag and door.",
+   "label": null,
+   "language": "muse-spark",
+   "early": false,
+   "first_partial_from_start_ms": 710,
+   "final_transcript_ms": 222,
+   "answer_ms": 2319,
+   "server_speech_end_to_answer_ms": 2701
+  }
+ ],
+ "streamed_median_answer_ms": 2319
+}

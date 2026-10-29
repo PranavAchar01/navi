@@ -7,6 +7,8 @@ sent:
   sequential: the old shape. Wait for the speaker to stop, transcribe the whole clip
               (POST /v1/asr/transcribe), then send the text as an `ask`.
 Writes bench/results/voice-e2e.json.  Run: .venv/bin/python bench/voice_e2e.py [ws-url] [n]
+With a question as the third argument, asks only that, streamed, n times, and writes
+bench/results/voice-e2e-<question>.json (e.g. "get ready to leave" for the errand plan).
 """
 
 from __future__ import annotations
@@ -28,6 +30,7 @@ from meta_models_probe import KEY, speech_pcm, wav  # noqa: E402
 
 URL = sys.argv[1] if len(sys.argv) > 1 else "ws://127.0.0.1:8445/ws"
 N = int(sys.argv[2]) if len(sys.argv) > 2 else 5
+ONLY = sys.argv[3] if len(sys.argv) > 3 else None
 SR = 16000
 CHUNK = 1024  # samples, what web/src/mic.ts sends (64 ms)
 
@@ -142,7 +145,23 @@ async def sequential(question: str, pcm: bytes) -> dict:
         }
 
 
+async def only(question: str) -> None:
+    pcm = speech_pcm(question, SR)
+    out = {"at": time.strftime("%Y-%m-%d %H:%M %Z"), "question": question, "streamed": []}
+    for _ in range(N):
+        out["streamed"].append(await streamed(question, pcm))
+        print("streamed", out["streamed"][-1], flush=True)
+    out["streamed_median_answer_ms"] = round(
+        statistics.median(r["answer_ms"] for r in out["streamed"])
+    )
+    print({k: v for k, v in out.items() if k.endswith("_ms")})
+    slug = "-".join(question.lower().split())
+    (ROOT / f"bench/results/voice-e2e-{slug}.json").write_text(json.dumps(out, indent=1))
+
+
 async def main() -> None:
+    if ONLY:
+        return await only(ONLY)
     state = httpx.get(URL.replace("ws://", "http://").replace("/ws", "/api/state")).json()
     labels = sorted({p["label"] for p in state["pins"]})
     asks = [f"where is my {lab}" for lab in labels[:N]] or ["where are my keys"]

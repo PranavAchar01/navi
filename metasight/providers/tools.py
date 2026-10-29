@@ -70,6 +70,20 @@ TOOLS = [
             "parameters": {"type": "object", "properties": {}},
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "plan",
+            "description": "Steps for an errand at home ('get ready to leave', 'make tea'): the "
+            "things to pick up or go to, in order, all from the wearer's home memory. Its answer "
+            "is spoken as is.",
+            "parameters": {
+                "type": "object",
+                "properties": {"goal": {"type": "string", "description": "e.g. make tea"}},
+                "required": ["goal"],
+            },
+        },
+    },
 ]
 
 SYSTEM = (
@@ -94,9 +108,36 @@ def side(bearing: float) -> str:
 class Tools:
     """`pins` is a PinStore, `heading` a Heading, `people` returns the latest people event."""
 
-    def __init__(self, pins, heading, people: Callable[[], dict | None], now=time.time, notes=None):
+    def __init__(
+        self,
+        pins,
+        heading,
+        people: Callable[[], dict | None],
+        now=time.time,
+        notes=None,
+        planner=None,
+    ):
         self.pins, self.heading, self.people, self.now = pins, heading, people, now
         self.notes = notes  # a notes.Notes, or None when there are none
+        self.planner = planner  # goal -> review.plan result, or None
+        self.spoken = ""  # set by a tool whose answer is the reply: the loop ends there
+        self.steps: list[dict] = []
+
+    def plan(self, goal: str) -> dict:
+        if self.planner is None:
+            return {"error": "no planner"}
+        res = self.planner(goal)
+        steps = [{**i, "near": self.pins.latest(i["object"]).near} for i in res["items"]]
+        if not steps:
+            return {"steps": []}
+        self.steps = steps
+        first = steps[0]["say"] or f"First, the {steps[0]['object']}."
+        rest = [i["object"] for i in steps[1:]]
+        if rest:
+            then = ", ".join(rest[:-1]) + (" and " if len(rest) > 1 else "") + rest[-1]
+            first = f"{first} After that: {then}."
+        self.spoken = first
+        return {"steps": steps}
 
     def search_notes(self, query: str) -> dict:
         if self.notes is None:
@@ -236,4 +277,6 @@ def agent_answer(lang, question: str, tools: Tools, rounds: int = 3) -> str:
             msgs.append(
                 {"role": "tool", "tool_call_id": c.id, "content": tools.call(c.function.name, args)}
             )
+        if tools.spoken:
+            return tools.spoken
     return ""

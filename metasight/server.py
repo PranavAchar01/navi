@@ -61,6 +61,7 @@ from .query import (
     valid_sentence,
 )
 from .review import MapReview
+from .review import plan as errand_plan
 from .safety import SafetyLoop, hazards
 from .voice import VoiceAsk
 from .walk import WALKS, WalkRecorder
@@ -72,6 +73,8 @@ POSE_FRESH_S = 6.0  # a map pose older than this gives no direction
 ANSWER_POSE_S = 12.0  # answers accept an older pose: windows take 5 to 11 s during a solve
 LIVE_SEEN_S = 1.0  # a camera sighting this recent answers "where is my X" over memory
 LIVE_OVER_PIN_S = 60.0  # an older camera sighting wins when memory's pin is this much older
+MAP_WAIT_S = 3.0  # right after a restart, how long a question waits for the home map
+MAP_LOADING = "I'm still loading your home map. Ask me again in a few seconds."
 AR_POSE_HZ = 5.0  # ARKit-carried poses go out to viewers at most this often
 # ARKit's camera is the landscape sensor (x along its long side, y up, z back). Frames go out
 # turned upright, so the image's right is ARKit's +y and its down is ARKit's +x.
@@ -162,6 +165,7 @@ class Server:
         self.mode = settings.mode
         self.last_done = 0.0
         self.memory_ready = False
+        self.map_loaded = asyncio.Event()
         self.memory_stats: dict = {}
         self.ctx = mp.get_context("spawn")
         self.in_q = self.ctx.Queue()
@@ -284,8 +288,9 @@ class Server:
     # ------------------------------------------------------------ memory events
     async def on_memory_event(self, ev: dict) -> None:
         t = ev["type"]
-        if t == "ready":
+        if t == "ready":  # the worker sends the home map's pins first
             self.memory_ready = True
+            self.map_loaded.set()
             await self.hub.json({"type": "status", "memory": "ready", "finder": ev["finder"]}, True)
         elif t == "map_replace":
             await self.hub.map_replace(ev["n"], ev["points"], ev["colors"], ev.get("sizes", b""))
@@ -636,13 +641,23 @@ class Server:
                 await self.hub.json({"type": "alert", "kind": ev.kind, "message": ev.message})
 
     # ------------------------------------------------------------ questions
+    def _planner(self):
+        """Errand plans, grounded in the bank. Someone is waiting on these, so Spark makes them:
+        on the live bank it took 1.5 to 1.7 s where Wonder took 2.9 to 13.9 s for the same
+        grounded steps. Wonder keeps the background review, where nobody waits."""
+        return lambda goal: errand_plan(self.language, self.pins, goal, time.time())
+
     def _answer_sync(self, text: str) -> dict:
         if (needs_tools(text) or asks_notes(text)) and hasattr(self.language, "_client"):
             # People, voices, changes: Spark asks the pins, the map and the people tracks itself.
             # One to three calls, so only these questions take this path.
             try:
                 tools = Tools(
-                    self.pins, self.heading, lambda: self.hub.last.get("people"), notes=self.notes
+                    self.pins,
+                    self.heading,
+                    lambda: self.hub.last.get("people"),
+                    notes=self.notes,
+                    planner=self._planner(),
                 )
                 said = agent_answer(self.language, text, tools)
             except Exception:
@@ -657,6 +672,7 @@ class Server:
                     "pin": None,
                     "language": self.language.name,
                     "tools": True,
+                    **({"steps": tools.steps} if tools.steps else {}),
                 }
         seen_at, seen = self.live_seen
         if time.time() - seen_at > LIVE_SEEN_S:
@@ -910,6 +926,17 @@ class Server:
             implied = implied_activity(text, parse_query(text, self.known_labels()) is not None)
             if implied is not None:
                 await self.set_activity(implied, "question", speak=False)  # the answer speaks
+        if not self.map_loaded.is_set():
+            # Right after a restart the bank is empty until the worker loads the home map, and
+            # "I haven't seen your keys" would be a wrong answer. Wait a moment, then say so.
+            try:
+                await asyncio.wait_for(self.map_loaded.wait(), MAP_WAIT_S)
+                pending = None  # it was answered from the empty bank
+            except TimeoutError:
+                pending = asyncio.get_running_loop().create_future()
+                pending.set_result(
+                    {"type": "answer", "label": None, "text": MAP_LOADING, "pin": None}
+                )
         if pending is not None:
             res = await pending
         else:

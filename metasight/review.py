@@ -86,8 +86,10 @@ def bank(pins, now: float) -> dict[str, dict]:
 
 def grounded(items: list[dict], labels) -> tuple[list[dict], list[str]]:
     """Keep only items naming a thing in the bank; return the rest by name, to count them."""
-    known = {x.lower() for x in labels}
-    kept = [i for i in items if i["object"].lower() in known]
+    known = {x.lower(): x for x in labels}
+    kept = [
+        {**i, "object": known[i["object"].lower()]} for i in items if i["object"].lower() in known
+    ]
     return kept, [i["object"] for i in items if i["object"].lower() not in known]
 
 

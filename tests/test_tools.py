@@ -84,3 +84,37 @@ def test_empty_change_list_is_stated_and_the_prompt_says_nothing_changed():
     assert "nothing changed" in SYSTEM
     out = tools().what_changed_since(0.01)
     assert out["changes"] == [] and out["window_min"] == 0.01
+
+
+def test_a_plan_is_spoken_first_step_first_with_no_second_spark_call():
+    from metasight.review import plan
+
+    calls = []
+
+    def create(**kw):
+        calls.append(kw)
+        c = NS(id="c1", function=NS(name="plan", arguments=json.dumps({"goal": "leave"})))
+        return NS(choices=[NS(message=NS(content="", tool_calls=[c]))])
+
+    class Wonder:
+        name = "muse-wonder"
+        usage = None
+
+        def complete(self, system, user, max_tokens=120):
+            return '{"object": "Keys", "say": "Grab your keys."}\n{"object": "wallet", "say": "x"}'
+
+    s = store()
+    t = Tools(
+        s, Head(), lambda: None, now=lambda: 1000, planner=lambda g: plan(Wonder(), s, g, 1000)
+    )
+    lang = NS(model="m", extra={}, _client=NS(chat=NS(completions=NS(create=create))))
+    assert agent_answer(lang, "get ready to leave", t) == "Grab your keys."
+    assert len(calls) == 1 and [i["object"] for i in t.steps] == ["keys"]  # no wallet: not seen
+    assert t.steps[0]["near"] == ["table"]
+
+
+def test_errands_take_the_tool_path():
+    from metasight.query import is_question, needs_tools
+
+    assert needs_tools("help me get ready to leave") and is_question("Get ready to leave.")
+    assert not needs_tools("where did I leave my keys")

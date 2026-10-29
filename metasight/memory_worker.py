@@ -57,10 +57,10 @@ def run(
         engine.load_home()
     SESSIONS.mkdir(exist_ok=True)
     save_path = Path(SESSIONS) / f"{session}.npz"
+    if engine._home_prior:  # before "ready": the server answers questions from then on
+        out_q.put({"type": "pins", "pins": engine._pins_out()})
     out_q.put({"type": "ready", "finder": engine.finder.name})
     out_q.put({"type": "mode", "mode": engine.mode})
-    if engine._home_prior:
-        out_q.put({"type": "pins", "pins": engine._pins_out()})
     buf: list[Keyframe] = []
     arrived = 0.0
     while True:

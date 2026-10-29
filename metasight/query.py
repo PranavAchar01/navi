@@ -39,19 +39,26 @@ def parse_query(text: str, known: list[str] | None = None) -> str | None:
 
 
 # Questions the pins alone cannot answer: about people, voices, or what changed. These go to
-# Muse Spark with tools (providers/tools.py); plain "where is my X" stays on the one-call path.
+# Muse Spark with tools (providers/tools.py), and so do errands ("get ready to leave": a plan);
+# plain "where is my X" stays on the one-call path.
 _TOOLS = re.compile(
     r"\b(who|someone|somebody|anyone|anybody|person|people|talking|speaking|voice|"
     r"changed?|moved|different|what's new|anything new)\b"
 )
+# Errands get a plan from Spark's plan tool. "where did I leave my keys" is not one.
+_ERRAND = re.compile(
+    r"\b(get(?:ting)? ready|about to leave|i'm leaving|going out|head(?:ing)? out|"
+    r"what do i need)\b"
+)
 
 
 def needs_tools(text: str) -> bool:
-    return bool(_TOOLS.search(text.lower()))
+    return bool(_TOOLS.search(text.lower()) or _ERRAND.search(text.lower()))
 
 
 def is_question(text: str) -> bool:
-    return bool(_ASK.search(text.lower())) or text.strip().endswith("?")
+    t = text.lower()
+    return bool(_ASK.search(t) or _ERRAND.search(t)) or text.strip().endswith("?")
 
 
 def direction_phrase(bearing_deg: float) -> str:

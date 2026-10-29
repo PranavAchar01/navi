@@ -56,7 +56,7 @@ def test_review_skips_the_model_when_nothing_changed():
 def test_grounded_rejects_anything_not_in_the_bank():
     items = [{"object": "Chair", "say": ""}, {"object": "wallet", "say": "Grab your wallet."}]
     kept, invented = grounded(items, bank(pins(), 1000.0))
-    assert [i["object"] for i in kept] == ["Chair"] and invented == ["wallet"]
+    assert [i["object"] for i in kept] == ["chair"] and invented == ["wallet"]  # the bank's name
 
 
 def test_plan_and_nudges_never_name_an_invented_item():
