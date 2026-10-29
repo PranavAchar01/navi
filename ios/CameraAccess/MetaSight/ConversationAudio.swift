@@ -49,6 +49,9 @@ final class ConversationAudio: @unchecked Sendable {
   @discardableResult
   func start(send: @escaping ([String: Any]) -> Void) -> Bool {
     guard enabled, !running else { return running }
+    // A unit-test host has no audio hardware: AVAudioEngine.inputNode there times out on the
+    // simulator's audio RPC and aborts the whole test run.
+    guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return false }
     sender = send
     let session = AVAudioSession.sharedInstance()
     do {
