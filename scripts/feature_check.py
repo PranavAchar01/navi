@@ -672,14 +672,17 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
             t0 = time.time()
             res, ms = await c.ask(f"where is my {label}")
             good = res.get("label") == label and (res.get("pin") or res.get("live"))
+            pnote, false_pin = pin_note(res)
             results.append(
                 row(
                     "find",
                     "Find a seen item",
                     "metasight-display",
-                    "PASS" if good else "FAIL",
+                    "FAIL" if false_pin else "PASS" if good else "FAIL",
                     f"{ms:.0f} ms",
-                    f"'where is my {label}' -> \"{res.get('text')}\" (via {res.get('language')})",
+                    ("known false pin; " if false_pin else "")
+                    + f"'where is my {label}' -> \"{res.get('text')}\" "
+                    + f"(via {res.get('language')}); {pnote}",
                 )
             )
             # Standing next to it ends the guide as found at once; then ask for the next most-seen
@@ -699,7 +702,8 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
                     break
                 tried.append(rest.pop(0))
                 t0 = time.time()
-                await c.ask(f"where is my {tried[-1]}")
+                res, _ = await c.ask(f"where is my {tried[-1]}")
+            gnote, g_false = pin_note(res)  # the answer the guide points from
             meta["guide_tried"] = tried
             # At least 10 s of guide frames, longer (up to 30 s) until 20 frames carried a guide.
             while (dt := time.time() - t0) < 30 and (
@@ -747,14 +751,16 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
                         "guide",
                         "Guide bearings after a find",
                         "metasight-compare",
-                        "PASS" if with_b else "FAIL",
+                        "PASS" if with_b and not g_false else "FAIL",
                         f"{len(with_b)} of {len(guides)} frames",
-                        (
+                        ("known false pin; " if g_false else "")
+                        + (
                             f"median frame: {b['bearing']} deg, {b['dist']} m, in view "
                             f"{b['in_view']}; asked for {', '.join(tried)}"
                             if b
                             else f"guide set but bearing null, not in view; {why}"
-                        ),
+                        )
+                        + f"; {gnote}",
                     )
                 )
             route = [g for g in guides if g.get("route") is not None]
@@ -775,9 +781,10 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
                         "nav",
                         "Route planner (nav.py) drives the guide",
                         "metasight-compare",
-                        "PASS" if route else "FAIL",
+                        "PASS" if route and not g_false else "FAIL",
                         f"{len(route)} frames with a route",
-                        "guide frames carried a route"
+                        ("known false pin; " if g_false else "")
+                        + (f"guide frames carried a route; {gnote}" if route else "")
                         if route
                         else (
                             f"nav is wired, but no guide frame had a route ({len(guides)} "
@@ -1126,6 +1133,25 @@ DIRTY_ROWS = {
     "metasight/onboarding.py": ("onboarding", "patterns"),
     "metasight/modes.py": ("modes", "patterns"),
 }
+
+
+KNOWN_FALSE_PINS = {100015}  # the saved house's "keys" pin is the keyboard (compare, 085c47b)
+WEAK_PIN_SCORE = 0.3
+
+
+def pin_note(res: dict) -> tuple[str, bool]:
+    """Which pin an answer rested on, and whether it is a known false one: a listed pin, or one
+    under 0.3 that the camera did not confirm live."""
+    pin = res.get("pin") or {}
+    if not pin:
+        return ("live camera, no pin" if res.get("live") else "no pin"), False
+    bad = pin.get("id") in KNOWN_FALSE_PINS or (
+        (pin.get("score") or 0) < WEAK_PIN_SCORE and not res.get("live")
+    )
+    return (
+        f"pin {pin.get('id')} {pin.get('label')} score {pin.get('score', 0):.2f} "
+        f"source {pin.get('source') or '?'}{', live' if res.get('live') else ''}"
+    ), bad
 
 
 def git_state() -> dict:
