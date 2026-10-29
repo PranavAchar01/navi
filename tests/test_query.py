@@ -161,8 +161,31 @@ def test_a_drifted_lone_sighting_on_the_same_visit_folds_into_the_pin():
 def test_a_look_alike_is_offered_as_unconfirmed():
     cup = pin([0.0, 0.9, -2.0], near=["desk"], label="cup")
     text = template_answer("water bottle", cup, pose_facing_minus_z(), 1000.0, stand_in=True)
-    assert text.startswith("I'm not sure I saw your water bottle, but a cup was near the desk")
-    assert "straight ahead" in text
+    assert text.startswith("I haven't seen your water bottle. I did see a cup near the desk")
+    assert "straight ahead" in text and "maybe" in text and text.endswith("play a sound.")
+
+
+def test_a_never_seen_wallet_is_not_answered_with_the_handbag():
+    from types import SimpleNamespace as NS
+
+    from metasight.pins import PinStore
+    from metasight.server import Server
+
+    s = PinStore()
+    s.pins[1] = pin([0.0, 0.9, -3.0], near=["sink"], label="handbag")
+    s.pins[1].seen = 5
+    srv = NS(
+        pins=s,
+        language=NS(name="template"),
+        live_seen=(0.0, []),
+        live_last={},
+        pose=None,
+        map_pose_ts=0.0,
+        guide=None,
+    )
+    text = Server._answer_sync(srv, "where is my wallet")["text"]
+    assert text.startswith("I haven't seen your wallet.") and "handbag" in text
+    assert "Find My" in text
 
 
 def test_live_answer_names_the_live_place():

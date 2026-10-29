@@ -110,18 +110,25 @@ def asked_for(text: str) -> str | None:
     return m.group(1) if m else None
 
 
+def _find_my(label: str) -> str:
+    they, has = ("they", "have") if label.endswith("s") else ("it", "has")
+    return f"If {they} {has} an AirTag, Find My on your phone can play a sound"
+
+
 def unseen_answer(label: str) -> str:
-    they, has, it = ("they", "have", "them") if label.endswith("s") else ("it", "has", "it")
+    it = "them" if label.endswith("s") else "it"
     return (
-        f"I haven't seen your {label} yet. If {they} {has} an AirTag, Find My on your phone can "
-        f"play a sound; or walk past where you left {it} and ask again."
+        f"I haven't seen your {label} yet. {_find_my(label)}; or walk past where you left {it} "
+        "and ask again."
     )
 
 
 def template_answer(
     label: str, pin: Pin | None, pose: np.ndarray | None, now: float, stand_in: bool = False
 ) -> str:
-    """`stand_in`: `pin` is a look-alike (a cup for the water bottle), not a confirmed sighting."""
+    """`stand_in`: `pin` is a look-alike (a cup for the water bottle), not a confirmed sighting.
+    It is never given as the answer: the reply says the thing was not seen, offers the look-alike
+    as a maybe, then the Find My line."""
     noun = f"your {label}"
     was = "were" if label.endswith("s") else "was"
     if pin is None:
@@ -129,8 +136,15 @@ def template_answer(
     ago = time_ago(now - pin.ts)
     where = f" near the {pin.near[0]}" if pin.near else ""
     if stand_in:
-        noun = f"I'm not sure I saw {noun}, but a {pin.label}"
-        was = "was"
+        place = ""
+        if pose is not None:
+            rel = relative_to(np.array(pin.pos), pose)
+            if rel.horizontal_m >= 1.0:
+                place = f", {distance_phrase(rel.horizontal_m)} {direction_phrase(rel.bearing_deg)}"
+        return (
+            f"I haven't seen {noun}. I did see a {pin.label}{where}{place}, {ago}; maybe that's "
+            f"it. {_find_my(label)}."
+        )
     if pose is None:
         return f"{noun[0].upper() + noun[1:]} {was} last seen{where}, {ago}."
     rel: Relative = relative_to(np.array(pin.pos), pose)
