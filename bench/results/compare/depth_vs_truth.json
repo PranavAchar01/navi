@@ -1,0 +1,121 @@
+{
+ "when": "2026-10-29 00:24",
+ "sequences": [
+  "rgbd_dataset_freiburg1_desk",
+  "rgbd_dataset_freiburg1_360",
+  "rgbd_dataset_freiburg2_desk",
+  "rgbd_dataset_freiburg2_pioneer_slam"
+ ],
+ "frames": 128,
+ "boxes": 311,
+ "all_boxes": {
+  "yolo_size": {
+   "n": 305,
+   "abs_rel_median": 0.334,
+   "abs_rel_mean": 0.472,
+   "abs_err_median_m": 0.506,
+   "within_10pct": 0.19,
+   "within_25pct": 0.374,
+   "ratio_median": 0.929
+  },
+  "da2": {
+   "n": 311,
+   "abs_rel_median": 0.337,
+   "abs_rel_mean": 0.366,
+   "abs_err_median_m": 0.468,
+   "within_10pct": 0.106,
+   "within_25pct": 0.35,
+   "ratio_median": 1.337
+  },
+  "da2_anchor": {
+   "n": 311,
+   "abs_rel_median": 0.157,
+   "abs_rel_mean": 0.191,
+   "abs_err_median_m": 0.248,
+   "within_10pct": 0.322,
+   "within_25pct": 0.691,
+   "ratio_median": 1.11
+  },
+  "mapany": {
+   "n": 301,
+   "abs_rel_median": 0.136,
+   "abs_rel_mean": 0.176,
+   "abs_err_median_m": 0.195,
+   "within_10pct": 0.425,
+   "within_25pct": 0.784,
+   "ratio_median": 1.095
+  }
+ },
+ "same_boxes": {
+  "yolo_size": {
+   "n": 296,
+   "abs_rel_median": 0.332,
+   "abs_rel_mean": 0.462,
+   "abs_err_median_m": 0.498,
+   "within_10pct": 0.193,
+   "within_25pct": 0.378,
+   "ratio_median": 0.925
+  },
+  "da2": {
+   "n": 296,
+   "abs_rel_median": 0.338,
+   "abs_rel_mean": 0.364,
+   "abs_err_median_m": 0.467,
+   "within_10pct": 0.108,
+   "within_25pct": 0.348,
+   "ratio_median": 1.338
+  },
+  "da2_anchor": {
+   "n": 296,
+   "abs_rel_median": 0.156,
+   "abs_rel_mean": 0.191,
+   "abs_err_median_m": 0.24,
+   "within_10pct": 0.324,
+   "within_25pct": 0.699,
+   "ratio_median": 1.107
+  },
+  "mapany": {
+   "n": 296,
+   "abs_rel_median": 0.137,
+   "abs_rel_mean": 0.176,
+   "abs_err_median_m": 0.196,
+   "within_10pct": 0.422,
+   "within_25pct": 0.787,
+   "ratio_median": 1.095
+  }
+ },
+ "pixel_abs_rel_mean": {
+  "da2": 0.367,
+  "da2_anchor": 0.202,
+  "mapany": 0.191
+ },
+ "latency_ms_median": {
+  "yolo26n_640": 54.3,
+  "da2_518x392": 86.3,
+  "mapanything_8_views": 5802.0
+ },
+ "labels": {
+  "sports ball": 1,
+  "remote": 1,
+  "cup": 20,
+  "fire hydrant": 1,
+  "teddy bear": 12,
+  "potted plant": 29,
+  "bottle": 4,
+  "refrigerator": 10,
+  "book": 34,
+  "bowl": 1,
+  "mouse": 25,
+  "vase": 2,
+  "keyboard": 40,
+  "laptop": 26,
+  "donut": 1,
+  "knife": 1,
+  "tv": 40,
+  "dog": 1,
+  "chair": 51,
+  "dining table": 3,
+  "person": 8
+ },
+ "note": "machine shared with other agents' jobs; latencies are under load"
+}

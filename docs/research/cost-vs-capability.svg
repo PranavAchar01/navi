@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 470" width="760" height="470" role="img" aria-labelledby="t d">
+<title id="t">First-year cost to the user vs. capabilities covered</title>
+<desc id="d">Dot plot. x: first-year cost to the user in US dollars, log scale, with a Free column. y: how many of six capabilities each option covers (obstacle cues, hands-free, scene description, find an item in view, remember the home and items out of view, live human help). meta-sight with a computer you already own: about $400, 5 of 6. With a new Mac mini hub: about $1,299, 5 of 6. Ray-Ban Meta plus Be My Eyes: $299, 4. Be My Eyes or Seeing AI on a phone: free, 3. Aira lowest plan: $312 a year, 2. WeWALK 2: about $910, 1. Glidance Glide: about $1,739, 2. Envision Glasses Pro: $3,499, 4. OrCam MyEye 3 Pro: $4,490, 3. Guide dog: $150 user fee, 1. Caregiver 20 hours a week: about $36,400, 5. Sources and dates in map-value-and-cost.md.</desc>
+<style>
+  :root { --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --grid:#e6e5e0; --ours:#2a78d6; --alt:#eb6834; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --grid:#383835; --ours:#3987e5; --alt:#d95926; } }
+  :root[data-theme="dark"] { --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --grid:#383835; --ours:#3987e5; --alt:#d95926; }
+  .bg { fill: var(--surface); }
+  .g { stroke: var(--grid); stroke-width: 1; }
+  .ax { fill: var(--ink2); font: 12px system-ui, sans-serif; }
+  .lb { fill: var(--ink); font: 12px system-ui, sans-serif; }
+  .ti { fill: var(--ink); font: 600 15px system-ui, sans-serif; }
+  .su { fill: var(--ink2); font: 12px system-ui, sans-serif; }
+  .o { fill: var(--ours); stroke: var(--surface); stroke-width: 2; }
+  .a { fill: var(--alt); stroke: var(--surface); stroke-width: 2; }
+</style>
+<rect class="bg" width="760" height="470"/>
+<text class="ti" x="20" y="26">First-year cost to the user vs. capabilities covered</text>
+<text class="su" x="20" y="44">Cost: device + 12 months of subscription, log scale. Capabilities: count of 6 (see table in the report).</text>
+<g>
+  <line class="g" x1="90" y1="380" x2="730" y2="380"/>
+  <line class="g" x1="90" y1="327" x2="730" y2="327"/>
+  <line class="g" x1="90" y1="273" x2="730" y2="273"/>
+  <line class="g" x1="90" y1="220" x2="730" y2="220"/>
+  <line class="g" x1="90" y1="167" x2="730" y2="167"/>
+  <line class="g" x1="90" y1="113" x2="730" y2="113"/>
+  <line class="g" x1="90" y1="60" x2="730" y2="60"/>
+  <text class="ax" x="80" y="384" text-anchor="end">0</text>
+  <text class="ax" x="80" y="331" text-anchor="end">1</text>
+  <text class="ax" x="80" y="277" text-anchor="end">2</text>
+  <text class="ax" x="80" y="224" text-anchor="end">3</text>
+  <text class="ax" x="80" y="171" text-anchor="end">4</text>
+  <text class="ax" x="80" y="117" text-anchor="end">5</text>
+  <text class="ax" x="80" y="64" text-anchor="end">6</text>
+  <text class="ax" x="100" y="400" text-anchor="middle">Free</text>
+  <text class="ax" x="150" y="400" text-anchor="middle">$100</text>
+  <text class="ax" x="343" y="400" text-anchor="middle">$1k</text>
+  <text class="ax" x="537" y="400" text-anchor="middle">$10k</text>
+  <text class="ax" x="730" y="400" text-anchor="middle">$100k</text>
+  <text class="ax" x="410" y="420" text-anchor="middle">First-year cost to the user (USD, log)</text>
+  <text class="ax" x="22" y="220" text-anchor="middle" transform="rotate(-90 22 220)">Capabilities (of 6)</text>
+</g>
+<g>
+  <circle class="a" cx="184" cy="327" r="6"><title>Guide dog: $150 user fee (program cost about $50,000), 1 of 6</title></circle>
+  <text class="lb" x="184" y="314" text-anchor="middle">Guide dog (user fee)</text>
+  <circle class="a" cx="335" cy="327" r="6"><title>WeWALK Smart Cane 2: about $850 + $4.99/mo, 1 of 6</title></circle>
+  <text class="lb" x="345" y="345">WeWALK 2</text>
+  <circle class="a" cx="252" cy="273" r="6"><title>Aira lowest plan: $26/mo for 20 min, 2 of 6</title></circle>
+  <text class="lb" x="252" y="293" text-anchor="middle">Aira (20 min/mo)</text>
+  <circle class="a" cx="390" cy="273" r="6"><title>Glidance Glide: $1,499 list + about $20/mo (2024 preorder terms), 2 of 6</title></circle>
+  <text class="lb" x="400" y="277">Glidance Glide</text>
+  <circle class="a" cx="100" cy="220" r="6"><title>Be My Eyes / Seeing AI on a phone: free, 3 of 6</title></circle>
+  <text class="lb" x="112" y="215">Be My Eyes / Seeing AI</text>
+  <circle class="a" cx="469" cy="220" r="6"><title>OrCam MyEye 3 Pro: $4,490 list, 3 of 6</title></circle>
+  <text class="lb" x="479" y="224">OrCam MyEye 3 Pro</text>
+  <circle class="a" cx="242" cy="167" r="6"><title>Ray-Ban Meta Gen 1 + Be My Eyes: $299, 4 of 6</title></circle>
+  <text class="lb" x="242" y="187" text-anchor="middle">Ray-Ban Meta + Be My Eyes</text>
+  <circle class="a" cx="449" cy="167" r="6"><title>Envision Glasses Pro: $3,499, 4 of 6</title></circle>
+  <text class="lb" x="459" y="171">Envision Glasses Pro</text>
+  <circle class="a" cx="645" cy="113" r="6"><title>Caregiver 20 h/week at $35/h: about $36,400 a year, 5 of 6 (only while present)</title></circle>
+  <text class="lb" x="645" y="100" text-anchor="middle">Caregiver, 20 h/week</text>
+  <circle class="o" cx="266" cy="113" r="7"><title>meta-sight on a computer you own: about $400, 5 of 6</title></circle>
+  <text class="lb" x="266" y="100" text-anchor="middle">meta-sight (your computer)</text>
+  <circle class="o" cx="365" cy="113" r="7"><title>meta-sight + new Mac mini hub: about $1,299, 5 of 6</title></circle>
+  <text class="lb" x="365" y="133" text-anchor="middle">meta-sight + new Mac mini</text>
+</g>
+<g>
+  <circle class="o" cx="100" cy="446" r="6"/><text class="lb" x="112" y="450">meta-sight</text>
+  <circle class="a" cx="210" cy="446" r="6"/><text class="lb" x="222" y="450">Alternatives</text>
+  <text class="su" x="740" y="450" text-anchor="end">Prices read 2026-10-29; sources in map-value-and-cost.md</text>
+</g>
+</svg>

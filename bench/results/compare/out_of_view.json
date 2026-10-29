@@ -1,0 +1,136 @@
+{
+ "when": "2026-10-29 00:26",
+ "walk": "20261028-135040-iphone",
+ "walk_s": 74.5,
+ "frames_scored": 427,
+ "labels": 25,
+ "labels_seen": 23,
+ "mean_out_of_view_share": 0.847,
+ "median_out_of_view_share": 0.934,
+ "labels_out_of_view_over_80pct": 16,
+ "detector": "yoloe-26l-seg imgsz 640 conf 0.25",
+ "detector_ms_per_frame": 1317.1,
+ "per_label": {
+  "backpack": {
+   "sightings": 24,
+   "first_s": 3.1,
+   "out_of_view_share": 0.941
+  },
+  "bag": {
+   "sightings": 1,
+   "first_s": 53.5,
+   "out_of_view_share": 0.993
+  },
+  "basket": {
+   "sightings": 78,
+   "first_s": 4.0,
+   "out_of_view_share": 0.805
+  },
+  "bed": {
+   "sightings": 18,
+   "first_s": 11.5,
+   "out_of_view_share": 0.949
+  },
+  "clothes": {
+   "sightings": 107,
+   "first_s": 2.7,
+   "out_of_view_share": 0.738
+  },
+  "computer monitor": {
+   "sightings": 0
+  },
+  "cup": {
+   "sightings": 38,
+   "first_s": 2.2,
+   "out_of_view_share": 0.908
+  },
+  "desk": {
+   "sightings": 347,
+   "first_s": 0.9,
+   "out_of_view_share": 0.176
+  },
+  "door": {
+   "sightings": 104,
+   "first_s": 3.4,
+   "out_of_view_share": 0.743
+  },
+  "handbag": {
+   "sightings": 108,
+   "first_s": 2.8,
+   "out_of_view_share": 0.735
+  },
+  "keyboard": {
+   "sightings": 74,
+   "first_s": 0.7,
+   "out_of_view_share": 0.825
+  },
+  "keys": {
+   "sightings": 2,
+   "first_s": 19.8,
+   "out_of_view_share": 0.993
+  },
+  "laptop": {
+   "sightings": 119,
+   "first_s": 2.2,
+   "out_of_view_share": 0.711
+  },
+  "mini fridge": {
+   "sightings": 1,
+   "first_s": 51.4,
+   "out_of_view_share": 0.994
+  },
+  "mirror": {
+   "sightings": 44,
+   "first_s": 3.0,
+   "out_of_view_share": 0.892
+  },
+  "picture frame": {
+   "sightings": 10,
+   "first_s": 16.2,
+   "out_of_view_share": 0.969
+  },
+  "pillow": {
+   "sightings": 23,
+   "first_s": 11.5,
+   "out_of_view_share": 0.934
+  },
+  "remote control": {
+   "sightings": 5,
+   "first_s": 2.2,
+   "out_of_view_share": 0.988
+  },
+  "shelf": {
+   "sightings": 1,
+   "first_s": 11.4,
+   "out_of_view_share": 0.997
+  },
+  "speaker": {
+   "sightings": 118,
+   "first_s": 1.6,
+   "out_of_view_share": 0.716
+  },
+  "stool": {
+   "sightings": 10,
+   "first_s": 8.5,
+   "out_of_view_share": 0.973
+  },
+  "trash can": {
+   "sightings": 7,
+   "first_s": 11.7,
+   "out_of_view_share": 0.98
+  },
+  "tv": {
+   "sightings": 181,
+   "first_s": 1.6,
+   "out_of_view_share": 0.565
+  },
+  "wallet": {
+   "sightings": 16,
+   "first_s": 2.7,
+   "out_of_view_share": 0.961
+  },
+  "window": {
+   "sightings": 0
+  }
+ }
+}
