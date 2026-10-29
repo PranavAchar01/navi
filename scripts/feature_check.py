@@ -369,9 +369,10 @@ class Client:
         return spoken
 
 
-async def voice_before_map(c: Client) -> dict:
+async def voice_before_map(c: Client, after_handshake: bool = False) -> dict:
     """A spoken question while the home map is still loading must get the loading line, not
-    silence: the voice path answers like the typed one does."""
+    silence: the voice path answers like the typed one does. With `after_handshake` the question
+    starts the moment the Transcribe session opens, inside its warm-up clip (the race window)."""
     import websockets
 
     for _ in range(10):  # the voice service can come up a moment after HTTP
@@ -386,8 +387,16 @@ async def voice_before_map(c: Client) -> dict:
     async with websockets.connect(c.url, max_size=None, ping_interval=None) as ws:
         c.ws = ws
         rd = asyncio.create_task(c.reader())
+        pcm = speech("where are my keys")
+        t_c = time.time()
+        if after_handshake:
+            end = time.time() + 15
+            while time.time() < end:
+                if ((await c.state()).get("asr") or {}).get("handshake_ms") is not None:
+                    break
+                await asyncio.sleep(0.02)
         t0 = time.time()
-        spoken = await c.audio(speech("where are my keys"), 1)
+        spoken = await c.audio(pcm, 1)
         a, at = await c.wait(t0, "answer", lambda e: True, 8)
         ready = (await c.state()).get("memory_ready")
         heard = [e["text"] for e in c.since(t0, "transcript") if e.get("final")]
@@ -399,24 +408,37 @@ async def voice_before_map(c: Client) -> dict:
         asr = (await c.state()).get("asr") or {}
         rd.cancel()
     c.ws = None
+    detail = {
+        "after_handshake": after_handshake,
+        "spoke_after_connect_ms": round(1000 * (t0 - t_c)),
+        "finals": heard,
+        "partials": [e["text"] for e in c.since(t0, "transcript") if not e.get("final")][-3:],
+        "handshake_ms": asr.get("handshake_ms"),
+        "warmup_ms": asr.get("warmup_ms"),
+        "answer": a.get("text") if a else None,
+        "answer_ms": round(1000 * (at - spoken)) if a else None,
+    }
+    asr_note = f"asr handshake {asr.get('handshake_ms')} ms, warmup {asr.get('warmup_ms')} ms"
     if a is None:
         if ready:
             note = "map finished loading during the ask; "
         else:
             note = ""
-        return row(
-            VLOAD, VLOAD_NAME, "metasight-muse", "FAIL", "",
-            f"{note}no answer in 8 s after the speech; finals heard {heard}",
-        )  # fmt: skip
+        return {
+            **row(
+                VLOAD, VLOAD_NAME, "metasight-muse", "FAIL", "",
+                f"{note}no answer in 8 s after the speech; finals heard {heard}; {asr_note}",
+            ),
+            "detail": detail,
+        }  # fmt: skip
     ms = 1000 * (at - spoken)
     loading = "still loading" in (a.get("text") or "").lower()
     ok = loading and ms <= 2000
-    return row(
+    return {"detail": detail} | row(
         VLOAD, VLOAD_NAME, "metasight-muse", "PASS" if ok else "FAIL", f"{ms:.0f} ms",
         f"spoken 'where are my keys' before memory_ready -> \"{a.get('text')}\" "
         f"{ms:.0f} ms after the speech ended (limit 2000); final transcript at "
-        f"{1000 * (fin[0] - spoken):.0f} ms; finals heard {heard}; "
-        f"asr handshake {asr.get('handshake_ms')} ms, warmup {asr.get('warmup_ms')} ms"
+        f"{1000 * (fin[0] - spoken):.0f} ms; finals heard {heard}; {asr_note}"
         if fin
         else f"{ms:.0f} ms after the speech ended (limit 2000); no final transcript event",
     )  # fmt: skip
