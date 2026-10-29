@@ -62,6 +62,11 @@ URGENT_NAME, URGENT_M, URGENT_SCALE, URGENT_MAX_PCT = (
 )
 MISS_NAME, MISS_M, MISS_SCALE = "Missed near obstacle vs labels", 1.0, 0.84
 # Each row fails only when the belt is wrong even under the depth's 16% scale error.
+LABEL_SCALE_NOTE = (
+    "labels are at the live depth scale (~0.4) while an ARKit check puts the true scale near "
+    "0.75, so they will be redone once the iPhone profile's scale is fixed and this may become "
+    'measurable (docs/haptics-sim.md, "Correction 2026-10-29")'
+)
 SKIP_FIND = {"person", "wall", "floor", "window", "curtain", "rug"}
 
 
@@ -367,6 +372,7 @@ def cue_rows(safety: list, walk: Path) -> list:
     far_idx: set[int] = set()
     solid_lab = solid_far = 0
     close = close_miss = 0
+    roomy = 0  # labelled frames with nothing inside the over-urgent distance
     close_idx: set[int] = set()
     for _, e in safety:
         front = [q for n, q in zip(e["names"], e["cues"], strict=False) if n in CAMERA_SECTORS]
@@ -386,6 +392,7 @@ def cue_rows(safety: list, walk: Path) -> list:
         if s_on:
             solid_lab += 1
             solid_far += near * URGENT_SCALE > URGENT_M
+        roomy += near * URGENT_SCALE > URGENT_M
         if near * MISS_SCALE < MISS_M:
             close += 1
             close_miss += not f_on
@@ -413,7 +420,8 @@ def cue_rows(safety: list, walk: Path) -> list:
                 "SKIP",
                 f"{far} frames",
                 f"unmeasurable on this walk ({far} frames with nothing labelled inside "
-                f"{FALSE_M} m in view at labels x{FALSE_SCALE}, need {FALSE_MIN}); {info}",
+                f"{FALSE_M} m in view at labels x{FALSE_SCALE}, need {FALSE_MIN}); "
+                f"{LABEL_SCALE_NOTE}; {info}",
             )
         )
     else:
@@ -433,18 +441,32 @@ def cue_rows(safety: list, walk: Path) -> list:
             )
         )
     u_pct = 100 * solid_far / solid_lab if solid_lab else 0.0
-    out.append(
-        row(
-            "urgent",
-            URGENT_NAME,
-            "metasight-compare",
-            "PASS" if u_pct <= URGENT_MAX_PCT else "FAIL",
-            f"{solid_far} of {solid_lab} ({u_pct:.0f}%)",
-            f"solid/stop cue while the nearest labelled obstacle in view is beyond {URGENT_M} m "
-            f"(labels x{URGENT_SCALE}), over solid frames on labelled frames; "
-            f"FAIL above {URGENT_MAX_PCT}%",
+    if roomy < FALSE_MIN:
+        out.append(
+            row(
+                "urgent",
+                URGENT_NAME,
+                "metasight-compare",
+                "SKIP",
+                f"{roomy} frames",
+                f"unmeasurable on this walk ({roomy} frames with nothing labelled within "
+                f"{URGENT_M} m in view at labels x{URGENT_SCALE}, need {FALSE_MIN}); "
+                + LABEL_SCALE_NOTE,
+            )
         )
-    )
+    else:
+        out.append(
+            row(
+                "urgent",
+                URGENT_NAME,
+                "metasight-compare",
+                "PASS" if u_pct <= URGENT_MAX_PCT else "FAIL",
+                f"{solid_far} of {solid_lab} ({u_pct:.0f}%)",
+                f"solid/stop cue while the nearest labelled obstacle in view is beyond "
+                f"{URGENT_M} m (labels x{URGENT_SCALE}), over solid frames on labelled frames; "
+                f"FAIL above {URGENT_MAX_PCT}%",
+            )
+        )
     if close < FALSE_MIN:
         out.append(
             row(
