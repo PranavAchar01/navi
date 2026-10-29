@@ -944,7 +944,6 @@ async def run_checks(c: Client, walk: Path, work: Path, results: list) -> dict:
             status = "PASS" if "Find My" in text else ("FAIL" if findmy_src else "NOT-BUILT")
             results.append(
                 row(
-                    "falsepin",
                     "findmy",
                     "Find My line for an unseen item",
                     "metasight-muse",
@@ -1242,6 +1241,7 @@ ORDER = [
     "nav",
     "patterns",
     "find",
+    "falsepin",
     "findmy",
     "voice",
     "voiceload",
