@@ -1110,6 +1110,56 @@ ORDER = [
 ]
 
 
+# Rows an uncommitted file can change (the private server imports the working tree). A dirty
+# file under metasight/ not listed here may change any row.
+DIRTY_ROWS = {
+    "metasight/nav.py": ("guide", "nav", "falsecue", "urgent", "missnear", "priors"),
+    "metasight/pan.py": ("falsecue", "urgent", "missnear", "priors", "stop"),
+    "metasight/belt.py": ("falsecue", "urgent", "missnear", "priors", "stop", "belt-", "patterns"),
+    "metasight/providers/transcribe.py": ("voice", "notes"),
+    "metasight/voice.py": ("voice", "notes"),
+    "metasight/providers/finder.py": ("find", "findmy", "guide", "nav", "voice"),
+    "metasight/people.py": ("speaker", "who"),
+    "metasight/audio_doa.py": ("speaker",),
+    "metasight/notes.py": ("notes",),
+    "metasight/review.py": ("wonder",),
+    "metasight/onboarding.py": ("onboarding", "patterns"),
+    "metasight/modes.py": ("modes", "patterns"),
+}
+
+
+def git_state() -> dict:
+    def git(*args: str) -> str:
+        return subprocess.run(
+            ["git", *args], cwd=ROOT, capture_output=True, text=True
+        ).stdout.strip()
+
+    dirty = [
+        ln[3:] for ln in git("status", "--short").splitlines() if ln[3:].startswith("metasight/")
+    ]
+    return {"head": git("rev-parse", "--short", "HEAD"), "dirty": dirty}
+
+
+def flag_dirty(results: list, dirty: list[str]) -> None:
+    """Mark each row an uncommitted metasight/ file could have changed."""
+    for r in results:
+        hit = [
+            Path(f).name
+            for f in dirty
+            if f.endswith(".py")
+            and (
+                f not in DIRTY_ROWS
+                or any(
+                    r["key"] == k or (k.endswith("-") and r["key"].startswith(k)) or k in r["key"]
+                    for k in DIRTY_ROWS[f]
+                )
+            )
+        ]
+        if hit:
+            r["dirty"] = hit
+            r["evidence"] += f" [uncommitted at start: {', '.join(hit)}]"
+
+
 def write_report(results: list, meta: dict, walk: str, stamp: str, note: str) -> str:
     def rank(r):
         k = "belt-" if r["key"].startswith("belt") else r["key"]
@@ -1135,6 +1185,16 @@ def write_report(results: list, meta: dict, walk: str, stamp: str, note: str) ->
         "# Morning check",
         "",
         f"Run {stamp}. Result: {summary}.",
+        "",
+        f"Code at start: HEAD `{meta['git']['head']}`, "
+        + (
+            "uncommitted under metasight/: "
+            + ", ".join(f"`{f}`" for f in meta["git"]["dirty"])
+            + f" ({sum(bool(r.get('dirty')) for r in results)} rows flagged)"
+            if meta["git"]["dirty"]
+            else "no uncommitted changes under metasight/"
+        )
+        + ".",
         "",
         "`scripts/feature_check.py` starts a private server on a free port (never the live one on "
         f"{LIVE_PORT}), with its own notes, sessions and a copy of the home map, at background "
@@ -1191,6 +1251,7 @@ def main() -> None:
         return
     walk = ROOT / "data" / "walks" / a.walk
     stamp = time.strftime("%Y-%m-%d %H:%M %Z")
+    tree = git_state()  # the private server imports the working tree as it is now
     if why := preflight():
         print("skipped:", why)
         sys.exit(2)
@@ -1313,6 +1374,8 @@ def main() -> None:
                 f"scripts/belt_check.py: {e}",
             )
         )
+    meta["git"] = tree
+    flag_dirty(results, tree["dirty"])
     summary = write_report(results, meta, a.walk, stamp, note)
     RESULTS.write_text(
         json.dumps(
