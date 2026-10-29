@@ -128,6 +128,27 @@ def test_a_fair_sighting_long_after_the_firm_pin_means_it_moved():
     assert s.latest("laptop").pos == [5, 0, 5]
 
 
+def test_a_drifted_lone_sighting_on_the_same_visit_folds_into_the_pin():
+    """Map drift drops a second laptop pin 1.6 m off on the same pass: one laptop, one pin. The
+    same lone look hours later stays apart, so the moved rule can still use it."""
+    s = PinStore()
+    s.observe("laptop", "object", [0, 0, 0], 100.0, 0.6)
+    s.observe("laptop", "object", [0, 0, 0], 102.0, 0.6)
+    s.observe("laptop", "object", [1.6, 0, 0], 130.0, 0.3)
+    s.observe("cup", "object", [0, 0, 0], 100.0, 0.6)
+    s.observe("cup", "object", [0, 0, 0], 101.0, 0.6)
+    s.observe("cup", "object", [1.6, 0, 0], 102.0, 0.6)  # firm on its own: a second cup
+    s.observe("cup", "object", [1.6, 0, 0], 103.0, 0.6)
+    s.merge(1.0)
+    assert len([p for p in s.pins.values() if p.label == "laptop"]) == 1
+    assert len([p for p in s.pins.values() if p.label == "cup"]) == 2
+
+    s.observe("laptop", "object", [1.6, 0, 0], 130.0 + 3600, 0.3)
+    s.merge(1.0)
+    assert len([p for p in s.pins.values() if p.label == "laptop"]) == 2
+    assert s.latest("laptop").pos == [1.6, 0, 0]
+
+
 def test_a_look_alike_is_offered_as_unconfirmed():
     cup = pin([0.0, 0.9, -2.0], near=["desk"], label="cup")
     text = template_answer("water bottle", cup, pose_facing_minus_z(), 1000.0, stand_in=True)

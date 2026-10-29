@@ -52,6 +52,7 @@ class Pin:
 
 MOVED_AFTER_S = 600.0  # a lone sighting this much newer than the firm pin means it moved
 MOVED_SCORE = 0.3  # ...as long as the detector was fairly sure
+LONE_REACH = 2.0  # a lone sighting from the same visit folds in from this many merge radii
 
 
 class PinStore:
@@ -134,13 +135,22 @@ class PinStore:
         lm = radius * 2.6 if landmark_radius is None else landmark_radius
         order = sorted(self.pins.values(), key=lambda p: -p.seen)
         keep: list[Pin] = []
-        for p in order:
+
+        def reach(k: Pin, p: Pin) -> float:
             r = radius if p.kind == "object" else lm
+            # A weak lone sighting from the same visit is drift, not a second one; a lone one
+            # long after is kept, since `latest` reads it as the object having moved.
+            lone = p.kind == "object" and p.seen == 1 and p.score < 0.5
+            return r * LONE_REACH if lone and abs(p.ts - k.ts) <= MOVED_AFTER_S else r
+
+        for p in order:
             host = next(
                 (
                     k
                     for k in keep
-                    if k.label == p.label and k.kind == p.kind and math.dist(k.pos, p.pos) <= r
+                    if k.label == p.label
+                    and k.kind == p.kind
+                    and math.dist(k.pos, p.pos) <= reach(k, p)
                 ),
                 None,
             )
