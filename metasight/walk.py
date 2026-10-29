@@ -8,6 +8,10 @@ into the repo):
   frames.jsonl  {"file", "ts", "seq"} per frame, in arrival order
   poses.jsonl   the phone's messages verbatim: {"type": "arpose", "seq", "ts", "m": 16 floats
                 column-major camera-to-world (ARKit: y up, metres), "track"}
+  map_poses.jsonl  the map's pose for each keyframe, as memory placed it: {"seq", "ts", "pose":
+                4x4 camera-to-map rows (OpenCV axes), "ar_align": 4x4 rows or null}. ar_align
+                takes the phone's pose into the map, map = ar_align @ server.arkit_pose(m), so
+                a replay joins the two exactly
 """
 
 from __future__ import annotations
@@ -38,6 +42,7 @@ class WalkRecorder:
         self._pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="walk")
         self._frames = open(self.dir / "frames.jsonl", "a")
         self._poses = open(self.dir / "poses.jsonl", "a")
+        self._map_poses = open(self.dir / "map_poses.jsonl", "a")
         self.n = 0
         self.camera(camera)
 
@@ -52,9 +57,19 @@ class WalkRecorder:
     def pose(self, msg: dict) -> None:
         self._pool.submit(self._write_line, self._poses, msg)
 
+    def map_pose(self, seq: int | None, ts: float | None, pose, ar_align) -> None:
+        line = {
+            "seq": seq,
+            "ts": ts,
+            "pose": pose.tolist(),
+            "ar_align": None if ar_align is None else ar_align.tolist(),
+        }
+        self._pool.submit(self._write_line, self._map_poses, line)
+
     def close(self) -> None:
         self._pool.submit(self._frames.close)
         self._pool.submit(self._poses.close)
+        self._pool.submit(self._map_poses.close)
         self._pool.shutdown(wait=True)
         log.info("walk %s: %d frames this connection in %s", self.id, self.n, self.dir)
 

@@ -329,6 +329,8 @@ class Server:
             pose[:3, 0] = np.cross(pose[:3, 1], pose[:3, 2])
             self.pose = pose
             self._align_arkit(ev.get("seq"), pose)
+            for walk in self.walks.values():  # so a replay can join ARKit to the map exactly
+                walk.map_pose(ev.get("seq"), ev.get("ts"), pose, self.ar_align)
             self.heading.anchor(pose[:3, 3], pose[:3, 2], ev.get("ts"))
             self.map_sectors = [math.inf if d is None else d for d in ev["map_sectors"]]
             self.map_yaw = math.atan2(ev["fwd"][0], ev["fwd"][2])

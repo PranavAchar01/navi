@@ -30,3 +30,18 @@ def test_reconnect_appends_to_the_same_walk(tmp_path):
 def test_walk_id_cannot_leave_the_walks_folder(tmp_path, bad):
     with pytest.raises(ValueError):
         WalkRecorder(bad, {}, tmp_path)
+
+
+def test_walk_keeps_each_map_pose_and_the_arkit_tie(tmp_path):
+    import numpy as np
+
+    w = WalkRecorder("walk", {}, tmp_path)
+    pose, align = np.eye(4), np.eye(4)
+    pose[:3, 3], align[:3, 3] = [1.0, 0.0, 2.0], [5.0, 0.0, -2.0]
+    w.map_pose(7, 1793220641.5, pose, None)  # before the first tie
+    w.map_pose(12, 1793220642.5, pose, align)
+    w.close()
+    rows = [json.loads(x) for x in (tmp_path / "walk" / "map_poses.jsonl").read_text().splitlines()]
+    assert [r["seq"] for r in rows] == [7, 12]
+    assert rows[0]["ar_align"] is None
+    assert np.allclose(rows[1]["pose"], pose) and np.allclose(rows[1]["ar_align"], align)
