@@ -18,13 +18,14 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from .config import ROOT
 
-WALKS = ROOT / "data" / "walks"
+WALKS = Path(os.environ.get("METASIGHT_WALKS") or ROOT / "data" / "walks")
 _ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
 log = logging.getLogger(__name__)
 

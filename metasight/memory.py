@@ -758,7 +758,7 @@ class MemoryEngine:
                 p, run_finder=self.mode == "home" and p.kf.seq % self.sam_every == 0
             )
         self.pins.merge(self._pin_merge_m())
-        events.append({"type": "pins", "pins": [p.to_json() for p in self.pins.pins.values()]})
+        events.append({"type": "pins", "pins": self._pins_out()})
 
         # A place seen before: bend the walk since then back onto it.
         if self._close_loops(placed_new):

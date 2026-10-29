@@ -371,6 +371,10 @@ class Server:
             self.pending_kf = max(0, self.pending_kf - ev.get("consumed", 0))
             self.memory_stats = ev
             await self.hub.json({**ev, "type": "memory"}, True)
+        elif t == "global_stats":
+            await self.hub.json(ev, True)
+        elif t == "dropped":  # keyframes the worker threw away with the old walk's buffer
+            self.pending_kf = max(0, self.pending_kf - ev["consumed"])
         elif t == "memory_error":
             self.pending_kf = max(0, self.pending_kf - ev.get("consumed", 0))
             await self.hub.json({"type": "status", "memory_error": ev["error"]}, True)
@@ -1184,6 +1188,7 @@ def create_app(settings: Settings | None = None, session: str | None = None) -> 
                 "recording": srv.notes.recording,
                 "map_points": srv.hub.map_total,
                 "memory": srv.memory_stats,
+                "pending_kf": srv.pending_kf,
                 "asr": (
                     {"model": "muse-voice-transcribe-1.0", **srv.voice.asr.stats, **srv.voice.last}
                     if srv.voice

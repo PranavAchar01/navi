@@ -85,6 +85,7 @@ def run(
             if msg["cmd"] == "walk":  # a new walk: the saved house stays, the walk starts clean
                 prev = WALKS / msg["prev"] if msg.get("prev") else None
                 engine.new_walk(prev)
+                out_q.put({"type": "dropped", "consumed": len(buf)})
                 buf = []
                 out_q.put({"type": "map_replace", "n": 0, "points": b"", "colors": b""})
                 out_q.put({"type": "pins", "pins": engine._pins_out()})
@@ -106,6 +107,7 @@ def run(
                 if engine.mode == "home" and len(engine._map_pts):
                     engine.save(save_path)  # leaving home: the house map stays on disk
                 engine.set_mode(msg["mode"])
+                out_q.put({"type": "dropped", "consumed": len(buf)})
                 buf = []
                 out_q.put({"type": "map_replace", "n": 0, "points": b"", "colors": b""})
                 out_q.put({"type": "pins", "pins": []})
