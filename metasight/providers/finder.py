@@ -151,7 +151,9 @@ class YoloeFinder:
         from ultralytics import YOLO
 
         self._model = YOLO(str(s.weights_dir / "yoloe-26l-seg.pt"))
-        self._labels: list[str] | None = None
+        # The text prompts cost about 6 s to embed; do it here, not in the first window.
+        self._model.set_classes([PROMPTS.get(lb, lb) for lb in s.watchlist])
+        self._labels: list[str] | None = list(s.watchlist)
         self._device, self._conf, self._keep, self._imgsz = device, conf, keep, imgsz
         self._check = CropCheck(device) if check else None
         self._tiles = tiles

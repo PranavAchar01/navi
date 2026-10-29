@@ -67,6 +67,7 @@ async def play(walk: Path, url: str, seconds: float, port: int, policy: str = ""
     ws = await connect(url, 240)
     ready = asyncio.Event()
     cue, buzz, stages, det_age, sent = [], [], {}, [], [0]
+    map_age, lead, pose_at = [], [], []  # map freshness: pose age per cue, pose lead per window
 
     async def reader():
         async for m in ws:
@@ -83,6 +84,14 @@ async def play(walk: Path, url: str, seconds: float, port: int, policy: str = ""
                     stages.setdefault(k, []).append(v)
                 if d.get("det_age_ms") is not None:
                     det_age.append(d["det_age_ms"])
+                if d.get("map_age") is not None:
+                    map_age.append(1000 * d["map_age"])
+            elif d["type"] == "pose" and sent[0]:
+                pose_at.append(time.time())
+            elif d["type"] == "memory" and pose_at:
+                # how long before the window's end its first pose reached the client
+                first = [t for t in pose_at if t > (lead[-1][0] if lead else 0)]
+                lead.append((time.time(), 1000 * (time.time() - first[0]) if first else 0.0))
 
     rd = asyncio.create_task(reader())
     await asyncio.wait_for(ready.wait(), 240)
@@ -127,6 +136,8 @@ async def play(walk: Path, url: str, seconds: float, port: int, policy: str = ""
         "server_ms": {k: {"p50": pct(v, 0.5), "p95": pct(v, 0.95)} for k, v in stages.items()},
         "det_age_ms": {"p50": pct(det_age, 0.5), "p95": pct(det_age, 0.95)} if det_age else None,
         "map_windows": len(wins),
+        "map_age_ms": {"p50": pct(map_age, 0.5), "p95": pct(map_age, 0.95)} if map_age else None,
+        "pose_lead_ms": {"p50": pct([x[1] for x in lead], 0.5)} if lead else None,
         "window_total_ms": {"p50": pct(tot, 0.5), "max": pct(tot, 1.0)},
         "window_infer_ms": {"p50": pct(inf, 0.5), "max": pct(inf, 1.0)},
     }

@@ -113,6 +113,7 @@ class Server:
         self.live_seen: tuple[float, list[tuple[str, float, float]]] = (0.0, [])
         # label -> when the camera last saw it this run, for answers memory has not caught up on.
         self.live_last: dict[str, float] = {}
+        self.last_obstacles: list = []  # the label layer's last result, for the item guide
         self.heading = Heading(settings.hfov_deg)  # carries the head's turn between map poses
         self.map_sectors: list[float] = [math.inf] * 8
         self.map_pose_ts = 0.0
@@ -139,6 +140,7 @@ class Server:
         self.ctx = mp.get_context("spawn")
         self.in_q = self.ctx.Queue()
         self.out_q = self.ctx.Queue()
+        self.reflex_busy = self.ctx.Event()  # set while the depth pass runs; the map yields
         self.proc: mp.Process | None = None
         self.loop: asyncio.AbstractEventLoop | None = None
 
@@ -147,7 +149,10 @@ class Server:
         self.loop = asyncio.get_running_loop()
         self.safety = await self.loop.run_in_executor(self.pool, SafetyLoop, self.s)
         self.proc = self.ctx.Process(
-            target=memory_run, args=(self.in_q, self.out_q, self.s, self.session), daemon=True
+            target=memory_run,
+            args=(self.in_q, self.out_q, self.s, self.session),
+            kwargs={"reflex_busy": self.reflex_busy},
+            daemon=True,
         )
         self.proc.start()
         await self.belt.start()
@@ -309,9 +314,13 @@ class Server:
         small = cv2.resize(bgr, (w, h), interpolation=cv2.INTER_AREA)
         gray = self.heading.shift_gray(small)
         sharp = float(cv2.Laplacian(gray, cv2.CV_32F).var())
+        return small, self.safety.reflex(small), gray, sharp, bgr
+
+    def _label(self, small, res, bgr):
+        """The label layer, after the buzz went out: detections, and the finder's larger frame."""
         k = FINDER_LONG_SIDE / max(bgr.shape[:2])
         hi = cv2.resize(bgr, None, fx=k, fy=k, interpolation=cv2.INTER_AREA) if k < 1 else bgr
-        return small, self.safety.process(small), gray, sharp, hi
+        return self.safety.label(small, res), hi
 
     async def review_loop(self) -> None:
         """The deep speed: every few minutes the reviewer reads the map's change log. Off the
@@ -344,10 +353,14 @@ class Server:
                 continue
             ts, seq, jpeg = self.latest
             arrived = self.latest_arrived
-            done = await self.loop.run_in_executor(self.pool, self._process, ts, seq, jpeg)
+            self.reflex_busy.set()
+            try:
+                done = await self.loop.run_in_executor(self.pool, self._process, ts, seq, jpeg)
+            finally:
+                self.reflex_busy.clear()
             if done is None:
                 continue
-            small, res, gray, sharp, hi = done
+            small, res, gray, sharp, bgr = done
             now = time.time()
             self.heading.image_turn(gray, now)
             if self.last_done:
@@ -364,11 +377,20 @@ class Server:
             cmd = self.activity.calm(cmd, flags)
             if (demo := self.onboarding.demo_cmd(now)) is not None:
                 cmd = demo  # the belt intro: a mode's pattern, nothing else
-            people = self.talk.frame(now, res.obstacles, small, self.heading)
+            # Two layers: the stop cue above comes from depth and the floor alone and goes out
+            # now; the speaker turn and the item guide ride on the last frame's labels.
             cmd = self.talk.overlay(cmd, now)
             # The heading is carried between poses, so guidance tolerates an older position.
             guide_fresh = self.memory_ready and now - self.map_pose_ts < POSE_FRESH_S
-            guiding = self._guide(cmd, now, bool(guide_fresh), res.obstacles)
+            guiding = self._guide(cmd, now, bool(guide_fresh), self.last_obstacles)
+            if now < self.found_until:
+                flags |= FLAG_FOUND
+            if not (self.braille and self.braille.owns_belt):  # a Braille cue on the belt wins
+                self.belt.send(cmd, flags | self.activity.flag_bits(), arrived)
+            buzzed = time.perf_counter()
+            res, hi = await self.loop.run_in_executor(self.pool, self._label, small, res, bgr)
+            self.last_obstacles = res.obstacles
+            people = self.talk.frame(now, res.obstacles, small, self.heading)
             self.live_seen = (
                 now,
                 [
@@ -379,10 +401,6 @@ class Server:
             )
             for label, _, _ in self.live_seen[1]:
                 self.live_last[label] = now
-            if now < self.found_until:
-                flags |= FLAG_FOUND
-            if not (self.braille and self.braille.owns_belt):  # a Braille cue on the belt wins
-                self.belt.send(cmd, flags | self.activity.flag_bits(), arrived)
             await self.hub.frame(seq, jpeg, self.source_ws)
             await self.hub.json(people, True)
             if people["cue"]:
@@ -431,6 +449,8 @@ class Server:
                     "in_fps": round(self.in_fps, 1),
                     "camera": self.cameras.get(self.source_ws, ""),
                     "ms": {k: round(v, 1) for k, v in res.timings_ms.items()},
+                    # how long after the belt command this message left
+                    "after_buzz_ms": round(1000 * (time.perf_counter() - buzzed), 1),
                     "scale": round(self.safety.scale, 3),
                     "map_age": round(now - self.map_pose_ts, 1) if self.map_pose_ts else None,
                 }

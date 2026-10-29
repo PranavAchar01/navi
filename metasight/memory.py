@@ -13,6 +13,7 @@ import json
 import math
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 
 import cv2
@@ -317,6 +318,7 @@ class MemoryEngine:
         self.trail: list[list[float]] = []
         self.last_pose: np.ndarray | None = None
         self.poses: dict[int, np.ndarray] = {}  # keyframe seq -> 4x4 map pose
+        self.emit: Callable[[dict], None] | None = None  # early events, before the finder runs
         self._windows = 0
         self._prev_sim: tuple[float, np.ndarray, np.ndarray] | None = None
         self._bank: dict[int, tuple[float, np.ndarray]] = {}  # seq -> (ts, bgr), spread out
@@ -740,6 +742,11 @@ class MemoryEngine:
             self.poses[p.kf.seq] = p.pose
         self.last_pose = placed_new[-1].pose
         events.append({"type": "trail", "points": self.trail[-len(placed_new) :]})
+        # The map, trail and pose are ready; the finder below takes seconds, so send them now.
+        if self.emit is not None:
+            for e in self._to_global([*events, self._pose_event(frames[-1])]):
+                self.emit(e)
+            events = []
         if self.mode == "home":
             for p in placed_new:
                 self._bank_offer(p.kf)
@@ -780,26 +787,7 @@ class MemoryEngine:
                 }
             )
 
-        # Side and rear sectors from the map around the newest pose.
-        near = self._map_pts[
-            np.linalg.norm(self._map_pts[:, [0, 2]] - self.last_pose[[0, 2], 3], axis=1) < 4.0
-        ]
-        events.append(
-            {
-                "type": "pose",
-                "pos": self.last_pose[:3, 3].tolist(),
-                "fwd": self.last_pose[:3, 2].tolist(),
-                "up": (-self.last_pose[:3, 1]).tolist(),
-                "ts": frames[-1].ts,
-                # What a first-person render of the map needs to match the camera.
-                "hfov": getattr(self.runner, "hfov_deg", None),
-                "aspect": frames[-1].bgr.shape[1] / frames[-1].bgr.shape[0],
-                "map_sectors": [
-                    None if not np.isfinite(d) else d
-                    for d in map_sector_distances(near, self.last_pose)
-                ],
-            }
-        )
+        events.append(self._pose_event(frames[-1]))
 
         # The next window stitches onto the most textured of the latest few frames.
         recent = (self._tail + placed_new)[-2 * self.s.overlap :]
@@ -824,6 +812,26 @@ class MemoryEngine:
         out = self._to_global(events)
         out += self._change_check(placed_new[-1])
         return out + self._drain_moved()
+
+    def _pose_event(self, kf: Keyframe) -> dict:
+        # Side and rear sectors from the map around the newest pose.
+        near = self._map_pts[
+            np.linalg.norm(self._map_pts[:, [0, 2]] - self.last_pose[[0, 2], 3], axis=1) < 4.0
+        ]
+        return {
+            "type": "pose",
+            "pos": self.last_pose[:3, 3].tolist(),
+            "fwd": self.last_pose[:3, 2].tolist(),
+            "up": (-self.last_pose[:3, 1]).tolist(),
+            "ts": kf.ts,
+            # What a first-person render of the map needs to match the camera.
+            "hfov": getattr(self.runner, "hfov_deg", None),
+            "aspect": kf.bgr.shape[1] / kf.bgr.shape[0],
+            "map_sectors": [
+                None if not np.isfinite(d) else d
+                for d in map_sector_distances(near, self.last_pose)
+            ],
+        }
 
     def _drain_moved(self) -> list[dict]:
         out = [{"type": "change", "change": "moved", **m} for m in self._moved]

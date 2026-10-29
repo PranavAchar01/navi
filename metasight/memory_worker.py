@@ -17,7 +17,22 @@ from .providers import make_finder
 from .walk import WALKS
 
 
-def run(in_q, out_q, settings: Settings, session: str, new_needed: int = 4) -> None:
+def yield_to(busy, fn, wait_s: float = 0.06):
+    """`fn`, started only once the safety loop's depth pass is done (or after `wait_s`): the
+    reflex loop gets the GPU first, the map waits a few ms."""
+
+    def call(*a, **k):
+        t = time.monotonic() + wait_s
+        while busy.is_set() and time.monotonic() < t:
+            time.sleep(0.002)
+        return fn(*a, **k)
+
+    return call
+
+
+def run(
+    in_q, out_q, settings: Settings, session: str, new_needed: int = 4, reflex_busy=None
+) -> None:
     from ultralytics import YOLO
 
     default_every = 2 if settings.finder == "sam31" else 1
@@ -31,6 +46,11 @@ def run(in_q, out_q, settings: Settings, session: str, new_needed: int = 4) -> N
         describer=Describer(),
         solver=SolverProcess(settings.hfov_deg if settings.map_intrinsics else None),
     )
+    if reflex_busy is not None:
+        engine.runner.infer = yield_to(reflex_busy, engine.runner.infer)
+        engine.landmarks.predict = yield_to(reflex_busy, engine.landmarks.predict)
+        engine.finder.find = yield_to(reflex_busy, engine.finder.find)
+    engine.emit = out_q.put
     if settings.mode != "home":
         engine.set_mode(settings.mode)
     else:

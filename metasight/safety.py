@@ -51,6 +51,7 @@ class SafetyResult:
     scene: Scene | None = None
     ttc_s: float = math.inf  # time to contact with what is in the path, from its closing speed
     floor_scale: float | None = None  # this frame's scale measured from the floor plane
+    depth_m: np.ndarray | None = field(default=None, repr=False)  # float32 `depth`, for labels
 
 
 @dataclass
@@ -377,67 +378,68 @@ class SafetyLoop:
         return scene, meas, ttc
 
     def process(self, bgr: np.ndarray) -> SafetyResult:
+        return self.label(bgr, self.reflex(bgr))
+
+    def reflex(self, bgr: np.ndarray) -> SafetyResult:
+        """The stop layer: live depth and the floor fit, everything the belt's plan needs. No
+        detector, so a buzz never waits for labels (`label` adds them after)."""
         t0 = time.perf_counter()
         raw = self.estimate_depth(bgr)
         scene, meas, ttc = self._geometry(raw)
         depth = raw * self.scale
-        sectors = scene.sectors
         t1 = time.perf_counter()
-        extra = {"scene": scene, "ttc_s": ttc, "floor_scale": meas}
+        return SafetyResult(
+            scene.sectors,
+            [],
+            depth.astype(np.float16),
+            [],
+            {"depth": 1000 * (t1 - t0)},
+            scene=scene,
+            ttc_s=ttc,
+            floor_scale=meas,
+            depth_m=depth,
+        )
+
+    def label(self, bgr: np.ndarray, res: SafetyResult) -> SafetyResult:
+        """The label layer on the same frame: what the near things are, with a distance each."""
+        t1 = time.perf_counter()
+        depth = res.depth_m
         if self._seg is not None:
             # The masks already carry a label, a box and a distance: no second detector pass.
-            objects = self.segment(bgr, depth)
+            res.objects = self.segment(bgr, depth)
+            res.obstacles = [Obstacle(o.label, o.score, o.box, o.dist_m) for o in res.objects]
             t2 = t3 = time.perf_counter()
-            obstacles = [Obstacle(o.label, o.score, o.box, o.dist_m) for o in objects]
-            return SafetyResult(
-                sectors,
-                obstacles,
-                depth.astype(np.float16),
-                objects,
-                {
-                    "depth": 1000 * (t1 - t0),
-                    "detect": 1000 * (t2 - t1),
-                    "post": 0.0,
-                    "total": 1000 * (t3 - t0),
-                },
-                **extra,
-            )
-        r = self._det.predict(
-            bgr, imgsz=self.s.detector_imgsz, device="mps", verbose=False, conf=0.35
-        )[0]
-        t2 = time.perf_counter()
-        h, w = bgr.shape[:2]
-        dh, dw = depth.shape
-        obstacles = []
-        for b, c, p in zip(
-            r.boxes.xyxy.cpu().numpy(),
-            r.boxes.cls.cpu().numpy(),
-            r.boxes.conf.cpu().numpy(),
-            strict=True,
-        ):
-            x0, y0, x1, y1 = b
-            # Central half of the box: edges are mostly background and drag the distance out.
-            cx0, cx1 = x0 + 0.25 * (x1 - x0), x1 - 0.25 * (x1 - x0)
-            cy0, cy1 = y0 + 0.25 * (y1 - y0), y1 - 0.25 * (y1 - y0)
-            patch = depth[
-                int(cy0 / h * dh) : int(cy1 / h * dh) + 1, int(cx0 / w * dw) : int(cx1 / w * dw) + 1
-            ]
-            dist = float(np.percentile(patch, 25)) if patch.size else float("inf")
-            obstacles.append(
-                Obstacle(r.names[int(c)], float(p), (x0 / w, y0 / h, x1 / w, y1 / h), dist)
-            )
-        objects = self.segment(bgr, depth) if self._seg is not None else []
-        t3 = time.perf_counter()
-        return SafetyResult(
-            sectors,
-            obstacles,
-            depth.astype(np.float16),
-            objects,
+        else:
+            r = self._det.predict(
+                bgr, imgsz=self.s.detector_imgsz, device="mps", verbose=False, conf=0.35
+            )[0]
+            t2 = time.perf_counter()
+            h, w = bgr.shape[:2]
+            dh, dw = depth.shape
+            for b, c, p in zip(
+                r.boxes.xyxy.cpu().numpy(),
+                r.boxes.cls.cpu().numpy(),
+                r.boxes.conf.cpu().numpy(),
+                strict=True,
+            ):
+                x0, y0, x1, y1 = b
+                # Central half of the box: edges are mostly background and drag the distance out.
+                cx0, cx1 = x0 + 0.25 * (x1 - x0), x1 - 0.25 * (x1 - x0)
+                cy0, cy1 = y0 + 0.25 * (y1 - y0), y1 - 0.25 * (y1 - y0)
+                patch = depth[
+                    int(cy0 / h * dh) : int(cy1 / h * dh) + 1,
+                    int(cx0 / w * dw) : int(cx1 / w * dw) + 1,
+                ]
+                dist = float(np.percentile(patch, 25)) if patch.size else float("inf")
+                res.obstacles.append(
+                    Obstacle(r.names[int(c)], float(p), (x0 / w, y0 / h, x1 / w, y1 / h), dist)
+                )
+            t3 = time.perf_counter()
+        res.timings_ms.update(
             {
-                "depth": 1000 * (t1 - t0),
                 "detect": 1000 * (t2 - t1),
                 "post": 1000 * (t3 - t2),
-                "total": 1000 * (t3 - t0),
-            },
-            **extra,
+                "total": res.timings_ms["depth"] + 1000 * (t3 - t1),
+            }
         )
+        return res
