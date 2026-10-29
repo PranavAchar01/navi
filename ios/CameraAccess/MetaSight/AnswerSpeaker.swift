@@ -14,6 +14,8 @@ final class AnswerSpeaker {
   private var sessionConfigured = false
 
   func speak(_ text: String) {
+    // Like the beeper, nothing plays on a simulator or a Mac; the answer is still on screen.
+    guard !Self.isSimulatorOrMac else { return }
     configureSessionIfNeeded()
     // A new answer replaces whatever is still being read out.
     if synthesizer.isSpeaking {
@@ -22,6 +24,14 @@ final class AnswerSpeaker {
     let utterance = AVSpeechUtterance(string: text)
     utterance.rate = AVSpeechUtteranceDefaultSpeechRate
     synthesizer.speak(utterance)
+  }
+
+  private static var isSimulatorOrMac: Bool {
+    #if targetEnvironment(simulator)
+      return true
+    #else
+      return ProcessInfo.processInfo.isiOSAppOnMac
+    #endif
   }
 
   private func configureSessionIfNeeded() {

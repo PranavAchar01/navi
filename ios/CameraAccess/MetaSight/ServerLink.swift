@@ -10,7 +10,7 @@
 //   ask    -> {"type":"ask","text":"..."}
 //   camera -> {"type":"camera","source":"iphone","hfov":deg,"width":w,"height":h,"walk":id|null}
 //   arpose -> {"type":"arpose","seq":n,"ts":ms,"m":[16 floats],"track":"..."} (just before its frame)
-//   answer <- {"type":"answer","text":"..."}
+//   answer <- {"type":"answer","text":"...","label":s|null,"pin":{"near":[...],...}|null}
 //   belt   <- {"type":"belt","duty":[8],"modes":[8],"lost":b,"found":b,"latency_ms":n|null}
 //   safety <- {"type":"safety","sectors":[8],"cues":[{"mode":...}],"path":m|null,"guide":{...}|null,"found":b}
 //
@@ -36,6 +36,15 @@ struct GuideTarget: Equatable, Sendable, Decodable {
   let dist: Double?
   /// Degrees, 0 = straight ahead, positive = to the right.
   let bearing: Double?
+}
+
+/// The latest answer, with the item it is about and what it was seen near, when the
+/// server named one.
+struct AnswerNote: Equatable, Sendable {
+  let text: String
+  let label: String?
+  let near: String?
+  let at: Date
 }
 
 /// Thread-safe gate that keeps at most one camera frame in flight and hands out
@@ -104,6 +113,7 @@ final class ServerLink {
   private(set) var guide: GuideTarget?
   private(set) var statusLine: String = "waiting for server"
   private(set) var lastAnswer: String?
+  private(set) var answerNote: AnswerNote?
   /// Sector distances from the latest safety message, as forwarded to the watch.
   private(set) var proximity: ProximityReading?
 
@@ -302,7 +312,12 @@ final class ServerLink {
   }
 
   private struct AnswerMessage: Decodable {
+    struct Pin: Decodable {
+      let near: [String]?
+    }
     let text: String
+    let label: String?
+    let pin: Pin?
   }
 
   private struct BeltMessage: Decodable {
@@ -332,6 +347,8 @@ final class ServerLink {
     case "answer":
       guard let answer = try? decoder.decode(AnswerMessage.self, from: data) else { return }
       lastAnswer = answer.text
+      answerNote = AnswerNote(
+        text: answer.text, label: answer.label, near: answer.pin?.near?.first, at: Date())
       speaker.speak(answer.text)
     case "belt":
       guard let msg = try? decoder.decode(BeltMessage.self, from: data) else { return }

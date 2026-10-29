@@ -28,6 +28,9 @@ struct CameraView: View {
   @State private var showSettingsMenu: Bool = false
   @State private var isLaunchingUpdate: Bool = false
   @State private var question: String = ""
+  #if DEBUG
+    @State private var displayPreviewLarge = DemoLaunch.largeDisplayPreview
+  #endif
   @FocusState private var focusedField: Field?
 
   private enum Field {
@@ -43,6 +46,15 @@ struct CameraView: View {
 
   private var isUpdateRequired: Bool {
     wearablesVM.requiresFirmwareUpdate
+  }
+
+  /// The enlarged glasses-display preview (debug builds) takes the belt's place.
+  private var beltHiddenForPreview: Bool {
+    #if DEBUG
+      return displayPreviewLarge && DemoLaunch.glasses != nil
+    #else
+      return false
+    #endif
   }
 
   /// Whether the preview is live or tearing down — drives the in-row Preview
@@ -93,13 +105,26 @@ struct CameraView: View {
               .edgesIgnoringSafeArea(.top)
           )
 
-        HStack {
+        HStack(alignment: .top) {
+          #if DEBUG
+            if let glasses = DemoLaunch.glasses {
+              // Tap to enlarge the glasses' display for a closer look.
+              let side: CGFloat = displayPreviewLarge ? 360 : 180
+              MockDisplayPreview(glasses: glasses)
+                .frame(width: side, height: side)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .onTapGesture { displayPreviewLarge.toggle() }
+                .accessibilityIdentifier("glasses_display_preview")
+            }
+          #endif
           Spacer()
-          BeltView(belt: viewModel.link.belt, guideBearing: viewModel.link.guide?.bearing)
-            .frame(width: 150, height: 150)
-            .background(Color.black.opacity(0.45))
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .accessibilityIdentifier("belt_view")
+          if !beltHiddenForPreview {
+            BeltView(belt: viewModel.link.belt, guideBearing: viewModel.link.guide?.bearing)
+              .frame(width: 150, height: 150)
+              .background(Color.black.opacity(0.45))
+              .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+              .accessibilityIdentifier("belt_view")
+          }
         }
         .padding(.horizontal, 16)
         .padding(.top, -24)

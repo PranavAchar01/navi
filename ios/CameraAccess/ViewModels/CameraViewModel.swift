@@ -160,6 +160,8 @@ final class CameraViewModel {
   let link: ServerLink
   /// Glasses Motion and Speech, attached while the session is started.
   let sensors: GlassesSensors
+  /// Cues on the Ray-Ban Display's screen, attached while a session on display glasses is started.
+  let glassesDisplay: GlassesDisplay
 
   // MARK: - Private
 
@@ -194,6 +196,7 @@ final class CameraViewModel {
     self.wearables = wearables
     self.link = link
     self.sensors = GlassesSensors(wearables: wearables, link: link)
+    self.glassesDisplay = GlassesDisplay(link: link)
     self.deviceSelector = AutoDeviceSelector(wearables: wearables)
     self.backgroundStopErrorSuppressionTimeout = backgroundStopErrorSuppressionTimeout
     startDeviceMonitoring()
@@ -472,9 +475,13 @@ final class CameraViewModel {
     sessionState = state
     if state == .started, let session = deviceSession {
       sensors.attach(to: session)
+      if let id = deviceSelector.activeDevice, wearables.deviceForIdentifier(id)?.supportsDisplay() == true {
+        glassesDisplay.attach(to: session)
+      }
     }
     if state == .stopped {
       sensors.detach()
+      glassesDisplay.detach()
       endBackgroundStopErrorSuppression()
       cleanupSession()
     }
@@ -573,7 +580,12 @@ final class CameraViewModel {
       f.dateFormat = "yyyyMMdd-HHmmss"
       walk = f.string(from: Date()) + "-glasses"
     }
-    link.announce(["type": "camera", "source": "glasses", "width": 504, "height": 896, "walk": walk])
+    var camera: [String: Any] = ["type": "camera", "source": "glasses", "width": 504, "height": 896, "walk": walk]
+    #if DEBUG
+      // A recorded walk standing in for the glasses camera keeps its own lens.
+      if let hfov = DemoLaunch.videoHFOV { camera["hfov"] = hfov }
+    #endif
+    link.announce(camera)
   }
 
   /// Single stream-teardown convergence point.

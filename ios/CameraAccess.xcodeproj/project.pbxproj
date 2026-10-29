@@ -17,8 +17,11 @@
 		5E5E5E5E0000000000000207 /* PhoneCameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E5E5E5E0000000000000107 /* PhoneCameraView.swift */; };
 		5E5E5E5E0000000000000208 /* WatchLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E5E5E5E0000000000000108 /* WatchLink.swift */; };
 		5E5E5E5E0000000000000209 /* Proximity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E5E5E5E0000000000000109 /* Proximity.swift */; };
+		5E5E5E5E0000000000000210 /* GlassesDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E5E5E5E0000000000000110 /* GlassesDisplay.swift */; };
 		5E5E5E5E0000000000000408 /* Proximity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E5E5E5E0000000000000109 /* Proximity.swift */; };
 		5E5E5E5E0000000000000409 /* MetaSightWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 5E5E5E5E0000000000000402 /* MetaSightWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		5E5E5E5E0000000000000611 /* BeepCue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E5E5E5E0000000000000601 /* BeepCue.swift */; };
+		5E5E5E5E0000000000000612 /* SpatialBeeper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E5E5E5E0000000000000602 /* SpatialBeeper.swift */; };
 		8F8F00782E8ACB4600A4BDAF /* WearablesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F8F00772E8ACB4500A4BDAF /* WearablesViewModel.swift */; };
 		8FD96B7F2E6F0A9800F56AB1 /* CameraAccessApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FD96B792E6F0A9800F56AB1 /* CameraAccessApp.swift */; };
 		8FD96B812E6F0A9800F56AB1 /* HomeScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FD96B722E6F0A9800F56AB1 /* HomeScreenView.swift */; };
@@ -30,6 +33,7 @@
 		8FD96B952E6F0F7D00F56AB3 /* MWDATMockDevice in Frameworks */ = {isa = PBXBuildFile; productRef = 8FD96B942E6F0F7D00F56AB3 /* MWDATMockDevice */; };
 		8FD96B952E6F0F7D00F56AB4 /* MWDATMotion in Frameworks */ = {isa = PBXBuildFile; productRef = 8FD96B942E6F0F7D00F56AB4 /* MWDATMotion */; };
 		8FD96B952E6F0F7D00F56AB5 /* MWDATSpeech in Frameworks */ = {isa = PBXBuildFile; productRef = 8FD96B942E6F0F7D00F56AB5 /* MWDATSpeech */; };
+		8FD96B952E6F0F7D00F56AB6 /* MWDATDisplay in Frameworks */ = {isa = PBXBuildFile; productRef = 8FD96B942E6F0F7D00F56AB6 /* MWDATDisplay */; };
 		8FFD5FF52E8422580035E446 /* CircleButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FFD5FF22E8422580035E446 /* CircleButton.swift */; };
 		8FFD5FF62E8422580035E446 /* CustomButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FFD5FF32E8422580035E446 /* CustomButton.swift */; };
 		8FFD602C2E8433E20035E446 /* MockDeviceKitViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FFD60292E8433E20035E446 /* MockDeviceKitViewModel.swift */; };
@@ -52,8 +56,6 @@
 		E6DA451E2E79A63100E3F688 /* CardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6DA45172E79A63100E3F688 /* CardView.swift */; };
 		E6DA451F2E79A63100E3F688 /* MockDeviceKitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6DA451A2E79A63100E3F688 /* MockDeviceKitView.swift */; };
 		FACE0000000000000000FA02 /* TipRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0000000000000000FA01 /* TipRow.swift */; };
-		5E5E5E5E0000000000000611 /* BeepCue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E5E5E5E0000000000000601 /* BeepCue.swift */; };
-		5E5E5E5E0000000000000612 /* SpatialBeeper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E5E5E5E0000000000000602 /* SpatialBeeper.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -116,7 +118,10 @@
 		5E5E5E5E0000000000000107 /* PhoneCameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneCameraView.swift; sourceTree = "<group>"; };
 		5E5E5E5E0000000000000108 /* WatchLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchLink.swift; sourceTree = "<group>"; };
 		5E5E5E5E0000000000000109 /* Proximity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Proximity.swift; sourceTree = "<group>"; };
+		5E5E5E5E0000000000000110 /* GlassesDisplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassesDisplay.swift; sourceTree = "<group>"; };
 		5E5E5E5E0000000000000402 /* MetaSightWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MetaSightWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5E5E5E5E0000000000000601 /* BeepCue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeepCue.swift; sourceTree = "<group>"; };
+		5E5E5E5E0000000000000602 /* SpatialBeeper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpatialBeeper.swift; sourceTree = "<group>"; };
 		8F8F00772E8ACB4500A4BDAF /* WearablesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WearablesViewModel.swift; sourceTree = "<group>"; };
 		8FD96B6F2E6F0A9800F56AB1 /* CameraViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraViewModel.swift; sourceTree = "<group>"; };
 		8FD96B722E6F0A9800F56AB1 /* HomeScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeScreenView.swift; sourceTree = "<group>"; };
@@ -148,8 +153,6 @@
 		E6DA45182E79A63100E3F688 /* MockDeviceCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockDeviceCardView.swift; sourceTree = "<group>"; };
 		E6DA451A2E79A63100E3F688 /* MockDeviceKitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockDeviceKitView.swift; sourceTree = "<group>"; };
 		FACE0000000000000000FA01 /* TipRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TipRow.swift; sourceTree = "<group>"; };
-		5E5E5E5E0000000000000601 /* BeepCue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeepCue.swift; sourceTree = "<group>"; };
-		5E5E5E5E0000000000000602 /* SpatialBeeper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpatialBeeper.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -178,6 +181,7 @@
 				8FD96B952E6F0F7D00F56AB3 /* MWDATMockDevice in Frameworks */,
 				8FD96B952E6F0F7D00F56AB4 /* MWDATMotion in Frameworks */,
 				8FD96B952E6F0F7D00F56AB5 /* MWDATSpeech in Frameworks */,
+				8FD96B952E6F0F7D00F56AB6 /* MWDATDisplay in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -217,6 +221,7 @@
 			children = (
 				5E5E5E5E0000000000000100 /* ServerLink.swift */,
 				5E5E5E5E0000000000000101 /* GlassesSensors.swift */,
+				5E5E5E5E0000000000000110 /* GlassesDisplay.swift */,
 				5E5E5E5E0000000000000102 /* AnswerSpeaker.swift */,
 				5E5E5E5E0000000000000602 /* SpatialBeeper.swift */,
 				5E5E5E5E0000000000000601 /* BeepCue.swift */,
@@ -539,6 +544,7 @@
 				8FD96B7F2E6F0A9800F56AB1 /* CameraAccessApp.swift in Sources */,
 				5E5E5E5E0000000000000200 /* ServerLink.swift in Sources */,
 				5E5E5E5E0000000000000201 /* GlassesSensors.swift in Sources */,
+				5E5E5E5E0000000000000210 /* GlassesDisplay.swift in Sources */,
 				5E5E5E5E0000000000000202 /* AnswerSpeaker.swift in Sources */,
 				5E5E5E5E0000000000000612 /* SpatialBeeper.swift in Sources */,
 				5E5E5E5E0000000000000611 /* BeepCue.swift in Sources */,
@@ -1033,6 +1039,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 95F7F3332DEF0D91006D1C1A /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
 			productName = MWDATSpeech;
+		};
+		8FD96B942E6F0F7D00F56AB6 /* MWDATDisplay */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 95F7F3332DEF0D91006D1C1A /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
+			productName = MWDATDisplay;
 		};
 		E66CC01E2F3E1A9300B07380 /* MWDATMockDeviceTestClient */ = {
 			isa = XCSwiftPackageProductDependency;
