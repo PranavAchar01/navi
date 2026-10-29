@@ -30,6 +30,10 @@ from .align import map_resolution
 from .belt import FLAG_FOUND, NAMES, BeltLink, guide, plan
 from .config import ROOT, Settings, secret
 from .conversation import Talk
+from .modes import ALL as ACTIVITIES
+from .modes import Activity
+from .modes import command as activity_command
+from .modes import implied as implied_activity
 from .geometry import CAMERA_SECTORS, SECTORS, merge_sectors
 from .haptics import make_output
 from .heading import Heading, wrap
@@ -81,6 +85,8 @@ class Server:
         self.llm_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="llm")
         self.fall, self.shake = FallDetector(), ShakeDetector()
         self.talk = Talk(settings.hfov_deg)
+        self.activity = Activity()  # guide, find, talk or explore (modes.py)
+        self.talk.cues_enabled = self.activity.profile.speaker_cues
         self.voice: VoiceAsk | None = None  # spoken questions through Muse Voice Transcribe
         if settings.asr == "meta" and (key := secret("META_API_KEY", "MODEL_API_KEY")):
             words = list(dict.fromkeys([*settings.watchlist, *settings.meta_items]))
@@ -329,6 +335,7 @@ class Server:
             map_fresh = self.memory_ready and self.map_pose_ts and now - self.map_pose_ts < 3.0
             known = [n in CAMERA_SECTORS or bool(map_fresh) for n in SECTORS]
             cmd, flags = plan(merged, known, sc.path_m, res.ttc_s, sc.drop_m)
+            cmd = self.activity.calm(cmd, flags)
             people = self.talk.frame(now, res.obstacles, small, self.heading)
             cmd = self.talk.overlay(cmd, now)
             # The heading is carried between poses, so guidance tolerates an older position.
@@ -347,7 +354,7 @@ class Server:
             if now < self.found_until:
                 flags |= FLAG_FOUND
             if not (self.braille and self.braille.owns_belt):  # a Braille cue on the belt wins
-                self.belt.send(cmd, flags, arrived)
+                self.belt.send(cmd, flags | self.activity.flag_bits(), arrived)
             await self.hub.frame(seq, jpeg, self.source_ws)
             await self.hub.json(people, True)
             if people["cue"]:
@@ -625,6 +632,14 @@ class Server:
             "language": self.language.name if polished else "template",
         }
 
+    async def set_activity(self, mode: str, cause: str, speak: bool = True) -> None:
+        """Switch guide/find/talk/explore: tell the app (which says the line) and the judge view."""
+        ev = self.activity.set(mode, cause, speak)
+        if ev is None:
+            return
+        self.talk.cues_enabled = self.activity.profile.speaker_cues
+        await self.hub.json(ev, True)
+
     def known_labels(self) -> list[str]:
         return sorted({*self.pins.labels(), *self.live_last})
 
@@ -639,6 +654,13 @@ class Server:
         `quiet_unknown`: overheard speech that names no known thing gets no reply.
         `spoken_end`: wall time the wearer's last word arrived, for the voice timing."""
         t0 = time.perf_counter()
+        if (named := activity_command(text)) is not None:
+            await self.set_activity(named, "voice")
+            return {"type": "activity", "mode": named, "text": text}
+        if not quiet_unknown:
+            implied = implied_activity(text, parse_query(text, self.known_labels()) is not None)
+            if implied is not None:
+                await self.set_activity(implied, "question", speak=False)  # the answer speaks
         if pending is not None:
             res = await pending
         else:
@@ -685,6 +707,7 @@ def create_app(settings: Settings | None = None, session: str | None = None) -> 
                 "fps": round(srv.fps, 1),
                 "pins": [p.to_json(False) for p in srv.pins.pins.values()],
                 "mode": srv.mode,
+                "activity": srv.activity.mode,
                 "map_points": srv.hub.map_total,
                 "memory": srv.memory_stats,
                 "asr": (
@@ -753,6 +776,8 @@ def create_app(settings: Settings | None = None, session: str | None = None) -> 
                     elif kind == "arpose":  # the phone's own tracked pose, kept with its walk
                         if walk := srv.walks.get(sock):
                             walk.pose(m)
+                    elif kind == "activity" and m.get("mode") in ACTIVITIES:
+                        await srv.set_activity(m["mode"], "app")
                     elif kind == "mode" and m.get("mode") in ("home", "outside"):
                         srv.in_q.put({"cmd": "mode", "mode": m["mode"]})
                     elif kind == "tap":

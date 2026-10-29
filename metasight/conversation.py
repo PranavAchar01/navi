@@ -31,6 +31,7 @@ class Talk:
         self.audio_t = -math.inf
         self.cue: dict | None = None
         self.cue_until = 0.0
+        self.cues_enabled = True  # the mode decides: only Talk turns the wearer toward a voice
 
     def reset(self) -> None:
         self.conv.reset()
@@ -74,6 +75,8 @@ class Talk:
         ev = self.conv.step(now, dets, gray, voice, doa, xz)
         ev["mics"] = self.mics if heard else 0
         ev["vad"] = self.vad.kind if self.vad is not None else None
+        if ev["cue"] and not self.cues_enabled:
+            ev["cue"] = None
         if ev["cue"]:
             self.cue, self.cue_until = ev["cue"], now + CUE_PULSE_S
         return ev

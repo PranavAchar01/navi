@@ -128,6 +128,8 @@ final class ServerLink {
   private(set) var guide: GuideTarget?
   private(set) var statusLine: String = "Waiting for server"
   private(set) var lastAnswer: String?
+  /// What the wearer is doing: guide, find, talk or explore. The server owns it.
+  private(set) var activity = "guide"
   private(set) var answerNote: AnswerNote?
   /// Sector distances from the latest safety message, as forwarded to the watch.
   private(set) var proximity: ProximityReading?
@@ -219,6 +221,11 @@ final class ServerLink {
   func addMotion(_ sample: [Double]) {
     guard connection == .connected else { return }
     motionBuffer.append(sample)
+  }
+
+  /// Asks the server to switch between guide, find, talk and explore.
+  func setActivity(_ mode: String) {
+    send(json: ["type": "activity", "mode": mode])
   }
 
   func ask(_ text: String) {
@@ -385,6 +392,14 @@ final class ServerLink {
     let decoder = JSONDecoder()
     guard let envelope = try? decoder.decode(Envelope.self, from: data) else { return }
     switch envelope.type {
+    case "activity":
+      // The server picked a mode (voice, a question, or the app); it sends the gentle line to say.
+      if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        let mode = obj["mode"] as? String
+      {
+        activity = mode
+        if let say = obj["say"] as? String { speaker.speak(say) }
+      }
     case "speaker_cue":
       // Turn toward the voice: one soft beep placed at its bearing.
       if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
