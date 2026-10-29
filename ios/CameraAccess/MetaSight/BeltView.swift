@@ -88,14 +88,14 @@ struct BeltView: View {
       drawMotor(belt, index: i, at: anchor, radius: motorRadius, in: &context, time: t)
     }
 
-    if let warning = cues?.warning, warning.distance != nil {
+    if let warning = cues?.cueWarning, warning.distance != nil {
       // "0.4 m" just inside the nearest obstacle's motor, on a dark chip over the wearer.
       let angle = Double(warning.sector) * .pi / 4
       let at = CGPoint(x: center.x + sin(angle) * ringRadius * 0.55, y: center.y - cos(angle) * ringRadius * 0.55)
       let label = context.resolve(
         Text(DisplayCard.distanceText(warning.distance))
           .font(.system(size: max(9, side * 0.085), weight: .heavy))
-          .foregroundStyle(warning.band == .slow ? Self.amber : Self.red))
+          .foregroundStyle(chipColor(warning, belt: belt)))
       let size = label.measure(in: CGSize(width: side, height: side))
       let chip = CGRect(x: at.x - size.width / 2 - 4, y: at.y - size.height / 2 - 1, width: size.width + 8, height: size.height + 2)
       context.fill(Path(roundedRect: chip, cornerRadius: chip.height / 2), with: .color(.black.opacity(0.8)))
@@ -170,6 +170,13 @@ struct BeltView: View {
       Text("\(i + 1)").font(.system(size: r * 1.05, weight: .bold)).foregroundStyle(lit ? Color.black : Color.white.opacity(0.8)),
       at: p
     )
+  }
+
+  /// The chip takes its motor's colour, so the number never disagrees with what the belt
+  /// is doing; white while that motor is still off (the belt trails the cues slightly).
+  private func chipColor(_ warning: ProximityWarning, belt: BeltState) -> Color {
+    guard !belt.lost else { return warning.band == .slow ? Self.amber : Self.red }
+    return belt.duty[warning.sector] > 0 ? motorColor(mode: belt.modes[warning.sector]) ?? .white : .white
   }
 
   private func motorColor(mode: String) -> Color? {

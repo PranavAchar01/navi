@@ -87,6 +87,27 @@ final class DisplayCardTests: XCTestCase {
     XCTAssertLessThan(image.pngData()?.count ?? .max, 40_000)
   }
 
+  func testLensUsesTheBeltsUrgency() {
+    // 0.97 m is "fast" by distance, but the server cued "slow" for that sector.
+    let reading = ProximityReading(distances: [0.97], modes: ["slow"])
+    XCTAssertEqual(reading.cueWarning?.band, .slow)
+    let card = DisplayCard.make(warning: reading.cueWarning, guide: nil, answer: nil)
+    XCTAssertEqual(card.glyph, .obstacle(bearing: 0, band: .slow))
+
+    // A wall 0.9 m to the right the server left quiet doesn't reach the lens.
+    let quiet = ProximityReading(distances: [nil, nil, 0.9], modes: ["off", "off", "off"])
+    XCTAssertNil(quiet.cueWarning)
+  }
+
+  func testAgesMatchTheSpokenAnswer() {
+    let now = Date()
+    XCTAssertEqual(DisplayCard.ago(now.addingTimeInterval(-20), now: now), "just now")
+    XCTAssertEqual(DisplayCard.ago(now.addingTimeInterval(-9 * 60), now: now), "9 min ago")
+    XCTAssertEqual(DisplayCard.ago(now.addingTimeInterval(-59 * 60), now: now), "59 min ago")
+    XCTAssertEqual(DisplayCard.ago(now.addingTimeInterval(-59.6 * 60), now: now), "1 h ago")
+    XCTAssertEqual(DisplayCard.ago(now.addingTimeInterval(-160 * 60), now: now), "3 h ago")
+  }
+
   func testDirectionWords() {
     XCTAssertEqual(DisplayCard.directionWord(0), "ahead")
     XCTAssertEqual(DisplayCard.directionWord(50), "ahead right")

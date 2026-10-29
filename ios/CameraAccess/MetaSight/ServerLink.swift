@@ -113,7 +113,7 @@ final class ServerLink {
   private(set) var connection: Connection = .disconnected
   private(set) var belt = BeltState()
   private(set) var guide: GuideTarget?
-  private(set) var statusLine: String = "waiting for server"
+  private(set) var statusLine: String = "Waiting for server"
   private(set) var lastAnswer: String?
   private(set) var answerNote: AnswerNote?
   /// Sector distances from the latest safety message, as forwarded to the watch.
@@ -225,7 +225,7 @@ final class ServerLink {
       scheme == "ws" || scheme == "wss", url.host != nil
     else {
       connection = .disconnected
-      statusLine = "invalid server URL"
+      statusLine = "Invalid server address"
       return
     }
 
@@ -255,7 +255,7 @@ final class ServerLink {
     guard connection != .connected else { return }
     connection = .connected
     frameGate.setOpen(true)
-    statusLine = "connected"
+    statusLine = "Connected"
     if let hello { send(json: hello) }
   }
 
@@ -284,7 +284,7 @@ final class ServerLink {
     connection = .disconnected
     frameGate.setOpen(false)
     motionBuffer.removeAll()
-    statusLine = "server offline, retrying"
+    statusLine = "Server offline, retrying"
   }
 
   private func closeSocket() {
@@ -392,23 +392,23 @@ final class ServerLink {
     return head + Array(repeating: filler, count: BeltState.motorCount - head.count)
   }
 
-  /// "path 1.2 m · guiding to water bottle 2.1 m"
+  /// "Clear for 1.2 m · Finding water bottle, 2.1 m", in the wearer's words.
   static func statusLine(path: Double?, guide: GuideTarget?, found: Bool) -> String {
     var parts: [String] = []
     if let path {
-      parts.append(String(format: "path %.1f m", path))
+      parts.append(String(format: "Clear for %.1f m", path))
     } else {
-      parts.append("path clear")
+      parts.append("Clear ahead")
     }
     if let guide {
       if let dist = guide.dist {
-        parts.append(String(format: "guiding to %@ %.1f m", guide.label, dist))
+        parts.append(String(format: "Finding %@, %.1f m", guide.label, dist))
       } else {
-        parts.append("guiding to \(guide.label)")
+        parts.append("Finding \(guide.label)")
       }
     }
     if found {
-      parts.append("found it")
+      parts.append("Found it")
     }
     return parts.joined(separator: " · ")
   }

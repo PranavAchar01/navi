@@ -76,12 +76,14 @@ struct DisplayCard: Equatable, Sendable {
     return String(format: "%.1f m", max(1, (d * perMetre).rounded()) / perMetre)
   }
 
-  /// "just now", "4 min ago", "2 h ago".
+  /// "just now", "4 min ago", "1 h ago", rounded the way the spoken answer is
+  /// (metasight/query.py time_ago), so the lens and the voice agree.
   static func ago(_ seen: Date, now: Date) -> String {
     let s = max(0, now.timeIntervalSince(seen))
-    if s < 60 { return "just now" }
-    if s < 3600 { return "\(Int(s / 60)) min ago" }
-    return "\(Int(s / 3600)) h ago"
+    if s < 45 { return "just now" }
+    let m = Int((s / 60).rounded())
+    if m < 60 { return "\(m) min ago" }
+    return "\(Int((s / 3600).rounded())) h ago"
   }
 
   /// With a live fix: an arrow, "3.0 m" big and "keys" under it. With a bearing only, the
@@ -207,7 +209,7 @@ final class GlassesDisplay {
   private func refresh() async {
     guard let display else { return }
     let card = DisplayCard.make(
-      warning: link.proximity?.warning, guide: link.guide, answer: link.answerNote)
+      warning: link.proximity?.cueWarning, guide: link.guide, answer: link.answerNote)
     guard card != shown else { return }
     let escalates = card.isStop && shown?.isStop != true
     guard escalates || Date().timeIntervalSince(shownAt) >= DisplayCard.minDwell else { return }
@@ -348,6 +350,20 @@ final class GlassesDisplay {
     path.addLine(to: CGPoint(x: -68, y: -8))
     path.close()
     path.fill()
+  }
+}
+
+extension ProximityReading {
+  /// The most urgent obstacle the server actually cued, at the urgency it cued, which is
+  /// what the belt feels. The distance band alone flips at 1 m and 0.5 m on noise and
+  /// could paint the lens red while the belt buzzes amber, or warn about a sector the
+  /// server left quiet.
+  var cueWarning: ProximityWarning? {
+    let bands = modes.map(ProximityBand.init(mode:))
+    let cued = ProximityReading(
+      distances: zip(distances, bands).map { $1 > .clear ? $0 : nil }, modes: modes)
+    guard let w = cued.warning else { return nil }
+    return ProximityWarning(sector: w.sector, distance: w.distance, band: bands[w.sector])
   }
 }
 
