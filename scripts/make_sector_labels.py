@@ -103,7 +103,7 @@ def label_walk(walk: Path, d: np.lib.npyio.NpzFile) -> dict:
         pose = poses.get(seq)
         h = _horizontal(pose) if pose is not None else None
         if h is None or not len(kept):
-            frames.append({"t": round(float(t - ts[0]), 2), "tracked": False})
+            frames.append({"t": round(float(t - ts[0]), 2), "seq": seq, "tracked": False})
             continue
         pos, fwd, right = h
         rel = kept - pos
@@ -122,7 +122,13 @@ def label_walk(walk: Path, d: np.lib.npyio.NpzFile) -> dict:
             for lo, hi in zip(edges[:-1], edges[1:], strict=True)
         ]
         frames.append(
-            {"t": round(float(t - ts[0]), 2), "tracked": True, "sectors": sec, "fov_thirds": fov}
+            {
+                "t": round(float(t - ts[0]), 2),
+                "seq": seq,
+                "tracked": True,
+                "sectors": sec,
+                "fov_thirds": fov,
+            }  # fmt: skip
         )
     tracked = [f for f in frames if f["tracked"]]
     return {
@@ -141,9 +147,9 @@ def label_walk(walk: Path, d: np.lib.npyio.NpzFile) -> dict:
     }
 
 
-def main() -> None:
+def main(names: list[str] | None = None) -> None:
     d = np.load(CACHE)
-    names = sys.argv[1:] or sorted({k.split("/")[0] for k in d.files})
+    names = names or sorted({k.split("/")[0] for k in d.files})
     OUT.mkdir(exist_ok=True)
     for name in names:
         walk = ROOT / "data" / "walks" / name
@@ -160,4 +166,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

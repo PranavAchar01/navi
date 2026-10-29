@@ -31,7 +31,8 @@ STRIPS = 15
 STEP = 2  # every second recorded frame (about 12 per second)
 
 
-def extract() -> None:
+def extract(names: list[str] | None = None) -> None:
+    """Depth strips for the named walks (all when none), merged into the cache."""
     import cv2
 
     from metasight.config import Settings
@@ -40,7 +41,10 @@ def extract() -> None:
     s = Settings.load()
     loop = SafetyLoop(s)
     out: dict[str, np.ndarray] = {}
-    for w in WALKS:
+    walks = [ROOT / "data" / "walks" / n for n in names] if names else WALKS
+    if names and CACHE.exists():
+        out = {k: v for k, v in np.load(CACHE).items() if k.split("/")[0] not in names}
+    for w in walks:
         cam = json.loads((w / "camera.json").read_text())
         rows = [json.loads(line) for line in (w / "frames.jsonl").read_text().splitlines()]
         ts, strips, sect, path, ttc = [], [], [], [], []
@@ -129,10 +133,12 @@ def transient(on: np.ndarray, ts: np.ndarray, max_s: float = 0.5) -> int:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--extract", action="store_true")
+    ap.add_argument(
+        "--extract", nargs="*", metavar="WALK", help="depth strips (all walks, or those named)"
+    )
     a = ap.parse_args()
-    if a.extract:
-        extract()
+    if a.extract is not None:
+        extract(a.extract)
         return
     d = np.load(CACHE)
     res = {}

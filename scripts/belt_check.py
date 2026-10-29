@@ -10,6 +10,7 @@ of (key, ok, evidence).
 
 from __future__ import annotations
 
+import json
 import math
 import random
 import socket
@@ -144,9 +145,21 @@ def stop_silences_guide():
 
 
 def priors_do_not_add_misses():
-    """Skipped until metasight-compare's map priors land: then this scores the ARKit walk with and
-    without priors (scripts/score_labels.py) and fails if misses inside 1 m get worse."""
-    return True, "SKIP, blocked on metasight-compare's priors commit (no priors scheme yet)"
+    """Reads bench/results/priors-score.json (scripts/score_walk.py WALK --events LOG): fails if
+    the shadow priors leave more frames inside 1 m without a cue than the live cues do. SKIP
+    until a walk has been scored with its safety-event log."""
+    path = Path(__file__).resolve().parents[1] / "bench" / "results" / "priors-score.json"
+    scored = json.loads(path.read_text()) if path.exists() else {}
+    scored = {w: r for w, r in scored.items() if r.get("ok") is not None}
+    if not scored:
+        return True, "SKIP, no walk scored with its safety events (scripts/score_walk.py WALK)"
+    bad = [w for w, r in scored.items() if not r["ok"]]
+    detail = "; ".join(
+        f"{w}: missed inside 1 m {r['priors_off']['missed_inside_1m_frames']} -> "
+        f"{r['priors_on']['missed_inside_1m_frames']} frames of {r['frames_matched']}"
+        for w, r in scored.items()
+    )
+    return not bad, detail
 
 
 CHECKS = [

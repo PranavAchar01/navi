@@ -51,58 +51,70 @@ def score(on: np.ndarray, near_m: np.ndarray, thr: float, minutes: float, kind: 
     }
 
 
-def main() -> None:
+def score_one(d, lab: dict) -> dict:
+    w = lab["walk"]
+    ts = d[f"{w}/ts"]
+    keep = np.array([f["tracked"] for f in lab["frames"]])
+    near_m = np.array([_nearest(f) for f in lab["frames"]])
+    minutes = float((ts[keep][-1] - ts[keep][0]) / 60)  # tracked span; gaps are rare
+    strips = d[f"{w}/strips"]
+    seen_now = strips.min(axis=1) < OFF_M  # the frame's own depth shows something inside 2 m
+    res = {"minutes": round(minutes, 2), "frames": int(keep.sum())}
+    for scheme in SCHEMES:
+        on = commands(
+            d[f"{w}/strips"], d[f"{w}/path"], d[f"{w}/ttc"], float(d[f"{w}/hfov"][0]),
+            scheme, 2, 26,
+        ).any(axis=1)  # fmt: skip
+        row = {}
+        for s in SCALES:
+            nm = near_m * s
+            row[f"x{s}"] = {
+                "false_buzz": score(on[keep], nm[keep], OFF_M, minutes, "false"),
+                "missed_inside_2m": score(on[keep], nm[keep], OFF_M, minutes, "miss"),
+                "missed_inside_1m": score(on[keep], nm[keep], SLOW_M, minutes, "miss"),
+            }  # fmt: skip
+        miss = keep & (near_m < OFF_M) & ~on
+        row["missed_inside_2m_frames"] = {
+            "total": int(miss.sum()),
+            "camera_sees_it_now": int((miss & seen_now).sum()),
+            "not_in_current_frame": int((miss & ~seen_now).sum()),
+        }
+        row["cue_on_pct"] = round(100 * float(on[keep].mean()), 1)
+        res[scheme] = row
+    res["near_pct"] = {
+        "inside_2m": round(100 * float((near_m[keep] < OFF_M).mean()), 1),
+        "inside_1m": round(100 * float((near_m[keep] < SLOW_M).mean()), 1),
+    }
+    return res
+
+
+def show(w: str, res: dict) -> None:
+    print(w, res["minutes"], "min,", res["frames"], "tracked frames; near", res["near_pct"])
+    for scheme in SCHEMES:
+        r, lo, hi = res[scheme]["x1.0"], res[scheme]["x0.84"], res[scheme]["x1.16"]
+        ev, fb = "events_per_min", r["false_buzz"]
+        print(
+            f"  {scheme:18s} cue on {res[scheme]['cue_on_pct']:5.1f}%  "
+            f"false {fb[ev]}/min ({lo['false_buzz'][ev]}..{hi['false_buzz'][ev]})  "
+            f"missed<2m {r['missed_inside_2m'][ev]}/min  "
+            f"missed<1m {r['missed_inside_1m'][ev]}/min  "
+            f"{res[scheme]['missed_inside_2m_frames']}"
+        )
+
+
+def main(names: list[str] | None = None) -> None:
+    """Score the named walks' labels (all when none), merged into label-scores.json."""
     d = np.load(CACHE)
-    out = {}
+    path = ROOT / "bench" / "results" / "label-scores.json"
+    out = json.loads(path.read_text()) if path.exists() and names else {}
     for lab_path in sorted((ROOT / "bench" / "labels").glob("*-sectors.json")):
         lab = json.loads(lab_path.read_text())
-        w = lab["walk"]
-        ts = d[f"{w}/ts"]
-        keep = np.array([f["tracked"] for f in lab["frames"]])
-        near_m = np.array([_nearest(f) for f in lab["frames"]])
-        minutes = float((ts[keep][-1] - ts[keep][0]) / 60)  # tracked span; gaps are rare
-        strips = d[f"{w}/strips"]
-        seen_now = strips.min(axis=1) < OFF_M  # the frame's own depth shows something inside 2 m
-        res = {"minutes": round(minutes, 2), "frames": int(keep.sum())}
-        for scheme in SCHEMES:
-            on = commands(
-                d[f"{w}/strips"], d[f"{w}/path"], d[f"{w}/ttc"], float(d[f"{w}/hfov"][0]),
-                scheme, 2, 26,
-            ).any(axis=1)  # fmt: skip
-            row = {}
-            for s in SCALES:
-                nm = near_m * s
-                row[f"x{s}"] = {
-                    "false_buzz": score(on[keep], nm[keep], OFF_M, minutes, "false"),
-                    "missed_inside_2m": score(on[keep], nm[keep], OFF_M, minutes, "miss"),
-                    "missed_inside_1m": score(on[keep], nm[keep], SLOW_M, minutes, "miss"),
-                }  # fmt: skip
-            miss = keep & (near_m < OFF_M) & ~on
-            row["missed_inside_2m_frames"] = {
-                "total": int(miss.sum()),
-                "camera_sees_it_now": int((miss & seen_now).sum()),
-                "not_in_current_frame": int((miss & ~seen_now).sum()),
-            }
-            row["cue_on_pct"] = round(100 * float(on[keep].mean()), 1)
-            res[scheme] = row
-        res["near_pct"] = {
-            "inside_2m": round(100 * float((near_m[keep] < OFF_M).mean()), 1),
-            "inside_1m": round(100 * float((near_m[keep] < SLOW_M).mean()), 1),
-        }
-        out[w] = res
-        print(w, res["minutes"], "min,", res["frames"], "tracked frames; near", res["near_pct"])
-        for scheme in SCHEMES:
-            r, lo, hi = res[scheme]["x1.0"], res[scheme]["x0.84"], res[scheme]["x1.16"]
-            ev, fb = "events_per_min", r["false_buzz"]
-            print(
-                f"  {scheme:18s} cue on {res[scheme]['cue_on_pct']:5.1f}%  "
-                f"false {fb[ev]}/min ({lo['false_buzz'][ev]}..{hi['false_buzz'][ev]})  "
-                f"missed<2m {r['missed_inside_2m'][ev]}/min  "
-                f"missed<1m {r['missed_inside_1m'][ev]}/min  "
-                f"{res[scheme]['missed_inside_2m_frames']}"
-            )
-    (ROOT / "bench" / "results" / "label-scores.json").write_text(json.dumps(out, indent=1))
+        if names and lab["walk"] not in names:
+            continue
+        out[lab["walk"]] = score_one(d, lab)
+        show(lab["walk"], out[lab["walk"]])
+    path.write_text(json.dumps(out, indent=1))
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
