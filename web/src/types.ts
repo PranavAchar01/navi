@@ -161,9 +161,18 @@ export type Message =
   | PinsMsg
   | TrailMsg
   | ModeMsg
+  | ActivityMsg
   | Device
   | Transcript;
 export type Mode = "home" | "outside";
+/** What the wearer is doing (metasight/modes.py); it sets how the belt and the speaker behave. */
+export type Activity = "guide" | "find" | "talk" | "explore";
+export interface ActivityMsg {
+  type: "activity";
+  mode: Activity;
+  prev?: Activity;
+  cause?: string; // voice, question or app
+}
 export interface ModeMsg {
   type: "mode";
   mode: Mode;

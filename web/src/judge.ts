@@ -15,7 +15,7 @@ import {
   roundDistance,
   type Warning,
 } from "./lens";
-import type { PinJson, Safety } from "./types";
+import type { Activity, PinJson, Safety } from "./types";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -65,6 +65,23 @@ net.on("device", (d) => {
   const replay = d.state === "replay";
   source.textContent = replay ? "Simulated walk · recorded footage" : `Live · ${d.name}`;
   source.className = `j-source glass ${replay ? "replay" : "live"}`;
+});
+// The wearer's activity changes what the belt and the speaker do, so the judges see it. The
+// server starts in Guide; a viewer who joins later gets the last switch replayed.
+const ACTIVITY_NAMES: Record<Activity, string> = {
+  guide: "Guide",
+  find: "Find",
+  talk: "Talk",
+  explore: "Explore",
+};
+const activity = $("activity");
+net.on("activity", (a) => {
+  if (activity.dataset.mode === a.mode) return;
+  activity.dataset.mode = a.mode;
+  activity.querySelector("span")!.textContent = ACTIVITY_NAMES[a.mode];
+  activity.classList.remove("changed");
+  void activity.offsetWidth; // restart the flash
+  activity.classList.add("changed");
 });
 net.onConnection((up) => {
   if (!up) source.textContent = "Reconnecting";
