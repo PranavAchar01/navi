@@ -1,0 +1,10 @@
+{
+ "at": "2026-10-29 00:30 PT",
+ "machine": "Mac mini M5 Pro 64 GB, llama-server 0.7.0 (build 11669), Metal, nice 19 + taskpolicy -b",
+ "weights": "meta-models/Muse-Glimmer-30B-GGUF Muse-Glimmer-30B-KQuant-17GB-Q4_K_M.gguf",
+ "task": "one spoken sentence from the keys facts (same as bench/meta_models_probe.py)",
+ "chat_template_default_reasoning": {"ms": [21115, 24238], "answer": "empty: 297 reasoning chunks used the whole 300-token budget"},
+ "chat_template_reasoning_strength_low": {"first_answer_token_ms": [9841, 12047, 8831], "total_ms": [12269, 13988, 10410]},
+ "user_channel_prefill_no_reasoning": {"total_ms": [2280, 2617, 2155], "decode_tokens_per_s": [11.4, 11.0, 11.0], "prompt_ms": [567, 229, 224],
+   "answers": ["Keys are about 3 metres behind you to the left near the sofa, below eye level.", "Your keys are about 3 metres behind you to the left near the sofa, below eye level, seen 2 minutes ago.", "Your keys are about 3 meters behind you to the left, near the sofa, below eye level."]}
+}

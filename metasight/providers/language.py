@@ -6,6 +6,8 @@ reached with the OpenAI SDK (Meta ships no client of its own), so switching is o
 
 from __future__ import annotations
 
+import threading
+import time
 from typing import Protocol
 
 from openai import OpenAI
@@ -41,7 +43,8 @@ class OpenAICompatLanguage:
         extra: dict | None = None,
     ):
         self.name, self.model, self.extra = name, model, extra or {}
-        self._client = OpenAI(base_url=base_url, api_key=api_key, timeout=timeout)
+        # one retry: a spoken answer that waits through three attempts is too late to be useful
+        self._client = OpenAI(base_url=base_url, api_key=api_key, timeout=timeout, max_retries=1)
 
     def complete(self, system: str, user: str, max_tokens: int = 120) -> str:
         r = self._client.chat.completions.create(
@@ -53,6 +56,21 @@ class OpenAICompatLanguage:
         )
         return (r.choices[0].message.content or "").strip()
 
+    def keep_warm(self, every_s: float = 15.0) -> None:
+        """Touch the API now and then so a question finds the TLS connection already open.
+        Idle 45 s, an answer took 1253 ms median; with this ping, 1000 ms; back to back, 714 ms
+        (bench/results/spark-warm-probe.json)."""
+
+        def loop():
+            while True:
+                time.sleep(every_s)
+                try:
+                    self._client.models.list()
+                except Exception:
+                    pass  # an outage shows up on the next real question
+
+        threading.Thread(target=loop, name="spark-warm", daemon=True).start()
+
 
 def make_language(s: Settings) -> LanguageModel:
     if s.language == "meta":
@@ -60,14 +78,20 @@ def make_language(s: Settings) -> LanguageModel:
         if not key:
             raise RuntimeError("language = meta but no META_API_KEY / MODEL_API_KEY found")
         # Muse Spark reasons before it answers; without this the token budget goes to reasoning.
-        return OpenAICompatLanguage(
+        spark = OpenAICompatLanguage(
             "muse-spark",
             s.meta_model,
             key,
             base_url=META_BASE_URL,
-            timeout=30.0,
+            timeout=30.0 if s.offline != "glimmer" else 4.0,
             extra={"reasoning_effort": "minimal"},
         )
+        spark.keep_warm()
+        if s.offline == "glimmer":  # no network: Muse Glimmer on this Mac phrases the answer
+            from .glimmer import FallbackLanguage, GlimmerLanguage
+
+            return FallbackLanguage(spark, GlimmerLanguage(s.glimmer_url))
+        return spark
     if s.language == "openai":
         key = secret("OPENAI_API_KEY")
         if key:

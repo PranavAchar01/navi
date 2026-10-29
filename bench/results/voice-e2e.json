@@ -1,0 +1,99 @@
+{
+ "at": "2026-10-29 00:32 PDT",
+ "streamed": [
+  {
+   "heard": "Where is my TV?",
+   "answer": "I saw the tv 7 hours ago near the laptop and sink.",
+   "label": "tv",
+   "language": "muse-spark",
+   "early": true,
+   "first_partial_from_start_ms": 857,
+   "final_transcript_ms": 148,
+   "answer_ms": 1376,
+   "server_speech_end_to_answer_ms": 1888
+  },
+  {
+   "heard": "where is my backpack?",
+   "answer": "I saw the backpack 7 hours ago near the sink and TV.",
+   "label": "backpack",
+   "language": "muse-spark",
+   "early": true,
+   "first_partial_from_start_ms": 621,
+   "final_transcript_ms": 193,
+   "answer_ms": 978,
+   "server_speech_end_to_answer_ms": 1296
+  },
+  {
+   "heard": "where is my bag?",
+   "answer": "Your backpack was near the sink and TV 7 hours ago.",
+   "label": "backpack",
+   "language": "muse-spark",
+   "early": true,
+   "first_partial_from_start_ms": 598,
+   "final_transcript_ms": 198,
+   "answer_ms": 871,
+   "server_speech_end_to_answer_ms": 1381
+  },
+  {
+   "heard": "where is my basket",
+   "answer": "I saw the basket 7 hours ago near the bed and chair.",
+   "label": "basket",
+   "language": "muse-spark",
+   "early": true,
+   "first_partial_from_start_ms": 912,
+   "final_transcript_ms": 133,
+   "answer_ms": 699,
+   "server_speech_end_to_answer_ms": 1208
+  },
+  {
+   "heard": "where is my bed?",
+   "answer": "I saw a bed 7 hours ago.",
+   "label": "bed",
+   "language": "muse-spark",
+   "early": true,
+   "first_partial_from_start_ms": 889,
+   "final_transcript_ms": 164,
+   "answer_ms": 722,
+   "server_speech_end_to_answer_ms": 1166
+  }
+ ],
+ "sequential": [
+  {
+   "heard": "Where is my TV?",
+   "answer": "I saw the tv 7 hours ago near the laptop and sink.",
+   "language": "muse-spark",
+   "transcript_ms": 950,
+   "answer_ms": 1833
+  },
+  {
+   "heard": "Where is my backpack?",
+   "answer": "Your backpack was seen 7 hours ago near the sink and TV.",
+   "language": "muse-spark",
+   "transcript_ms": 847,
+   "answer_ms": 1757
+  },
+  {
+   "heard": "Where is my bag?",
+   "answer": "I saw the backpack 7 hours ago near the sink and TV.",
+   "language": "muse-spark",
+   "transcript_ms": 810,
+   "answer_ms": 1913
+  },
+  {
+   "heard": "Where is my basket?",
+   "answer": "I saw the basket 7 hours ago near the bed and chair.",
+   "language": "muse-spark",
+   "transcript_ms": 774,
+   "answer_ms": 1719
+  },
+  {
+   "heard": "Where is my bed?.",
+   "answer": "I saw a bed seven hours ago.",
+   "language": "muse-spark",
+   "transcript_ms": 843,
+   "answer_ms": 1533
+  }
+ ],
+ "streamed_median_answer_ms": 871,
+ "sequential_median_answer_ms": 1757
+}

@@ -1,0 +1,9 @@
+{
+ "at": "2026-10-29 00:40 PT",
+ "model": "muse-spark-1.3, reasoning_effort minimal, max_tokens 420, temperature 0.2",
+ "facts": ["tv / 7 hours ago / near laptop", "keys / 2 minutes ago / sofa, table / 3 m behind left / below eye level"],
+ "long_prompt_with_example": {"prompt_tokens": 115, "ms": [1447, 1206, 1713], "completion_tokens": [420, 350, 420], "note": "two of three runs hit the 420-token cap"},
+ "rules_without_example_A": {"median_ms": 1138, "max_ms": 1685, "completion_tokens": [243, 276, 225, 359, 239, 235]},
+ "rules_without_example_B": {"median_ms": 1276, "max_ms": 1791, "completion_tokens": [380, 248, 283, 266, 302, 237]},
+ "one_line_prompt_shipped": {"prompt_tokens": 38, "median_ms": 704, "max_ms": 933, "completion_tokens": [117, 105, 116, 109, 150, 189, 163, 222]}
+}

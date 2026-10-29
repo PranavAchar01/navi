@@ -124,8 +124,9 @@ def facts_for_language(label: str, pin: Pin, pose: np.ndarray | None, now: float
     bits = [
         f"object: {label}",
         f"seen: {time_ago(now - pin.ts)}",
-        f"near: {', '.join(pin.near) if pin.near else 'nothing recognised'}",
     ]
+    if pin.near:  # "near: nothing" gets read out word for word by the short prompt
+        bits.append(f"near: {', '.join(pin.near)}")
     if rel:
         bits += [
             f"distance: {distance_phrase(rel.horizontal_m)}",
@@ -135,13 +136,10 @@ def facts_for_language(label: str, pin: Pin, pose: np.ndarray | None, now: float
     return "\n".join(bits)
 
 
-SYSTEM = (
-    "You are the voice of a wearable assistant for a blind or low-vision person. Answer in ONE "
-    "short spoken sentence using only the facts given. Say where the object is relative to the "
-    "person and how long ago it was seen. Mention at most one nearby landmark. No lists, no "
-    'markdown, no extra advice. Example: "Your keys are near the sofa, about three '
-    'metres behind you to the left; I saw them two minutes ago."'
-)
+# Kept this short on purpose: Muse Spark reasons even at "minimal", and every extra rule here
+# bought ~200 more reasoning tokens. The longer prompt took 1.2 to 1.8 s, this one 0.6 to 0.9 s
+# (bench/results/spark-prompt-length.json); the facts already carry the place and the time.
+SYSTEM = "Answer in ONE short spoken sentence using only the facts given."
 
 
 def valid_sentence(text: str) -> bool:

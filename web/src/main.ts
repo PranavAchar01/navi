@@ -5,6 +5,7 @@ import { MapView } from "./map3d";
 import { setupGlass } from "./glass";
 import { Net } from "./net";
 import { BeltCells, drawOverlay, drawRing } from "./overlay";
+import { streamMic } from "./mic";
 import { listen, speak } from "./speech";
 import type { Answer, Belt, Device, Mode, PinJson, Safety } from "./types";
 
@@ -307,11 +308,26 @@ $("ask-form").addEventListener("submit", async (ev) => {
   net.send({ type: "ask", text });
 });
 let stopListening: (() => void) | null = null;
-$("btn-mic").addEventListener("click", () => {
+// Muse Voice Transcribe on the server: the mic stays open and the model finds each question's end.
+let serverAsr: Promise<boolean> = fetch("/api/state")
+  .then((r) => r.json())
+  .then((s) => Boolean(s.asr))
+  .catch(() => false);
+$("btn-mic").addEventListener("click", async () => {
   const btn = $("btn-mic");
   if (stopListening) {
     stopListening();
+    stopListening = null;
+    btn.classList.remove("on");
     return;
+  }
+  if (await serverAsr) {
+    stopListening = await streamMic(net);
+    if (stopListening) {
+      btn.classList.add("on");
+      return;
+    }
+    serverAsr = Promise.resolve(false);
   }
   stopListening = listen(
     (t) => net.send({ type: "ask", text: t }),

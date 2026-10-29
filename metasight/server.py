@@ -28,7 +28,7 @@ from pydantic import BaseModel
 
 from .align import map_resolution
 from .belt import FLAG_FOUND, NAMES, BeltLink, guide, plan
-from .config import ROOT, Settings
+from .config import ROOT, Settings, secret
 from .conversation import Talk
 from .geometry import CAMERA_SECTORS, SECTORS, merge_sectors
 from .haptics import make_output
@@ -49,6 +49,7 @@ from .query import (
     valid_sentence,
 )
 from .safety import SafetyLoop, hazards
+from .voice import VoiceAsk
 from .walk import WALKS, WalkRecorder
 
 MAX_PENDING_KEYFRAMES = 12
@@ -78,6 +79,10 @@ class Server:
         self.llm_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="llm")
         self.fall, self.shake = FallDetector(), ShakeDetector()
         self.talk = Talk(settings.hfov_deg)
+        self.voice: VoiceAsk | None = None  # spoken questions through Muse Voice Transcribe
+        if settings.asr == "meta" and (key := secret("META_API_KEY", "MODEL_API_KEY")):
+            words = list(dict.fromkeys([*settings.watchlist, *settings.meta_items]))
+            self.voice = VoiceAsk(self, key, words)
         self.motion_t = 0.0
         self.accel: deque[np.ndarray] = deque(maxlen=40)
         self.pose = None
@@ -200,6 +205,8 @@ class Server:
         self.cameras.pop(sock, None)
         if walk := self.walks.pop(sock, None):
             walk.close()
+        if self.voice and not self.hub.clients:
+            self.voice.asr.want(False)  # nobody left to speak; the session closes itself
 
     def _belt_state(self, msg: dict) -> None:
         asyncio.ensure_future(self.hub.json(msg))
@@ -599,10 +606,32 @@ class Server:
             "language": self.language.name if polished else "template",
         }
 
-    async def answer(self, text: str) -> dict:
+    def known_labels(self) -> list[str]:
+        return sorted({*self.pins.labels(), *self.live_last})
+
+    async def answer(
+        self,
+        text: str,
+        pending: asyncio.Future | None = None,
+        quiet_unknown: bool = False,
+        spoken_end: float | None = None,
+    ) -> dict | None:
+        """`pending`: the same answer already started from a partial transcript.
+        `quiet_unknown`: overheard speech that names no known thing gets no reply.
+        `spoken_end`: wall time the wearer's last word arrived, for the voice timing."""
         t0 = time.perf_counter()
-        res = await self.loop.run_in_executor(self.llm_pool, self._answer_sync, text)
+        if pending is not None:
+            res = await pending
+        else:
+            res = await self.loop.run_in_executor(self.llm_pool, self._answer_sync, text)
+        if quiet_unknown and res.get("label") is None:
+            return None
         res["ms"] = round(1000 * (time.perf_counter() - t0))
+        if spoken_end is not None:
+            res["voice"] = {
+                "early": pending is not None,
+                "speech_end_to_answer_ms": round(1000 * (time.time() - spoken_end)),
+            }
         await self.hub.json(res)
         if self.braille:
             res["cues"] = self.braille.say(res["text"])
@@ -639,6 +668,11 @@ def create_app(settings: Settings | None = None, session: str | None = None) -> 
                 "mode": srv.mode,
                 "map_points": srv.hub.map_total,
                 "memory": srv.memory_stats,
+                "asr": (
+                    {"model": "muse-voice-transcribe-1.0", **srv.voice.asr.stats, **srv.voice.last}
+                    if srv.voice
+                    else None
+                ),
             }
         )
 
@@ -663,6 +697,8 @@ def create_app(settings: Settings | None = None, session: str | None = None) -> 
     async def ws(sock: WebSocket):
         await sock.accept()
         await srv.hub.join(sock)
+        if srv.voice:
+            srv.voice.asr.want(True)  # warm before anyone speaks
         try:
             while True:
                 msg = await sock.receive()
@@ -691,6 +727,8 @@ def create_app(settings: Settings | None = None, session: str | None = None) -> 
                         asyncio.create_task(srv.answer(m["text"]))
                     elif kind == "audio":
                         srv.talk.audio(m, time.time())
+                        if srv.voice:
+                            srv.voice.audio(m)
                     elif kind == "camera":
                         srv.on_camera(sock, m)
                     elif kind == "arpose":  # the phone's own tracked pose, kept with its walk

@@ -1,0 +1,79 @@
+{
+ "at": "2026-10-29 00:11:23 PDT",
+ "muse-spark-1.3": {
+  "first_token_ms": 1000,
+  "total_ms": 1087,
+  "text": "Your keys were by the sofa about 3 metres behind you to the left below eye level 2 minutes ago."
+ },
+ "muse-spark-1.3#warm": {
+  "first_token_ms": 1007,
+  "total_ms": 1067,
+  "text": "Your keys were seen 2 minutes ago near the sofa about 3 metres behind you to the left below eye level."
+ },
+ "muse-spark-1.2": {
+  "first_token_ms": 1354,
+  "total_ms": 1442,
+  "text": "Your keys were seen 2 minutes ago near the sofa about 3 metres behind you to the left below eye level."
+ },
+ "muse-spark-1.1": {
+  "first_token_ms": null,
+  "total_ms": 1521,
+  "text": ""
+ },
+ "muse-spark-1.3-contributor": {
+  "first_token_ms": 2715,
+  "total_ms": 2865,
+  "text": "I saw your keys near the sofa about 3 metres behind you to the left below eye level 2 minutes ago."
+ },
+ "muse-wonder-1.0": {
+  "first_token_ms": 3462,
+  "total_ms": 3547,
+  "text": "Your keys were seen two minutes ago about three metres behind you to the left, near the sofa, below eye level."
+ },
+ "transcribe-file": {
+  "status": 200,
+  "total_ms": 1622,
+  "body": "{\"sessionId\":\"voyager/transcribe/41DC96443C5440A282065563A789C7D3\",\"transcript\":\"Where are my keys?,\",\"audioDurationMs\":1280,\"turns\":[]}"
+ },
+ "transcribe-realtime": {
+  "events": [
+   "audioProgress",
+   "audioProgress",
+   "audioProgress",
+   "audioProgress",
+   "audioProgress",
+   "audioProgress",
+   "audioProgress",
+   "audioProgress",
+   "audioProgress",
+   "audioProgress",
+   "audioProgress",
+   "audioProgress",
+   "transcript",
+   "audioProgress",
+   "audioProgress",
+   "audioProgress",
+   "transcript",
+   "audioProgress",
+   "transcript",
+   "transcript"
+  ],
+  "handshake_ms": 639,
+  "handshake": {
+   "sessionId": "voyager/duplex/15F609F7B0BD49388077699BF18C2B45"
+  },
+  "final": "Where are my keys?:",
+  "final_after_audio_end_ms": 187,
+  "first_partial_after_audio_start_ms": 1051,
+  "audio_ms": 1233
+ },
+ "sam-3.1": {
+  "total_ms": 625,
+  "out": "[ResponseOutputMessage(id='msg_9b195517-80a0-4b38-ad7c-73fc98f5ec6c', content=[ResponseOutputText(annotations=[], text=\"<0f>0<|box;x1=240;y1=120;x2=400;y2=260;w=640;h=360|><|mask;x=0;y=0;data=141,161,"
+ },
+ "muse-image-1.0": {
+  "total_ms": 7391,
+  "has_b64": true,
+  "url": false
+ }
+}
