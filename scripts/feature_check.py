@@ -1141,16 +1141,20 @@ WEAK_PIN_SCORE = 0.3
 
 def pin_note(res: dict) -> tuple[str, bool]:
     """Which pin an answer rested on, and whether it is a known false one: a listed pin, or one
-    under 0.3 that the camera did not confirm live."""
+    the server marks unconfirmed (`confirmed`: score at least 0.3 or a SAM 3.1 source; display
+    2a9dfcf) that the camera did not see live. Older servers without the field: score under 0.3."""
     pin = res.get("pin") or {}
-    if not pin:
+    pid = res.get("pin_id", pin.get("id"))
+    if pid is None:
         return ("live camera, no pin" if res.get("live") else "no pin"), False
-    bad = pin.get("id") in KNOWN_FALSE_PINS or (
-        (pin.get("score") or 0) < WEAK_PIN_SCORE and not res.get("live")
-    )
+    confirmed = res.get("confirmed")
+    if confirmed is None:
+        confirmed = (pin.get("score") or 0) >= WEAK_PIN_SCORE
+    bad = pid in KNOWN_FALSE_PINS or (not confirmed and not res.get("live"))
     return (
-        f"pin {pin.get('id')} {pin.get('label')} score {pin.get('score', 0):.2f} "
-        f"source {pin.get('source') or '?'}{', live' if res.get('live') else ''}"
+        f"pin {pid} {pin.get('label') or res.get('label')} score {pin.get('score') or 0:.2f} "
+        f"source {pin.get('source') or '?'}, confirmed {confirmed}"
+        f"{', live' if res.get('live') else ''}"
     ), bad
 
 
