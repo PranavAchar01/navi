@@ -385,6 +385,18 @@ final class ServerLink {
     let decoder = JSONDecoder()
     guard let envelope = try? decoder.decode(Envelope.self, from: data) else { return }
     switch envelope.type {
+    case "speaker_cue":
+      // Turn toward the voice: one soft beep placed at its bearing.
+      if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        let bearing = obj["bearing"] as? Double
+      {
+        let r = bearing * .pi / 180
+        beeper.play(
+          BeepPlan(
+            kind: .soft, gain: BeepKind.soft.gain * beeper.volume.scale,
+            x: Float(sin(r) * BeepCue.placementMetres), y: 0,
+            z: Float(-cos(r) * BeepCue.placementMetres), sector: 0, band: .slow))
+      }
     case "answer":
       guard let answer = try? decoder.decode(AnswerMessage.self, from: data) else { return }
       lastAnswer = answer.text
