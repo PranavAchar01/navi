@@ -1,0 +1,200 @@
+"""Directional panning for the belt: one object is felt on the two motors nearest its bearing,
+never on all of them.
+
+Eight motors sit 45 degrees apart, clockwise from straight ahead. An object at bearing b lies
+between motor i = floor(b / 45) and the next one; its power is split between the two by angle
+(constant-power pan: gains cos and sin of a quarter turn, so total power stays the same as it
+moves round the belt). An object at 30 degrees right is motor 1 strong (0.87) and motor 0 light
+(0.50). Intensity follows distance through `Params`, whose defaults are the settings picked by the
+simulated-user sweep in docs/haptics-sim.md.
+
+Several objects: `select` keeps the nearest one and, if there is one, a second that is at least
+`sep_deg` away from it. Rule for who wins, in order: nearest first; objects within `tie_m` of each
+other in distance rank by how close they are to straight ahead (the one you would walk into);
+a second object closer than `sep_deg` to the winner is read as part of it and dropped.
+"""
+
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass, replace
+
+from .belt import MODES
+
+N = 8
+STEP = 360.0 / N
+
+
+@dataclass(frozen=True)
+class Target:
+    bearing_deg: float  # clockwise from straight ahead, any range
+    dist_m: float
+
+
+@dataclass(frozen=True)
+class Params:
+    off_m: float = 1.5  # silent at or beyond this distance
+    fast_m: float = 1.6  # slow pulse between off_m and here, fast pulse inside
+    solid_m: float = 0.7  # solid inside this
+    floor: float = 0.2  # intensity at off_m
+    ceil: float = 1.0  # intensity at solid_m
+    gamma: float = 1.5  # >1 keeps the far end quiet and ramps late
+    pan: str = "linear"  # constant_power | linear | nearest
+    k_targets: int = 1
+    sep_deg: float = 45.0
+    tie_m: float = 0.15
+
+
+DEFAULT = Params()
+
+
+def wrap(deg: float) -> float:
+    return (deg + 180.0) % 360.0 - 180.0
+
+
+def pan_gains(bearing_deg: float, pan: str = "constant_power") -> tuple[int, float, int, float]:
+    """(motor a, gain a, motor b, gain b) for a bearing; b is the next motor clockwise."""
+    b = bearing_deg % 360.0
+    a = int(b // STEP) % N
+    f = (b - (b // STEP) * STEP) / STEP  # 0 at motor a, 1 at the next
+    if pan == "nearest":
+        return (a, 1.0, (a + 1) % N, 0.0) if f < 0.5 else (a, 0.0, (a + 1) % N, 1.0)
+    if pan == "linear":
+        return a, 1.0 - f, (a + 1) % N, f
+    theta = f * math.pi / 2
+    return a, math.cos(theta), (a + 1) % N, math.sin(theta)
+
+
+def level(dist_m: float, p: Params = DEFAULT) -> float:
+    """Intensity 0..1 for a distance: floor at off_m rising to ceil at solid_m."""
+    if not math.isfinite(dist_m) or dist_m >= p.off_m:
+        return 0.0
+    if dist_m <= p.solid_m:
+        return p.ceil
+    x = (p.off_m - dist_m) / (p.off_m - p.solid_m)
+    return p.floor + (p.ceil - p.floor) * x**p.gamma
+
+
+def mode_for(dist_m: float, p: Params = DEFAULT) -> int:
+    if not math.isfinite(dist_m) or dist_m >= p.off_m:
+        return MODES["off"]
+    if dist_m >= p.fast_m:
+        return MODES["slow"]
+    if dist_m >= p.solid_m:
+        return MODES["fast"]
+    return MODES["solid"]
+
+
+def select(targets: list[Target], p: Params = DEFAULT) -> list[Target]:
+    """The one or two objects that get motors. See the module docstring for the rule."""
+    live = [t for t in targets if math.isfinite(t.dist_m) and t.dist_m < p.off_m]
+    live.sort(key=lambda t: (round(t.dist_m / p.tie_m), abs(wrap(t.bearing_deg))))
+    chosen: list[Target] = []
+    for t in live:
+        if all(abs(wrap(t.bearing_deg - c.bearing_deg)) >= p.sep_deg for c in chosen):
+            chosen.append(t)
+        if len(chosen) >= p.k_targets:
+            break
+    return chosen
+
+
+def plan_targets(targets: list[Target], p: Params = DEFAULT) -> list[tuple[int, int]]:
+    """Per-motor (mode, intensity 0..255) for the selected objects. A motor shared by two objects
+    takes the louder one, with that object's pulse mode."""
+    best = [(0.0, MODES["off"])] * N
+    for t in select(targets, p):
+        lv, mode = level(t.dist_m, p), mode_for(t.dist_m, p)
+        a, ga, b, gb = pan_gains(t.bearing_deg, p.pan)
+        for m, g in ((a, ga), (b, gb)):
+            if g > 0 and lv * g > best[m][0]:
+                best[m] = (lv * g, mode)
+    return [(mode, int(round(255 * i))) if i > 0 else (MODES["off"], 0) for i, mode in best]
+
+
+def plan_pan(
+    targets: list[Target],
+    known: list[bool],
+    path_m: float,
+    ttc_s: float,
+    drop_m: float,
+    p: Params = DEFAULT,
+) -> tuple[list[tuple[int, int]], int]:
+    """Same output as `belt.plan` (8 x (mode, intensity), flags), but panned.
+
+    Closing fast (time to contact under 1.2 s) on something within 2.5 m ahead raises the pulse
+    one step on the front motors, as `belt.plan` does; a sector with no trusted data and no cue is
+    "unknown" (no buzz, the UI says so).
+    """
+    ahead = list(targets)
+    if math.isfinite(path_m):
+        ahead.append(Target(0.0, path_m))
+    cmd = plan_targets(ahead, p)
+    if ttc_s < 1.2:
+        for m in (0, 1, N - 1):
+            mode, inten = cmd[m]
+            if inten and min(t.dist_m for t in ahead) < 2.5:
+                cmd[m] = (min(MODES["solid"], max(mode, MODES["slow"]) + 1), max(inten, 204))
+    for i, ok in enumerate(known):
+        if not ok and cmd[i][0] == MODES["off"]:
+            cmd[i] = (MODES["unknown"], 0)
+    flags = 1 if drop_m < 1.5 else 0
+    return cmd, flags
+
+
+def cluster_strips(
+    dists: list[float], bearings: list[float], gap_m: float = 0.4, p: Params = DEFAULT
+) -> list[Target]:
+    """Objects from depth strips ordered left to right: neighbouring strips within `gap_m` of the
+    run's nearest are one object, placed at the distance-weighted bearing of its nearest strips."""
+    out: list[Target] = []
+    run: list[int] = []
+
+    def close() -> None:
+        if not run:
+            return
+        near = min(dists[i] for i in run)
+        core = [i for i in run if dists[i] <= near + 0.15]
+        w = [1.0 / max(dists[i], 0.1) for i in core]
+        bearing = sum(wi * bearings[i] for wi, i in zip(w, core, strict=True)) / sum(w)
+        out.append(Target(bearing, near))
+
+    for i, d in enumerate(dists):
+        if not math.isfinite(d) or d >= p.off_m:
+            close()
+            run = []
+            continue
+        if run and abs(d - min(dists[j] for j in run)) > gap_m:
+            close()
+            run = []
+        run.append(i)
+    close()
+    return out
+
+
+def strip_bearings(n: int, hfov_deg: float) -> list[float]:
+    """Pinhole bearing of the centre of each of n equal-width image strips."""
+    t = math.tan(math.radians(hfov_deg) / 2)
+    return [math.degrees(math.atan((2 * (k + 0.5) / n - 1) * t)) for k in range(n)]
+
+
+def scene_targets(
+    strips: list[float],
+    hfov_deg: float,
+    map_sectors: list[float],
+    map_known: list[bool],
+    p: Params = DEFAULT,
+) -> list[Target]:
+    """Targets for one frame: fine objects from the live depth strips across the camera's field
+    of view, and one coarse target at the sector centre for each side/back sector the map covers.
+    """
+    out = cluster_strips(strips, strip_bearings(len(strips), hfov_deg), p=p)
+    half = hfov_deg / 2
+    for i, (d, ok) in enumerate(zip(map_sectors, map_known, strict=True)):
+        centre = wrap(i * STEP)
+        if ok and math.isfinite(d) and abs(centre) > half:
+            out.append(Target(centre, d))
+    return out
+
+
+def with_params(p: Params, **kw) -> Params:
+    return replace(p, **kw)

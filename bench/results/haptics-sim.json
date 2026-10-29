@@ -1,0 +1,962 @@
+{
+ "label": "simulated user model, not a human study",
+ "tune_rooms": 60,
+ "held_rooms": 100,
+ "oneway": {
+  "off_m": [
+   {
+    "value": 1.5,
+    "runs": 60,
+    "success": 0.9166666666666666,
+    "collisions": 4.133333333333334,
+    "time_s": 15.805090909090769,
+    "efficiency": 0.9131976270203034,
+    "contact_s": 9.543333333333553,
+    "cost": 25.96614999999999
+   },
+   {
+    "value": 2.0,
+    "runs": 60,
+    "success": 0.9166666666666666,
+    "collisions": 4.483333333333333,
+    "time_s": 15.694909090908935,
+    "efficiency": 0.9091162218080828,
+    "contact_s": 8.612666666666943,
+    "cost": 27.361099999999983
+   },
+   {
+    "value": 2.5,
+    "runs": 60,
+    "success": 0.8833333333333333,
+    "collisions": 5.4,
+    "time_s": 16.67018867924509,
+    "efficiency": 0.8686845452000774,
+    "contact_s": 10.86033333333366,
+    "cost": 34.52804999999998
+   },
+   {
+    "value": 3.0,
+    "runs": 60,
+    "success": 0.9166666666666666,
+    "collisions": 4.683333333333334,
+    "time_s": 16.799636363636203,
+    "efficiency": 0.8738971566896938,
+    "contact_s": 8.259333333333537,
+    "cost": 28.211733333333324
+   }
+  ],
+  "fast_m": [
+   {
+    "value": 0.8,
+    "runs": 60,
+    "success": 0.9,
+    "collisions": 4.533333333333333,
+    "time_s": 14.546296296296104,
+    "efficiency": 0.9470866532197426,
+    "contact_s": 9.725666666667014,
+    "cost": 29.238016666666656
+   },
+   {
+    "value": 1.0,
+    "runs": 60,
+    "success": 0.9166666666666666,
+    "collisions": 4.483333333333333,
+    "time_s": 15.694909090908935,
+    "efficiency": 0.9091162218080828,
+    "contact_s": 8.612666666666943,
+    "cost": 27.361099999999983
+   },
+   {
+    "value": 1.3,
+    "runs": 60,
+    "success": 0.9166666666666666,
+    "collisions": 4.133333333333334,
+    "time_s": 15.035272727272517,
+    "efficiency": 0.9114875348272751,
+    "contact_s": 8.155333333333566,
+    "cost": 25.93086666666665
+   },
+   {
+    "value": 1.6,
+    "runs": 60,
+    "success": 0.9,
+    "collisions": 4.433333333333334,
+    "time_s": 15.726296296296068,
+    "efficiency": 0.9002258340150738,
+    "contact_s": 9.79166666666695,
+    "cost": 28.89111666666665
+   }
+  ],
+  "solid_m": [
+   {
+    "value": 0.4,
+    "runs": 60,
+    "success": 0.9166666666666666,
+    "collisions": 10.533333333333333,
+    "time_s": 16.76072727272714,
+    "efficiency": 0.9002263254216433,
+    "contact_s": 5.440000000000025,
+    "cost": 51.60995
+   },
+   {
+    "value": 0.5,
+    "runs": 60,
+    "success": 0.9166666666666666,
+    "collisions": 4.483333333333333,
+    "time_s": 15.694909090908935,
+    "efficiency": 0.9091162218080828,
+    "contact_s": 8.612666666666943,
+    "cost": 27.361099999999983
+   },
+   {
+    "value": 0.7,
+    "runs": 60,
+    "success": 0.8833333333333333,
+    "collisions": 3.2333333333333334,
+    "time_s": 11.73245283018852,
+    "efficiency": 0.9853564098846965,
+    "contact_s": 11.185333333333457,
+    "cost": 25.64329999999999
+   }
+  ],
+  "floor": [
+   {
+    "value": 0.2,
+    "runs": 60,
+    "success": 0.9333333333333333,
+    "collisions": 4.85,
+    "time_s": 17.395000000000003,
+    "efficiency": 0.8864367423279191,
+    "contact_s": 8.673666666666922,
+    "cost": 27.178499999999996
+   },
+   {
+    "value": 0.35,
+    "runs": 60,
+    "success": 0.9166666666666666,
+    "collisions": 4.483333333333333,
+    "time_s": 15.694909090908935,
+    "efficiency": 0.9091162218080828,
+    "contact_s": 8.612666666666943,
+    "cost": 27.361099999999983
+   },
+   {
+    "value": 0.5,
+    "runs": 60,
+    "success": 0.9166666666666666,
+    "collisions": 5.016666666666667,
+    "time_s": 17.003636363636243,
+    "efficiency": 0.8879380236958844,
+    "contact_s": 9.497666666666907,
+    "cost": 29.554416666666654
+   }
+  ],
+  "gamma": [
+   {
+    "value": 0.7,
+    "runs": 60,
+    "success": 0.8833333333333333,
+    "collisions": 5.016666666666667,
+    "time_s": 15.38830188679225,
+    "efficiency": 0.8997972289571559,
+    "contact_s": 10.658333333333657,
+    "cost": 32.93809999999999
+   },
+   {
+    "value": 1.0,
+    "runs": 60,
+    "success": 0.9166666666666666,
+    "collisions": 4.483333333333333,
+    "time_s": 15.694909090908935,
+    "efficiency": 0.9091162218080828,
+    "contact_s": 8.612666666666943,
+    "cost": 27.361099999999983
+   },
+   {
+    "value": 1.5,
+    "runs": 60,
+    "success": 0.9,
+    "collisions": 4.55,
+    "time_s": 15.852962962962826,
+    "efficiency": 0.9080236335335145,
+    "contact_s": 9.836666666666952,
+    "cost": 29.36348333333332
+   },
+   {
+    "value": 2.0,
+    "runs": 60,
+    "success": 0.9166666666666666,
+    "collisions": 4.033333333333333,
+    "time_s": 14.952727272727106,
+    "efficiency": 0.9229177816102292,
+    "contact_s": 8.150000000000231,
+    "cost": 25.52708333333332
+   }
+  ],
+  "pan": [
+   {
+    "value": "constant_power",
+    "runs": 60,
+    "success": 0.9166666666666666,
+    "collisions": 4.483333333333333,
+    "time_s": 15.694909090908935,
+    "efficiency": 0.9091162218080828,
+    "contact_s": 8.612666666666943,
+    "cost": 27.361099999999983
+   },
+   {
+    "value": "linear",
+    "runs": 60,
+    "success": 0.9166666666666666,
+    "collisions": 4.916666666666667,
+    "time_s": 16.862909090908975,
+    "efficiency": 0.8912662010942053,
+    "contact_s": 9.353000000000257,
+    "cost": 29.147966666666658
+   },
+   {
+    "value": "nearest",
+    "runs": 60,
+    "success": 0.9,
+    "collisions": 5.066666666666666,
+    "time_s": 15.692222222222131,
+    "efficiency": 0.9284623172206038,
+    "contact_s": 9.567000000000279,
+    "cost": 31.42291666666666
+   }
+  ],
+  "k_targets": [
+   {
+    "value": 1,
+    "runs": 60,
+    "success": 0.9,
+    "collisions": 4.783333333333333,
+    "time_s": 15.842592592592466,
+    "efficiency": 0.8970966435128238,
+    "contact_s": 6.21900000000007,
+    "cost": 30.296349999999986
+   },
+   {
+    "value": 2,
+    "runs": 60,
+    "success": 0.9166666666666666,
+    "collisions": 4.483333333333333,
+    "time_s": 15.694909090908935,
+    "efficiency": 0.9091162218080828,
+    "contact_s": 8.612666666666943,
+    "cost": 27.361099999999983
+   },
+   {
+    "value": 3,
+    "runs": 60,
+    "success": 0.9,
+    "collisions": 4.433333333333334,
+    "time_s": 16.387037037036986,
+    "efficiency": 0.9209139471115512,
+    "contact_s": 11.250333333333664,
+    "cost": 28.92084999999999
+   }
+  ],
+  "sep_deg": [
+   {
+    "value": 45.0,
+    "runs": 60,
+    "success": 0.9166666666666666,
+    "collisions": 4.366666666666666,
+    "time_s": 16.210181818181713,
+    "efficiency": 0.9264384491779382,
+    "contact_s": 9.63866666666694,
+    "cost": 26.918049999999987
+   },
+   {
+    "value": 60.0,
+    "runs": 60,
+    "success": 0.9166666666666666,
+    "collisions": 4.483333333333333,
+    "time_s": 15.694909090908935,
+    "efficiency": 0.9091162218080828,
+    "contact_s": 8.612666666666943,
+    "cost": 27.361099999999983
+   },
+   {
+    "value": 90.0,
+    "runs": 60,
+    "success": 0.9166666666666666,
+    "collisions": 4.466666666666667,
+    "time_s": 16.351272727272637,
+    "efficiency": 0.9041927825562265,
+    "contact_s": 8.884666666666872,
+    "cost": 27.324516666666657
+   }
+  ],
+  "slow_hz": [
+   {
+    "value": 1.0,
+    "runs": 60,
+    "success": 0.9,
+    "collisions": 4.616666666666666,
+    "time_s": 15.584074074073943,
+    "efficiency": 0.9202559704613635,
+    "contact_s": 10.092333333333675,
+    "cost": 29.618049999999993
+   },
+   {
+    "value": 1.5,
+    "runs": 60,
+    "success": 0.9166666666666666,
+    "collisions": 4.483333333333333,
+    "time_s": 15.694909090908935,
+    "efficiency": 0.9091162218080828,
+    "contact_s": 8.612666666666943,
+    "cost": 27.361099999999983
+   },
+   {
+    "value": 2.5,
+    "runs": 60,
+    "success": 0.9,
+    "collisions": 4.783333333333333,
+    "time_s": 15.498148148148028,
+    "efficiency": 0.9137449434543229,
+    "contact_s": 9.33300000000025,
+    "cost": 30.28084999999999
+   }
+  ],
+  "fast_hz": [
+   {
+    "value": 3.0,
+    "runs": 60,
+    "success": 0.9166666666666666,
+    "collisions": 4.866666666666666,
+    "time_s": 17.165454545454516,
+    "efficiency": 0.8940435670941371,
+    "contact_s": 9.81900000000022,
+    "cost": 28.96183333333333
+   },
+   {
+    "value": 4.0,
+    "runs": 60,
+    "success": 0.9166666666666666,
+    "collisions": 4.483333333333333,
+    "time_s": 15.694909090908935,
+    "efficiency": 0.9091162218080828,
+    "contact_s": 8.612666666666943,
+    "cost": 27.361099999999983
+   },
+   {
+    "value": 6.0,
+    "runs": 60,
+    "success": 0.9166666666666666,
+    "collisions": 4.533333333333333,
+    "time_s": 16.69054545454535,
+    "efficiency": 0.9018536125061033,
+    "contact_s": 9.333333333333595,
+    "cost": 27.60673333333332
+   }
+  ]
+ },
+ "search": [
+  {
+   "mapping": {
+    "off_m": 1.5,
+    "fast_m": 1.3,
+    "solid_m": 0.7,
+    "floor": 0.2,
+    "gamma": 2.0,
+    "pan": "constant_power",
+    "k_targets": 2,
+    "sep_deg": 45.0
+   },
+   "belt": {
+    "slow_hz": 1.5,
+    "fast_hz": 4.0
+   },
+   "runs": 60,
+   "success": 0.9,
+   "collisions": 1.1833333333333333,
+   "time_s": 10.683703703703564,
+   "efficiency": 1.0295243002098093,
+   "contact_s": 10.538333333333322,
+   "cost": 15.66419999999999,
+   "fresh_cost": 30.979549999999985
+  },
+  {
+   "mapping": {
+    "off_m": 1.5,
+    "fast_m": 1.6,
+    "solid_m": 0.7,
+    "floor": 0.2,
+    "gamma": 1.5,
+    "pan": "linear",
+    "k_targets": 1,
+    "sep_deg": 45.0
+   },
+   "belt": {
+    "slow_hz": 1.5,
+    "fast_hz": 6.0
+   },
+   "runs": 60,
+   "success": 0.9,
+   "collisions": 1.25,
+   "time_s": 10.8807407407406,
+   "efficiency": 1.0285588651385287,
+   "contact_s": 10.537333333333319,
+   "cost": 15.939733333333322,
+   "fresh_cost": 30.24008333333332
+  },
+  {
+   "mapping": {
+    "off_m": 1.5,
+    "fast_m": 1.6,
+    "solid_m": 0.7,
+    "floor": 0.35,
+    "gamma": 2.0,
+    "pan": "constant_power",
+    "k_targets": 1,
+    "sep_deg": 45.0
+   },
+   "belt": {
+    "slow_hz": 1.0,
+    "fast_hz": 6.0
+   },
+   "runs": 60,
+   "success": 0.9,
+   "collisions": 1.2666666666666666,
+   "time_s": 10.92666666666652,
+   "efficiency": 1.0269019309661078,
+   "contact_s": 10.521666666666654,
+   "cost": 16.008466666666656,
+   "fresh_cost": 31.14373333333332
+  },
+  {
+   "mapping": {
+    "off_m": 1.5,
+    "fast_m": 1.3,
+    "solid_m": 0.7,
+    "floor": 0.2,
+    "gamma": 0.7,
+    "pan": "constant_power",
+    "k_targets": 3,
+    "sep_deg": 60.0
+   },
+   "belt": {
+    "slow_hz": 1.0,
+    "fast_hz": 6.0
+   },
+   "runs": 60,
+   "success": 0.9,
+   "collisions": 1.5,
+   "time_s": 14.523703703703688,
+   "efficiency": 0.9823951293473857,
+   "contact_s": 13.68366666666676,
+   "cost": 17.103666666666662,
+   "fresh_cost": 34.59714999999998
+  },
+  {
+   "mapping": {
+    "off_m": 1.5,
+    "fast_m": 1.6,
+    "solid_m": 0.7,
+    "floor": 0.35,
+    "gamma": 0.7,
+    "pan": "linear",
+    "k_targets": 1,
+    "sep_deg": 60.0
+   },
+   "belt": {
+    "slow_hz": 2.5,
+    "fast_hz": 6.0
+   },
+   "runs": 60,
+   "success": 0.8833333333333333,
+   "collisions": 1.1833333333333333,
+   "time_s": 10.435094339622509,
+   "efficiency": 1.0364048196245152,
+   "contact_s": 11.53999999999999,
+   "cost": 17.385999999999985,
+   "fresh_cost": 32.265666666666654
+  },
+  {
+   "mapping": {
+    "off_m": 1.5,
+    "fast_m": 1.3,
+    "solid_m": 0.7,
+    "floor": 0.2,
+    "gamma": 1.0,
+    "pan": "linear",
+    "k_targets": 2,
+    "sep_deg": 90.0
+   },
+   "belt": {
+    "slow_hz": 1.5,
+    "fast_hz": 3.0
+   },
+   "runs": 60,
+   "success": 0.8833333333333333,
+   "collisions": 1.3166666666666667,
+   "time_s": 14.245660377358465,
+   "efficiency": 0.9849779198294427,
+   "contact_s": 14.838666666666766,
+   "cost": 18.087633333333326
+  },
+  {
+   "mapping": {
+    "off_m": 1.5,
+    "fast_m": 1.6,
+    "solid_m": 0.7,
+    "floor": 0.2,
+    "gamma": 0.7,
+    "pan": "constant_power",
+    "k_targets": 3,
+    "sep_deg": 90.0
+   },
+   "belt": {
+    "slow_hz": 2.5,
+    "fast_hz": 3.0
+   },
+   "runs": 60,
+   "success": 0.8833333333333333,
+   "collisions": 1.4333333333333333,
+   "time_s": 10.749056603773445,
+   "efficiency": 1.026868077268643,
+   "contact_s": 11.659999999999993,
+   "cost": 18.399866666666657
+  },
+  {
+   "mapping": {
+    "off_m": 1.5,
+    "fast_m": 0.8,
+    "solid_m": 0.7,
+    "floor": 0.2,
+    "gamma": 0.7,
+    "pan": "nearest",
+    "k_targets": 2,
+    "sep_deg": 90.0
+   },
+   "belt": {
+    "slow_hz": 2.5,
+    "fast_hz": 3.0
+   },
+   "runs": 60,
+   "success": 0.8833333333333333,
+   "collisions": 1.5,
+   "time_s": 10.820377358490425,
+   "efficiency": 1.018081694859146,
+   "contact_s": 11.974666666666657,
+   "cost": 18.66968333333332
+  },
+  {
+   "mapping": {
+    "off_m": 1.5,
+    "fast_m": 1.6,
+    "solid_m": 0.7,
+    "floor": 0.2,
+    "gamma": 2.0,
+    "pan": "constant_power",
+    "k_targets": 2,
+    "sep_deg": 90.0
+   },
+   "belt": {
+    "slow_hz": 1.5,
+    "fast_hz": 3.0
+   },
+   "runs": 60,
+   "success": 0.8666666666666667,
+   "collisions": 1.2166666666666666,
+   "time_s": 11.343846153846034,
+   "efficiency": 1.0183528824959678,
+   "contact_s": 13.544666666666654,
+   "cost": 19.29169999999999
+  },
+  {
+   "mapping": {
+    "off_m": 1.5,
+    "fast_m": 0.8,
+    "solid_m": 0.7,
+    "floor": 0.5,
+    "gamma": 1.5,
+    "pan": "nearest",
+    "k_targets": 3,
+    "sep_deg": 90.0
+   },
+   "belt": {
+    "slow_hz": 1.5,
+    "fast_hz": 4.0
+   },
+   "runs": 60,
+   "success": 0.8666666666666667,
+   "collisions": 1.35,
+   "time_s": 10.55692307692294,
+   "efficiency": 1.0225339281683246,
+   "contact_s": 13.102999999999987,
+   "cost": 19.790933333333324
+  },
+  {
+   "mapping": {
+    "off_m": 2.0,
+    "fast_m": 0.8,
+    "solid_m": 0.7,
+    "floor": 0.5,
+    "gamma": 1.0,
+    "pan": "constant_power",
+    "k_targets": 1,
+    "sep_deg": 60.0
+   },
+   "belt": {
+    "slow_hz": 1.0,
+    "fast_hz": 3.0
+   },
+   "runs": 60,
+   "success": 0.9166666666666666,
+   "collisions": 2.8666666666666667,
+   "time_s": 11.65418181818166,
+   "efficiency": 0.9845146814795426,
+   "contact_s": 7.513000000000252,
+   "cost": 20.709233333333316
+  },
+  {
+   "mapping": {
+    "off_m": 2.0,
+    "fast_m": 1.3,
+    "solid_m": 0.7,
+    "floor": 0.5,
+    "gamma": 1.0,
+    "pan": "linear",
+    "k_targets": 2,
+    "sep_deg": 45.0
+   },
+   "belt": {
+    "slow_hz": 1.0,
+    "fast_hz": 3.0
+   },
+   "runs": 60,
+   "success": 0.9,
+   "collisions": 2.566666666666667,
+   "time_s": 11.4018518518517,
+   "efficiency": 1.00068504192129,
+   "contact_s": 9.930000000000122,
+   "cost": 21.229849999999992
+  },
+  {
+   "mapping": {
+    "off_m": 2.5,
+    "fast_m": 1.0,
+    "solid_m": 0.7,
+    "floor": 0.2,
+    "gamma": 1.0,
+    "pan": "linear",
+    "k_targets": 3,
+    "sep_deg": 45.0
+   },
+   "belt": {
+    "slow_hz": 1.0,
+    "fast_hz": 6.0
+   },
+   "runs": 60,
+   "success": 0.9,
+   "collisions": 2.6333333333333333,
+   "time_s": 13.548888888888785,
+   "efficiency": 0.9612455335169469,
+   "contact_s": 11.726333333333434,
+   "cost": 21.593133333333324
+  },
+  {
+   "mapping": {
+    "off_m": 3.0,
+    "fast_m": 1.6,
+    "solid_m": 0.7,
+    "floor": 0.2,
+    "gamma": 1.5,
+    "pan": "linear",
+    "k_targets": 2,
+    "sep_deg": 45.0
+   },
+   "belt": {
+    "slow_hz": 1.5,
+    "fast_hz": 3.0
+   },
+   "runs": 60,
+   "success": 0.9166666666666666,
+   "collisions": 3.1166666666666667,
+   "time_s": 13.239999999999856,
+   "efficiency": 0.9543508444832505,
+   "contact_s": 9.063666666666904,
+   "cost": 21.781916666666653
+  },
+  {
+   "mapping": {
+    "off_m": 2.0,
+    "fast_m": 1.0,
+    "solid_m": 0.7,
+    "floor": 0.35,
+    "gamma": 1.0,
+    "pan": "linear",
+    "k_targets": 1,
+    "sep_deg": 90.0
+   },
+   "belt": {
+    "slow_hz": 1.0,
+    "fast_hz": 3.0
+   },
+   "runs": 60,
+   "success": 0.9166666666666666,
+   "collisions": 3.1666666666666665,
+   "time_s": 11.802181818181653,
+   "efficiency": 0.9818542308451245,
+   "contact_s": 7.2570000000002555,
+   "cost": 21.91601666666666
+  }
+ ],
+ "search_n": 142,
+ "winner": {
+  "mapping": {
+   "off_m": 1.5,
+   "fast_m": 1.6,
+   "solid_m": 0.7,
+   "floor": 0.2,
+   "gamma": 1.5,
+   "pan": "linear",
+   "k_targets": 1,
+   "sep_deg": 45.0
+  },
+  "belt": {
+   "slow_hz": 1.5,
+   "fast_hz": 6.0
+  }
+ },
+ "held": {
+  "winner": {
+   "runs": 100,
+   "success": 0.75,
+   "collisions": 1.65,
+   "time_s": 11.582399999999916,
+   "efficiency": 1.0263836456592528,
+   "contact_s": 23.32380000000009,
+   "cost": 33.15958999999998
+  },
+  "defaults (panned)": {
+   "runs": 100,
+   "success": 0.8,
+   "collisions": 6.84,
+   "time_s": 14.935999999999826,
+   "efficiency": 0.9228043683012412,
+   "contact_s": 15.220400000000666,
+   "cost": 48.857639999999975
+  },
+  "old sector scheme": {
+   "runs": 100,
+   "success": 0.76,
+   "collisions": 2.24,
+   "time_s": 12.522105263157718,
+   "efficiency": 0.9750400713923357,
+   "contact_s": 22.0164000000001,
+   "cost": 34.51607999999998
+  }
+ },
+ "held_vs_sector": [
+  -1.3564899999999969,
+  -6.345536249999996,
+  4.171017999999993
+ ],
+ "held_vs_defaults": [
+  -15.698049999999993,
+  -23.95377499999999,
+  -6.885572000000001
+ ],
+ "held_defaults_vs_sector": [
+  14.34156,
+  6.274829,
+  22.818797249999996
+ ],
+ "sensitivity": [
+  {
+   "case": "latency 50 ms",
+   "winner": {
+    "runs": 100,
+    "success": 0.76,
+    "collisions": 1.46,
+    "time_s": 11.014999999999917,
+    "efficiency": 1.0287506264141812,
+    "contact_s": 21.989600000000078,
+    "cost": 31.33880999999998
+   },
+   "sector": {
+    "runs": 100,
+    "success": 0.75,
+    "collisions": 2.31,
+    "time_s": 13.363999999999844,
+    "efficiency": 0.9569648707688293,
+    "contact_s": 22.97240000000012,
+    "cost": 35.866399999999985
+   }
+  },
+  {
+   "case": "latency 80 ms (assumed)",
+   "winner": {
+    "runs": 100,
+    "success": 0.75,
+    "collisions": 1.65,
+    "time_s": 11.582399999999916,
+    "efficiency": 1.0263836456592528,
+    "contact_s": 23.32380000000009,
+    "cost": 33.15958999999998
+   },
+   "sector": {
+    "runs": 100,
+    "success": 0.76,
+    "collisions": 2.24,
+    "time_s": 12.522105263157718,
+    "efficiency": 0.9750400713923357,
+    "contact_s": 22.0164000000001,
+    "cost": 34.51607999999998
+   }
+  },
+  {
+   "case": "latency 150 ms",
+   "winner": {
+    "runs": 100,
+    "success": 0.75,
+    "collisions": 1.61,
+    "time_s": 10.378666666666534,
+    "efficiency": 1.0359660283732963,
+    "contact_s": 22.39440000000006,
+    "cost": 32.95444999999998
+   },
+   "sector": {
+    "runs": 100,
+    "success": 0.77,
+    "collisions": 2.15,
+    "time_s": 12.00805194805178,
+    "efficiency": 0.9934378641568126,
+    "contact_s": 21.13280000000007,
+    "cost": 33.097539999999974
+   }
+  },
+  {
+   "case": "latency 250 ms",
+   "winner": {
+    "runs": 100,
+    "success": 0.75,
+    "collisions": 1.72,
+    "time_s": 10.89173333333319,
+    "efficiency": 1.0289078689130569,
+    "contact_s": 22.862800000000046,
+    "cost": 33.41368999999999
+   },
+   "sector": {
+    "runs": 100,
+    "success": 0.75,
+    "collisions": 2.15,
+    "time_s": 11.560799999999853,
+    "efficiency": 1.003037262049379,
+    "contact_s": 22.628000000000103,
+    "cost": 35.15877999999998
+   }
+  },
+  {
+   "case": "spin-up 50 ms",
+   "winner": {
+    "runs": 100,
+    "success": 0.75,
+    "collisions": 1.66,
+    "time_s": 11.579999999999925,
+    "efficiency": 1.0269078237265508,
+    "contact_s": 23.3416000000001,
+    "cost": 33.19949999999998
+   },
+   "sector": {
+    "runs": 100,
+    "success": 0.76,
+    "collisions": 2.01,
+    "time_s": 11.250526315789381,
+    "efficiency": 1.019960272789743,
+    "contact_s": 21.726400000000123,
+    "cost": 33.54775999999998
+   }
+  },
+  {
+   "case": "spin-up 100 ms",
+   "winner": {
+    "runs": 100,
+    "success": 0.73,
+    "collisions": 1.66,
+    "time_s": 10.80931506849303,
+    "efficiency": 1.031323041843991,
+    "contact_s": 24.453400000000048,
+    "cost": 35.24980999999998
+   },
+   "sector": {
+    "runs": 100,
+    "success": 0.76,
+    "collisions": 2.23,
+    "time_s": 12.63842105263148,
+    "efficiency": 0.9861383082816271,
+    "contact_s": 22.05000000000015,
+    "cost": 34.480499999999985
+   }
+  },
+  {
+   "case": "JND 30%",
+   "winner": {
+    "runs": 100,
+    "success": 0.74,
+    "collisions": 1.72,
+    "time_s": 10.709999999999877,
+    "efficiency": 1.0297428330358112,
+    "contact_s": 23.45520000000006,
+    "cost": 34.44652999999998
+   },
+   "sector": {
+    "runs": 100,
+    "success": 0.75,
+    "collisions": 2.28,
+    "time_s": 12.20879999999989,
+    "efficiency": 0.9965028258328517,
+    "contact_s": 22.68680000000016,
+    "cost": 35.703079999999986
+   }
+  },
+  {
+   "case": "localisation noise 12 deg",
+   "winner": {
+    "runs": 100,
+    "success": 0.75,
+    "collisions": 1.43,
+    "time_s": 10.497066666666532,
+    "efficiency": 1.0344254435786797,
+    "contact_s": 22.374200000000066,
+    "cost": 32.23888999999999
+   },
+   "sector": {
+    "runs": 100,
+    "success": 0.76,
+    "collisions": 2.16,
+    "time_s": 13.234210526315675,
+    "efficiency": 0.9768696810198825,
+    "contact_s": 22.438000000000137,
+    "cost": 34.22313999999999
+   }
+  },
+  {
+   "case": "detection floor 0.2",
+   "winner": {
+    "runs": 100,
+    "success": 0.73,
+    "collisions": 1.67,
+    "time_s": 11.698356164383501,
+    "efficiency": 1.0331695822855536,
+    "contact_s": 25.15660000000011,
+    "cost": 35.322259999999986
+   },
+   "sector": {
+    "runs": 100,
+    "success": 0.76,
+    "collisions": 1.98,
+    "time_s": 10.555789473684074,
+    "efficiency": 1.0257547047779034,
+    "contact_s": 21.13000000000012,
+    "cost": 33.40135999999998
+   }
+  }
+ ],
+ "seconds": 2089
+}
