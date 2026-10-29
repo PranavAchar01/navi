@@ -22,6 +22,9 @@ def hybrid(local, meta, interval=1e9):
     h = HybridFinder.__new__(HybridFinder)
     h.local, h.meta = Fake(local), Fake(meta)
     h.items, h.interval, h.last_meta, h.meta_images = {"water bottle", "keys"}, interval, 0.0, 0
+    h.wanted = {}
+    for item in h.items:
+        h.want(item)  # asked for: the cases below are about how SAM 3.1 looks, not whether
     return h
 
 
@@ -95,3 +98,20 @@ def test_hybrid_without_a_key_falls_back_to_the_local_finder(monkeypatch):
     s = Settings()
     s.finder = "hybrid"
     assert isinstance(fm.make_finder(s), fm.YoloeFinder)
+
+
+def test_sam_looks_only_for_what_was_asked_for():
+    """The house memory runs on the local model: SAM 3.1 bills only while an ask is open."""
+    h = hybrid([Detection("water bottle", 0.2, (1, 1, 2, 2))], [], interval=0.0)
+    h.wanted = {}
+    h.find(FRAME, ["water bottle", "keys"])  # glimpsed and the sweep due, but nobody asked
+    assert h.meta.calls == [] and h.meta_images == 0
+
+    h.want("keys")
+    h.want("chair")  # big things stay with the local model
+    h.find(FRAME, ["water bottle", "keys", "chair"])
+    assert h.meta.calls == [["keys"]]
+
+    h.wanted["keys"] = 0.0  # the ask ran out
+    h.find(FRAME, ["water bottle", "keys"])
+    assert h.meta.calls == [["keys"]]

@@ -923,6 +923,8 @@ class Server:
                 "speech_end_to_answer_ms": round(1000 * (time.time() - spoken_end)),
             }
         await self.hub.json(res)
+        if res.get("label"):  # SAM 3.1 looks for it only now, while the wearer is after it
+            self.in_q.put({"cmd": "want", "label": res["label"]})
         if self.braille:
             res["cues"] = self.braille.say(res["text"])
         return res

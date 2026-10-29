@@ -276,6 +276,9 @@ class Sam31Finder:
 
 
 LOCAL_KEEP = 0.3  # a local hit on a personal item this sure stands even when SAM misses it
+# SAM 3.1 is billed per image and concept, so it looks only for an item the wearer just asked
+# for (and is being guided to), for this long; the house memory runs on the local model alone.
+WANT_S = 90.0
 # What leaves the Mac for SAM 3.1: a glimpsed item goes as a crop around the local hit (padded
 # by the box's own size each side, at least CROP_MIN px), and the timed sweep as the whole frame
 # shrunk to SWEEP_LONG_SIDE, enough for an item at arm's length but not to read papers or faces.
@@ -294,7 +297,8 @@ LOOKALIKES = {
 
 
 class HybridFinder:
-    """Everything on the Mac; small personal items confirmed and swept by SAM 3.1."""
+    """Everything on the Mac; a small personal item the wearer asks for is confirmed and swept
+    by SAM 3.1 until it is found or the ask runs out."""
 
     name = "yoloe + sam-3.1"
 
@@ -304,24 +308,31 @@ class HybridFinder:
         self.last_meta = 0.0
         self.meta_images = 0  # billed images so far this run
         self.meta_ms = 0.0  # how long the last SAM 3.1 call took, for the judge view
+        self.wanted: dict[str, float] = {}  # item -> until when SAM 3.1 looks for it
+
+    def want(self, label: str, seconds: float = WANT_S) -> None:
+        """Asked for, or being guided to: SAM 3.1 looks for this item from now for `seconds`."""
+        if label in self.items:
+            self.wanted[label] = time.monotonic() + seconds
 
     def find(self, bgr: np.ndarray, labels: list[str]) -> list[Detection]:
         local = self.local.find(bgr, labels)
+        now = time.monotonic()
+        wanted = {lb for lb, until in self.wanted.items() if until > now}
         glimpsed = sorted(
-            {d.label for d in local if d.label in self.items}
+            {d.label for d in local if d.label in wanted}
             | {
                 item
                 for d in local
                 for item in LOOKALIKES.get(d.label, [])
-                if item in self.items and item in labels
+                if item in wanted and item in labels
             }
         )
         out = [d for d in local if d.label not in self.items]  # look-alikes stay as themselves
-        now = time.monotonic()
         ask = glimpsed
-        if now - self.last_meta >= self.interval:
+        if wanted and now - self.last_meta >= self.interval:
             self.last_meta = now
-            ask = [lb for lb in labels if lb in self.items]
+            ask = [lb for lb in labels if lb in wanted]
         confirmed: list[Detection] = []
         if ask:
             jobs = self._jobs(bgr, local, glimpsed, ask)
