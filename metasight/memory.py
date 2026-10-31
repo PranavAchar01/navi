@@ -1277,10 +1277,10 @@ class MemoryEngine:
         self._home_desc: list | None = None
         self._home_owner = True  # this walk may write the home map
         self._room_matcher: RoomMatcher | None = None
-        # Where each try put its keyframes in the room, and which try it was.
+        # Where each try put its keyframes in the room (camera poses), and which try it was.
         self._room_cands: dict[int, tuple[np.ndarray, int]] = {}
         self._room_tries = 0
-        self._room_pairs: dict[int, np.ndarray] = {}  # seq -> its camera in the room, agreed
+        self._room_pairs: dict[int, np.ndarray] = {}  # seq -> its camera pose in the room, agreed
         self.home_fit: dict | None = None  # how the last placement in the saved house went
         self._persist_ok = False
         self._counted = False
@@ -1341,6 +1341,8 @@ class MemoryEngine:
                 m = np.eye(4)
                 m[:3, :3], m[:3, 3] = s_ * r_, t_
                 out["tf"] = m.tolist()
+            if self._room_matcher is not None:  # the lens the room's views were solved with
+                out["hfov"] = self._room_matcher.hfov
             return out
         if not pick or self.home is None:
             return {"fit": False, "why": "no home views picked"}
@@ -1387,16 +1389,23 @@ class MemoryEngine:
         )
 
     def _room_tf(self) -> Sim3 | None:
-        """Room -> output frame from the agreed cameras, once they span enough of the room to fix
-        the rotation (a few frames close together do not)."""
+        """Room -> output frame from the agreed cameras, once they span enough of the room.
+        The rotation is the mean over cameras of PnP's orientation against the walk's: fit from
+        the camera centres alone, 15 cm of error over a 1.5 m spread tilted the room by about
+        10 degrees, which put the outlines a third of a metre off on the desk."""
         seqs = [q for q in self._room_pairs if q in self.poses]
         if len(seqs) < 6:
             return None
-        out = np.array([self._pos_out(self.poses[q][:3, 3]) for q in seqs])
-        room = np.array([self._room_pairs[q] for q in seqs])
+        outs = [self._pose_out(self.poses[q]) for q in seqs]
+        rooms = [self._room_pairs[q] for q in seqs]
+        room = np.array([p[:3, 3] for p in rooms])
         if np.linalg.norm(room.max(0) - room.min(0)) < ROOM_SPREAD_M:
             return None
-        return umeyama(room, out)
+        u, _, vt = np.linalg.svd(
+            sum(o[:3, :3] @ r[:3, :3].T for o, r in zip(outs, rooms, strict=True))
+        )
+        rot = u @ np.diag([1.0, 1.0, np.linalg.det(u @ vt)]) @ vt
+        return _scale_shift(room, np.array([o[:3, 3] for o in outs]), rot)
 
     def _place_in_room(self, placed: list[_Placed]) -> dict | None:
         """Place a fixed home (the room mesh) from this window: each new keyframe is matched to
@@ -1425,7 +1434,7 @@ class MemoryEngine:
             return {"fit": False, "located": 0}
         self._room_tries += 1
         self._room_cands.update({q: (c, self._room_tries) for q, c in cams.items()})
-        try_cams = {int(q): [round(float(x), 3) for x in c] for q, c in cams.items()}
+        try_cams = {int(q): [round(float(x), 3) for x in c[:3, 3]] for q, c in cams.items()}
         res = int(np.median(inliers))  # reported as the try's quality: median PnP inliers
         seqs = [q for q in self._room_cands if q in self.poses]
         if len(seqs) < ROOM_MIN_CAMS:
@@ -1433,7 +1442,7 @@ class MemoryEngine:
         out = np.array([self._pos_out(self.poses[q][:3, 3]) for q in seqs])
         agree = room_consensus(
             out,
-            np.array([self._room_cands[q][0] for q in seqs]),
+            np.array([self._room_cands[q][0][:3, 3] for q in seqs]),
             np.array([self._room_cands[q][1] for q in seqs]),
         )
         if agree is None:

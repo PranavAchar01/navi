@@ -64,6 +64,7 @@ from .query import (
     unseen_answer,
     valid_sentence,
 )
+from .relocalize import RoomMatcher
 from .review import MapReview
 from .review import plan as errand_plan
 from .safety import SafetyLoop, hazards
@@ -88,6 +89,10 @@ MAP_WAIT_S = 3.0  # right after a restart, how long a question waits for the hom
 MAP_LOADING = "I'm still loading your home map. Ask me again in a few seconds."
 HOLDING = "One sec, putting that together."  # spoken at once for a plan, which takes 2 s or more
 AR_POSE_HZ = 5.0  # ARKit-carried poses go out to viewers at most this often
+ROOM_VIEW_HZ = 5.0  # frames placed in the fixed room by PnP, for the room overlay
+# Fewer PnP inliers than this and a frame can land on a look-alike wall: on the bedroom replay a
+# keyframe with 191 landed 1.6 m off, while single frames with 230 or more were within 16 cm.
+ROOM_VIEW_MIN_INLIERS = 220
 FLOOR_EVERY_S = 2.0  # the floor plan for routes and priors is rebuilt from the map this often
 RETIE_M = 0.3  # the pose jumping this far in one frame is a re-tie: the priors sit out a second
 # ARKit's camera is the landscape sensor (x along its long side, y up, z back). Frames go out
@@ -102,6 +107,10 @@ def arkit_pose(m: list[float]) -> np.ndarray:
 
 FINDER_LONG_SIDE = 960  # small items vanish at the models' 518 px; the item finder looks here
 log = logging.getLogger("metasight")
+
+
+def _home_bgr(home: homemod.Home) -> list[np.ndarray]:
+    return [cv2.imdecode(np.frombuffer(v.jpg, np.uint8), cv2.IMREAD_COLOR) for v in home.views]
 
 
 def _finite(x: float) -> float | None:
@@ -186,6 +195,9 @@ class Server:
         self.priors_off_until = 0.0
         self.ghosts = nav.Ghosts(need_seen=True)  # map cells live depth confirmed or saw through
         self.cam_aspect = 9 / 16  # width over height of the frames memory solves
+        # The fixed room's matcher (built on first use, False without a fixed home and mesh).
+        self.room_matcher: RoomMatcher | bool | None = None
+        self.room_job, self.room_at = False, 0.0
         # Phone mode: ARKit tracks every frame, and each memory pose for a tracked frame ties
         # ARKit's world to the map's, so the map pose is current between windows.
         self.arposes: deque[tuple[int, np.ndarray]] = deque(maxlen=900)  # (frame seq, pose)
@@ -461,6 +473,7 @@ class Server:
                 continue
             small, res, gray, sharp, bgr = done
             now = time.time()
+            self._room_view(now, seq, small)
             self.heading.image_turn(gray, now)
             if self.last_done:
                 inst = 1.0 / max(1e-3, now - self.last_done)
@@ -828,6 +841,35 @@ class Server:
             await self.hub.json(
                 {"type": "pose", "pos": pose[:3, 3].tolist(), "fwd": fwd, "up": up}, True
             )
+
+    def _room_view(self, now: float, seq: int, small: np.ndarray) -> None:
+        """The room overlay's pose: this frame placed in the fixed home's room by PnP on the
+        saved views, a few times a second. The map pose arrives a window late and only its
+        heading is carried in between, which slid the room's outlines off the picture."""
+        if self.room_job or self.room_matcher is False or now - self.room_at < 1 / ROOM_VIEW_HZ:
+            return
+        self.room_job, self.room_at = True, now
+
+        def run():
+            if self.room_matcher is None:
+                home = homemod.load()
+                ok = home and home.fixed and (homemod.home_dir() / "room.ply").is_file()
+                self.room_matcher = RoomMatcher(_home_bgr(home), home.views) if ok else False
+            m = self.room_matcher
+            return m.locate(small) if m and small.shape[:2] == m.shape else None
+
+        def done(f) -> None:
+            self.room_job = False
+            hit = None if f.exception() else f.result()
+            if f.exception():
+                log.warning("room view failed: %s", f.exception())
+            if hit is None or hit[1] < ROOM_VIEW_MIN_INLIERS:
+                return
+            msg = {"type": "room_pose", "seq": seq, "pose": hit[0].tolist(), "inliers": hit[1]}
+            msg.update(hfov=self.room_matcher.hfov, aspect=small.shape[1] / small.shape[0])
+            asyncio.ensure_future(self.hub.json(msg))
+
+        self.loop.run_in_executor(None, run).add_done_callback(done)
 
     def _maybe_keyframe(self, now: float, seq: int, small, res, sharp: float, hi) -> None:
         """Send memory the sharpest frame of each keyframe interval. Walking and turning blur

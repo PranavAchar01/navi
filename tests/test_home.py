@@ -1,5 +1,6 @@
 """The home map: saved across walks, pins merged into it, a new obstacle flagged from depth."""
 
+import cv2
 import numpy as np
 import pytest
 
@@ -212,18 +213,21 @@ def test_fixed_home_frame_from_agreed_cameras(tmp_path, monkeypatch):
     rot = np.array([[np.cos(a), 0, np.sin(a)], [0, 1, 0], [-np.sin(a), 0, np.cos(a)]])
     true = (1.5, rot, np.array([0.5, 0.0, -2.0]))  # room -> walk
     rng = np.random.default_rng(0)
-    room = rng.uniform([0, 1.2, 0], [0.3, 1.4, 0.3], (8, 3))  # close together: not enough
-    for q, x in enumerate(room):
-        e._room_pairs[q] = x
+
+    def place(q, x):  # a camera at x in the room, facing some way, and where the walk has it
+        cam = np.eye(4)
+        cam[:3, :3] = cv2.Rodrigues(rng.normal(0, 0.5, 3))[0]
+        cam[:3, 3] = x
+        e._room_pairs[q] = cam
         p = np.eye(4)
-        p[:3, 3] = true[0] * true[1] @ x + true[2]
+        p[:3, :3], p[:3, 3] = true[1] @ cam[:3, :3], true[0] * true[1] @ x + true[2]
         e.poses[q] = p
+
+    for q, x in enumerate(rng.uniform([0, 1.2, 0], [0.3, 1.4, 0.3], (8, 3))):
+        place(q, x)  # close together: not enough
     assert e._room_tf() is None
     for q, x in enumerate(rng.uniform([0, 1.2, 0], [3, 1.4, 3], (8, 3)), start=8):
-        e._room_pairs[q] = x
-        p = np.eye(4)
-        p[:3, 3] = true[0] * true[1] @ x + true[2]
-        e.poses[q] = p
+        place(q, x)
     s_, r_, t_ = e._room_tf()
     assert np.isclose(s_, 1.5) and np.allclose(r_, rot, atol=1e-6) and np.allclose(t_, true[2])
 
@@ -288,5 +292,6 @@ def test_a_frame_matched_to_a_saved_view_lands_on_that_views_camera():
     m = RoomMatcher([img], [view])
     assert np.allclose(np.diag(m.k)[:2], f, rtol=0.02)
     hit = m.locate(img, [0])
-    assert hit is not None and np.linalg.norm(hit[0] - pose[:3, 3]) < 0.05 and hit[1] >= 40
+    assert hit is not None and np.linalg.norm(hit[0][:3, 3] - pose[:3, 3]) < 0.05 and hit[1] >= 40
+    assert np.allclose(hit[0][:3, :3], pose[:3, :3], atol=0.02)
     assert m.locate(np.full_like(img, 128), [0]) is None  # nothing to match, no guess

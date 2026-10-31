@@ -86,6 +86,15 @@ export interface Pose {
   hfov?: number | null; // horizontal field of view of the frames the map was solved from, degrees
   aspect?: number; // width over height of those frames
 }
+// A frame placed in the fixed room by PnP on the saved views: camera to room, OpenCV axes.
+export interface RoomPose {
+  type: "room_pose";
+  seq: number;
+  pose: number[][];
+  inliers: number;
+  hfov: number; // the room views' lens, degrees
+  aspect: number; // width over height of the frame
+}
 export interface MemoryStats {
   type: "memory";
   window: number;
@@ -154,7 +163,7 @@ export interface GlobalStats {
   type: "global_stats";
   views: number;
   points: number;
-  home?: { fit: boolean; fixed?: boolean; tf?: number[][] } | null;
+  home?: { fit: boolean; fixed?: boolean; tf?: number[][]; hfov?: number } | null;
 }
 export type Message =
   | GlobalStats
@@ -164,6 +173,7 @@ export type Message =
   | Answer
   | Alert
   | Pose
+  | RoomPose
   | MemoryStats
   | Status
   | PinsMsg

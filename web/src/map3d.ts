@@ -32,29 +32,61 @@ function glowSprite(color: number, size: number, opacity: number): THREE.Sprite 
   return sp;
 }
 
-/** Room mesh over the camera: surfaces nearer than FADE_NEAR m are dropped (they would cover the
- *  view in a blur of wall), and it fades in by FADE_FAR m so the far structure reads. */
-const FADE_NEAR = 0.9;
-const FADE_FAR = 2.2;
-function roomMaterial(): THREE.ShaderMaterial {
+/** The room mesh over the camera is drawn as outlines: the mesh goes into an offscreen buffer
+ *  (view normal, depth), and lines are drawn where depth jumps (an edge in front of what is
+ *  behind it) or the surface turns (a wall meeting the floor). Its own colours, laid over the
+ *  same picture, added nothing a viewer could see; the fused mesh is too bumpy for crease edges
+ *  (about nine in ten of its edges bend over 30 degrees). Lines nearer than 0.6 m are dropped and
+ *  the far ones fade, amber near to blue far. */
+const ROOM_VIEW_STALE_MS = 1000; // first person draws the room only from a room pose this fresh
+const OUTLINE_STEP_PX = 3; // neighbour distance of the edge test
+const OUTLINE_DEPTH = 0.02; // relative depth jump that starts a line
+const OUTLINE_TURN = 0.9; // normal agreement below which a line starts
+function roomGbuffer(): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
-    vertexColors: true,
     side: THREE.DoubleSide,
-    transparent: true,
     vertexShader: `
-      varying vec3 vCol; varying float vDepth;
+      varying vec3 vN; varying float vD;
       void main() {
-        vCol = color;
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
-        vDepth = -mv.z;
+        vD = -mv.z;
+        vN = normalize(normalMatrix * normal);
         gl_Position = projectionMatrix * mv;
       }`,
     fragmentShader: `
-      varying vec3 vCol; varying float vDepth;
+      varying vec3 vN; varying float vD;
+      void main() { gl_FragColor = vec4(gl_FrontFacing ? normalize(vN) : -normalize(vN), vD); }`,
+  });
+}
+function outlineMaterial(tex: THREE.Texture): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    transparent: true,
+    depthTest: false,
+    uniforms: { tG: { value: tex }, px: { value: new THREE.Vector2(1, 1) } },
+    vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
+    fragmentShader: `
+      uniform sampler2D tG; uniform vec2 px; varying vec2 vUv;
+      vec4 g(vec2 o) {
+        vec4 s = texture2D(tG, vUv + o * px * ${OUTLINE_STEP_PX.toFixed(1)});
+        return s.a > 0.0 ? s : vec4(0.0, 0.0, 0.0, 100.0); // nothing drawn: far away
+      }
       void main() {
-        if (vDepth < ${FADE_NEAR.toFixed(2)}) discard;
-        gl_FragColor = vec4(vCol, smoothstep(${FADE_NEAR.toFixed(2)}, ${FADE_FAR.toFixed(2)}, vDepth));
-        #include <colorspace_fragment>
+        vec4 c = g(vec2(0.0));
+        float d = c.a, dd = 0.0, nd = 1.0;
+        vec2 offs[8] = vec2[8](vec2(1, 0), vec2(-1, 0), vec2(0, 1), vec2(0, -1),
+                               vec2(1, 1), vec2(-1, -1), vec2(1, -1), vec2(-1, 1));
+        for (int i = 0; i < 8; i++) {
+          vec4 s = g(offs[i]);
+          d = min(d, s.a);
+          dd = max(dd, abs(s.a - c.a));
+          if (s.a < 99.0 && c.a < 99.0) nd = min(nd, dot(s.xyz, c.xyz));
+        }
+        if (d > 99.0) discard;
+        float jump = smoothstep(${OUTLINE_DEPTH.toFixed(3)}, ${(2 * OUTLINE_DEPTH).toFixed(3)}, dd / d);
+        float turn = smoothstep(${OUTLINE_TURN.toFixed(2)}, ${(OUTLINE_TURN - 0.25).toFixed(2)}, nd);
+        float a = max(jump, turn) * smoothstep(0.6, 1.2, d) * (1.0 - smoothstep(5.0, 7.0, d));
+        if (a < 0.02) discard;
+        gl_FragColor = vec4(mix(vec3(1.0, 0.78, 0.35), vec3(0.45, 0.85, 1.0), smoothstep(1.0, 4.0, d)), a);
       }`,
   });
 }
@@ -196,6 +228,13 @@ export class MapView {
   private points!: THREE.Points;
   // The dense room mesh (room_watch's), placed in the walk's frame by the home fit.
   private room: THREE.Mesh | null = null;
+  private roomBuf = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
+  private outline = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), outlineMaterial(this.roomBuf.texture));
+  private outlineScene = new THREE.Scene().add(this.outline);
+  private flatCam = new THREE.Camera();
+  // The room seen from the latest frame placed in it by PnP (room_pose), in the room's own frame.
+  private roomCam = Object.assign(new THREE.PerspectiveCamera(), { matrixAutoUpdate: false, matrixWorldAutoUpdate: false });
+  private roomViewAt = -Infinity;
   // Minimap: straight down, roof cut off, one big label per kind of object.
   private top = false;
   private labelScale = 1;
@@ -204,6 +243,7 @@ export class MapView {
   // live heading between map poses.
   private fp = false;
   private lens: { hfov: number; aspect: number } | null = null;
+  private lensFixed = false; // set by setLens: the poses' own lens no longer replaces it
   private fpPose: { pos: THREE.Vector3; fwd: THREE.Vector3; up: THREE.Vector3; yaw: number } | null = null;
   private liveYaw: number | null = null;
   private turn = 0;
@@ -285,15 +325,19 @@ export class MapView {
     const h = this.canvas.clientHeight;
     if (!w || !h) return;
     this.renderer.setSize(w, h, false);
+    const r = this.renderer.getPixelRatio();
+    this.roomBuf.setSize(w * r, h * r);
+    (this.outline.material as THREE.ShaderMaterial).uniforms.px.value.set(1 / (w * r), 1 / (h * r));
     this.camera.aspect = w / h;
     this.applyLens();
   }
 
   private applyLens() {
     if (this.fp && this.lens) {
-      // The lens is horizontal, measured on the frame the map was solved from.
-      this.camera.fov =
-        (2 * Math.atan(Math.tan((this.lens.hfov * Math.PI) / 360) / this.lens.aspect) * 180) / Math.PI;
+      // The lens is horizontal, measured on the frame the map was solved from. The picture under
+      // the canvas is cover-fitted, so a canvas wider than the frame shows its full width.
+      const fit = Math.max(this.lens.aspect, this.camera.aspect);
+      this.camera.fov = (2 * Math.atan(Math.tan((this.lens.hfov * Math.PI) / 360) / fit) * 180) / Math.PI;
     }
     this.camera.updateProjectionMatrix();
     const px = this.renderer.getPixelRatio();
@@ -335,11 +379,19 @@ export class MapView {
       this.scene.remove(this.room);
       this.room.geometry.dispose();
     }
-    this.room = new THREE.Mesh(geo, roomMaterial());
+    if (!geo.hasAttribute("normal")) geo.computeVertexNormals();
+    this.room = new THREE.Mesh(geo, roomGbuffer());
     this.room.matrixAutoUpdate = false;
     this.room.matrix.set(...(m.flat() as Parameters<THREE.Matrix4["set"]>));
     this.room.frustumCulled = false;
     this.scene.add(this.room);
+  }
+
+  /** A lens measured elsewhere (the room's), kept over the one each pose carries. */
+  setLens(hfov: number, aspect: number) {
+    this.lens = { hfov, aspect };
+    this.lensFixed = true;
+    this.applyLens();
   }
 
   /** Show or hide the live map points (the judge overlay shows the room mesh alone). */
@@ -354,6 +406,10 @@ export class MapView {
 
   get hasPose(): boolean {
     return this.fpPose !== null && (this.count > 0 || this.room !== null);
+  }
+
+  get hasRoom(): boolean {
+    return this.room !== null;
   }
 
   addChunk(n: number, pts: Float32Array, cols: Uint8Array, sizes?: Uint8Array) {
@@ -647,6 +703,14 @@ export class MapView {
     this.trail.geometry.computeBoundingSphere();
   }
 
+  /** A frame's camera in the room (4x4, camera to room, OpenCV axes), from room_pose. */
+  setRoomView(pose: number[][]) {
+    const m = new THREE.Matrix4().set(...(pose.flat() as Parameters<THREE.Matrix4["set"]>));
+    this.roomCam.matrixWorld.copy(m.multiply(new THREE.Matrix4().makeScale(1, -1, -1)));
+    this.roomCam.matrixWorldInverse.copy(this.roomCam.matrixWorld).invert();
+    this.roomViewAt = performance.now();
+  }
+
   setPose(p: Pose) {
     this.lastPose = p;
     if (this.fp) {
@@ -658,7 +722,7 @@ export class MapView {
         yaw: Math.atan2(fwd.x, fwd.z),
       };
       this.turn = 0;
-      if (p.hfov && p.aspect) {
+      if (p.hfov && p.aspect && !this.lensFixed) {
         this.lens = { hfov: p.hfov, aspect: p.aspect };
         this.applyLens();
       }
@@ -790,6 +854,31 @@ export class MapView {
       }
     } else if (this.top) this.camera.lookAt(this.controls.target);
     else this.controls.update();
+    if (this.room) {
+      // The room as outlines: only the room into the buffer, the rest of the map as usual,
+      // then the edge pass on top. First person draws it from the frame's own PnP pose in the
+      // room (the map pose lags a window), and not at all once that pose goes stale.
+      const fresh = performance.now() - this.roomViewAt < ROOM_VIEW_STALE_MS;
+      this.renderer.setRenderTarget(this.roomBuf);
+      this.renderer.clear();
+      if (this.fp && fresh) {
+        const placed = this.room.matrix.clone();
+        this.room.matrix.identity();
+        this.roomCam.projectionMatrix.copy(this.camera.projectionMatrix);
+        this.roomCam.projectionMatrixInverse.copy(this.camera.projectionMatrixInverse);
+        this.renderer.render(this.room, this.roomCam);
+        this.room.matrix.copy(placed);
+        this.room.updateMatrixWorld();
+      } else if (!this.fp) this.renderer.render(this.room, this.camera);
+      this.renderer.setRenderTarget(null);
+      this.room.visible = false;
+      this.renderer.render(this.scene, this.camera);
+      this.room.visible = true;
+      this.renderer.autoClear = false;
+      this.renderer.render(this.outlineScene, this.flatCam);
+      this.renderer.autoClear = true;
+      return;
+    }
     this.renderer.render(this.scene, this.camera);
   };
 }

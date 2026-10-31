@@ -110,9 +110,18 @@ const room = new MapView(roomCanvas);
 room.setFirstPerson(true);
 room.setPointsVisible(false);
 let roomLoaded: Promise<unknown> | null = null;
-net.on("pose", (m) => {
-  room.setPose(m);
-  roomCanvas.classList.toggle("on", roomLoaded !== null && room.hasPose);
+const IDENTITY = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]];
+net.on("pose", (m) => room.setPose(m));
+// Each frame the server places in the room by PnP: the outlines are drawn from it, so they
+// sit on the picture without waiting for the map.
+net.on("room_pose", (m) => {
+  room.setLens(m.hfov, m.aspect);
+  room.setRoomView(m.pose);
+  roomLoaded ??= new PLYLoader().loadAsync("/api/room.ply").catch(() => (roomLoaded = null));
+  void roomLoaded.then((geo) => {
+    if (geo instanceof THREE.BufferGeometry && !room.hasRoom) room.setRoomMesh(geo, IDENTITY);
+    roomCanvas.classList.add("on");
+  });
 });
 net.on("global_stats", (g) => {
   const tf = g.home?.tf;
@@ -122,7 +131,7 @@ net.on("global_stats", (g) => {
     if (geo instanceof THREE.BufferGeometry) room.setRoomMesh(geo, tf);
   });
 });
-const STRENGTHS = [0.6, 0.85, 0.3];
+const STRENGTHS = [0.85, 0.6, 0.3];
 let strength = 0;
 window.addEventListener("keydown", (e) => {
   if (e.key !== "r" && e.key !== "R") return;

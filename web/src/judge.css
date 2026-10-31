@@ -49,7 +49,7 @@ body.judge {
 }
 /* The room mesh drawn from the camera's pose, over the picture. R cycles how strongly. */
 .j-frame #room {
-  opacity: var(--room, 0.6);
+  opacity: var(--room, 0.85);
   pointer-events: none;
   transition: opacity 0.6s;
 }

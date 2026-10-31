@@ -36,6 +36,7 @@ class RoomMatcher:
 
     def __init__(self, bgrs: list[np.ndarray], views: list) -> None:
         self.bf = cv2.BFMatcher(cv2.NORM_L2)
+        self.shape = bgrs[0].shape[:2] if bgrs else (0, 0)  # the views' frame size
         self.des: list[np.ndarray | None] = []
         self.xyz: list[np.ndarray] = []
         for bgr, v in zip(bgrs, views, strict=True):
@@ -51,13 +52,32 @@ class RoomMatcher:
             self.des.append(des[ok])
             self.xyz.append(v.pts[gv[ok], gu[ok]].astype(np.float32))
         self.k = np.median([view_k(v.pts, v.mask, v.pose) for v in views], axis=0)
+        # Every view's features in one index, to rank the views for a frame that comes with no
+        # order: the views holding most of its nearest features look most like it.
+        self.indexed = [i for i, d in enumerate(self.des) if d is not None and len(d)]
+        self.flann = cv2.FlannBasedMatcher({"algorithm": 1, "trees": 4}, {"checks": 32})
+        if self.indexed:
+            self.flann.add([self.des[i] for i in self.indexed])
+            self.flann.train()
+        # Horizontal field of view, degrees. On the bedroom it is 52.8, and a sweep of the focal
+        # on another walk's PnP inliers peaks at 52 too (the glasses profile's 44.8 is the
+        # emulator's crop, not these frames).
+        self.hfov = float(np.degrees(2 * np.arctan(self.k[0, 2] / self.k[0, 0])))
 
-    def locate(self, bgr: np.ndarray, order: list[int]) -> tuple[np.ndarray, int] | None:
-        """The frame's camera centre in the room and its PnP inlier count, matched against the
-        first TOP_VIEWS of `order` (view indices, best looking first)."""
+    def locate(
+        self, bgr: np.ndarray, order: list[int] | None = None
+    ) -> tuple[np.ndarray, int] | None:
+        """The frame's camera pose in the room (4x4, camera to room) and its PnP inlier count,
+        matched against the first TOP_VIEWS of `order` (view indices, best looking first; by
+        default the views that share most of its features)."""
         q, des = sift_features(bgr)
         if des is None or len(q) < 2:
             return None
+        if order is None:
+            if not self.indexed:
+                return None
+            near = [self.indexed[m.imgIdx] for m in self.flann.match(des)]
+            order = list(np.argsort(-np.bincount(near, minlength=len(self.des))))
         p2, p3 = [], []
         for i in order[:TOP_VIEWS]:
             vd = self.des[i]
@@ -82,4 +102,6 @@ class RoomMatcher:
         if not ok or inl is None or len(inl) < MIN_INLIERS:
             return None
         r = cv2.Rodrigues(rv)[0]
-        return (-r.T @ tv).ravel(), len(inl)
+        pose = np.eye(4)
+        pose[:3, :3], pose[:3, 3] = r.T, (-r.T @ tv).ravel()
+        return pose, len(inl)
