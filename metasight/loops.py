@@ -56,24 +56,33 @@ class Describer:
 _sift = None
 
 
-def shared_matches(a: np.ndarray, b: np.ndarray) -> int:
-    """SIFT matches between two frames that agree with one fundamental matrix."""
+def sift_features(bgr: np.ndarray) -> tuple[np.ndarray, np.ndarray | None]:
+    """SIFT keypoint positions and descriptors of one frame (the slow half of a match)."""
     global _sift
     if _sift is None:
         _sift = cv2.SIFT_create(nfeatures=1500)
-    ga, gb = (cv2.cvtColor(x, cv2.COLOR_BGR2GRAY) for x in (a, b))
-    ka, da = _sift.detectAndCompute(ga, None)
-    kb, db = _sift.detectAndCompute(gb, None)
+    kp, des = _sift.detectAndCompute(cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY), None)
+    return np.float32([k.pt for k in kp]).reshape(-1, 2), des
+
+
+def matches_between(fa, fb) -> int:
+    """SIFT matches between two frames' features that agree with one fundamental matrix."""
+    (ka, da), (kb, db) = fa, fb
     if da is None or db is None or len(ka) < 8 or len(kb) < 8:
         return 0
     pairs = cv2.BFMatcher(cv2.NORM_L2).knnMatch(da, db, k=2)
     good = [p[0] for p in pairs if len(p) == 2 and p[0].distance < 0.75 * p[1].distance]
     if len(good) < 15:  # with 8 points the RANSAC mask comes back as garbage bytes
         return 0
-    pa = np.float32([ka[m.queryIdx].pt for m in good])
-    pb = np.float32([kb[m.trainIdx].pt for m in good])
+    pa = ka[[m.queryIdx for m in good]]
+    pb = kb[[m.trainIdx for m in good]]
     _, inl = cv2.findFundamentalMat(pa, pb, cv2.FM_RANSAC, 1.5, 0.999)
     return 0 if inl is None else int(np.count_nonzero(inl))
+
+
+def shared_matches(a: np.ndarray, b: np.ndarray) -> int:
+    """SIFT matches between two frames that agree with one fundamental matrix."""
+    return matches_between(sift_features(a), sift_features(b))
 
 
 # ---------------------------------------------------------------------- similarity transforms
@@ -141,5 +150,14 @@ def optimize(
             out.append(wt * _AXIS_W * _log(e))
         return np.concatenate(out)
 
-    sol = least_squares(resid, x0, method="lm" if len(edges) * 7 >= len(x0) else "trf")
+    # Each edge touches two windows only; telling the solver so keeps a long walk's solve
+    # near linear instead of a dense finite-difference Jacobian over every window.
+    from scipy.sparse import lil_matrix
+
+    sp = lil_matrix((7 * len(edges), len(x0)), dtype=np.int8)
+    for e, (a, b, _m, _w) in enumerate(edges):
+        for v in (a, b):
+            if v > 0:
+                sp[7 * e : 7 * e + 7, 7 * (v - 1) : 7 * v] = 1
+    sol = least_squares(resid, x0, method="trf", jac_sparsity=sp, ftol=1e-6)
     return unpack(sol.x)

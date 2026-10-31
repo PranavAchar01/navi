@@ -37,6 +37,8 @@ SETTLE_S = 600
 RETRIES = 3
 POLL_S = 120
 PY = [str(ROOT / ".venv/bin/python")]
+KEEP_STATES = 2  # the current version's volume and one to fall back on; older ones go to the Trash
+TRASH = Path.home() / ".Trash"
 NICE = ["caffeinate", "-i", "-s", "nice", "-n", "19", "taskpolicy", "-b"]
 
 
@@ -100,6 +102,16 @@ def publish(home: Path, flags: list[dict]) -> None:
     tmp.replace(f)
 
 
+def prune(rdir: Path, versions: list[str]) -> None:
+    """Every version keeps its index, flags and renders; only the newest KEEP_STATES keep the
+    big files (the volume, about 170 MB, and the full mesh, about 100 MB)."""
+    for v in versions[:-KEEP_STATES]:
+        ver = rdir / v
+        for f in [ver / "state.pt", *ver.glob("mesh-*.ply")]:
+            if f.is_file():
+                shutil.move(f, TRASH / f"{rdir.name}-{ver.name}-{f.name}")
+
+
 def fold(walk: Path, rdir: Path, a, state: dict) -> bool:
     cur = rdir / state["current"] if state.get("current") else None
     # A fresh dir per attempt: room_dense appends to cams.jsonl, so reusing a failed attempt's
@@ -157,6 +169,7 @@ def fold(walk: Path, rdir: Path, a, state: dict) -> bool:
         state["changes"] = flags
         state["versions"].append(ver.name)
         state["current"], state["tag"] = ver.name, tag
+        prune(rdir, state["versions"])
     return ok
 
 

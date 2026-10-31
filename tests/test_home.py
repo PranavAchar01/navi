@@ -54,6 +54,28 @@ def test_save_load_roundtrip(tmp_path):
     assert homemod.load(tmp_path).pins[0]["pos"] == [9, 9, 9]
 
 
+def test_fixed_home_keeps_views_and_stores_pins_in_its_frame(tmp_path, monkeypatch):
+    """A home built from the room mesh: a walk saves its pins in the mesh's frame and leaves
+    the mesh's views alone."""
+    monkeypatch.setenv("METASIGHT_HOME", str(tmp_path))
+    v = homemod.HomeView(
+        1.0, b"mesh", np.zeros((4, 5, 3), np.float16), np.ones((4, 5), bool), np.eye(4)
+    )
+    homemod.save(
+        homemod.Home([], [v], np.empty((0, 3), np.int32), 0, 1.0, {"mesh": "m.ply"}), tmp_path
+    )
+    e = engine()
+    e.home = homemod.load(tmp_path)
+    assert e.home.fixed == {"mesh": "m.ply"}
+    e._home_tf = (2.0, EYE, np.array([1.0, 0.0, 0.0]))  # mesh frame -> walk frame
+    e._home_prior = [pin(1, "keys", [1, 1, 1])]
+    e._home_placed = [pin(100001, "keys", [3, 2, 2])]
+    e._persist_home([0] * 8, [], [], [], [], np.eye(4), np.zeros((1, 3)), True)
+    back = homemod.load(tmp_path)
+    assert back.views[0].jpg == b"mesh" and back.fixed == {"mesh": "m.ply"}
+    assert back.pins[0]["label"] == "keys" and np.allclose(back.pins[0]["pos"], [1, 1, 1])
+
+
 def test_load_missing(tmp_path):
     assert homemod.load(tmp_path / "none") is None
 
@@ -222,3 +244,49 @@ def test_room_flags_are_spoken_once_when_near():
     e._near_flags(SimpleNamespace(pose=near))
     (said,) = e._drain_moved()
     assert said["change"] == "maybe_moved" and said["to"] == [4.0, 1.0, 0.0]
+
+
+def test_room_placement_needs_cameras_from_two_tries_that_agree():
+    import numpy as np
+
+    from metasight.align import apply_sim3
+    from metasight.memory import room_consensus
+
+    rng = np.random.default_rng(1)
+    out = rng.uniform(-2, 2, (24, 3))
+    rot = np.array([[0.0, 0, 1], [0, 1, 0], [-1, 0, 0]])
+    room = apply_sim3(out, 1.2, rot, np.array([1.0, 0, -2]))
+    room += rng.normal(0, 0.05, room.shape)
+    tries = np.repeat([1, 2, 3], 8)
+    room[16:] += [2.0, 0, 1.0]  # the third try landed in the wrong place
+    agree = room_consensus(out, room, tries)
+    assert agree is not None and agree[:16].all() and not agree[16:].any()
+    assert room_consensus(out[:8], room[:8], tries[:8]) is None  # one try confirms nothing
+
+
+def test_a_frame_matched_to_a_saved_view_lands_on_that_views_camera():
+    import cv2
+
+    from metasight.relocalize import STRIDE, RoomMatcher
+
+    h, w, f = 518, 294, 300.0
+    rng = np.random.default_rng(3)
+    img = np.full((h, w, 3), 200, np.uint8)
+    for _ in range(300):  # a poster wall: shapes give SIFT corners, noise does not
+        c = tuple(int(x) for x in rng.integers(0, 255, 3))
+        cv2.circle(
+            img, (int(rng.integers(0, w)), int(rng.integers(0, h))), int(rng.integers(3, 15)), c, -1
+        )
+    # A wall 2 m in front of a camera at (1, 0.5, -3) looking down +z.
+    v, u = np.mgrid[0:h:STRIDE, 0:w:STRIDE]
+    pose = np.eye(4)
+    pose[:3, 3] = [1.0, 0.5, -3.0]
+    pts = np.stack([(u - w / 2) / f * 2.0, (v - h / 2) / f * 2.0, np.full(u.shape, 2.0)], -1)
+    view = homemod.HomeView(
+        0.0, b"", (pts + pose[:3, 3]).astype(np.float16), np.ones(u.shape, bool), pose
+    )
+    m = RoomMatcher([img], [view])
+    assert np.allclose(np.diag(m.k)[:2], f, rtol=0.02)
+    hit = m.locate(img, [0])
+    assert hit is not None and np.linalg.norm(hit[0] - pose[:3, 3]) < 0.05 and hit[1] >= 40
+    assert m.locate(np.full_like(img, 128), [0]) is None  # nothing to match, no guess

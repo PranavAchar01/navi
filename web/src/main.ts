@@ -4,10 +4,11 @@ import { Source } from "./camera";
 import { MapView } from "./map3d";
 import { setupGlass } from "./glass";
 import { Net } from "./net";
-import { BeltCells, drawOverlay, drawRing } from "./overlay";
+import { BeltCells, EdgeArcs, type ScreenPin, drawOverlay, drawRing } from "./overlay";
 import { streamMic } from "./mic";
 import { listen, speak } from "./speech";
 import type { Answer, Belt, Device, Mode, PinJson, Safety } from "./types";
+import { answerGlow, guideBearing, isPerson, peopleBearings } from "./visual";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -25,6 +26,20 @@ const audio = new AudioCues();
 const source = new Source(video, net);
 let latest: Safety | null = null;
 let pins: PinJson[] = [];
+// The pin being guided to (selected or answered), and the edge arcs toward it and toward people.
+let target: PinJson | null = null;
+const arcs = new EdgeArcs();
+/** Guide to a pin, or stop guiding: the ribbon on the map floor and the arc on the screen edge. */
+function setGuideTarget(pin: PinJson | null, tell = true) {
+  if (tell && (pin?.id ?? null) !== (target?.id ?? null)) net.send({ type: "guide", pin_id: pin?.id ?? null });
+  target = pin;
+  map.setGuideTarget(pin);
+}
+/** People or voices around the wearer, as bearings; drawn only when someone reports them. */
+function setPeople(list: { bearingDeg: number }[]) {
+  arcs.setPeople(list);
+}
+net.on("people", (m) => setPeople(peopleBearings(m)));
 
 // ---------------------------------------------------------------- status chips
 const chipState = {
@@ -126,6 +141,7 @@ net.on("safety", (m) => {
     results.push({ t, s: m });
   }
   chipState.fps = m.fps;
+  if (m.found && target) setGuideTarget(null);
   fpv.setLiveYaw(m.yaw ?? null);
   belt.update(m);
   audio.update(m);
@@ -166,10 +182,28 @@ net.onCameraFrame(async (seq, jpeg) => {
   viewSeq = seq;
 });
 
+// Remembered things in view, as halos over the camera, from the live first-person pose.
+function screenPins(now: number): ScreenPin[] {
+  const glow = hotAt === null ? null : answerGlow(now - hotAt);
+  return fpv.project(pins.filter((p) => p.kind === "object")).map(({ pin, x, y, dist }) => ({
+    label: pin.label,
+    x,
+    y,
+    dist,
+    selected: pin.id === hotId,
+    bright: pin.id === hotId ? (glow?.bright ?? 0) : 0,
+    ring: pin.id === hotId ? (glow?.ring ?? null) : null,
+  }));
+}
+
 function frame(now: number) {
-  if (viewing) drawOverlay(overlay, disp.width, disp.height, bySeq.get(viewSeq) ?? latest);
-  else drawOverlay(overlay, video.videoWidth, video.videoHeight, syncedFrame(now));
-  drawRing(ring, chipState.belt, latest);
+  const mine = target ? (fpv.bearingTo(target.pos) ?? map.bearingTo(target.pos)) : null;
+  const bearing = latest?.guide ? guideBearing(latest.guide, mine) : mine;
+  arcs.setGuide(bearing);
+  const extra = { pins: screenPins(now), arcs };
+  if (viewing) drawOverlay(overlay, disp.width, disp.height, bySeq.get(viewSeq) ?? latest, false, extra);
+  else drawOverlay(overlay, video.videoWidth, video.videoHeight, syncedFrame(now), false, extra);
+  drawRing(ring, chipState.belt, latest, bearing);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
@@ -258,10 +292,11 @@ function ago(ts: number): string {
   return m < 60 ? `${m} min ago` : `${Math.round(m / 60)} h ago`;
 }
 let hotId: number | null = null;
+let hotAt: number | null = null; // when the selected pin answered a question
 function renderPins() {
   const list = $("pinlist");
   list.innerHTML = "";
-  for (const p of pins.filter((x) => x.kind === "object").sort((a, b) => b.ts - a.ts)) {
+  for (const p of pins.filter((x) => x.kind === "object" && !isPerson(x.label)).sort((a, b) => b.ts - a.ts)) {
     const li = document.createElement("li");
     if (p.id === hotId) li.className = "hot";
     li.innerHTML = `${p.thumb ? `<img alt="" src="data:image/jpeg;base64,${p.thumb}"/>` : ""}<div><b>${p.label}</b><span class="muted small">${ago(p.ts)}${p.near[0] ? " · near " + p.near[0] : ""}</span></div>`;
@@ -269,12 +304,15 @@ function renderPins() {
     list.appendChild(li);
   }
 }
-function select(p: PinJson) {
+function select(p: PinJson, answer = false) {
   hotId = p.id;
-  map.flyTo(p);
+  hotAt = answer ? performance.now() : null;
+  map.flyTo(p, answer);
+  setGuideTarget(p);
   setTab("map");
   renderPins();
 }
+map.onPick = (p) => select(p);
 net.on("pins", (m) => {
   pins = m.pins;
   map.setPins(pins);
@@ -288,14 +326,21 @@ function showAnswer(a: Answer) {
   $("answer-text").textContent = a.text;
   const thumb = $<HTMLImageElement>("answer-thumb");
   thumb.src = a.pin?.thumb ? `data:image/jpeg;base64,${a.pin.thumb}` : "";
+  thumb.hidden = !a.pin?.thumb;
+  // How long ago, always, from the newest sighting.
   $("answer-meta").textContent = a.pin
-    ? `${a.pin.label} · seen ${a.pin.seen}x · ${a.language ?? "template"}`
-    : "";
+    ? `${a.pin.label} · ${a.live ? "in view now" : `seen ${ago(a.pin.ts)}`} · ${a.pin.seen}x`
+    : a.live && a.label
+      ? `${a.label} · in view now`
+      : "";
+  $("answer-meta").title = a.language ?? "template";
   speak(a.text);
-  if (a.pin) select(a.pin);
+  if (a.pin) select(a.pin, true);
   else {
     hotId = null;
+    hotAt = null;
     map.clearHot();
+    setGuideTarget(null, false); // a live sighting has no pin; the server guides to it itself
   }
 }
 net.on("answer", showAnswer);
@@ -380,6 +425,7 @@ net.on("alert", (m) => {
   else if (m.kind === "shake_notice") openAlert("Are you okay?", m.message, true);
   else if (m.kind === "fall_escalate") openAlert("No answer", m.message + " Nothing was dialled.", false);
   else if (m.kind === "fall_cancelled") closeAlert();
+  else if ((m.kind === "moved" || m.kind === "maybe_moved") && m.message) speak(m.message);
 });
 $("alert-ok").addEventListener("click", () => {
   net.send({ type: "fall_ok" });
@@ -418,7 +464,15 @@ document.querySelectorAll<HTMLButtonElement>("#tabs button").forEach((b) => {
   b.addEventListener("click", () => setTab(b.dataset.tab!));
 });
 
+// ---------------------------------------------------------------- details
+// Debug readouts (status chips, the safety readout, the point count) live behind this toggle, so
+// the default screen is the camera, the blob and the ring.
+$("btn-details").addEventListener("click", (ev) => {
+  const on = document.documentElement.dataset.details !== "on";
+  document.documentElement.dataset.details = on ? "on" : "";
+  (ev.currentTarget as HTMLElement).setAttribute("aria-pressed", String(on));
+});
+
 setupGlass();
 renderChips();
 net.connect();
-  else if ((m.kind === "moved" || m.kind === "maybe_moved") && m.message) speak(m.message);

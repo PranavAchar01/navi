@@ -32,7 +32,7 @@ class FakeDetector:
 
 def make_loop():
     loop = SafetyLoop.__new__(SafetyLoop)
-    loop.s, loop._seg, loop._det = Settings(), None, FakeDetector()
+    loop.s, loop._seg, loop._det, loop._det_device = Settings(), None, FakeDetector(), None
     loop.scale, loop.plane, loop.plane_t, loop.floor_t = 1.0, None, 0.0, 0.0
     loop.path_hist, loop.drop_hist = deque(), deque(maxlen=4)
     # A floor that falls away below the horizon and a wall 2 m ahead above it.

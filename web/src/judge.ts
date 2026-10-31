@@ -4,6 +4,9 @@
 // with the same answer spelled in Braille while the wrist band plays it.
 
 import "./judge.css";
+import * as THREE from "three";
+import { PLYLoader } from "three/examples/jsm/loaders/PLYLoader.js";
+import { MapView } from "./map3d";
 import { Net } from "./net";
 import { drawOverlay } from "./overlay";
 import {
@@ -98,6 +101,33 @@ net.onCameraFrame(async (seq, jpeg) => {
   viewSeq = seq;
   lastFrameAt = performance.now();
   reach("walk");
+});
+
+// The room: the dense mesh every walk has folded into, drawn from the glasses' pose over the
+// picture, once the walk has been fitted to it.
+const roomCanvas = $<HTMLCanvasElement>("room");
+const room = new MapView(roomCanvas);
+room.setFirstPerson(true);
+room.setPointsVisible(false);
+let roomLoaded: Promise<unknown> | null = null;
+net.on("pose", (m) => {
+  room.setPose(m);
+  roomCanvas.classList.toggle("on", roomLoaded !== null && room.hasPose);
+});
+net.on("global_stats", (g) => {
+  const tf = g.home?.tf;
+  if (!tf) return;
+  roomLoaded ??= new PLYLoader().loadAsync("/api/room.ply").catch(() => (roomLoaded = null));
+  void roomLoaded.then((geo) => {
+    if (geo instanceof THREE.BufferGeometry) room.setRoomMesh(geo, tf);
+  });
+});
+const STRENGTHS = [0.6, 0.85, 0.3];
+let strength = 0;
+window.addEventListener("keydown", (e) => {
+  if (e.key !== "r" && e.key !== "R") return;
+  strength = (strength + 1) % STRENGTHS.length;
+  frameBox.style.setProperty("--room", String(STRENGTHS[strength]));
 });
 
 // Cover-fit with the picture's own aspect, so the overlay's contain-fit lands on it exactly. A

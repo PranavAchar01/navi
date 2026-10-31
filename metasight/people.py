@@ -311,6 +311,8 @@ class Conversation:
             "type": "people",
             "t": round(t, 2),
             "tracks": out,
+            # Just where people are, for the wearer's display and belt: bearings, never who.
+            "people": [{"bearing_deg": o["bearing"]} for o in out if not o["lost"]],
             "speaker": self.speaker,
             "voice": voice,
             "doa": None if doa_deg is None else round(doa_deg, 1),

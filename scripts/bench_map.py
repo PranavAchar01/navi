@@ -19,6 +19,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+from scipy.spatial.transform import Rotation
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -164,8 +165,12 @@ def load_walk(folder: Path, hz: float, seconds: float, policy: str = "slots"):
         p = json.loads(ln) if ln else {}
         if p.get("type") == "arpose":
             m = p["m"]  # column-major 4x4: translation in 12..14
-            gt.append([p["ts"] / 1000, m[12], m[13], m[14], 0, 0, 0, 1])
-    return frames, np.array(gt)
+            # ARKit's camera looks down -z with y up; OpenCV's looks down +z with y down.
+            rot = np.array(m).reshape(4, 4).T[:3, :3] @ np.diag([1.0, -1.0, -1.0])
+            q = Rotation.from_matrix(rot).as_quat()
+            gt.append([p["ts"] / 1000, m[12], m[13], m[14], *q])
+    # Glasses walks have no ARKit poses: no truth to score against.
+    return frames, np.array(gt) if gt else None
 
 
 def load_video(path: Path, hz: float, seconds: float, src_hfov: float | None):
@@ -325,12 +330,16 @@ def main():
     ap.add_argument("--no-objects", action="store_true")
     ap.add_argument("--tag", default="")
     ap.add_argument("--no-loops", action="store_true")
+    # A gyro made from the truth's rotation, with the faults a real one has (bias, noise, its
+    # own axes and clock), so the gyro stitching can be scored where the truth is known.
+    ap.add_argument("--gyro", action="store_true")
     ap.add_argument("--window", type=int, default=None)
     ap.add_argument("--overlap", type=int, default=None)
     ap.add_argument(
         "--intrinsics", action="store_true", help="give MapAnything the lens (TUM: per camera)"
     )
     ap.add_argument("--mode", default="home", help="home or outside (short-horizon settings)")
+    ap.add_argument("--solve", action="store_true", help="run the global solve at the end")
     a = ap.parse_args()
 
     s = Settings.load()
@@ -375,6 +384,38 @@ def main():
     )
     if a.mode == "outside":
         engine.set_mode("outside")
+    elif a.solve:
+        engine.load_home()  # the saved house (METASIGHT_HOME), as the app loads it
+    if a.gyro and (src / "motion.jsonl").exists():
+        from metasight.gyro import GyroTrack
+
+        # A glasses walk: the real gyro, on the phone's boot clock (calibrate finds the offset).
+        rows = [
+            r
+            for ln in (src / "motion.jsonl").read_text().splitlines()
+            if ln
+            for r in json.loads(ln)["s"]
+            if len(r) >= 7
+        ]
+        rows.sort(key=lambda r: r[0])
+        engine.gyro = GyroTrack()
+        engine.gyro.add(np.array([r[0] for r in rows]), np.array([r[4:7] for r in rows]))
+        # Both streams start when the glasses connect, so their first samples line up to within
+        # a fraction of a second; a free search over the whole walk can lock onto a far offset
+        # where the gyro barely overlaps the frames (004732: 351 s off, 4 deg error).
+        first = json.loads((src / "frames.jsonl").open().readline())["ts"] / 1000
+        engine.gyro.offset, engine.gyro.clock_known = rows[0][0] - first, True
+    elif a.gyro:
+        from metasight.gyro import GyroTrack, synth
+
+        rots = Rotation.from_quat(gt[:, 4:8]).as_matrix()
+        tilt = Rotation.from_rotvec([0.05, 0.03, -0.04]).as_matrix()
+        # The glasses report x right, y up, z toward the face; the camera has y down, z out.
+        gt_t, gw = synth(
+            gt[:, 0], rots, cam_from_gyro=np.diag([1.0, -1.0, -1.0]) @ tilt, offset=1234.5
+        )
+        engine.gyro = GyroTrack()
+        engine.gyro.add(gt_t, gw)
     kfs, ids, times = [], [], {}
     for n, (idx, t, img) in enumerate(frames):
         w, h = map_resolution(img.shape[1], img.shape[0])
@@ -389,6 +430,8 @@ def main():
         if len(chunk) < 2:
             break
         engine.process_window(chunk)
+    if a.solve:  # the end-of-walk solve, where the walk is placed in the saved house
+        engine.global_solve()
     est = {k: pose[:3, 3].copy() for k, pose in engine.poses.items()}
     run_s = time.perf_counter() - t0
 
@@ -404,6 +447,9 @@ def main():
         "infer_calls": runner.calls,
         "cache_hits": runner.hits,
         "win_scale": [round(float(w[0]), 3) for w in engine._sims],
+        "gyro_windows": engine.gyro_windows,
+        "gyro_cal_err_deg": engine.gyro and engine.gyro.cal_err_deg,
+        "gyro_offset": engine.gyro and engine.gyro.offset,
         "loops_closed": sum(r.get("result") == "closed" for r in engine.loops),
         "loop_checks": [r for r in engine.loops if "shift_m" in r][:12],
         "loop_results": {
@@ -413,12 +459,23 @@ def main():
     }
     trail = np.array([est[k] for k in sorted(est)])
     out.update(score_jumps(trail, [times[k] for k in sorted(est)], cuts))
+    extra = {}
+    out["home_fit"] = getattr(engine, "home_fit", None)
+    if engine._home_tf is not None:  # the walk placed in the saved house: its trail there too
+        hs, hr, ht = engine._home_tf
+        out_trail = np.array([engine._pos_out(x) for x in trail])  # live frame -> output frame
+        extra["est_home"] = (out_trail - ht) @ hr / hs
+        out["home_scale"] = round(float(hs), 3)
+    if getattr(engine, "_room_pairs", None):  # where each placed camera landed in the room
+        extra["room_seq"] = np.array(sorted(engine._room_pairs))
+        extra["room_pos"] = np.array([engine._room_pairs[q] for q in sorted(engine._room_pairs)])
     if gt is None:
         np.savez(
             ROOT / "bench" / "results" / f"traj-{src.stem}-{a.tag}.npz",
             est=trail,
             seq=np.array(sorted(est)),
             t=np.array([times[k] for k in sorted(est)]),
+            **extra,
         )
     al = gtp = None
     if gt is not None:

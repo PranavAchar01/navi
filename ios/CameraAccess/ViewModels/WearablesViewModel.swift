@@ -16,7 +16,10 @@
 
 import MWDATCore
 import Observation
+import OSLog
 import SwiftUI
+
+let glassesLog = Logger(subsystem: "com.pranavachar.metasightmeta", category: "glasses")
 
 @Observable
 @MainActor
@@ -33,6 +36,7 @@ final class WearablesViewModel {
   private let wearables: WearablesInterface
   private var deviceCompatibility: [DeviceIdentifier: Compatibility] = [:]
   private var compatibilityListenerTokens: [DeviceIdentifier: AnyListenerToken] = [:]
+  private var stateListenerTokens: [DeviceIdentifier: AnyListenerToken] = [:]
 
   init(wearables: WearablesInterface) {
     self.wearables = wearables
@@ -64,6 +68,7 @@ final class WearablesViewModel {
 
     deviceStreamTask = Task {
       for await devices in wearables.devicesStream() {
+        glassesLog.notice("devices: \(devices, privacy: .public)")
         self.devices = devices
         // Monitor compatibility for each device
         monitorDeviceCompatibility(devices: devices)
@@ -97,6 +102,9 @@ final class WearablesViewModel {
         }
       }
       compatibilityListenerTokens[deviceId] = token
+      stateListenerTokens[deviceId] = device.addDeviceStateListener { state in
+        glassesLog.notice("device \(deviceName, privacy: .public) state: \(String(describing: state), privacy: .public)")
+      }
     }
   }
 

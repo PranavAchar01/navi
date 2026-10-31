@@ -24,9 +24,11 @@
 		5E5E5E5E0000000000000612 /* SpatialBeeper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E5E5E5E0000000000000602 /* SpatialBeeper.swift */; };
 		5E5E5E5E0000000000000613 /* BeltAudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E5E5E5E0000000000000603 /* BeltAudio.swift */; };
 		5E5E5E5E0000000000000614 /* BeltBLE.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E5E5E5E0000000000000604 /* BeltBLE.swift */; };
+		5E5E5E5E00000000000007A2 /* ConversationAudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E5E5E5E00000000000007A1 /* ConversationAudio.swift */; };
+		5E5E5E5E00000000000007B2 /* FirstRun.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E5E5E5E00000000000007B1 /* FirstRun.swift */; };
 		5E5E5E5E00000000000009A4 /* ReflexGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E5E5E5E00000000000009A1 /* ReflexGeometry.swift */; };
 		5E5E5E5E00000000000009A5 /* PhoneReflex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E5E5E5E00000000000009A2 /* PhoneReflex.swift */; };
-		5E5E5E5E00000000000009A6 /* ReflexDepth.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = 5E5E5E5E00000000000009A3 /* ReflexDepth.mlpackage */; };
+		5E5E5E5E00000000000009A6 /* Models/ReflexDepth.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = 5E5E5E5E00000000000009A3 /* Models/ReflexDepth.mlpackage */; };
 		8F8F00782E8ACB4600A4BDAF /* WearablesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F8F00772E8ACB4500A4BDAF /* WearablesViewModel.swift */; };
 		8FD96B7F2E6F0A9800F56AB1 /* CameraAccessApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FD96B792E6F0A9800F56AB1 /* CameraAccessApp.swift */; };
 		8FD96B812E6F0A9800F56AB1 /* HomeScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FD96B722E6F0A9800F56AB1 /* HomeScreenView.swift */; };
@@ -61,8 +63,6 @@
 		E6DA451E2E79A63100E3F688 /* CardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6DA45172E79A63100E3F688 /* CardView.swift */; };
 		E6DA451F2E79A63100E3F688 /* MockDeviceKitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6DA451A2E79A63100E3F688 /* MockDeviceKitView.swift */; };
 		FACE0000000000000000FA02 /* TipRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACE0000000000000000FA01 /* TipRow.swift */; };
-		5E5E5E5E00000000000007B2 /* FirstRun.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E5E5E5E00000000000007B1 /* FirstRun.swift */; };
-		5E5E5E5E00000000000007A2 /* ConversationAudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E5E5E5E00000000000007A1 /* ConversationAudio.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -131,9 +131,11 @@
 		5E5E5E5E0000000000000602 /* SpatialBeeper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpatialBeeper.swift; sourceTree = "<group>"; };
 		5E5E5E5E0000000000000603 /* BeltAudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeltAudio.swift; sourceTree = "<group>"; };
 		5E5E5E5E0000000000000604 /* BeltBLE.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeltBLE.swift; sourceTree = "<group>"; };
+		5E5E5E5E00000000000007A1 /* ConversationAudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationAudio.swift; sourceTree = "<group>"; };
+		5E5E5E5E00000000000007B1 /* FirstRun.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstRun.swift; sourceTree = "<group>"; };
 		5E5E5E5E00000000000009A1 /* ReflexGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReflexGeometry.swift; sourceTree = "<group>"; };
 		5E5E5E5E00000000000009A2 /* PhoneReflex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneReflex.swift; sourceTree = "<group>"; };
-		5E5E5E5E00000000000009A3 /* ReflexDepth.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = Models/ReflexDepth.mlpackage; sourceTree = "<group>"; };
+		5E5E5E5E00000000000009A3 /* Models/ReflexDepth.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = Models/ReflexDepth.mlpackage; sourceTree = "<group>"; };
 		8F8F00772E8ACB4500A4BDAF /* WearablesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WearablesViewModel.swift; sourceTree = "<group>"; };
 		8FD96B6F2E6F0A9800F56AB1 /* CameraViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraViewModel.swift; sourceTree = "<group>"; };
 		8FD96B722E6F0A9800F56AB1 /* HomeScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeScreenView.swift; sourceTree = "<group>"; };
@@ -165,8 +167,6 @@
 		E6DA45182E79A63100E3F688 /* MockDeviceCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockDeviceCardView.swift; sourceTree = "<group>"; };
 		E6DA451A2E79A63100E3F688 /* MockDeviceKitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockDeviceKitView.swift; sourceTree = "<group>"; };
 		FACE0000000000000000FA01 /* TipRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TipRow.swift; sourceTree = "<group>"; };
-		5E5E5E5E00000000000007B1 /* FirstRun.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstRun.swift; sourceTree = "<group>"; };
-		5E5E5E5E00000000000007A1 /* ConversationAudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationAudio.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -245,7 +245,7 @@
 				5E5E5E5E0000000000000604 /* BeltBLE.swift */,
 				5E5E5E5E00000000000009A1 /* ReflexGeometry.swift */,
 				5E5E5E5E00000000000009A2 /* PhoneReflex.swift */,
-				5E5E5E5E00000000000009A3 /* ReflexDepth.mlpackage */,
+				5E5E5E5E00000000000009A3 /* Models/ReflexDepth.mlpackage */,
 				5E5E5E5E0000000000000103 /* BeltView.swift */,
 				5E5E5E5E0000000000000104 /* DemoLaunch.swift */,
 				5E5E5E5E0000000000000105 /* CameraSource.swift */,
@@ -472,8 +472,9 @@
 		CCCCCCCCCCCCCCCCCCCCCC /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
+				BuildIndependentTargetsInParallel = YES;
 				LastSwiftUpdateCheck = 2620;
-				LastUpgradeCheck = 1250;
+				LastUpgradeCheck = 2710;
 				TargetAttributes = {
 					5E5E5E5E0000000000000401 = {
 						CreatedOnToolsVersion = 26.2;
@@ -575,7 +576,7 @@
 				5E5E5E5E0000000000000614 /* BeltBLE.swift in Sources */,
 				5E5E5E5E00000000000009A4 /* ReflexGeometry.swift in Sources */,
 				5E5E5E5E00000000000009A5 /* PhoneReflex.swift in Sources */,
-				5E5E5E5E00000000000009A6 /* ReflexDepth.mlpackage in Sources */,
+				5E5E5E5E00000000000009A6 /* Models/ReflexDepth.mlpackage in Sources */,
 				5E5E5E5E0000000000000203 /* BeltView.swift in Sources */,
 				5E5E5E5E0000000000000204 /* DemoLaunch.swift in Sources */,
 				5E5E5E5E0000000000000205 /* CameraSource.swift in Sources */,
@@ -654,7 +655,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 8NB8M3C85F;
 				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = "";
 				INFOPLIST_FILE = CameraAccess/Info.plist;
@@ -664,7 +665,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.pranavachar.metasight;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pranavachar.metasightmeta;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -681,7 +682,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 8NB8M3C85F;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = CameraAccess/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
@@ -690,7 +691,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.pranavachar.metasight;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pranavachar.metasightmeta;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -702,20 +703,20 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 8NB8M3C85F;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MetaSightWatch/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "meta-sight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.pranavachar.metasight;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.pranavachar.metasightmeta;
 				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.pranavachar.metasight.watchkitapp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pranavachar.metasightmeta.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
@@ -732,20 +733,20 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 8NB8M3C85F;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MetaSightWatch/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "meta-sight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.pranavachar.metasight;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.pranavachar.metasightmeta;
 				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.pranavachar.metasight.watchkitapp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pranavachar.metasightmeta.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
@@ -770,7 +771,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.pranavachar.metasight.UITests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pranavachar.metasightmeta.UITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
@@ -796,7 +797,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.pranavachar.metasight.UITests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pranavachar.metasightmeta.UITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -822,7 +823,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.pranavachar.metasight.Tests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pranavachar.metasightmeta.Tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -851,7 +852,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.pranavachar.metasight.Tests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pranavachar.metasightmeta.Tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -921,6 +922,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -975,6 +977,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				VALIDATE_PRODUCT = YES;

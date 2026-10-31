@@ -156,6 +156,16 @@ class Heading:
         bearing = math.degrees(math.atan2(float(v @ right), float(v @ fwd)))
         return float(math.hypot(v[0], v[2])), bearing
 
+    def ahead(self, dist_m: float, bearing_deg: float) -> np.ndarray | None:
+        """The map point `dist_m` away at `bearing_deg` from the head (the inverse of `to`)."""
+        yaw = self.yaw
+        if self.pos is None or yaw is None:
+            return None
+        b = math.radians(bearing_deg)
+        fwd = np.array([math.sin(yaw), 0.0, math.cos(yaw)])
+        right = np.cross(fwd, np.array([0.0, 1.0, 0.0]))
+        return self.pos + dist_m * (math.cos(b) * fwd + math.sin(b) * right)
+
     def _learn_gain(self, heading: float, raw: float) -> None:
         prev, self.last_anchor = self.last_anchor, (heading, raw)
         if prev is None:

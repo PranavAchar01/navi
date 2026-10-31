@@ -44,6 +44,7 @@ final class GlassesSensors {
 
   /// Call once the session reaches `.started`. Safe to call again after a pause.
   func attach(to session: DeviceSession) {
+    guard self.session !== session else { return }
     self.session = session
     attachMotion(to: session)
     Task { await attachSpeechIfPermitted() }

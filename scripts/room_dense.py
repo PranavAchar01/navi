@@ -27,6 +27,10 @@ from room_mesh import H, W, level, load_model, pool_frames, reconstruct, render,
 
 NEW, ANCHORS = 112, 16  # 128 views a chunk: about two and a half minutes on the mini
 FIT_MAX_M = 0.06  # anchors farther than this from their own room position: chunk is misplaced
+# A voxel's weight stops growing here (about 40 frames seen from a metre), so the running average
+# keeps listening: a chair moved since the seed walks is carved away and redrawn after a walk or
+# two past it, where uncapped weights from hundreds of old frames would outvote any new walk.
+W_MAX = 40.0
 
 
 def embed(rgbs: list[np.ndarray]) -> np.ndarray:
@@ -123,19 +127,32 @@ class Volume:
         ci, wc = idx[close], wt[close, None]
         c = torch.tensor(rgb, device="mps", dtype=torch.float32)[v[close], u[close]]
         self.col[ci] = (self.col[ci] * self.w[ci, None] + c * wc) / (self.w[ci, None] + wc)
-        self.w[idx] = w0 + wt
+        self.w[idx] = (w0 + wt).clamp(max=W_MAX)
 
     def save(self, path: Path, **extra) -> None:
-        """Checkpoint, written whole then renamed so a crash mid-write leaves the last one."""
+        """Checkpoint, written whole then renamed so a crash mid-write leaves the last one. Only
+        the voxels a frame has reached, in half floats and byte colours: a quarter of the dense
+        volume, with the mesh unchanged to the eye (tsdf steps of 0.001 of a 6 cm band)."""
         tmp = path.with_suffix(".tmp")
-        state = dict(tsdf=self.tsdf.cpu(), w=self.w.cpu(), col=self.col.cpu(), **extra)
+        mask = self.w > 0
+        seen = torch.nonzero(mask).squeeze(1)
+        state = dict(
+            seen=np.packbits(mask.cpu().numpy()),
+            tsdf=self.tsdf[seen].half().cpu(),
+            w=self.w[seen].half().cpu(),
+            col=self.col[seen].round().clamp(0, 255).byte().cpu(),
+            **extra,
+        )
         torch.save(state, tmp)
         tmp.replace(path)
 
     def load(self, path: Path) -> dict:
         state = torch.load(path, weights_only=False)
-        self.tsdf, self.w = state.pop("tsdf").to("mps"), state.pop("w").to("mps")
-        self.col = state.pop("col").to("mps")
+        mask = np.unpackbits(state.pop("seen"), count=len(self.w)).astype(bool)
+        seen = torch.from_numpy(np.flatnonzero(mask)).to("mps")
+        self.tsdf[seen] = state.pop("tsdf").float().to("mps")
+        self.w[seen] = state.pop("w").float().to("mps").clamp(max=W_MAX)
+        self.col[seen] = state.pop("col").float().to("mps")
         return state
 
     def mesh(self, min_weight: float):

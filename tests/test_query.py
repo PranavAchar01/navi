@@ -288,23 +288,97 @@ def test_a_live_sighting_beats_an_old_memory():
     res = Server._answer_sync(srv, "where is my laptop")
     assert "hours ago" in res["text"]
 
-    # Seen by the camera 40 s ago, this walk: that leads, and the six-hour-old place memory has
-    # comes with it. Never "I don't have its place" while it has one (morning check run 13).
+    # Seen by the camera 40 s ago, this walk: the sighting is the answer, never the six-hour-old
+    # place (drafts of 10-29: "laptop near the TV, 7 hours ago" with the laptop in the walk).
     srv.live_last = {"laptop": time.time() - 40}
     res = Server._answer_sync(srv, "where is my laptop")
     assert res["text"] == (
-        "I saw your laptop a moment ago; it was last placed near the TV, 6 hours ago."
+        "I saw your laptop a moment ago, but I don't have its place on the map yet."
     )
-    assert res["pin"]["id"] == old.id
-    store.pins.clear()
-    res = Server._answer_sync(srv, "where is my laptop")
-    assert (
-        res["text"] == "I saw your laptop a moment ago, but I don't have its place on the map yet."
-    )
-    store.pins[old.id] = old
+    assert res["pin"] is None and "hours" not in res["text"]
     srv.live_last = {"laptop": time.time() - 300}
     res = Server._answer_sync(srv, "where is my laptop")
-    assert res["text"].startswith("I saw your laptop 5 minutes ago")
+    assert res["text"].startswith("I saw your laptop 5 minutes ago") and "hours" not in res["text"]
+
+
+def test_a_sighting_a_moment_ago_still_counts_as_in_view():
+    """The detector blinks: a laptop in frame 2 s before the question is in view, not memory."""
+    import time
+    from types import SimpleNamespace
+
+    from metasight.server import Server
+
+    store = PinStore()
+    store.pins[1] = Pin(
+        1,
+        "laptop",
+        "object",
+        [2.0, 1.0, -3.0],
+        time.time() - 7 * 3600,
+        time.time() - 7 * 3600,
+        3,
+        0.9,
+        ["TV"],
+    )
+    now = time.time()
+    srv = SimpleNamespace(
+        pins=store,
+        language=SimpleNamespace(name="template"),
+        pose=None,
+        map_pose_ts=0.0,
+        guide=None,
+        live_seen=(now - 2, [("laptop", 3.0, 1.4)]),
+        live_last={"laptop": now - 2},
+        live_where={"laptop": (now - 2, 3.0, 1.4, None)},
+    )
+    res = Server._answer_sync(srv, "where is my laptop")
+    assert res["live"] and "in view now" in res["text"] and "hours" not in res["text"]
+
+
+def test_a_placed_sighting_answers_with_its_direction_from_here():
+    """Seen 40 s ago with a fresh pose: the answer points from where the wearer is now."""
+    import time
+    from types import SimpleNamespace
+
+    import numpy as np
+
+    from metasight.heading import Heading
+    from metasight.server import Server
+
+    store = PinStore()
+    store.pins[1] = Pin(
+        1,
+        "backpack",
+        "object",
+        [5.0, 0.0, 5.0],
+        time.time() - 7 * 3600,
+        time.time() - 7 * 3600,
+        3,
+        0.9,
+        ["sink"],
+    )
+    hd = Heading(60.0)
+    hd.track(np.zeros(3), np.array([0.0, 0.0, 1.0]))  # at the origin, facing +z
+    seen_at = hd.ahead(2.0, 0.0)  # it was 2 m straight ahead
+    assert np.allclose(hd.to(seen_at), (2.0, 0.0))
+    hd.track(np.zeros(3), np.array([1.0, 0.0, 0.0]))  # turned a quarter: now off to one side
+    side = "right" if hd.to(seen_at)[1] > 0 else "left"
+    now = time.time()
+    srv = SimpleNamespace(
+        pins=store,
+        language=SimpleNamespace(name="template"),
+        pose=None,
+        map_pose_ts=0.0,
+        guide=None,
+        heading=hd,
+        live_seen=(now - 40, []),
+        live_last={"backpack": now - 40},
+        live_where={"backpack": (now - 40, 0.0, 2.0, seen_at)},
+        guide_pose_fresh=lambda t: True,
+    )
+    res = Server._answer_sync(srv, "where is my backpack")
+    assert res["text"].startswith("I saw your backpack a moment ago, about 2 metres")
+    assert side in res["text"] and "sink" not in res["text"] and "hours" not in res["text"]
 
 
 def test_a_weak_glimpse_this_walk_is_offered_as_a_maybe():
@@ -336,3 +410,65 @@ def test_a_weak_glimpse_this_walk_is_offered_as_a_maybe():
     assert res["text"] == "I think I glimpsed your backpack by the desk 1 minute ago."
     assert srv.guide["pin"] == glimpse.id
     assert store.latest("backpack").score == 0.9  # the sure pin itself has not moved
+
+
+def test_a_sighting_without_a_pose_is_placed_by_what_was_beside_it():
+    """Replay 131247 has no poses: "where is my laptop" said "no place on the map yet" although
+    the camera saw it by the TV, where the saved pin has it."""
+    import time
+    from types import SimpleNamespace
+
+    from metasight.server import Server, beside_in_frame
+
+    frame = [("laptop", 3.0, 1.4), ("person", 2.0, 2.0), ("cup", 4.0, 1.3), ("TV", -8.0, 2.5)]
+    assert beside_in_frame("laptop", 3.0, frame) == "TV"  # the cup is carried, never a place
+    assert beside_in_frame("laptop", 3.0, [("laptop", 3.0, 1.4), ("door", 4.0, 3.0)]) == "door"
+    assert beside_in_frame("laptop", 3.0, [("laptop", 3.0, 1.4), ("cup", 4.0, 1.3)]) is None
+
+    old = time.time() - 7 * 3600
+    store = PinStore()
+    store.pins[1] = Pin(1, "laptop", "object", [2.0, 1.0, -3.0], old, old, 3, 0.9, ["TV"])
+    now = time.time()
+    srv = SimpleNamespace(
+        pins=store,
+        language=SimpleNamespace(name="template"),
+        pose=None,
+        map_pose_ts=0.0,
+        guide=None,
+        live_seen=(now - 20, []),
+        live_last={"laptop": now - 20},
+        live_where={"laptop": (now - 20, 3.0, 1.4, None, "TV")},
+        guide_pose_fresh=lambda t: False,
+    )
+    res = Server._answer_sync(srv, "where is my laptop")
+    assert res["text"] == "I saw your laptop a moment ago, by the TV."
+    assert res["pin"]["id"] == 1 and srv.guide["pin"] == 1  # the same place: fly to the pin
+
+    srv.live_where = {"laptop": (now - 20, 3.0, 1.4, None, "bed")}  # moved: not the old place
+    res = Server._answer_sync(srv, "where is my laptop")
+    assert res["text"] == "I saw your laptop a moment ago, by the bed."
+    assert res["pin"] is None and "hours" not in res["text"]
+
+
+def test_a_weak_local_keys_pin_is_not_given_as_the_keys():
+    """The saved house's keys pin (score 0.19 from the local finder, 0.6 m from the keyboard)
+    is held back on purpose: personal items need SAM 3.1 or a sure local score."""
+    import time
+    from types import SimpleNamespace
+
+    from metasight.server import Server
+
+    t = time.time() - 3600
+    store = PinStore(items=["keys"])
+    store.pins[12] = Pin(12, "keys", "object", [0.5, 1.1, -0.3], t, t, 13, 0.19, ["sink"])
+    srv = SimpleNamespace(
+        pins=store,
+        language=SimpleNamespace(name="template"),
+        pose=None,
+        map_pose_ts=0.0,
+        guide=None,
+        live_seen=(0.0, []),
+        live_last={},
+    )
+    res = Server._answer_sync(srv, "where are my keys")
+    assert res["pin"] is None and res.get("skipped_pin_id") == 12

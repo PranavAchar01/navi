@@ -16,6 +16,6 @@ export default defineConfig({
     outDir: "dist",
     sourcemap: false,
     // The judge view is a second page: one 16:9 screen for a laptop or a TV.
-    rollupOptions: { input: { main: "index.html", judge: "judge.html" } },
+    rollupOptions: { input: { main: "index.html", judge: "judge.html", capture: "capture.html" } },
   },
 });

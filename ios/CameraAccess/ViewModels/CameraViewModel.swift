@@ -472,9 +472,9 @@ final class CameraViewModel {
   }
 
   private func handleSessionStateChange(_ state: DeviceSessionState) {
+    glassesLog.notice("session state: \(String(describing: state), privacy: .public)")
     sessionState = state
     if state == .started, let session = deviceSession {
-      sensors.attach(to: session)
       if let id = deviceSelector.activeDevice, wearables.deviceForIdentifier(id)?.supportsDisplay() == true {
         glassesDisplay.attach(to: session)
       }
@@ -488,6 +488,7 @@ final class CameraViewModel {
   }
 
   private func handleSessionError(_ error: DeviceSessionError) {
+    glassesLog.error("session error: \(String(describing: error), privacy: .public)")
     // Backgrounding the app intentionally ends the preview session; the SDK can
     // still emit teardown errors while that stop converges, and surfacing those
     // would show a false "something went wrong" alert on return.
@@ -555,8 +556,12 @@ final class CameraViewModel {
   }
 
   private func handleStreamStateChange(_ state: StreamState) {
+    glassesLog.notice("stream state: \(String(describing: state), privacy: .public)")
     streamState = state
     if state == .streaming {
+      // Motion and speech go on only once the camera is live: attached at session
+      // start they held the glasses and the stream sat in waitingForDevice.
+      if let session = deviceSession { sensors.attach(to: session) }
       announceGlassesWalk()
     }
     if state == .stopped {
@@ -623,6 +628,7 @@ final class CameraViewModel {
   }
 
   private func handleStreamError(_ error: StreamError) {
+    glassesLog.error("stream error: \(String(describing: error), privacy: .public)")
     // Same bounded suppression window as `handleSessionError`: hide only the
     // expected teardown noise from an intentional background-driven stop.
     guard !isStoppingForBackground else { return }

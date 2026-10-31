@@ -49,7 +49,9 @@ class Settings:
     depth_width: int = 518
     depth_height: int = 294
     detector_imgsz: int = 320
-    depth_scale: float = 1.0  # starting live-depth scale; ultra-wide lenses read about 0.6
+    # Starting live-depth scale. The glasses read about 2.5x too far: against the room mesh on 554
+    # frames of 7 walks, 0.40 misses 0 of 513 near cues (1.0 missed 121). bench/mesh_reflex.py
+    depth_scale: float = 0.40
     eye_height_m: float = 1.37  # camera height above the floor; the live depth's ruler
     hfov_deg: float = 105.0  # horizontal field of view of the camera feeding the safety loop
     map_intrinsics: bool = False  # tell MapAnything the lens (hfov_deg) instead of letting it guess

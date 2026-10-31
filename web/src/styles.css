@@ -14,6 +14,14 @@
   --warn: #ffd166;
   --fail: #ff6b6b;
   --ang: 135deg;
+  /* What things are (docs/VISUAL-DECISIONS.md); src/visual.ts mirrors these for the canvases. */
+  --danger: rgb(255 72 72);
+  --caution: rgb(255 190 70);
+  --memory: rgb(92 225 230);
+  --guide: rgb(140 245 210);
+  --person: rgb(200 185 255);
+  --you: rgb(255 255 255);
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -107,12 +115,24 @@ p { margin: 0; }
 .chip.ok i { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
 .chip.live i { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
 .chip.bad i { background: var(--fail); box-shadow: 0 0 8px var(--fail); }
+/* Header: brand, mode and view; status chips and other debug readouts sit behind "Details". */
+.brand-sub { display: none; }
+.chips, .readout, #map-count { display: none; }
+[data-details="on"] .chips { display: flex; }
+[data-details="on"] .readout, [data-details="on"] #map-count { display: inline-block; }
+.details-btn {
+  margin-left: auto; border: 0; background: none; cursor: pointer; padding: 5px 14px; border-radius: 999px;
+  color: var(--ink-faint); font-size: 12.5px; min-height: 30px; transition: background 180ms var(--ease), color 180ms var(--ease);
+}
+.details-btn:hover { color: var(--ink-soft); }
+.details-btn[aria-pressed="true"] { color: #fff; background: rgb(255 255 255 / 14%); }
+[data-details="on"] .details-btn { margin-left: 0; }
 
 .seg { --r: 999px; --blur: 8px; display: inline-flex; padding: 3px; gap: 2px; box-shadow: inset 0 1px 2px rgb(0 0 0 / 30%); background: rgb(255 255 255 / 8%); }
 .seg::before, .seg::after { display: none; }
 .seg button {
   border: 0; background: none; padding: 5px 16px; border-radius: 999px; cursor: pointer;
-  color: var(--ink-soft); font-weight: 500; min-height: 30px; transition: background 160ms, color 160ms;
+  color: var(--ink-soft); font-weight: 500; min-height: 30px; transition: background 180ms var(--ease), color 180ms var(--ease);
 }
 .seg button[aria-pressed="true"], .seg button.on {
   background: linear-gradient(180deg, rgb(255 255 255 / 34%), rgb(255 255 255 / 16%));
@@ -125,12 +145,12 @@ p { margin: 0; }
   background: linear-gradient(180deg, #8ecbff, #3f86ff); color: #04122e; border: 0; border-radius: 999px;
   padding: 0 22px; font-weight: 700; cursor: pointer; min-height: 42px;
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 70%), 0 6px 20px rgb(63 134 255 / 50%);
-  transition: transform 120ms, filter 120ms;
+  transition: transform 160ms var(--ease), filter 160ms var(--ease);
 }
 .primary:active { transform: scale(0.97); filter: brightness(0.94); }
 .ghost {
   --r: 999px; --blur: 12px; border: 0; padding: 0 16px; cursor: pointer; min-height: 38px;
-  display: inline-flex; align-items: center; color: #fff; font-weight: 500; transition: transform 120ms;
+  display: inline-flex; align-items: center; color: #fff; font-weight: 500; transition: transform 160ms var(--ease);
 }
 .ghost:active { transform: scale(0.97); }
 .ghost[aria-pressed="true"] { box-shadow: inset 0 1px 0 rgb(255 255 255 / 55%), 0 0 0 1.5px var(--accent), 0 0 22px rgb(109 182 255 / 45%); }
@@ -166,30 +186,42 @@ p { margin: 0; }
 
 .belt { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; flex: none; }
 .cell { --r: 16px; --blur: 12px; padding: 7px 9px 9px; }
-/* The motor under each cell, driven by the belt's telemetry: the dot is the vibration. */
-.cell { position: relative; --duty: 0; }
+/* The motor under each cell, driven by the belt's telemetry: the dot is the vibration. The cell
+   glows in the obstacle colours, as bright as the motor runs, so the screen and the waist agree. */
+.cell {
+  position: relative; --duty: 0; --glow: 255 190 70;
+  transition: box-shadow 200ms var(--ease), background 200ms var(--ease), opacity 200ms var(--ease);
+}
+.cell.slow, .cell.fast, .cell.solid, .cell.guide {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 55%),
+    inset 0 0 0 1px rgb(var(--glow) / calc(var(--duty) * 70%)),
+    0 0 calc(var(--duty) * 26px) rgb(var(--glow) / calc(var(--duty) * 55%)),
+    0 10px 32px rgb(3 6 22 / 38%);
+}
+.cell.fast, .cell.solid { --glow: 255 72 72; }
+.cell.guide { --glow: 140 245 210; }
+.cell.lost { --glow: 170 120 255; }
 .cell .motor {
   position: absolute; top: 8px; right: 8px; width: 9px; height: 9px; border-radius: 50%;
   background: rgb(255 255 255 / calc(18% + var(--duty) * 82%));
-  box-shadow: 0 0 calc(var(--duty) * 16px) calc(var(--duty) * 3px) rgb(255 200 90 / calc(var(--duty) * 90%));
+  box-shadow: 0 0 calc(var(--duty) * 16px) calc(var(--duty) * 3px) rgb(var(--glow) / calc(var(--duty) * 90%));
   transform: scale(calc(0.8 + var(--duty) * 0.6));
+  transition: transform 150ms var(--ease);
 }
-.cell.fast .motor, .cell.solid .motor { box-shadow: 0 0 calc(var(--duty) * 16px) calc(var(--duty) * 3px) rgb(255 90 90 / calc(var(--duty) * 90%)); }
 .cell.unknown { opacity: 0.55; }
 .cell.unknown b { font-size: 12px; color: var(--ink-soft); }
-.cell.lost .motor { box-shadow: 0 0 calc(var(--duty) * 16px) calc(var(--duty) * 3px) rgb(170 120 255 / 90%); }
+.cell.lost .motor { box-shadow: 0 0 calc(var(--duty) * 16px) calc(var(--duty) * 3px) rgb(var(--glow) / 90%); }
 .cell b { display: block; font-family: var(--font-mono); font-weight: 500; font-size: 14px; }
 .cell span { display: block; font-size: 10px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; padding-right: 12px; }
 .cell span em { font-style: normal; font-weight: 700; color: var(--ink); margin-right: 4px; }
 .cell .bar { height: 4px; border-radius: 2px; background: rgb(255 255 255 / 16%); margin-top: 5px; overflow: hidden; }
-.cell .bar i { display: block; height: 100%; width: 0; background: var(--ok); transition: width 90ms linear; border-radius: 2px; }
-.cell.slow .bar i { background: var(--warn); }
-.cell.guide .motor { box-shadow: 0 0 calc(var(--duty) * 16px) calc(var(--duty) * 3px) rgb(90 200 255 / 90%); }
-.cell.fast .bar i, .cell.solid .bar i { background: var(--fail); }
-.cell.solid {
-  background: linear-gradient(160deg, rgb(255 107 107 / 46%), rgb(255 107 107 / 16%));
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 55%), 0 0 26px rgb(255 107 107 / 45%), 0 10px 32px rgb(3 6 22 / 38%);
-}
+/* Nothing green for a clear path: a quiet bar, coloured only while its motor runs. */
+.cell .bar i { display: block; height: 100%; width: 0; background: rgb(255 255 255 / 45%); transition: width 180ms var(--ease), background 200ms var(--ease); border-radius: 2px; }
+.cell.slow .bar i { background: var(--caution); }
+.cell.guide .bar i { background: var(--guide); }
+.cell.fast .bar i, .cell.solid .bar i { background: var(--danger); }
+.cell.solid { background: linear-gradient(160deg, rgb(255 72 72 / 40%), rgb(255 72 72 / 14%)); }
 .tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .demo summary { --r: 999px; list-style: none; cursor: pointer; padding: 7px 16px; color: var(--ink-soft); }
 .demo summary::-webkit-details-marker { display: none; }
@@ -208,7 +240,7 @@ p { margin: 0; }
   padding: 6px 16px 6px 6px; transition: transform 160ms;
 }
 .pinlist li:hover { transform: translateY(-2px); }
-.pinlist li.hot { box-shadow: inset 0 1px 0 rgb(255 255 255 / 60%), 0 0 0 1.5px var(--accent), 0 0 26px rgb(109 182 255 / 50%); }
+.pinlist li.hot { box-shadow: inset 0 1px 0 rgb(255 255 255 / 60%), 0 0 0 1.5px var(--memory), 0 0 26px rgb(92 225 230 / 45%); }
 .pinlist img { width: 42px; height: 42px; object-fit: cover; border-radius: 14px; background: rgb(255 255 255 / 12%); }
 .pinlist b { display: block; font-weight: 600; line-height: 1.2; }
 
@@ -226,19 +258,41 @@ p { margin: 0; }
   background: rgb(255 255 255 / 14%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 40%);
 }
 .mic.on { background: var(--accent); color: #04122e; box-shadow: 0 0 22px var(--accent); }
-.answer { --r: 26px; --blur: 22px; display: flex; gap: 12px; align-items: center; padding: 12px 18px 12px 12px; }
+.answer {
+  --r: 26px; --blur: 22px; display: flex; gap: 12px; align-items: center; padding: 12px 18px 12px 12px;
+  animation: rise 220ms var(--ease);
+}
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+.answer #answer-meta { color: rgb(92 225 230 / 85%); }
 .answer img { width: 54px; height: 54px; object-fit: cover; border-radius: 16px; }
 .answer img:not([src]), .answer img[src=""] { display: none; }
 .answer p:first-child { font-size: 15.5px; font-weight: 500; line-height: 1.35; }
 
-/* ---- alert */
+/* ---- alert: the fall check-in. Full screen and calm: warm glass, large type, two big buttons,
+   never red. */
 .alert {
-  position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 20px;
-  background: rgb(4 8 22 / 52%); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 24px;
+  background: radial-gradient(80% 70% at 50% 40%, rgb(70 46 24 / 62%), rgb(18 12 8 / 78%));
+  -webkit-backdrop-filter: blur(22px) saturate(1.2); backdrop-filter: blur(22px) saturate(1.2);
+  animation: fade 240ms var(--ease);
 }
-.alert-card { --r: 34px; --blur: 30px; padding: 26px; max-width: 440px; width: 100%; display: flex; flex-direction: column; gap: 10px; }
-.alert-card h2 { font-size: 28px; letter-spacing: -0.035em; }
-.alert-card .primary { font-size: 17px; min-height: 48px; padding: 0 26px; }
+@keyframes fade { from { opacity: 0; } }
+.alert-card {
+  --r: 40px; --blur: 30px; padding: 40px 36px 32px; max-width: 620px; width: 100%;
+  display: flex; flex-direction: column; gap: 14px; text-align: center;
+  background: linear-gradient(160deg, rgb(255 236 210 / 22%), rgb(255 220 180 / 6%) 46%, rgb(255 230 200 / 12%)), rgb(48 32 18 / 46%);
+}
+.alert-card h2 { font-size: clamp(36px, 7vw, 52px); line-height: 1.05; letter-spacing: -0.035em; }
+.alert-card #alert-text { font-size: clamp(19px, 3.4vw, 23px); line-height: 1.4; color: rgb(255 246 235 / 88%); }
+.alert-card #alert-count { font-size: 15px; }
+.alert-card .row { flex-direction: column; gap: 12px; margin-top: 10px; }
+.alert-card .primary, .alert-card .ghost {
+  width: 100%; justify-content: center; font-size: 22px; font-weight: 700; min-height: 72px; padding: 0 28px; border-radius: 999px;
+}
+.alert-card .primary {
+  background: linear-gradient(180deg, #fff1dc, #ffd7a3); color: #2a1806;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 80%), 0 8px 26px rgb(255 190 120 / 35%);
+}
 
 /* ---- first person first: the camera fills the window, the 3D map is a corner minimap */
 @media (min-width: 901px) {
@@ -257,11 +311,19 @@ p { margin: 0; }
   .stage video { opacity: 0; }
   .hud { top: 84px; bottom: auto; left: 16px; }
   .belt, .tools { position: relative; z-index: 3; }
+  /* The answer card sits between the tool row on the left and the minimap on the right. The bar
+     is centred with margins, not translate, so the card is placed against the window. */
+  .ask { left: 0; right: 0; margin: 0 auto; translate: none; }
+  .ask .answer {
+    position: fixed; left: 384px; right: calc(28px + min(380px, 28vw)); bottom: calc(80px + env(safe-area-inset-bottom));
+  }
 }
 
 @media (max-width: 900px) {
-  .brand-sub, .chips { display: none; }
+  .brand-sub, .chips, [data-details="on"] .chips { display: none; }
   .brand { font-size: 17px; }
+  .details-btn { flex: none; width: 30px; padding: 0; font-size: 0; margin-left: 0; }
+  .details-btn::after { content: "\2022\2022\2022"; font-size: 9px; letter-spacing: 1px; }
   .topbar { justify-content: space-between; }
   .readout { max-width: calc(100vw - 150px); white-space: normal; font-size: 10px; }
   .tabs { display: inline-flex; }
@@ -279,8 +341,15 @@ p { margin: 0; }
   .belt { grid-template-columns: repeat(4, 1fr); }
   .ask { bottom: calc(10px + env(safe-area-inset-bottom)); }
   .pinlist { bottom: 84px; }
+  /* While an answer shows, the belt, tools and pin list move up to make room for it. */
+  .app:has(#answer:not([hidden])) .grid { padding-bottom: 172px; }
+  .app:has(#answer:not([hidden])) .pinlist { bottom: 182px; }
   .start h1 { font-size: 27px; }
   .start { background: rgb(5 7 15 / 55%); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+}
+@media (max-width: 420px) {
+  .topbar { gap: 6px; }
+  .seg button { padding: 5px 9px; }
 }
 @media (prefers-reduced-transparency: reduce) {
   .glass, .cell, .pinlist li, .chip, .readout, .seg, .pill { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(24 30 56 / 92%); }

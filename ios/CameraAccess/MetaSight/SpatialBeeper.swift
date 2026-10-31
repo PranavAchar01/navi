@@ -30,8 +30,8 @@ final class SpatialBeeper {
 
   static let sampleRate = 44_100.0
 
-  /// Persisted. Quiet by default would hide the cue entirely for most people, but it is the
-  /// safe start for the most sensitive; the picker is on the camera screen.
+  /// Persisted. Silent by default while the home is being mapped; the picker is on the
+  /// camera screen and in Settings.
   var volume: BeepVolume {
     didSet { UserDefaults.standard.set(volume.rawValue, forKey: BeepVolume.defaultsKey) }
   }
@@ -52,7 +52,7 @@ final class SpatialBeeper {
 
   init(output: Output = .device, defaults: UserDefaults = .standard) {
     self.output = output
-    volume = BeepVolume(rawValue: defaults.string(forKey: BeepVolume.defaultsKey) ?? "") ?? .normal
+    volume = BeepVolume(rawValue: defaults.string(forKey: BeepVolume.defaultsKey) ?? "") ?? .silent
     switch output {
     case .device:
       canSound = !Self.isSimulatorOrMac
@@ -102,7 +102,7 @@ final class SpatialBeeper {
   }
 
   func play(_ plan: BeepPlan) {
-    guard canSound, let buffer = buffers[plan.kind] else { return }
+    guard canSound, volume != .silent, let buffer = buffers[plan.kind] else { return }
     played.append(plan)
     if played.count > 64 { played.removeFirst(32) }
     guard startEngine() else { return }

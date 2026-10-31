@@ -58,6 +58,30 @@ def test_watch_retry_gets_a_fresh_version(tmp_path, monkeypatch):
     assert sorted(p.name for p in tmp_path.glob("v*")) == ["v002", "v003"]
 
 
+def test_old_versions_lose_only_their_big_files(tmp_path, monkeypatch):
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+    import room_watch
+
+    trash = tmp_path / "trash"
+    trash.mkdir()
+    monkeypatch.setattr(room_watch, "TRASH", trash)
+    rdir = tmp_path / "bedroom"
+    for v in ("v001", "v002", "v003"):
+        for f in ("state.pt", "mesh-s1.ply", "objects-s1.json"):
+            (rdir / v).mkdir(parents=True, exist_ok=True)
+            (rdir / v / f).write_text(v)
+    room_watch.prune(rdir, ["v001", "v002", "v003"])
+    assert sorted(p.name for p in (rdir / "v001").iterdir()) == ["objects-s1.json"]
+    assert len(list((rdir / "v002").iterdir())) == 3 and len(list((rdir / "v003").iterdir())) == 3
+    assert sorted(p.name for p in trash.iterdir()) == [
+        "bedroom-v001-mesh-s1.ply",
+        "bedroom-v001-state.pt",
+    ]
+
+
 def test_a_move_needs_two_walks():
     seen = [{"label": "tv", "pos": [2.0, 1.0, 0.0], "views": 30}]
     moved = [{**seen[0], "from": [0.0, 1.0, 0.0]}]

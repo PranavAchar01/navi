@@ -7,6 +7,7 @@
     <title>meta-sight</title>
     <script>
       if (new URLSearchParams(location.search).get("view") === "judge") location.replace("/judge.html" + location.hash);
+      if (new URLSearchParams(location.search).has("capture")) location.replace("/capture.html" + location.search);
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -35,6 +36,7 @@
           <button data-tab="map">Map</button>
         </nav>
         <div class="chips" id="chips"></div>
+        <button class="details-btn" id="btn-details" aria-pressed="false">Details</button>
       </header>
 
       <main class="grid" data-tab="live">

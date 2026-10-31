@@ -243,3 +243,26 @@ def test_a_sure_or_sam_confirmed_keys_pin_is_answered_and_routed_as_before():
         assert "skipped_pin_id" not in ev
         assert srv.guide["pin"] == pin.id
         assert guide(srv, now)["bearing"] is not None
+
+
+def test_the_guide_message_names_the_pin_turn_and_distance():
+    """The fields the web guide arc and the belt follow (GAPS #5)."""
+    t = time.time()
+    srv, now = server(5.0, [desk(2, [2.0, 0.0, 2.0], placed=True, ts=t - 20)])
+    cmd = [(0, 0)] * 8
+    g = Server._guide(srv, cmd, now, True, [])
+    assert g["pin_id"] == 2 and g["dist_m"] == round(2 * 2**0.5, 2)
+    assert 40 < abs(g["bearing_deg"]) < 50
+    assert g["turn"] == ("right" if g["bearing_deg"] > 0 else "left")
+    assert any(m == 5 for m, _ in cmd)  # the belt's guide pattern is on
+
+    srv.pins.pins[3] = desk(3, [0.0, 0.0, 3.0], placed=True, ts=t - 30)
+    srv.guide = None
+    assert Server.guide_to(srv, 3) and srv.guide["pin"] == 3
+    g = guide(srv, now)
+    assert g["pin_id"] == 2  # a newer placed desk takes over, as after an answer
+    srv.guide = {"pin": 3, "label": "desk", "until": now + 90}
+    srv.pins.pins.pop(2)
+    g = guide(srv, now)
+    assert g["pin_id"] == 3 and g["turn"] == "ahead" and abs(g["bearing_deg"]) < 1
+    assert not Server.guide_to(srv, 99) and Server.guide_to(srv, None) and srv.guide is None

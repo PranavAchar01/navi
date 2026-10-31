@@ -11,6 +11,7 @@ import math
 import time
 from collections import deque
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -22,6 +23,13 @@ from .config import Settings
 DEPTH_REPO = "depth-anything/Depth-Anything-V2-Metric-Indoor-Small-hf"
 _MEAN = np.array([0.485, 0.456, 0.406], np.float32)
 _STD = np.array([0.229, 0.224, 0.225], np.float32)
+# The same depth net converted for Core ML (scripts/coreml_depth.py), fixed at 294 x 518. On the
+# Mac it runs in about 9 ms against 15 to 30 ms in PyTorch on MPS, and leaves the GPU to the map.
+# Depth matches PyTorch within 0.6% (median) on 123 walk frames.
+COREML_DEPTH = (
+    Path(__file__).resolve().parent.parent
+    / "ios/CameraAccess/MetaSight/Models/ReflexDepth.mlpackage"
+)
 
 
 @dataclass
@@ -89,27 +97,32 @@ def _fit_floor(
     if len(low) < 50:
         return None
     rng = np.random.default_rng(0)
-    cands = [prev] if prev is not None else []
-    for _ in range(48):
-        a, b, c = low[rng.choice(len(low), 3, replace=False)]
-        n = np.cross(b - a, c - a)
-        nn = np.linalg.norm(n)
-        if nn < 1e-6:
-            continue
-        n = n / nn
-        if abs(n[1]) < 0.75:  # camera y is down: the floor normal is mostly vertical
-            continue
-        if n[1] > 0:
-            n = -n  # point up
-        cands.append((n, -float(a @ n)))
+    # 48 random triples, drawn one at a time as before so the planes stay the same, then
+    # their normals and support counted in one go.
+    tri = low[np.stack([rng.choice(len(low), 3, replace=False) for _ in range(48)])]
+    a = tri[:, 0]
+    n = np.cross(tri[:, 1] - a, tri[:, 2] - a)
+    nn = np.linalg.norm(n, axis=1)
+    keep = nn >= 1e-6
+    n = n[keep] / nn[keep, None]
+    a = a[keep]
+    level = np.abs(n[:, 1]) >= 0.75  # camera y is down: the floor normal is mostly vertical
+    n, a = n[level], a[level]
+    n[n[:, 1] > 0] *= -1  # point up
+    N = np.vstack([prev[0][None], n]) if prev is not None else n
+    C = -np.einsum("ij,ij->i", a, n)
+    if prev is not None:
+        C = np.concatenate([[prev[1]], C])
+    inr = (C > c_lo) & (C < c_hi)
+    sup = np.zeros(len(C), int)
+    if inr.any():
+        sup[inr] = (np.abs(low @ N[inr].T + C[inr]) < tol).sum(0)
     # Of the level planes with real support, the lowest is the floor: a bed or a table top can
     # fill more of the view, but it is never under the floor.
     best = None
-    for n, c in cands:
-        if not c_lo < c < c_hi or (np.abs(low @ n + c) < tol).sum() < 0.1 * len(low):
-            continue
-        if best is None or c > best[1] + tol:
-            best = (n, c)
+    for i in np.nonzero(inr & (sup >= 0.1 * len(low)))[0]:
+        if best is None or C[i] > best[1] + tol:
+            best = (N[i], float(C[i]))
     if best is None:
         return None
     # Refine on the inliers (least squares), then keep the camera above it.
@@ -121,6 +134,23 @@ def _fit_floor(
     if abs(n2[1]) >= 0.75:
         n, c = n2, -float(cen @ n2)
     return (n, c) if c_lo < c < c_hi else None
+
+
+FLOOR_BEND_M = 0.35  # the near floor bends up to this far off the plane in the depth net
+FLOOR_TILT = 0.6  # ...and its surface tilts up to about 53 degrees; a wall or box face is 90
+
+
+def _floor_reach(hgt: np.ndarray, tilt: np.ndarray, ok: np.ndarray) -> np.ndarray:
+    """The floor you stand on, traced up each image column from the bottom edge.
+
+    The depth net bends the floor just ahead of the feet up off the plane (20 to 30 cm on the
+    phone walk, its surface tilted 30 to 40 degrees), so the plane alone calls it an obstacle
+    under a metre away in every frame. Pixels joined to the bottom edge by an unbroken run of
+    such floor-like pixels are floor; the run stops at the first upright face (a wall, a box,
+    a chair leg), and everything from there up is judged by the plane as before.
+    """
+    floorish = ok & (np.abs(hgt) < FLOOR_BEND_M) & (tilt > FLOOR_TILT)
+    return np.logical_and.accumulate(floorish[::-1], axis=0)[::-1]
 
 
 def analyse(
@@ -182,8 +212,9 @@ def analyse(
         Ps = cv2.GaussianBlur(P.astype(np.float32), (5, 5), 0)
         nrm = np.cross(np.gradient(Ps, axis=1), np.gradient(Ps, axis=0))
         nrm /= np.linalg.norm(nrm, axis=-1, keepdims=True) + 1e-9
-        level = np.abs(nrm @ n) > 0.9
-        obst = ok & (hgt < eye_h + 0.3) & (((hgt > 0.05) & ~level) | (hgt > 0.3))
+        tilt = np.abs(nrm @ n)
+        obst = ok & (hgt < eye_h + 0.3) & (((hgt > 0.05) & (tilt <= 0.9)) | (hgt > 0.3))
+        obst &= ~_floor_reach(hgt, tilt, ok)
         corridor = (np.abs(x) < BODY_HALF_M) & (z > 0)
     sectors = []
     a = SECTOR_HALF_DEG
@@ -209,8 +240,11 @@ def analyse(
         if plane is not None
         else math.inf
     )
+    # The outlines' grid. With no floor the top cut is for the cue only: drawn, it ran a straight
+    # line across the frame at 0.3 through whatever stood there, so outlines get the whole view.
+    shown = ok if plane is None else obst
     grid = np.full((h, w), 255, np.uint8)
-    grid[obst] = np.clip(rng_m[obst] * 50, 0, 254).astype(np.uint8)
+    grid[shown] = np.clip(rng_m[shown] * 50, 0, 254).astype(np.uint8)
     return Scene(sectors, grid, corridor, path_m, trip_m, drop_m, found, cam_h), (
         plane if found else None
     )
@@ -280,7 +314,27 @@ class SafetyLoop:
             .to(self.device)
             .eval()
         )
-        self._det = YOLO(str(s.weights_dir / "yolo26n.pt"))
+        self._ml = None
+        if COREML_DEPTH.exists():
+            import coremltools as ct
+
+            # Neural Engine only: on a walk replay with the map running, p95 33 ms against 56 ms
+            # when Core ML may also use the GPU.
+            units = ct.ComputeUnit.CPU_AND_NE
+            self._ml = ct.models.MLModel(str(COREML_DEPTH), compute_units=units)
+        # The detector in Core ML when exported (scripts/coreml_detect.py): 2 ms against 6 ms
+        # alone on MPS, and it stays off the GPU the map is using.
+        ml_det = s.weights_dir / "yolo26n.mlpackage"
+        self._det = (
+            YOLO(str(ml_det), task="detect")
+            if ml_det.exists()
+            else YOLO(str(s.weights_dir / "yolo26n.pt"))
+        )
+        self._det_device = None if ml_det.exists() else "mps"
+        # Core ML compiles on its first call (about 2 s): pay that here, not on the first frame.
+        blank = np.zeros((896, 504, 3), np.uint8)
+        self.estimate_depth(blank)
+        self._det.predict(blank, imgsz=s.detector_imgsz, device=self._det_device, verbose=False)
         self._seg = None
         if s.segment:
             self._seg = YOLO(str(s.weights_dir / "yoloe-26s-seg.pt"))
@@ -336,6 +390,11 @@ class SafetyLoop:
         rgb = cv2.cvtColor(
             cv2.resize(bgr, (iw, ih), interpolation=cv2.INTER_AREA), cv2.COLOR_BGR2RGB
         )
+        if self._ml is not None and (iw, ih) == (294, 518):
+            from PIL import Image
+
+            out = self._ml.predict({"image": Image.fromarray(rgb)})["depth"]
+            return np.asarray(out, np.float32)[0]
         x = (rgb.astype(np.float32) / 255 - _MEAN) / _STD
         t = torch.from_numpy(x).permute(2, 0, 1)[None].to(self.device, torch.float16)
         with torch.no_grad():
@@ -411,7 +470,7 @@ class SafetyLoop:
             t2 = t3 = time.perf_counter()
         else:
             r = self._det.predict(
-                bgr, imgsz=self.s.detector_imgsz, device="mps", verbose=False, conf=0.35
+                bgr, imgsz=self.s.detector_imgsz, device=self._det_device, verbose=False, conf=0.35
             )[0]
             t2 = time.perf_counter()
             h, w = bgr.shape[:2]

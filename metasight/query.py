@@ -185,16 +185,27 @@ def live_answer(label: str, dist_m: float, bearing_deg: float) -> str:
     return f"Your {label} {was} {place}, in view now."
 
 
-def camera_answer(label: str, seconds: float, pin: Pin | None = None, now: float = 0.0) -> str:
-    """Seen by the camera this walk, but not yet placed on the map. With a confirmed older pin
-    the answer gives that place too: never "I don't have its place" while it has one."""
+def camera_answer(
+    label: str, seconds: float, rel: tuple[float, float] | None = None, beside: str | None = None
+) -> str:
+    """Seen by the camera this walk, but not yet placed on the map. `rel` is (metres, bearing)
+    from where the wearer is now to where the camera saw it, when a pose placed the sighting.
+    A memory pin older than this sighting is never given: hours-old places read as the answer
+    while the camera had just walked past the thing (cycle 9, drafts of 10-29). Without a pose,
+    `beside` (a fixed thing in the same frame) names the place instead."""
     when = time_ago(seconds)
     when = "a moment ago" if when == "just now" else when
-    if pin is None:
+    if rel is None and beside:
+        return f"I saw your {label} {when}, by the {beside}."
+    if rel is None:
         return f"I saw your {label} {when}, but I don't have its place on the map yet."
-    it = "they were" if label.endswith("s") else "it was"
-    where = f" near the {pin.near[0]}" if pin.near else " on the map"
-    return f"I saw your {label} {when}; {it} last placed{where}, {time_ago(now - pin.ts)}."
+    dist, bearing = rel
+    place = (
+        "right next to you"
+        if dist < 1.0
+        else f"{distance_phrase(dist)} {direction_phrase(bearing)}"
+    )
+    return f"I saw your {label} {when}, {place}."
 
 
 def glimpse_answer(label: str, pin: Pin, now: float) -> str:

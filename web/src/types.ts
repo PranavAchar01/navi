@@ -40,7 +40,7 @@ export interface Safety {
   floor: boolean;
   floor_scale: number | null;
   eye_h: number;
-  guide: { label: string; dist: number | null; bearing: number | null } | null;
+  guide: Guide | null;
   found: boolean;
   fps: number;
   in_fps?: number; // frames a second arriving from the camera
@@ -149,7 +149,15 @@ export type BrailleMsg =
   | { type: "braille"; phase: "start"; device: string; text: string; cues: string; total_ms: number; cells: BrailleCell[] }
   | ({ type: "braille"; phase: "cell" } & BrailleCell)
   | { type: "braille"; phase: "end" };
+/** The memory worker's whole-walk refit; `home.tf` (4x4 rows) places the room mesh in the map. */
+export interface GlobalStats {
+  type: "global_stats";
+  views: number;
+  points: number;
+  home?: { fit: boolean; fixed?: boolean; tf?: number[][] } | null;
+}
 export type Message =
+  | GlobalStats
   | BrailleMsg
   | Safety
   | Belt
@@ -163,7 +171,8 @@ export type Message =
   | ModeMsg
   | ActivityMsg
   | Device
-  | Transcript;
+  | Transcript
+  | PeopleMsg;
 export type Mode = "home" | "outside";
 /** What the wearer is doing (metasight/modes.py); it sets how the belt and the speaker behave. */
 export type Activity = "guide" | "find" | "talk" | "explore";
@@ -176,6 +185,23 @@ export interface ActivityMsg {
 export interface ModeMsg {
   type: "mode";
   mode: Mode;
+}
+/** Where the server is guiding the wearer. `bearing_deg` is its own bearing to the target (degrees,
+ *  positive right) and wins over the client's; `pin_id` is null for a target that is not a pin. */
+export interface Guide {
+  label: string;
+  dist: number | null;
+  bearing: number | null;
+  pin_id?: number | null;
+  bearing_deg?: number | null;
+  dist_m?: number | null;
+  turn?: "ahead" | "left" | "right";
+}
+/** People or voices around the wearer, as bearings only (degrees clockwise from straight ahead).
+ *  Never who they are. */
+export interface PeopleMsg {
+  type: "people";
+  people: { bearing_deg: number }[];
 }
 export interface PinsMsg {
   type: "pins";

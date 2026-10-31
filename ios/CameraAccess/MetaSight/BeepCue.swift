@@ -14,13 +14,20 @@
 import Foundation
 
 /// How loud the beeps are. Some wearers have very sensitive hearing, so quiet is a real setting.
+/// Silent also mutes the spoken prompts, for quiet mapping walks.
 enum BeepVolume: String, CaseIterable, Identifiable, Sendable {
-  case quiet, normal
+  case silent, quiet, normal
 
   var id: String { rawValue }
   var label: String { rawValue.capitalized }
   /// Applied on top of each cue's own gain.
-  var scale: Float { self == .quiet ? 0.3 : 1.0 }
+  var scale: Float {
+    switch self {
+    case .silent: 0
+    case .quiet: 0.3
+    case .normal: 1.0
+    }
+  }
 
   static let defaultsKey = "metasight.beepVolume"
 }

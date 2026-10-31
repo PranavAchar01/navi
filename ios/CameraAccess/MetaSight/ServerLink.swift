@@ -117,7 +117,9 @@ final class ServerLink {
     }
   }
 
-  static let defaultURL = "ws://Pranavs-Mac-Mini.local:8445/ws"
+  /// The mini over Tailscale. While the glasses stream, the phone's Wi-Fi is joined to the
+  /// glasses' own network, so home Wi-Fi cannot reach the Mac; the tailnet rides on cellular.
+  static let defaultURL = "ws://100.108.125.31:8445/ws"
   private static let urlDefaultsKey = "metasight.serverURL"
   private static let reconnectInterval: Duration = .milliseconds(1500)
   private static let motionFlushInterval: Duration = .milliseconds(100)
@@ -298,8 +300,8 @@ final class ServerLink {
 
   private func handlePing(on task: URLSessionWebSocketTask, error: Error?) {
     guard task === socket else { return }
-    if error != nil {
-      dropSocket(task)
+    if let error {
+      dropSocket(task, reason: error)
     } else {
       markConnected()
     }
@@ -330,12 +332,12 @@ final class ServerLink {
           // Binary messages (echoed frames) are ignored.
         }
       } catch {
-        self?.dropSocket(task)
+        self?.dropSocket(task, reason: error)
       }
     }
   }
 
-  private func dropSocket(_ task: URLSessionWebSocketTask) {
+  private func dropSocket(_ task: URLSessionWebSocketTask, reason: Error? = nil) {
     guard task === socket else { return }
     task.cancel(with: .goingAway, reason: nil)
     socket = nil
@@ -343,7 +345,9 @@ final class ServerLink {
     frameGate.setOpen(false)
     motionBuffer.removeAll()
     talk.stop()
-    statusLine = "Server offline, retrying"
+    // The reason tells a blocked route (VPN off, wrong address) from a server that is down.
+    statusLine = reason.map { "Server offline, retrying: \($0.localizedDescription)" }
+      ?? "Server offline, retrying"
   }
 
   private func closeSocket() {
@@ -424,7 +428,7 @@ final class ServerLink {
         onboarding = OnboardingState(
           step: step, progress: obj["progress"] as? Double ?? 0,
           items: obj["items"] as? [String] ?? [], mode: obj["mode"] as? String)
-        if let say = obj["say"] as? String { speaker.speak(say) }
+        if let say = obj["say"] as? String, beeper.volume != .silent { speaker.speak(say) }
       }
     case "caption":
       if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -453,7 +457,7 @@ final class ServerLink {
         let mode = obj["mode"] as? String
       {
         activity = mode
-        if let say = obj["say"] as? String { speaker.speak(say) }
+        if let say = obj["say"] as? String, beeper.volume != .silent { speaker.speak(say) }
       }
     case "speaker_cue":
       // Turn toward the voice: one soft beep placed at its bearing.
@@ -474,7 +478,7 @@ final class ServerLink {
       answerNote = AnswerNote(
         text: answer.text, label: answer.label, near: live ? nil : answer.pin?.near?.first,
         seen: live ? Date() : answer.pin?.ts.map { Date(timeIntervalSince1970: $0) }, at: Date())
-      speaker.speak(answer.text)
+      if beeper.volume != .silent { speaker.speak(answer.text) }
       #if canImport(UIKit)
         // VoiceOver forwards announcements to a paired Bluetooth Braille display.
         UIAccessibility.post(notification: .announcement, argument: answer.text)

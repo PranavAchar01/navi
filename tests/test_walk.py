@@ -18,6 +18,13 @@ def test_walk_writes_frames_poses_and_lens(tmp_path):
     assert json.loads((d / "poses.jsonl").read_text())["seq"] == 7
 
 
+def test_walk_keeps_motion_batches(tmp_path):
+    w = WalkRecorder("walk", {}, tmp_path)
+    w.motion({"type": "motion", "s": [[1.0, 0.0, -9.8, 0.1]]})
+    w.close()
+    assert json.loads((tmp_path / "walk" / "motion.jsonl").read_text())["s"][0][2] == -9.8
+
+
 def test_reconnect_appends_to_the_same_walk(tmp_path):
     for seq in (1, 2):
         w = WalkRecorder("walk", {}, tmp_path)

@@ -11,6 +11,7 @@ from pathlib import Path
 import numpy as np
 
 from .config import SESSIONS, Settings
+from .gyro import GyroTrack
 from .loops import Describer
 from .memory import Keyframe, MapAnythingRunner, MemoryEngine, SolverProcess
 from .providers import make_finder
@@ -114,6 +115,12 @@ def run(
                 out_q.put({"type": "map_replace", "n": 0, "points": b"", "colors": b""})
                 out_q.put({"type": "pins", "pins": []})
                 out_q.put({"type": "mode", "mode": engine.mode})
+                continue
+            if msg["cmd"] == "gyro":  # the glasses' gyro, already on the server clock
+                if engine.gyro is None:
+                    engine.gyro = GyroTrack()
+                    engine.gyro.clock_known = True
+                engine.gyro.add(np.array(msg["t"]), np.array(msg["w"]))
                 continue
             if msg["cmd"] == "kf":
                 if not buf:

@@ -173,3 +173,18 @@ def test_sam_boxes_are_marked_backed_only_with_a_sure_local_hit():
         h = hybrid([Detection("keys", local_score, (1, 1, 2, 2))], sam_box)
         out = h.find(FRAME, ["keys"])
         assert [(d.source, d.backed) for d in out] == [("sam-3.1", backed)]
+
+
+def test_one_failed_sam_call_is_a_miss_not_a_crash(monkeypatch):
+    from metasight.providers.finder import Sam31Finder
+
+    sam = Sam31Finder.__new__(Sam31Finder)
+    sam._api_key, sam.meta_images = "k", 0
+
+    async def one(client, url, label):
+        if label == "keys":
+            raise RuntimeError("The model failed to generate a response.")
+        return [Detection(label, 0.9, (0, 0, 2, 2), "sam-3.1")]
+
+    monkeypatch.setattr(sam, "_one", one)
+    assert [d.label for d in sam.find(FRAME, ["keys", "wallet"])] == ["wallet"]

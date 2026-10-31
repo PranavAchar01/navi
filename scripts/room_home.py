@@ -28,6 +28,8 @@ from room_dense import world_pts  # noqa: E402
 from metasight import home as homemod  # noqa: E402
 from metasight.memory import STRIDE  # noqa: E402
 
+VIEW_TRIS = 400_000  # the browser copy of the mesh: about 15 MB
+
 
 def main() -> None:
     ap = argparse.ArgumentParser()
@@ -67,6 +69,10 @@ def main() -> None:
     meta = json.loads(old.read_text())
     meta["pins"] = pins
     meta["fixed"] = {"mesh": str(Path(a.mesh) / f"mesh-{a.tag}.ply"), "frame": xf.tolist()}
+    # The same room thinned for the browser (the judge view lays it over the camera).
+    thin = mesh.simplify_quadric_decimation(VIEW_TRIS)
+    o3d.io.write_triangle_mesh(str(out / "room.tmp.ply"), thin, write_ascii=False)
+    (out / "room.tmp.ply").replace(out / "room.ply")
     (out / "home.json").write_text(json.dumps(meta))
     print(f"{len(views)} views, {len(occ)} occupied cells -> {out}")
 

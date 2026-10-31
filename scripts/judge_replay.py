@@ -13,6 +13,7 @@ import argparse
 import asyncio
 import contextlib
 import json
+import math
 import os
 import shutil
 import signal
@@ -21,9 +22,12 @@ import subprocess
 import sys
 import tempfile
 import time
+import tomllib
 from pathlib import Path
 
+import numpy as np
 import websockets
+from scipy.spatial.transform import Rotation, Slerp
 
 ROOT = Path(__file__).resolve().parent.parent
 LOCKS = ROOT.parent  # ~/helloworld, where the heavy-job slots live
@@ -51,6 +55,69 @@ def take_slot() -> Path:
         return slot
 
 
+# metasight.server.AR_TO_CV, copied so this script does not import the server's models.
+AR_TO_CV = np.array([[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]], dtype=float)
+
+
+def walk_hfov(cam: dict) -> float:
+    """The walk's lens: its own hfov, else from fx, else the glasses profile's (glasses walks
+    record no lens)."""
+    if cam.get("hfov"):
+        return float(cam["hfov"])
+    if cam.get("fx"):
+        return math.degrees(2 * math.atan(cam["width"] / (2 * cam["fx"])))
+    return float(tomllib.loads((ROOT / "metasight.glasses.toml").read_text())["safety"]["hfov_deg"])
+
+
+def walk_poses(walk: Path, seqs: list[int]) -> dict[int, dict]:
+    """A pose message per frame seq, as the phone sends them. A phone walk has its own ARKit
+    poses. A glasses walk has none, only the map's pose at each keyframe as memory placed it
+    (map_poses.jsonl): those are interpolated to every frame and sent in ARKit's form, so the
+    replay server ties them to its own map like a phone's and the views get a pose (GAPS #9)."""
+    ar = walk / "poses.jsonl"
+    lines = [json.loads(x) for x in ar.read_text().splitlines() if x] if ar.exists() else []
+    if lines:
+        return {p["seq"]: p for p in lines}
+    mp = walk / "map_poses.jsonl"
+    rows = [json.loads(x) for x in mp.read_text().splitlines() if x] if mp.exists() else []
+    by_seq = {r["seq"]: np.array(r["pose"], float) for r in rows if r.get("seq") is not None}
+    if len(by_seq) < 2:
+        return {}
+    keys = sorted(by_seq)
+    mats = np.stack([by_seq[k] for k in keys])
+    slerp = Slerp(keys, Rotation.from_matrix(mats[:, :3, :3]))
+    out = {}
+    for q in seqs:
+        t = min(max(q, keys[0]), keys[-1])  # before the first or after the last: hold it
+        pose = np.eye(4)
+        pose[:3, :3] = slerp([t]).as_matrix()[0]
+        pose[:3, 3] = [np.interp(t, keys, mats[:, i, 3]) for i in range(3)]
+        m = (pose @ AR_TO_CV).T.ravel().tolist()  # server.arkit_pose(m) gives `pose` back
+        out[q] = {"type": "arpose", "m": m, "track": "tracking", "seq": q}
+    return out
+
+
+def stop_server(server: subprocess.Popen, slot: Path, home: Path) -> None:
+    """Stop only the process group this script started, then free the slot and the house copy.
+    macOS answers EPERM, not ESRCH, for a group whose leader already exited (GAPS #13): both
+    mean it is gone. A second Ctrl-C or SIGTERM during this cannot skip the cleanup."""
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    try:
+        with contextlib.suppress(ProcessLookupError, PermissionError):
+            os.killpg(server.pid, signal.SIGTERM)
+        try:
+            server.wait(20)
+        except subprocess.TimeoutExpired:
+            with contextlib.suppress(ProcessLookupError, PermissionError):
+                os.killpg(server.pid, signal.SIGKILL)
+            with contextlib.suppress(subprocess.TimeoutExpired):
+                server.wait(5)
+    finally:
+        shutil.rmtree(slot, ignore_errors=True)
+        shutil.rmtree(home, ignore_errors=True)
+
+
 async def connect(url: str, timeout: float):
     t0 = time.time()
     while True:
@@ -68,14 +135,9 @@ async def play(a, url: str) -> None:
     walk = Path(a.walk)
     cam = json.loads((walk / "camera.json").read_text())
     frames = [json.loads(line) for line in (walk / "frames.jsonl").read_text().splitlines() if line]
-    # The phone's ARKit pose for each frame, sent just before it as the phone does.
-    pose_file = walk / "poses.jsonl"
-    poses = {}
-    if pose_file.exists():
-        for line in pose_file.read_text().splitlines():
-            if line:
-                p = json.loads(line)
-                poses[p["seq"]] = p
+    # A pose for each frame, sent just before it as the phone does.
+    poses = walk_poses(walk, [f["seq"] for f in frames if f.get("seq") is not None])
+    print(f"poses: {len(poses)} of {len(frames)} frames", flush=True)
     ws = await connect(url, 240)
     ready = asyncio.Event()
     guides = {"any": 0, "dist": 0, "bearing": 0}
@@ -83,6 +145,7 @@ async def play(a, url: str) -> None:
     cue_ms: list[float] = []
     asked_at: list[float] = []
     answer_ms: list[float] = []
+    stage_ms: dict[str, list[float]] = {}
 
     async def reader():
         async for m in ws:
@@ -93,6 +156,8 @@ async def play(a, url: str) -> None:
                 elif d["type"] == "safety":
                     if d.get("ts"):
                         cue_ms.append(time.time() * 1000 - d["ts"])
+                    for k, v in (d.get("ms") or {}).items():
+                        stage_ms.setdefault(k, []).append(v)
                     if not d.get("guide"):
                         continue
                     g = d["guide"]
@@ -127,7 +192,7 @@ async def play(a, url: str) -> None:
             json.dumps(
                 {
                     "type": "camera",
-                    "hfov": cam["hfov"],
+                    "hfov": walk_hfov(cam),
                     "width": cam["width"],
                     "height": cam["height"],
                     "source": "judge-replay",
@@ -155,6 +220,8 @@ async def play(a, url: str) -> None:
         q = sorted(cue_ms)
         p = lambda f: round(q[min(len(q) - 1, int(f * len(q)))])  # noqa: E731
         print(f"cue latency ms: n={len(q)} p50={p(0.5)} p95={p(0.95)} max={round(q[-1])}")
+    for k, v in sorted(stage_ms.items()):
+        print(f"stage {k} ms: p50={np.percentile(v, 50):.1f} p95={np.percentile(v, 95):.1f}")
     print(f"answer latency ms (ask sent to answer back): {[round(x) for x in answer_ms]}")
     rd.cancel()
     await ws.close()
@@ -189,6 +256,11 @@ def main() -> None:
     ap.add_argument("--ask-at", type=float, default=45)
     ap.add_argument("--braille", default="emulator", help="off, emulator, wrist or belt")
     ap.add_argument("--laps", type=int, default=1)
+    ap.add_argument(
+        "--home",
+        default=os.environ.get("METASIGHT_HOME", str(ROOT / "data" / "home")),
+        help="the saved house to copy (default: the live service's)",
+    )
     ap.add_argument(
         "--settle", type=float, default=8, help="seconds to keep feeding nothing after the walk"
     )
@@ -256,11 +328,6 @@ def main() -> None:
     print(f"open http://127.0.0.1:{a.port}/judge.html", flush=True)
     signal.signal(signal.SIGTERM, interrupted)
     try:
-    ap.add_argument(
-        "--home",
-        default=os.environ.get("METASIGHT_HOME", str(ROOT / "data" / "home")),
-        help="the saved house to copy (default: the live service's)",
-    )
         asyncio.run(play(a, url))
         if a.keep:
             print("walk done; server stays up until Ctrl-C", flush=True)
@@ -268,19 +335,7 @@ def main() -> None:
     except KeyboardInterrupt:
         pass
     finally:
-        # Only the group this script started. macOS answers EPERM, not ESRCH, for a group whose
-        # leader already exited, so both mean it is gone; the slot is freed either way.
-        try:
-            os.killpg(server.pid, signal.SIGTERM)
-            server.wait(20)
-        except subprocess.TimeoutExpired:
-            with contextlib.suppress(ProcessLookupError, PermissionError):
-                os.killpg(server.pid, signal.SIGKILL)
-        except (ProcessLookupError, PermissionError):
-            pass
-        finally:
-            shutil.rmtree(slot, ignore_errors=True)
-            shutil.rmtree(home, ignore_errors=True)
+        stop_server(server, slot, home)
 
 
 if __name__ == "__main__":

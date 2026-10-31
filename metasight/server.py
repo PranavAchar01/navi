@@ -22,11 +22,12 @@ import cv2
 import numpy as np
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import band, nav
+from . import home as homemod
 from .align import map_resolution
 from .belt import FLAG_FOUND, NAMES, BeltLink, plan
 from .config import ROOT, SESSIONS, Settings, secret
@@ -44,8 +45,8 @@ from .modes import implied as implied_activity
 from .motion import FallDetector, Sample, ShakeDetector
 from .notes import Notes, asks_notes, caption, notes_command
 from .onboarding import PATTERNS, Onboarding, pattern_length, wants_setup
-from .pan import Persist, with_guide
-from .pins import PinStore, confirmed
+from .pan import GUIDE_ALIGNED_DEG, Persist, with_guide
+from .pins import PinStore, confirmed, layer_of
 from .providers import make_language, make_reviewer
 from .providers.finder import LOOKALIKES
 from .providers.tools import Tools, agent_answer
@@ -81,6 +82,7 @@ GUIDE_DR_S = 15.0
 NO_DIRECTION = "Turn slowly, I'll buzz when you face it."
 ANSWER_POSE_S = 12.0  # answers accept an older pose: windows take 5 to 11 s during a solve
 LIVE_SEEN_S = 1.0  # a camera sighting this recent answers "where is my X" over memory
+LIVE_HOLD_S = 3.0  # ...and one this recent still counts as in view (the detector blinks)
 LIVE_OVER_PIN_S = 60.0  # an older camera sighting wins when memory's pin is this much older
 MAP_WAIT_S = 3.0  # right after a restart, how long a question waits for the home map
 MAP_LOADING = "I'm still loading your home map. Ask me again in a few seconds."
@@ -104,6 +106,19 @@ log = logging.getLogger("metasight")
 
 def _finite(x: float) -> float | None:
     return round(x, 2) if math.isfinite(x) else None
+
+
+def beside_in_frame(
+    label: str, bearing: float, frame: list[tuple[str, float, float]]
+) -> str | None:
+    """The fixed thing seen nearest in bearing to `label` in the same frame (furniture before
+    structure, never a carried item or a person): a place without a pose, "by the desk"."""
+    fixed = [
+        (layer_of(other, "object") != "furniture", abs(b - bearing), other)
+        for other, b, _ in frame
+        if other not in (label, "person") and layer_of(other, "object") != "carried"
+    ]
+    return min(fixed)[2] if fixed else None
 
 
 class Server:
@@ -139,6 +154,7 @@ class Server:
             self.voice = VoiceAsk(self, key, words)
             self.voice.asr.on_heard = self.heard
         self.motion_t = 0.0
+        self.phone_clock = math.inf  # server time minus phone time, least delayed sample
         self.accel: deque[np.ndarray] = deque(maxlen=40)
         self.pose = None
         self.source_ws = None  # the client sending camera frames (phone, glasses app, browser)
@@ -152,6 +168,9 @@ class Server:
         self.live_seen: tuple[float, list[tuple[str, float, float]]] = (0.0, [])
         # label -> when the camera last saw it this run, for answers memory has not caught up on.
         self.live_last: dict[str, float] = {}
+        # label -> (time, bearing, metres, map point or None) of its nearest last sighting
+        # label -> (ts, bearing, dist, map point or None, the fixed thing beside it or None)
+        self.live_where: dict[str, tuple] = {}
         self.last_obstacles: list = []  # the label layer's last result, for the item guide
         self.heading = Heading(settings.hfov_deg)  # carries the head's turn between map poses
         self.map_sectors: list[float] = [math.inf] * 8
@@ -494,8 +513,12 @@ class Server:
                     if math.isfinite(o.dist_m)
                 ],
             )
-            for label, _, _ in self.live_seen[1]:
+            placed = bool(self.memory_ready and self.guide_pose_fresh(now))
+            for label, bearing, dist in sorted(self.live_seen[1], key=lambda x: -x[2]):
                 self.live_last[label] = now
+                point = self.heading.ahead(dist, bearing) if placed else None
+                beside = beside_in_frame(label, bearing, self.live_seen[1])
+                self.live_where[label] = (now, bearing, dist, point, beside)
             await self.hub.frame(seq, jpeg, self.source_ws)
             await self.hub.json(people, True)
             if people["cue"]:
@@ -604,7 +627,16 @@ class Server:
                 self.heading.sight(np.array(pin.pos), bearing)
             rel = dist, bearing
         if rel is None:
-            return {"label": g["label"], "dist": None, "bearing": None, "in_view": False}
+            return {
+                "label": g["label"],
+                "pin_id": None if pin is None else pin.id,
+                "bearing_deg": None,
+                "dist_m": None,
+                "turn": None,
+                "dist": None,
+                "bearing": None,
+                "in_view": False,
+            }
         dist, bearing = rel
         # Out of view, the route around walls and furniture gives the direction, not the
         # straight line to the item.
@@ -617,14 +649,31 @@ class Server:
         if step is not None:
             bearing = step.bearing_deg
         cmd[:] = with_guide(cmd, bearing)[0]
+        aligned = abs(wrap(math.radians(bearing))) <= math.radians(GUIDE_ALIGNED_DEG)
         return {
             "label": g["label"],
+            "pin_id": None if pin is None else pin.id,
+            "bearing_deg": round(bearing, 1),  # the way to turn now: the route's, or straight
+            "dist_m": round(dist, 2),
+            "turn": "ahead" if aligned else ("right" if bearing > 0 else "left"),
             "dist": round(dist, 2),
             "bearing": round(bearing, 1),
             "in_view": bool(live),  # the camera sees it now, not just the map
             "route": None if step is None else _finite(step.route_m),
             "narrow": None if step is None else _finite(step.narrow_m),
         }
+
+    def guide_to(self, pin_id) -> bool:
+        """Point the belt at a pin for 90 s, as after "where is my X"; None stops the guide.
+        Only a pin the store has and would answer with (a weak personal-item hit is not one)."""
+        if pin_id is None:
+            self.guide = None
+            return True
+        pin = self.pins.pins.get(pin_id) if isinstance(pin_id, int) else None
+        if pin is None or not self.pins.stands(pin):
+            return False
+        self.guide = {"pin": pin.id, "label": pin.label, "until": time.time() + 90.0}
+        return True
 
     def _guide_pin(self, g: dict):
         """The pin to point at: the one answered, until memory places a newer pin of the same
@@ -817,6 +866,19 @@ class Server:
     # ------------------------------------------------------------ motion
     async def on_motion(self, samples: list[list[float]]) -> None:
         now = time.time()
+        if samples and len(samples[-1]) >= 7:
+            # Samples carry the phone's clock and keyframes the server's. The smallest gap seen
+            # is the one with the least network delay in it, so it maps one clock onto the other.
+            self.phone_clock = min(self.phone_clock, now - samples[-1][0])
+            if self.memory_ready:
+                rows = [r for r in samples if len(r) >= 7]
+                self.in_q.put(
+                    {
+                        "cmd": "gyro",
+                        "t": [r[0] + self.phone_clock for r in rows],
+                        "w": [r[4:7] for r in rows],
+                    }
+                )
         for row in samples:
             t, ax, ay, az = row[:4]
             s = Sample(t, ax, ay, az)
@@ -911,6 +973,9 @@ class Server:
             }
         pin = self.pins.latest(label)
         live = [s for s in seen if s[0] == label]
+        where = getattr(self, "live_where", {}).get(label)
+        if not live and where is not None and time.time() - where[0] < LIVE_HOLD_S:
+            live = [(label, where[1], where[2])]  # out of the last frame, not out of view
         if live:
             # In frame right now: the live sighting wins over memory, however old the pin.
             _, bearing, dist = min(live, key=lambda s: s[2])
@@ -926,15 +991,25 @@ class Server:
             }
         last = self.live_last.get(label)
         if last is not None and (pin is None or pin.ts < last - LIVE_OVER_PIN_S):
-            # The camera saw it this run, well after memory last placed it: say when, and the
-            # older place memory has. Memory has not placed this sighting, so no direction from it.
+            # The camera saw it this run, well after memory last placed it: the sighting is the
+            # answer, never the older pin. Where the pose placed the sighting, say where from here.
             now = time.time()
             self.guide = {"pin": None, "label": label, "until": now + 90.0}
+            rel, beside = None, None
+            if where is not None and where[3] is not None and self.guide_pose_fresh(now):
+                rel = self.heading.to(where[3])
+            elif where is not None and len(where) > 4:
+                beside = where[4]  # no pose to place it: what was in view with it says where
+            # Seen beside what memory already has it near: the same place, so the pin is good
+            # to fly to; anywhere else the old pin is not where it is.
+            same = pin is not None and beside is not None and beside in pin.near
+            if same:
+                self.guide["pin"] = pin.id
             return {
                 "type": "answer",
                 "label": label,
-                "text": camera_answer(label, now - last, pin, now),
-                "pin": pin.to_json() if pin else None,
+                "text": camera_answer(label, now - last, rel, beside),
+                "pin": pin.to_json() if same else None,
                 "language": "template",
             }
         glimpsed = self.pins.glimpse(label, pin.ts) if pin is not None else None
@@ -1225,6 +1300,14 @@ def create_app(settings: Settings | None = None, session: str | None = None) -> 
             }
         )
 
+    @app.get("/api/room.ply")
+    async def room_mesh():
+        """The room mesh, thinned for the browser (room_home.py writes it beside the home)."""
+        f = homemod.home_dir() / "room.ply"
+        if not f.is_file():
+            return JSONResponse({"error": "no room mesh"}, status_code=404)
+        return FileResponse(f, media_type="application/octet-stream")
+
     @app.post("/api/ask")
     async def ask(body: Ask):
         return await srv.answer(body.text)
@@ -1271,6 +1354,8 @@ def create_app(settings: Settings | None = None, session: str | None = None) -> 
                     m = json.loads(msg["text"])
                     kind = m.get("type")
                     if kind == "motion":
+                        if walk := srv.walks.get(sock):
+                            walk.motion(m)
                         await srv.on_motion(m["s"])
                     elif kind == "ask":
                         asyncio.create_task(srv.answer(m["text"]))
@@ -1303,6 +1388,8 @@ def create_app(settings: Settings | None = None, session: str | None = None) -> 
                         await srv.set_activity(m["mode"], "app")
                     elif kind == "mode" and m.get("mode") in ("home", "outside"):
                         srv.in_q.put({"cmd": "mode", "mode": m["mode"]})
+                    elif kind == "guide":  # the wearer picked a pin on the screen
+                        srv.guide_to(m.get("pin_id"))
                     elif kind == "tap":
                         srv.pending_taps.append((m["label"], float(m["x"]), float(m["y"])))
                     elif kind in ("device", "transcript"):  # glasses state, live captions

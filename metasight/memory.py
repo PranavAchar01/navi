@@ -25,9 +25,11 @@ from .align import (
     apply_sim3,
     pose_through_sim3,
     robust_similarity,
+    umeyama,
 )
 from .config import Settings
 from .geometry import gravity_alignment, map_sector_distances
+from .gyro import GyroTrack, angle_deg, calibrate, chordal_mean
 from .loops import (
     AGREE_SHARE,
     AGREE_TURN_DEG,
@@ -41,12 +43,14 @@ from .loops import (
     Sim3,
     compose,
     inverse,
+    matches_between,
     optimize,
-    shared_matches,
+    sift_features,
     turn_deg,
 )
 from .pins import PinStore, confirmed, layer_of
 from .providers.finder import LANDMARKS, Finder, Sam31Finder
+from .relocalize import RoomMatcher
 
 # A pin that rests on SAM 3.1 alone needs a second sweep to agree, this soon and this close in
 # the map: one box SAM draws round a whole keyboard for "keys" would walk the wearer to the desk.
@@ -77,8 +81,12 @@ class _Placed:
 
 STITCH_OK = 0.05  # stitch cost (share of scene distance) of a join trusted fully
 STITCH_FLOOR = 0.05  # trust in a join with no overlap at all (the transform was carried over)
+GYRO_PAIRS_KEPT = 400  # recent map turns the gyro is fitted against
+GYRO_AGREE_DEG = 5.0  # the pictures' stitch is kept when its turn is this close to the gyro's
+GYRO_REFIT_EVERY = 10  # windows between refits once calibrated (bias drifts with warmth)
 TEXTURE_MIN = 25  # FAST corners at 320 px wide; a blank wall or door up close has 2 to 22
 STRIDE = 2  # pixel step of the geometry each keyframe keeps for re-placing after a loop
+SIFT_KEEP = 64  # old keyframes whose SIFT features a loop check keeps at hand
 BANK_MAX = 24  # views the global re-solve sees at once (one MapAnything pass, ~13 s for 16)
 BANK_STEP_M = 0.2  # a view joins the bank when it is this far (or BANK_STEP_DEG) from all of them
 BANK_STEP_DEG = 15.0
@@ -87,11 +95,16 @@ ROOF_M = 2.0  # the global map keeps points up to this far above the floor
 GLOBAL_VOXEL_M = 0.02  # voxel of the global map
 HOME_MIN_VIEWS = 6  # walk views a first walk needs before it may become the home map
 HOME_FIT_MAX = 0.12  # relocalization residual, as a share of the scene's spread
+ROOM_EVERY = 3  # windows between tries to place the walk in a fixed home (the room mesh)
+ROOM_AGREE_M = 0.5  # a candidate camera this close to a placement agrees with it
+ROOM_MIN_CAMS = 12  # candidate cameras (two tries at least) before the room is placed
+ROOM_SPREAD_M = 1.0  # agreed cameras this spread out fix the frame on their own
 HOME_ID = 100000  # home pins keep their own id range beside the walk's pins
 JOIN_M = {"structure": 0.8, "furniture": 1.0, "carried": 0.6}  # same thing seen again
 MOVED_MAX_M = 6.0  # a lone piece of furniture this far from its old place has been moved
 NEW_MIN_CELLS = 10  # unknown 10 cm cells in one 0.5 m bin that make a new obstacle
 NEW_RANGE_M = (0.8, 3.5)  # how far ahead a new obstacle is flagged
+FLAG_NEAR_M = 2.5  # a room_watch flag is spoken once he is this close to the spot
 NEW_LATERAL_M = 1.0  # and how far off the heading line
 NEW_COOLDOWN_S = 20.0
 
@@ -102,7 +115,6 @@ class _Stored:
 
     seq: int
     ts: float
-FLAG_NEAR_M = 2.5  # a room_watch flag is spoken once he is this close to the spot
     w: int  # window index; the window's similarity transform places everything below
     local: np.ndarray  # (h, w, 3) float16, the window's own frame, every STRIDE-th pixel
     mask: np.ndarray  # (h, w) bool
@@ -148,7 +160,64 @@ def _thumb(bgr: np.ndarray, box: tuple[float, float, float, float], size: int = 
     return base64.b64encode(jpg.tobytes()).decode() if ok else ""
 
 
+WALK_MAX_MPS = 1.6  # faster than a person walks indoors: the frame is misplaced
+WALK_MPS = 1.0  # an ordinary indoor walking pace
 DISC_UNIT_M = 0.005  # one step of a point's disc size, metres
+
+
+def room_consensus(
+    out: np.ndarray, room: np.ndarray, tries: np.ndarray, iters: int = 300, seed: int = 0
+) -> np.ndarray | None:
+    """Which candidate cameras agree on one placement of the walk in the room: RANSAC over
+    three-camera fits (output frame -> room), the largest set within ROOM_AGREE_M wins. None
+    unless it holds 8 cameras from two tries or more and spans ROOM_SPREAD_M, so one try that
+    landed in the wrong place cannot confirm itself."""
+    rng = np.random.default_rng(seed)
+    best = np.zeros(len(out), bool)
+    for _ in range(iters):
+        i = rng.choice(len(out), 3, replace=False)
+        if np.linalg.norm(room[i].max(0) - room[i].min(0)) < 0.3:
+            continue  # three cameras in a cluster fix no rotation
+        s, r, t = umeyama(out[i], room[i])
+        hit = np.linalg.norm(apply_sim3(out, s, r, t) - room, axis=1) < ROOM_AGREE_M
+        if hit.sum() > best.sum():
+            best = hit
+    if best.sum() < 8 or len(set(tries[best])) < 2:
+        return None
+    if np.linalg.norm(room[best].max(0) - room[best].min(0)) < ROOM_SPREAD_M:
+        return None
+    return best
+
+
+def _scale_shift(src: np.ndarray, dst: np.ndarray, rot: np.ndarray) -> Sim3:
+    """Scale and shift taking src onto dst with the rotation held, refit once without the
+    fifth of the points that fit worst (moved things, depth edges)."""
+    keep = np.ones(len(src), bool)
+    for _ in range(2):
+        a, b = src[keep], dst[keep]
+        ac, bc = a - a.mean(0), b - b.mean(0)
+        sc = float(np.clip(np.sum(bc * (ac @ rot.T)) / max(np.sum(ac * ac), 1e-9), 0.5, 2.0))
+        t = b.mean(0) - sc * rot @ a.mean(0)
+        err = np.linalg.norm(sc * src @ rot.T + t - dst, axis=1)
+        keep = err <= np.quantile(err, 0.8)
+    return sc, rot, t
+
+
+def walkable(placed: list[_Placed], last: _Placed | None) -> list[int]:
+    """Indices of the frames a walking camera could have reached from the frame before it."""
+    keep, gap = [], False
+    for j, p in enumerate(placed):
+        if last is not None:
+            dt = max(abs(p.kf.ts - last.kf.ts), 0.5)
+            # Across dropped frames, a walking pace: the burst stays off for a few seconds and
+            # the peak speed would let its later frames in.
+            mps = WALK_MPS if gap else WALK_MAX_MPS
+            if np.linalg.norm(p.pose[:3, 3] - last.pose[:3, 3]) > mps * dt:
+                gap = True
+                continue
+        keep.append(j)
+        last, gap = p, False
+    return keep
 
 
 def _disc_sizes(pts: np.ndarray) -> np.ndarray:
@@ -314,12 +383,19 @@ class MemoryEngine:
         self._seq_w: list[float] = []  # and how far to trust it
         self._last_cost: float | None = None
         self._loop_edges: list[tuple[int, int, Sim3]] = []
+        # The glasses' gyro, once calibrated against the map's own turns, sets each window's
+        # rotation: fast head turns are where the pictures alone place windows worst.
+        self.gyro: GyroTrack | None = None
+        self._gyro_pairs: list[tuple[float, float, np.ndarray]] = []
+        self.gyro_windows = 0
         self._obs: list[_Obs] = []
         self._sam_held: list[tuple[str, np.ndarray, float]] = []  # label, map position, frame ts
         self.loops: list[dict] = []  # every loop check that got as far as a match
+        self._old_sift: dict[int, tuple] = {}  # old keyframes come up as candidates again and again
         self.pins = PinStore()
         self.voxels = VoxelSet(s.voxel_m)
         self._tail: list[_Placed] = []
+        self.speed_dropped = 0
         self._align_rot: np.ndarray | None = None
         self._map_pts = np.empty((0, 3), np.float32)
         self._map_cols = np.empty((0, 3), np.uint8)
@@ -351,6 +427,7 @@ class MemoryEngine:
         self._bank, self._bank_new, self._anchors = {}, 0, None
         self._job = None  # a solve still running finishes into the new map; drop its result
         self._kfs, self._sims, self._obs, self.loops = {}, [], [], []
+        self._old_sift = {}
         self._sam_held = []
         self._seq_rel, self._seq_w, self._loop_edges = [], [], []
         self.load_home()
@@ -379,7 +456,36 @@ class MemoryEngine:
         pitch = np.degrees(np.arcsin(np.clip((rot @ np.array([0.0, 0.0, 1.0]))[1], -1, 1)))
         return rot if abs(pitch) < 65 else default
 
-    def _fit(self, new: list[dict], old: list[_Placed], first: Keyframe):
+    def _gyro_rot(self, new: list[dict], old: list[_Placed], batch: list[Keyframe]):
+        """This window's rotation into the map from the gyro: each overlap frame's placed
+        rotation, turned by the gyro to every frame of the window, against where the window put
+        that frame. None until the gyro is calibrated or where its samples have a hole."""
+        g = self.gyro
+        if g is None or not g.calibrated or not old:
+            return None
+        if not g.covers(min(k.ts for k in batch), max(k.ts for k in batch)):
+            return None
+        rots = [
+            p.pose[:3, :3] @ g.rel(p.kf.ts, kf.ts) @ new[i]["pose"][:3, :3].T
+            for j, p in enumerate(old)
+            for i, kf in enumerate(batch)
+        ]
+        return chordal_mean(rots)
+
+    def _learn_gyro(self, preds: list[dict], batch: list[Keyframe]) -> None:
+        """Keep the map's own turns inside this window (neighbours, and first to each frame,
+        for long baselines) and (re)fit the gyro's clock, axes and bias against them."""
+        if self.gyro is None or not self.gyro.t.size:
+            return
+        rot = [pr["pose"][:3, :3] for pr in preds]
+        ts = [k.ts for k in batch]
+        idx = [(a, a + 1) for a in range(len(batch) - 1)] + [(0, b) for b in range(2, len(batch))]
+        self._gyro_pairs += [(ts[a], ts[b], rot[a].T @ rot[b]) for a, b in idx]
+        self._gyro_pairs = self._gyro_pairs[-GYRO_PAIRS_KEPT:]
+        if not self.gyro.calibrated or self._windows % GYRO_REFIT_EVERY == 0:
+            calibrate(self.gyro, self._gyro_pairs)
+
+    def _fit(self, new: list[dict], old: list[_Placed], first: Keyframe, batch=None):
         """Similarity taking this window's local frame into the global map frame."""
         self._last_cost = None
         if not old:
@@ -409,20 +515,37 @@ class MemoryEngine:
         # From the overlap frames' own camera poses, which a flat wall cannot slide; the scale
         # is the ratio of the distances from each camera to the same pixels.
         rots = [p.pose[:3, :3] @ new[j]["pose"][:3, :3].T for j, p in enumerate(old)]
-        u, _, vt = np.linalg.svd(np.sum(rots, axis=0))
-        rot = u @ vt
-        if np.linalg.det(rot) < 0:
-            rot = u @ np.diag([1.0, 1.0, -1.0]) @ vt
-        dl, dg = np.linalg.norm(src - cl, axis=1), np.linalg.norm(dst - cg, axis=1)
-        good = dl > 1e-3
-        sc = float(np.clip(np.median(dg[good] / dl[good]), 0.5, 2.0)) if good.any() else 1.0
-        t = np.mean(
-            [p.pose[:3, 3] - sc * rot @ new[j]["pose"][:3, 3] for j, p in enumerate(old)], 0
-        )
-        cands.append((sc, rot, t))
+        cands += self._pose_cands(chordal_mean(rots), src, dst, cl, cg, new, old)
+        # The gyro vetoes a stitch whose turn it disagrees with: in slow, well-overlapped motion
+        # the pictures place a window best (its frames agree with its own turn, not the true
+        # one), and a fast turn with little overlap is where their turn goes wrong.
+        rot_g = self._gyro_rot(new, old, batch) if batch else None
+        if rot_g is not None:
+            agree = [c for c in cands if angle_deg(rot_g.T @ c[1]) <= GYRO_AGREE_DEG]
+            if not agree:
+                self.gyro_windows += 1
+                agree = [_scale_shift(src, dst, rot_g)]
+                agree += self._pose_cands(rot_g, src, dst, cl, cg, new, old)
+            cands = agree
         costs = [self._stitch_cost(c, src, dst, new, old) for c in cands]
         self._last_cost = min(costs)
         return cands[int(np.argmin(costs))]
+
+    @staticmethod
+    def _pose_cands(rot, src, dst, cl, cg, new, old) -> list[Sim3]:
+        """Stitches from the overlap cameras' positions under one rotation: at the measured scale
+        and at scale 1, since every window is metric already and a short or one-sided overlap
+        can pull the measured ratio far from the truth."""
+        dl, dg = np.linalg.norm(src - cl, axis=1), np.linalg.norm(dst - cg, axis=1)
+        good = dl > 1e-3
+        sc = float(np.clip(np.median(dg[good] / dl[good]), 0.5, 2.0)) if good.any() else 1.0
+        out = []
+        for s_ in (sc, 1.0):
+            t = np.mean(
+                [p.pose[:3, 3] - s_ * rot @ new[j]["pose"][:3, 3] for j, p in enumerate(old)], 0
+            )
+            out.append((s_, rot, t))
+        return out
 
     @staticmethod
     def _stitch_cost(c, src, dst, new, old) -> float:
@@ -578,12 +701,16 @@ class MemoryEngine:
                 cands.append((sim, o))
         if not cands:
             return None
-        best, inliers = None, 0
+        best, inliers, here_f = None, 0, sift_features(newest.kf.bgr)
         for _, o in sorted(cands, key=lambda c: -c[0])[:3]:
-            old_bgr = cv2.imdecode(np.frombuffer(o.jpg, np.uint8), cv2.IMREAD_COLOR)
-            n = shared_matches(old_bgr, newest.kf.bgr)
+            if o.seq not in self._old_sift:
+                old_bgr = cv2.imdecode(np.frombuffer(o.jpg, np.uint8), cv2.IMREAD_COLOR)
+                self._old_sift[o.seq] = sift_features(old_bgr)
+                if len(self._old_sift) > SIFT_KEEP:  # about 0.8 MB each
+                    del self._old_sift[next(iter(self._old_sift))]
+            n = matches_between(self._old_sift[o.seq], here_f)
             if n > inliers:
-                best, inliers, best_bgr = o, n, old_bgr
+                best, inliers = o, n
         rec = {"seq": st.seq, "to": best.seq if best else None, "inliers": inliers}
         self.loops.append(rec)
         if best is None or inliers < MIN_INLIERS:
@@ -591,6 +718,7 @@ class MemoryEngine:
             return None
 
         # MapAnything on the old and new frame together: the new frame's place next to the old.
+        best_bgr = cv2.imdecode(np.frombuffer(best.jpg, np.uint8), cv2.IMREAD_COLOR)
         pr = self.runner.infer([best_bgr, newest.kf.bgr])
         sl = (slice(None, None, STRIDE), slice(None, None, STRIDE))
         m_old = pr[0]["mask"][sl] & best.mask
@@ -711,7 +839,8 @@ class MemoryEngine:
         batch = [p.kf for p in old] + frames
         preds = self.runner.infer([k.bgr for k in batch])
         t_infer = time.perf_counter()
-        sim = self._fit(preds, old, frames[0])
+        self._learn_gyro(preds, batch)
+        sim = self._fit(preds, old, frames[0], batch)
         self._prev_sim = sim
         s_, rot, trans = sim
 
@@ -727,6 +856,15 @@ class MemoryEngine:
                     pose_through_sim3(pr["pose"], s_, rot, trans),
                 )
             )
+        # MapAnything sometimes puts two or three frames of a window metres off the rest; a
+        # camera that would have moved faster than a person walks is left out of the map.
+        keep = walkable(placed_new, old[-1] if old else None)
+        self.speed_dropped += len(placed_new) - len(keep)
+        frames = [frames[j] for j in keep]
+        preds = preds[: len(old)] + [preds[len(old) + j] for j in keep]
+        placed_new = [placed_new[j] for j in keep]
+        if not placed_new:
+            return []
         if self._sims:
             self._seq_rel.append(compose(inverse(self._sims[-1]), sim))
             # A join that fit badly is where drift came from, so a loop bends it the most.
@@ -792,6 +930,11 @@ class MemoryEngine:
         # A place seen before: bend the walk since then back onto it.
         if self._close_loops(placed_new):
             events += self._rebuilt()
+        room = self._place_in_room(placed_new) if self.mode == "home" else None
+        if room is not None:
+            self.home_fit = room
+            if room["fit"]:
+                events.append({"type": "pins", "pins": self._pins_out()})
 
         # Scale hint for the fast depth: map depth vs. the depth the safety loop produced.
         ratios = []
@@ -836,10 +979,12 @@ class MemoryEngine:
                 # SAM 3.1: the last call's time and the billed images so far.
                 "sam_ms": getattr(self.finder, "meta_ms", None),
                 "sam_images": getattr(self.finder, "meta_images", None),
+                "room": room,  # this window's try at placing the walk in the room mesh, if any
             }
         )
         out = self._to_global(events)
         out += self._change_check(placed_new[-1])
+        self._near_flags(placed_new[-1])
         return out + self._drain_moved()
 
     def _pose_event(self, kf: Keyframe) -> dict:
@@ -957,7 +1102,6 @@ class MemoryEngine:
             return None
         self._job = None
         if "error" in job:
-        self._near_flags(placed_new[-1])
             raise job["error"]
         return self._global_finish(job["seqs"], job["preds"], job["ts"], job["pick"], job["bgrs"])
 
@@ -1025,6 +1169,7 @@ class MemoryEngine:
             fixes.append(new @ np.linalg.inv(carried))
         self._anchors = (c, np.array(centres), np.array(fixes))
         reloc = self._relocalize(pick, home_preds, rot, floor)
+        self.home_fit = reloc
         self._persist_home(seqs, every, bgrs, pick, stamps, g, pts, bool(reloc and reloc["fit"]))
 
         trail = [
@@ -1131,11 +1276,18 @@ class MemoryEngine:
         self._home_bgr: list[np.ndarray] = []
         self._home_desc: list | None = None
         self._home_owner = True  # this walk may write the home map
+        self._room_matcher: RoomMatcher | None = None
+        # Where each try put its keyframes in the room, and which try it was.
+        self._room_cands: dict[int, tuple[np.ndarray, int]] = {}
+        self._room_tries = 0
+        self._room_pairs: dict[int, np.ndarray] = {}  # seq -> its camera in the room, agreed
+        self.home_fit: dict | None = None  # how the last placement in the saved house went
         self._persist_ok = False
         self._counted = False
         self._announce: dict[tuple[int, int], float] = {}
         self._moved: list[dict] = []
         self._announced: set[str] = set()
+        self._room_flags: list[dict] = []  # room_watch's move flags, in the output frame
         self._flags: dict[tuple[int, int], tuple[int, float]] = {}
 
     def load_home(self) -> None:
@@ -1156,8 +1308,8 @@ class MemoryEngine:
     def _pick_home(self, seqs: list[int], shape: tuple) -> list[int]:
         """The saved views that look most like what the walk has seen so far, to carry into the
         solve; only those of the walk's frame size (a portrait phone and the glasses differ)."""
-        if self.home is None or not self.home.views:
-            return []
+        if self.home is None or not self.home.views or self.home.fixed:
+            return []  # a fixed home is placed window by window (_place_in_room)
         ok = [i for i, b in enumerate(self._home_bgr) if b.shape == shape]
         if self.describer is None or not ok:
             return ok[: homemod.HOME_VIEWS]
@@ -1179,8 +1331,19 @@ class MemoryEngine:
         part of the house the picked views do not show."""
         self._home_tf, self._home_placed = None, []
         self._home_occ = np.empty((0, 3), np.int32)
+        if self.home is not None and self.home.fixed:
+            tf = self._room_tf()
+            if tf is not None:
+                self._set_home_tf(tf)
+            out = {"fit": tf is not None, "fixed": True, "cameras": len(self._room_pairs)}
+            if tf is not None:  # the room mesh into the output frame, for the judge overlay
+                s_, r_, t_ = tf
+                m = np.eye(4)
+                m[:3, :3], m[:3, 3] = s_ * r_, t_
+                out["tf"] = m.tolist()
+            return out
         if not pick or self.home is None:
-            return None
+            return {"fit": False, "why": "no home views picked"}
         sl = (slice(None, None, STRIDE), slice(None, None, STRIDE))
         src, dst = [], []
         for i, pr in zip(pick, home_preds, strict=True):
@@ -1190,18 +1353,30 @@ class MemoryEngine:
             dst.append(pr["pts"][sl][m])
         fit = robust_similarity(np.concatenate(src), np.concatenate(dst))
         if fit is None:
-            return None
+            return {"fit": False, "why": "no similarity", "points": int(sum(map(len, src)))}
         every_dst = np.concatenate(dst)
         spread = float(np.median(np.linalg.norm(every_dst - every_dst.mean(0), axis=1)))
         res = float(fit[3]) / max(spread, 1e-6)
         if res > HOME_FIT_MAX:
             return {"fit": False, "residual": res, "views": len(pick)}
         s_, r_, t_ = fit[:3]
-        tf: Sim3 = (s_, rot @ r_, rot @ t_ + np.array([0.0, -floor, 0.0]))
-        self._home_tf, self._home_owner = tf, True
+        self._set_home_tf((s_, rot @ r_, rot @ t_ + np.array([0.0, -floor, 0.0])))
+        return {"fit": True, "residual": res, "views": len(pick), "pins": len(self._home_placed)}
+
+    def _set_home_tf(self, tf: Sim3) -> None:
+        """Carry the saved pins and occupancy into the output frame through tf."""
+        self._home_tf, self._home_owner, self._home_placed = tf, True, []
+        self._home_occ = np.empty((0, 3), np.int32)
         for d in self._home_prior:
             pos = apply_sim3(np.array([d["pos"]], float), *tf)[0].tolist()
             self._home_placed.append({**d, "id": HOME_ID + d["id"], "pos": pos, "placed": True})
+
+        def out(p):
+            return None if p is None else apply_sim3(np.array([p], float), *tf)[0]
+
+        self._room_flags = [
+            {**c, "to": out(c["to"]), "from": out(c["from"])} for c in self.home.changes
+        ]
         if len(self.home.occ):
             moved = apply_sim3(homemod.cell_centres(self.home.occ), *tf)
             self._home_occ = homemod.cells(moved)
@@ -1210,7 +1385,67 @@ class MemoryEngine:
             if len(self._home_occ)
             else np.empty(0, np.int64)
         )
-        return {"fit": True, "residual": res, "views": len(pick), "pins": len(self._home_placed)}
+
+    def _room_tf(self) -> Sim3 | None:
+        """Room -> output frame from the agreed cameras, once they span enough of the room to fix
+        the rotation (a few frames close together do not)."""
+        seqs = [q for q in self._room_pairs if q in self.poses]
+        if len(seqs) < 6:
+            return None
+        out = np.array([self._pos_out(self.poses[q][:3, 3]) for q in seqs])
+        room = np.array([self._room_pairs[q] for q in seqs])
+        if np.linalg.norm(room.max(0) - room.min(0)) < ROOM_SPREAD_M:
+            return None
+        return umeyama(room, out)
+
+    def _place_in_room(self, placed: list[_Placed]) -> dict | None:
+        """Place a fixed home (the room mesh) from this window: each new keyframe is matched to
+        the saved views that look most like it and solved by PnP on their stored room points
+        (relocalize.RoomMatcher). A frame can still land on a look-alike wall, so the room is
+        placed only from the cameras that agree on one placement across windows."""
+        if self.home is None or not self.home.fixed or self._windows % ROOM_EVERY:
+            return None
+        kfs = [p.kf for p in placed][-homemod.HOME_VIEWS :]
+        ok = [i for i, b in enumerate(self._home_bgr) if b.shape == kfs[0].bgr.shape]
+        if self.describer is None or not ok:
+            return None
+        if self._home_desc is None:
+            self._home_desc = [self.describer(b) for b in self._home_bgr]
+        if self._room_matcher is None:
+            self._room_matcher = RoomMatcher(self._home_bgr, self.home.views)
+        cams, inliers = {}, []
+        for k in kfs:
+            d = self._kfs[k.seq].desc if k.seq in self._kfs else self.describer(k.bgr)
+            order = sorted(ok, key=lambda i, d=d: -float(d @ self._home_desc[i]))
+            hit = self._room_matcher.locate(k.bgr, order)
+            if hit is not None:
+                cams[k.seq], n = hit
+                inliers.append(n)
+        if not cams:
+            return {"fit": False, "located": 0}
+        self._room_tries += 1
+        self._room_cands.update({q: (c, self._room_tries) for q, c in cams.items()})
+        try_cams = {int(q): [round(float(x), 3) for x in c] for q, c in cams.items()}
+        res = int(np.median(inliers))  # reported as the try's quality: median PnP inliers
+        seqs = [q for q in self._room_cands if q in self.poses]
+        if len(seqs) < ROOM_MIN_CAMS:
+            return {"fit": False, "inliers": res, "waiting": True, "cams": try_cams}
+        out = np.array([self._pos_out(self.poses[q][:3, 3]) for q in seqs])
+        agree = room_consensus(
+            out,
+            np.array([self._room_cands[q][0] for q in seqs]),
+            np.array([self._room_cands[q][1] for q in seqs]),
+        )
+        if agree is None:
+            return {"fit": False, "inliers": res, "candidates": len(seqs), "cams": try_cams}
+        self._room_pairs = {
+            q: self._room_cands[q][0] for q, a in zip(seqs, agree, strict=True) if a
+        }
+        room_tf = self._room_tf()
+        if room_tf is None:
+            return {"fit": False, "inliers": res, "candidates": len(seqs)}
+        self._set_home_tf(room_tf)
+        return {"fit": True, "inliers": res, "cameras": len(self._room_pairs)}
 
     def _merge_home(self, live: list[dict]) -> list[dict]:
         """Home pins plus the walk's. The same label within a pin's reach is the same thing seen
@@ -1257,7 +1492,6 @@ class MemoryEngine:
     def _pts_out(self, pts: np.ndarray, ref: np.ndarray) -> np.ndarray:
         """Live-frame points into the output frame with the fix of the nearest anchor."""
         c = apply_sim3(pts, *self._anchors[0])
-        self._room_flags: list[dict] = []  # room_watch's move flags, in the output frame
         f = self._fix_for(apply_sim3(ref[None], *self._anchors[0])[0])
         return c @ f[:3, :3].T + f[:3, 3]
 
@@ -1274,6 +1508,28 @@ class MemoryEngine:
                     i = np.clip(np.searchsorted(keys, k), 0, len(keys) - 1)
                     hit |= keys[i] == k
         return hit
+
+    def _near_flags(self, placed: _Placed) -> None:
+        """room_watch's flags, each spoken once when he comes near it. A "maybe_moved" asks him to
+        look, so this walk records the spot and the next fold can confirm it; "moved" is
+        confirmed by two walks."""
+        if self._anchors is None or not self._room_flags:
+            return
+        cam = self._pose_out(placed.pose)[:3, 3]
+        for c in self._room_flags:
+            key = f"room:{c['label']}@{np.round(c['to'], 1).tolist()}"
+            if key in self._announced or np.hypot(*(c["to"] - cam)[[0, 2]]) > FLAG_NEAR_M:
+                continue
+            self._announced.add(key)
+            self._moved.append(
+                {
+                    "label": c["label"],
+                    "from": None if c["from"] is None else c["from"].tolist(),
+                    "to": c["to"].tolist(),
+                    "layer": "room",
+                    "change": "moved" if c["status"] == "moved" else "maybe_moved",
+                }
+            )
 
     def _change_check(self, placed: _Placed) -> list[dict]:
         """Something ahead on the path that the home map did not have: flagged from the newest
@@ -1335,13 +1591,6 @@ class MemoryEngine:
                 if d < best:
                     label, best = pin["label"], d
         return [
-
-        def out(p):
-            return None if p is None else apply_sim3(np.array([p], float), *tf)[0]
-
-        self._room_flags = [
-            {**c, "to": out(c["to"]), "from": out(c["from"])} for c in self.home.changes
-        ]
             {
                 "type": "change",
                 "change": "new_obstacle",
@@ -1363,6 +1612,10 @@ class MemoryEngine:
         if self.mode != "home" or bgrs is None or len(seqs) < HOME_MIN_VIEWS:
             return
         if not (relocalized or self.home is None):
+            return
+        if self.home is not None and self.home.fixed:  # the room mesh is the reference
+            homemod.save_pins(self._pins_for_disk())
+            self._persist_ok = True
             return
         sl = (slice(None, None, STRIDE), slice(None, None, STRIDE))
         poses = [g @ pr["pose"] for pr in every]
@@ -1397,6 +1650,10 @@ class MemoryEngine:
         out = []
         for n, d in enumerate(self._pins_out(), start=1):
             out.append({**d, "id": n, "placed": True})
+        if self.home is not None and self.home.fixed and self._home_tf is not None:
+            s_, r_, t_ = self._home_tf  # walk frame back to the mesh's
+            for d in out:
+                d["pos"] = (r_.T @ (np.array(d["pos"], float) - t_) / s_).tolist()
         return out
 
     def persist_pins(self) -> None:
@@ -1431,25 +1688,3 @@ class MemoryEngine:
             trail=np.array(self.trail, np.float64).reshape(-1, 4),
             pose=self.last_pose if self.last_pose is not None else np.eye(4),
         )
-    def _near_flags(self, placed: _Placed) -> None:
-        """room_watch's flags, each spoken once when he comes near it. A "maybe_moved" asks him to
-        look, so this walk records the spot and the next fold can confirm it; "moved" is
-        confirmed by two walks."""
-        if self._anchors is None or not self._room_flags:
-            return
-        cam = self._pose_out(placed.pose)[:3, 3]
-        for c in self._room_flags:
-            key = f"room:{c['label']}@{np.round(c['to'], 1).tolist()}"
-            if key in self._announced or np.hypot(*(c["to"] - cam)[[0, 2]]) > FLAG_NEAR_M:
-                continue
-            self._announced.add(key)
-            self._moved.append(
-                {
-                    "label": c["label"],
-                    "from": None if c["from"] is None else c["from"].tolist(),
-                    "to": c["to"].tolist(),
-                    "layer": "room",
-                    "change": "moved" if c["status"] == "moved" else "maybe_moved",
-                }
-            )
-

@@ -247,3 +247,16 @@ def test_cue_toward_a_new_direction_does_not_wait_for_the_repeat_gap():
         right += [e["cue"]] if e["cue"] else []
     assert left and left[0]["turn"] == "left"
     assert right and right[0]["turn"] == "right"  # well inside 1.5 s of the left cue
+
+
+def test_the_people_list_is_bearings_only():
+    cv = Conversation(hfov_deg=90.0)
+    g = np.zeros((240, 320), np.uint8)
+    ev = None
+    for k in range(4):
+        ev = cv.step(k / 15, [Det(box(0.2), 0.9, 2.0), Det(box(0.8), 0.9, 3.0)], g, False, None)
+    assert len(ev["people"]) == 2
+    assert all(set(p) == {"bearing_deg"} for p in ev["people"])
+    assert sorted(p["bearing_deg"] for p in ev["people"]) == sorted(
+        t["bearing"] for t in ev["tracks"]
+    )

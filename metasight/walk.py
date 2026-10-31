@@ -12,6 +12,9 @@ into the repo):
                 4x4 camera-to-map rows (OpenCV axes), "ar_align": 4x4 rows or null}. ar_align
                 takes the phone's pose into the map, map = ar_align @ server.arkit_pose(m), so
                 a replay joins the two exactly
+  motion.jsonl  the device's motion batches verbatim: {"type": "motion", "s": [[t, ax, ay, az,
+                (gx, gy, gz)], ...]}; from the glasses this is the only record of which way is
+                down, since they have no ARKit pose
 """
 
 from __future__ import annotations
@@ -44,6 +47,7 @@ class WalkRecorder:
         self._frames = open(self.dir / "frames.jsonl", "a")
         self._poses = open(self.dir / "poses.jsonl", "a")
         self._map_poses = open(self.dir / "map_poses.jsonl", "a")
+        self._motion = open(self.dir / "motion.jsonl", "a")
         self.n = 0
         self.camera(camera)
 
@@ -58,6 +62,9 @@ class WalkRecorder:
     def pose(self, msg: dict) -> None:
         self._pool.submit(self._write_line, self._poses, msg)
 
+    def motion(self, msg: dict) -> None:
+        self._pool.submit(self._write_line, self._motion, msg)
+
     def map_pose(self, seq: int | None, ts: float | None, pose, ar_align) -> None:
         line = {
             "seq": seq,
@@ -71,6 +78,7 @@ class WalkRecorder:
         self._pool.submit(self._frames.close)
         self._pool.submit(self._poses.close)
         self._pool.submit(self._map_poses.close)
+        self._pool.submit(self._motion.close)
         self._pool.shutdown(wait=True)
         log.info("walk %s: %d frames this connection in %s", self.id, self.n, self.dir)
 

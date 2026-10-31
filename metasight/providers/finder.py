@@ -275,9 +275,14 @@ class Sam31Finder:
         calls = [(i, url(img), lb) for i, (img, labels) in enumerate(jobs) for lb in labels]
         # A fresh client per call: each find() runs in its own event loop.
         async with AsyncOpenAI(base_url=META_BASE_URL, api_key=self._api_key, timeout=30.0) as c:
-            results = await asyncio.gather(*(self._one(c, u, lb) for _, u, lb in calls))
+            results = await asyncio.gather(
+                *(self._one(c, u, lb) for _, u, lb in calls), return_exceptions=True
+            )
         out: list[list[Detection]] = [[] for _ in jobs]
         for (i, _, lb), r in zip(calls, results, strict=True):
+            if isinstance(r, Exception):  # one failed call is a miss; the map keeps building
+                log.warning("SAM 3.1 failed for %r: %s", lb, r)
+                continue
             if texture_hit(r, jobs[i][0].shape):
                 log.info("SAM 3.1 texture hit: %d masks for %r dropped", len(r), lb)
                 continue
