@@ -101,3 +101,40 @@ class Ledger:
     @classmethod
     def load(cls, path: Path) -> Ledger:
         return cls(**json.loads(path.read_text())) if path.is_file() else cls()
+
+
+SAME_SPOT_M = 0.3  # a sighting this close to a flag, same label, is the same object
+MISSES = 2  # walks through the room that do not see a flagged object before the flag is dropped
+
+
+def track_changes(flags: list[dict], moved: list[dict], seen: list[dict], walk: str) -> list[dict]:
+    """One walk's say on the room's change flags. A move one walk saw is only "check": one walk's
+    detections can be wrong. The next walk that sees the same label at the same spot confirms it
+    ("moved"); MISSES walks in a row that do not drop it. A flag is told once, so "moved" flags
+    leave the list on the walk after the one that confirmed them."""
+
+    def at(o: dict, f: dict) -> bool:
+        d = np.linalg.norm(np.subtract(o["pos"], f["to"]))
+        return o["label"] == f["label"] and d <= SAME_SPOT_M
+
+    out = []
+    for f in flags:
+        if f["status"] == "moved":
+            continue
+        if any(at(o, f) for o in seen):
+            out.append({**f, "status": "moved", "walks": [*f["walks"], walk]})
+        elif f["misses"] + 1 < MISSES:
+            out.append({**f, "misses": f["misses"] + 1})
+    for m in moved:
+        if not any(at(m, f) for f in out):
+            out.append(
+                {
+                    "label": m["label"],
+                    "from": m["from"],
+                    "to": m["pos"],
+                    "status": "check",
+                    "walks": [walk],
+                    "misses": 0,
+                }
+            )
+    return out

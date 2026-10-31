@@ -26,6 +26,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CLUSTER_M = 0.25  # hits of one label closer than this are the same object
 MIN_VIEWS = 4  # an object needs this many frames that agree
 MIN_CONF = 0.4
+FLAG_VIEWS = 10  # a move is only flagged from an object this many frames of the walk agree on
 SKIP = {"person"}  # people are not part of the room
 
 
@@ -117,11 +118,20 @@ def changes(ref: list[dict], new: list[dict], moved_m: float = 0.3) -> list[dict
     recapture."""
     out = []
     for o in new:
+        if o["views"] < FLAG_VIEWS:
+            continue
         same = [r for r in ref if r["label"] == o["label"]]
-        d = min((np.linalg.norm(np.subtract(r["pos"], o["pos"])) for r in same), default=np.inf)
-        if d > moved_m:
-            near = round(float(d), 2) if same else None
-            out.append({**o, "change": "moved" if same else "new", "nearest_m": near})
+        dist = [float(np.linalg.norm(np.subtract(r["pos"], o["pos"]))) for r in same]
+        if not same or min(dist) > moved_m:
+            near = same[int(np.argmin(dist))] if same else None
+            out.append(
+                {
+                    **o,
+                    "change": "moved" if same else "new",
+                    "nearest_m": round(min(dist), 2) if same else None,
+                    "from": near["pos"] if near else None,
+                }
+            )
     return out
 
 
@@ -165,6 +175,7 @@ def main() -> None:
     if a.walk:
         ref = json.loads((mdir / f"objects-{a.tag}.json").read_text())
         flagged = changes(ref, objects)
+        (mdir / f"objects-{a.walk}.json").write_text(json.dumps(objects, indent=1))
         (mdir / f"changes-{a.walk}.json").write_text(json.dumps(flagged, indent=1))
         print(f"{a.walk}: {len(objects)} objects, {len(flagged)} changed")
         for o in flagged:

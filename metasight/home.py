@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import os
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
@@ -41,6 +41,8 @@ class Home:
     occ: np.ndarray  # (n, 3) int32 cell keys of the occupied space
     walks: int = 0
     updated: float = 0.0
+    fixed: dict | None = None  # built from the room mesh: walks never replace its views
+    changes: list[dict] = field(default_factory=list)  # room_watch's move flags, mesh frame
 
 
 def cells(pts: np.ndarray) -> np.ndarray:
@@ -73,7 +75,15 @@ def load(path: Path | None = None) -> Home | None:
                 )
             )
     occ = np.load(d / "occ.npy") if (d / "occ.npy").is_file() else np.empty((0, 3), np.int32)
-    return Home(m["pins"], views, occ, int(m.get("walks", 0)), float(m.get("updated", 0.0)))
+    return Home(
+        m["pins"],
+        views,
+        occ,
+        int(m.get("walks", 0)),
+        float(m.get("updated", 0.0)),
+        m.get("fixed"),
+        m.get("changes", []),
+    )
 
 
 def save(home: Home, path: Path | None = None) -> None:
@@ -94,7 +104,13 @@ def save(home: Home, path: Path | None = None) -> None:
     with open(d / "occ.tmp.npy", "wb") as f:
         np.save(f, home.occ.astype(np.int32))
     os.replace(d / "occ.tmp.npy", d / "occ.npy")
-    meta = {"pins": home.pins, "walks": home.walks, "updated": home.updated}
+    meta = {
+        "pins": home.pins,
+        "walks": home.walks,
+        "updated": home.updated,
+        "fixed": home.fixed,
+        "changes": home.changes,
+    }
     (d / "home.tmp.json").write_text(json.dumps(meta))
     os.replace(d / "home.tmp.json", d / "home.json")
 

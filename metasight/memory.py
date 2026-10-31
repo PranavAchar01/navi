@@ -102,6 +102,7 @@ class _Stored:
 
     seq: int
     ts: float
+FLAG_NEAR_M = 2.5  # a room_watch flag is spoken once he is this close to the spot
     w: int  # window index; the window's similarity transform places everything below
     local: np.ndarray  # (h, w, 3) float16, the window's own frame, every STRIDE-th pixel
     mask: np.ndarray  # (h, w) bool
@@ -956,6 +957,7 @@ class MemoryEngine:
             return None
         self._job = None
         if "error" in job:
+        self._near_flags(placed_new[-1])
             raise job["error"]
         return self._global_finish(job["seqs"], job["preds"], job["ts"], job["pick"], job["bgrs"])
 
@@ -1255,6 +1257,7 @@ class MemoryEngine:
     def _pts_out(self, pts: np.ndarray, ref: np.ndarray) -> np.ndarray:
         """Live-frame points into the output frame with the fix of the nearest anchor."""
         c = apply_sim3(pts, *self._anchors[0])
+        self._room_flags: list[dict] = []  # room_watch's move flags, in the output frame
         f = self._fix_for(apply_sim3(ref[None], *self._anchors[0])[0])
         return c @ f[:3, :3].T + f[:3, 3]
 
@@ -1332,6 +1335,13 @@ class MemoryEngine:
                 if d < best:
                     label, best = pin["label"], d
         return [
+
+        def out(p):
+            return None if p is None else apply_sim3(np.array([p], float), *tf)[0]
+
+        self._room_flags = [
+            {**c, "to": out(c["to"]), "from": out(c["from"])} for c in self.home.changes
+        ]
             {
                 "type": "change",
                 "change": "new_obstacle",
@@ -1421,3 +1431,25 @@ class MemoryEngine:
             trail=np.array(self.trail, np.float64).reshape(-1, 4),
             pose=self.last_pose if self.last_pose is not None else np.eye(4),
         )
+    def _near_flags(self, placed: _Placed) -> None:
+        """room_watch's flags, each spoken once when he comes near it. A "maybe_moved" asks him to
+        look, so this walk records the spot and the next fold can confirm it; "moved" is
+        confirmed by two walks."""
+        if self._anchors is None or not self._room_flags:
+            return
+        cam = self._pose_out(placed.pose)[:3, 3]
+        for c in self._room_flags:
+            key = f"room:{c['label']}@{np.round(c['to'], 1).tolist()}"
+            if key in self._announced or np.hypot(*(c["to"] - cam)[[0, 2]]) > FLAG_NEAR_M:
+                continue
+            self._announced.add(key)
+            self._moved.append(
+                {
+                    "label": c["label"],
+                    "from": None if c["from"] is None else c["from"].tolist(),
+                    "to": c["to"].tolist(),
+                    "layer": "room",
+                    "change": "moved" if c["status"] == "moved" else "maybe_moved",
+                }
+            )
+

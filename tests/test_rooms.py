@@ -56,3 +56,37 @@ def test_watch_retry_gets_a_fresh_version(tmp_path, monkeypatch):
     assert not room_watch.fold(tmp_path / "walk", tmp_path, a, state)
     assert not room_watch.fold(tmp_path / "walk", tmp_path, a, state)
     assert sorted(p.name for p in tmp_path.glob("v*")) == ["v002", "v003"]
+
+
+def test_a_move_needs_two_walks():
+    seen = [{"label": "tv", "pos": [2.0, 1.0, 0.0], "views": 30}]
+    moved = [{**seen[0], "from": [0.0, 1.0, 0.0]}]
+    flags = rooms.track_changes([], moved, seen, "w1")
+    assert [f["status"] for f in flags] == ["check"]
+    flags = rooms.track_changes(flags, [], seen, "w2")  # w2 sees it at the new spot
+    assert flags[0]["status"] == "moved" and flags[0]["walks"] == ["w1", "w2"]
+    assert rooms.track_changes(flags, [], seen, "w3") == []  # told once, then gone
+
+
+def test_an_unconfirmed_move_is_dropped():
+    flags = rooms.track_changes(
+        [], [{"label": "tv", "pos": [2.0, 1.0, 0.0], "from": [0.0, 1.0, 0.0]}], [], "w1"
+    )
+    other = [{"label": "tv", "pos": [0.0, 1.0, 0.0]}]  # back where the index had it
+    flags = rooms.track_changes(flags, [], other, "w2")
+    assert flags and flags[0]["misses"] == 1
+    assert rooms.track_changes(flags, [], other, "w3") == []
+
+
+def test_a_flag_needs_enough_views():
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+    from room_objects import FLAG_VIEWS, changes
+
+    ref = [{"label": "tv", "pos": [0.0, 1.0, 0.0]}]
+    new = {"label": "tv", "pos": [2.0, 1.0, 0.0]}
+    assert changes(ref, [{**new, "views": FLAG_VIEWS - 1}]) == []
+    (flag,) = changes(ref, [{**new, "views": FLAG_VIEWS}])
+    assert flag["from"] == [0.0, 1.0, 0.0] and flag["nearest_m"] == 2.0

@@ -337,7 +337,12 @@ class Server:
             self.map_cells.append(self._cells(ev["points"]))
             self.floor_dirty = True
         elif t == "change":
-            await self.hub.json({"type": "alert", "kind": ev["change"], **ev}, True)
+            said = {
+                "moved": f"The {ev.get('label')} has moved since you were last here.",
+                "maybe_moved": f"The {ev.get('label')} may have moved. Have a look around here.",
+            }.get(ev["change"])
+            message = {"message": said} if said else {}
+            await self.hub.json({"type": "alert", "kind": ev["change"], **ev, **message}, True)
         elif t == "trail_replace":
             self.trail = ev["points"]
             await self.onboard_trail(ev["points"])

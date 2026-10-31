@@ -421,3 +421,4 @@ document.querySelectorAll<HTMLButtonElement>("#tabs button").forEach((b) => {
 setupGlass();
 renderChips();
 net.connect();
+  else if ((m.kind === "moved" || m.kind === "maybe_moved") && m.message) speak(m.message);

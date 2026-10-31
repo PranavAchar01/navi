@@ -179,3 +179,46 @@ def test_unmapped_surroundings_flag_nothing():
     e._home_occ_keys = np.sort(e._cell_keys(e._home_occ))
     assert e._change_check(placed(True, 10.0)) == []
     assert e._change_check(placed(True, 12.0)) == []
+
+
+def test_fixed_home_frame_from_agreed_cameras(tmp_path, monkeypatch):
+    """Cameras agreed in the room give room -> walk frame, but only once they spread out."""
+    monkeypatch.setenv("METASIGHT_HOME", str(tmp_path))
+    e = engine()
+    e.poses = {}
+    a = np.radians(30)
+    rot = np.array([[np.cos(a), 0, np.sin(a)], [0, 1, 0], [-np.sin(a), 0, np.cos(a)]])
+    true = (1.5, rot, np.array([0.5, 0.0, -2.0]))  # room -> walk
+    rng = np.random.default_rng(0)
+    room = rng.uniform([0, 1.2, 0], [0.3, 1.4, 0.3], (8, 3))  # close together: not enough
+    for q, x in enumerate(room):
+        e._room_pairs[q] = x
+        p = np.eye(4)
+        p[:3, 3] = true[0] * true[1] @ x + true[2]
+        e.poses[q] = p
+    assert e._room_tf() is None
+    for q, x in enumerate(rng.uniform([0, 1.2, 0], [3, 1.4, 3], (8, 3)), start=8):
+        e._room_pairs[q] = x
+        p = np.eye(4)
+        p[:3, 3] = true[0] * true[1] @ x + true[2]
+        e.poses[q] = p
+    s_, r_, t_ = e._room_tf()
+    assert np.isclose(s_, 1.5) and np.allclose(r_, rot, atol=1e-6) and np.allclose(t_, true[2])
+
+
+def test_room_flags_are_spoken_once_when_near():
+    from types import SimpleNamespace
+
+    e = engine()
+    flag = {"label": "tv", "from": [0.0, 1.0, 0.0], "to": [3.0, 1.0, 0.0], "status": "check"}
+    e.home = homemod.Home([], [], np.empty((0, 3), np.int32), changes=[flag])
+    e._anchors = ((1.0, np.eye(3), np.zeros(3)), np.zeros((1, 3)), [np.eye(4)])
+    e._set_home_tf((1.0, np.eye(3), np.array([1.0, 0.0, 0.0])))  # tv lands at x = 4
+    far, near = np.eye(4), np.eye(4)
+    near[0, 3] = 3.0
+    e._near_flags(SimpleNamespace(pose=far))
+    assert e._drain_moved() == []
+    e._near_flags(SimpleNamespace(pose=near))
+    e._near_flags(SimpleNamespace(pose=near))
+    (said,) = e._drain_moved()
+    assert said["change"] == "maybe_moved" and said["to"] == [4.0, 1.0, 0.0]

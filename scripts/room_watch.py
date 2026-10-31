@@ -6,6 +6,9 @@ A walk is finished when its frames.jsonl has not changed for SETTLE_S. For each 
   2. room_objects.py --walk: what moved since the last index, then the full index again;
   3. room_ledger.py: footage per room against the 10 hour benchmark;
   4. room_home.py: the home map the live app relocalizes against.
+A move one walk saw is a "check" flag until the next walk confirms it (rooms.track_changes).
+The flags go into the home map, and the app speaks one when he is near it, so he looks and that
+walk records the spot.
 Each version lives in data/rooms/<room>/vNNN; data/rooms/<room>/current.json names the newest.
 A failed step leaves current.json on the last good version and the walk is retried next round
 (at most RETRIES times). Heavy steps take a heavy-lock slot and wait for memory.
@@ -26,6 +29,9 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+from metasight import rooms  # noqa: E402
+
 WALKS = ROOT / "data" / "walks"
 SETTLE_S = 600
 RETRIES = 3
@@ -85,6 +91,15 @@ def save(sf: Path, state: dict) -> None:
     tmp.replace(sf)
 
 
+def publish(home: Path, flags: list[dict]) -> None:
+    f = home / "home.json"
+    meta = json.loads(f.read_text())
+    meta["changes"] = flags
+    tmp = f.with_suffix(".tmp")
+    tmp.write_text(json.dumps(meta))
+    tmp.replace(f)
+
+
 def fold(walk: Path, rdir: Path, a, state: dict) -> bool:
     cur = rdir / state["current"] if state.get("current") else None
     # A fresh dir per attempt: room_dense appends to cams.jsonl, so reusing a failed attempt's
@@ -120,17 +135,26 @@ def fold(walk: Path, rdir: Path, a, state: dict) -> bool:
         ok = run(
             ["scripts/room_objects.py", "--mesh", str(ver), "--tag", tag, "--walk", walk.name], log
         )
+    flags = state.get("changes", [])
+    if ok and cur:
+        seen = json.loads((ver / f"objects-{walk.name}.json").read_text())
+        moved = json.loads((ver / f"changes-{walk.name}.json").read_text())
+        if seen:  # a walk that never saw the room says nothing about its flags
+            flags = rooms.track_changes(flags, moved, seen, walk.name)
     if ok and cur:  # cams of earlier versions too, so the full index and ledger see every walk
         with (ver / "cams.jsonl").open("a") as f:
             f.write((cur / "cams.jsonl").read_text())
     ok = ok and run(["scripts/room_objects.py", "--mesh", str(ver), "--tag", tag], log)
     ok = ok and run(["scripts/room_ledger.py", "--mesh", str(ver), "--tag", tag], log)
+    home = rdir / "home"
     ok = ok and run(
         ["scripts/room_home.py", a.anchor_walks[0], "--anchors", a.anchors, "--views", str(a.views),
-         "--mesh", str(ver), "--tag", tag, "--out", str(ROOT / "data" / "rooms" / a.room / "home")],
+         "--mesh", str(ver), "--tag", tag, "--out", str(home)],
         log,
     )  # fmt: skip
     if ok:
+        publish(home, flags)
+        state["changes"] = flags
         state["versions"].append(ver.name)
         state["current"], state["tag"] = ver.name, tag
     return ok
