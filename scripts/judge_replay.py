@@ -206,7 +206,7 @@ def main() -> None:
 
     slot = take_slot()
     home = Path(tempfile.mkdtemp(prefix="ms-judge-home-"))
-    shutil.copytree(ROOT / "data" / "home", home, dirs_exist_ok=True)
+    shutil.copytree(a.home, home, dirs_exist_ok=True)
     # The glasses profile with the belt on its own port (the live server's belt emulator listens
     # on 4210, and a second server sending there would drive it) and the answer also played as
     # Braille cell events, for the judge view's touch panel.
@@ -256,6 +256,11 @@ def main() -> None:
     print(f"open http://127.0.0.1:{a.port}/judge.html", flush=True)
     signal.signal(signal.SIGTERM, interrupted)
     try:
+    ap.add_argument(
+        "--home",
+        default=os.environ.get("METASIGHT_HOME", str(ROOT / "data" / "home")),
+        help="the saved house to copy (default: the live service's)",
+    )
         asyncio.run(play(a, url))
         if a.keep:
             print("walk done; server stays up until Ctrl-C", flush=True)
