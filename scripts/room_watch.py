@@ -78,6 +78,12 @@ def settled(walk: Path) -> bool:
     return f.is_file() and time.time() - f.stat().st_mtime > SETTLE_S
 
 
+def save(sf: Path, state: dict) -> None:
+    tmp = sf.with_suffix(".tmp")
+    tmp.write_text(json.dumps(state, indent=1))
+    tmp.replace(sf)
+
+
 def fold(walk: Path, rdir: Path, a, state: dict) -> bool:
     cur = rdir / state["current"] if state.get("current") else None
     ver = rdir / f"v{len(state['versions']) + 1:03d}"
@@ -146,6 +152,7 @@ def main() -> None:
         # Walks recorded from here on are folded; older ones are either in the seed or elsewhere.
         state["since"] = time.strftime("%Y%m%d-%H%M%S")
         (rdir / "frame.json").write_text((seed / "frame-s1.json").read_text())
+        save(sf, state)  # now, or a restart would seed again and skip walks recorded meanwhile
     while True:
         for walk in sorted(WALKS.iterdir()):
             name = walk.name
@@ -162,9 +169,7 @@ def main() -> None:
                 state["done"][name] = state["current"]
             else:
                 state["tries"][name] = state["tries"].get(name, 0) + 1
-            tmp = sf.with_suffix(".tmp")
-            tmp.write_text(json.dumps(state, indent=1))
-            tmp.replace(sf)
+            save(sf, state)
             print(f"{time.strftime('%H:%M')} {name}: {'folded' if ok else 'failed'}", flush=True)
         if a.once:
             return

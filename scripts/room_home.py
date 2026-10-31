@@ -61,8 +61,11 @@ def main() -> None:
     mesh = o3d.io.read_triangle_mesh(str(Path(a.mesh) / f"mesh-{a.tag}.ply"))
     occ = homemod.cells(np.asarray(mesh.vertices))
     out = Path(a.out)
+    old = out / "home.json"  # pins he placed stay: the room frame is fixed, so they still fit
+    pins = json.loads(old.read_text())["pins"] if old.is_file() else []
     homemod.save(homemod.Home([], views, occ, 0, time.time()), out)
-    meta = json.loads((out / "home.json").read_text())
+    meta = json.loads(old.read_text())
+    meta["pins"] = pins
     meta["fixed"] = {"mesh": str(Path(a.mesh) / f"mesh-{a.tag}.ply"), "frame": xf.tolist()}
     (out / "home.json").write_text(json.dumps(meta))
     print(f"{len(views)} views, {len(occ)} occupied cells -> {out}")
