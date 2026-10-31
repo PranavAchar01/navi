@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -40,7 +41,7 @@ def free_pct() -> int:
 
 
 def take_slot() -> Path:
-    while free_pct() < 10:
+    while free_pct() < 10 or shutil.disk_usage(ROOT).free < 15 * 2**30:
         time.sleep(30)
     n = 1
     while True:
@@ -86,8 +87,12 @@ def save(sf: Path, state: dict) -> None:
 
 def fold(walk: Path, rdir: Path, a, state: dict) -> bool:
     cur = rdir / state["current"] if state.get("current") else None
-    ver = rdir / f"v{len(state['versions']) + 1:03d}"
-    ver.mkdir(parents=True, exist_ok=True)
+    # A fresh dir per attempt: room_dense appends to cams.jsonl, so reusing a failed attempt's
+    # dir would count its cameras twice in the index and the ledger.
+    n = len(state["versions"]) + 1
+    while (ver := rdir / f"v{n:03d}").exists():
+        n += 1
+    ver.mkdir(parents=True)
     log = ver / "log.txt"
     start = ["--start-from", str(cur / "state.pt")] if cur else []
     common = ["--anchors", a.anchors, "--views", str(a.views), "--anchor-walks", *a.anchor_walks]

@@ -40,3 +40,19 @@ def test_ledger_roundtrip(tmp_path):
     led.save(tmp_path / "l.json")
     back = rooms.Ledger.load(tmp_path / "l.json")
     assert back.seconds == led.seconds and back.walks == ["w"]
+
+
+def test_watch_retry_gets_a_fresh_version(tmp_path, monkeypatch):
+    import sys
+    from pathlib import Path
+    from types import SimpleNamespace
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+    import room_watch
+
+    monkeypatch.setattr(room_watch, "run", lambda args, log: False)
+    a = SimpleNamespace(anchors="a", views=1, anchor_walks=["w"], room="r")
+    state = {"versions": ["seed"], "current": None, "done": {}, "tries": {}}
+    assert not room_watch.fold(tmp_path / "walk", tmp_path, a, state)
+    assert not room_watch.fold(tmp_path / "walk", tmp_path, a, state)
+    assert sorted(p.name for p in tmp_path.glob("v*")) == ["v002", "v003"]
