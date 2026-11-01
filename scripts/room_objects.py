@@ -161,6 +161,7 @@ def main() -> None:
     ap.add_argument("--every", type=int, default=4, help="use every n-th fused frame")
     ap.add_argument("--weights", default=str(ROOT / "yolo26s.pt"))
     ap.add_argument("--walk", help="only this walk's frames, compared against the full index")
+    ap.add_argument("--exclude", help="leave this walk's frames out (to score a prior on it)")
     a = ap.parse_args()
     import open3d as o3d
 
@@ -170,6 +171,8 @@ def main() -> None:
     rows = load_cams(mdir, xf, a.every)
     if a.walk:
         rows = [r for r in rows if r["walk"] == a.walk]
+    if a.exclude:
+        rows = [r for r in rows if r["walk"] != a.exclude]
     dets = detect(rows, Path(a.weights))
     objects = place(dets, mesh)
     if a.walk:
@@ -181,8 +184,9 @@ def main() -> None:
         for o in flagged:
             print(f"  {o['change']:5s} {o['label']:12s} {o['pos']} ({o['nearest_m']} m from index)")
         return
-    (mdir / f"objects-{a.tag}.json").write_text(json.dumps(objects, indent=1))
-    draw(objects, mesh, mdir / f"objects-{a.tag}.png")
+    out = f"{a.tag}-without-{a.exclude}" if a.exclude else a.tag
+    (mdir / f"objects-{out}.json").write_text(json.dumps(objects, indent=1))
+    draw(objects, mesh, mdir / f"objects-{out}.png")
     print(f"{len(rows)} frames, {len(dets)} detections, {len(objects)} objects")
     for o in objects[:25]:
         print(f"  {o['label']:12s} {o['pos']} +-{o['spread_m'] * 100:.0f} cm, {o['views']} views")

@@ -67,6 +67,7 @@ from .query import (
 from .relocalize import RoomMatcher
 from .review import MapReview
 from .review import plan as errand_plan
+from .roomprior import RoomPrior
 from .safety import SafetyLoop, hazards
 from .voice import VoiceAsk
 from .walk import WALKS, WalkRecorder
@@ -93,6 +94,7 @@ ROOM_VIEW_HZ = 5.0  # frames placed in the fixed room by PnP, for the room overl
 # Fewer PnP inliers than this and a frame can land on a look-alike wall: on the bedroom replay a
 # keyframe with 191 landed 1.6 m off, while single frames with 230 or more were within 16 cm.
 ROOM_VIEW_MIN_INLIERS = 220
+ROOM_PRIOR_AGE_S = 0.3  # an older room pose has turned with the head too far to vouch for a box
 FLOOR_EVERY_S = 2.0  # the floor plan for routes and priors is rebuilt from the map this often
 RETIE_M = 0.3  # the pose jumping this far in one frame is a re-tie: the priors sit out a second
 # ARKit's camera is the landscape sensor (x along its long side, y up, z back). Frames go out
@@ -198,6 +200,9 @@ class Server:
         # The fixed room's matcher (built on first use, False without a fixed home and mesh).
         self.room_matcher: RoomMatcher | bool | None = None
         self.room_job, self.room_at = False, 0.0
+        # The saved objects that vouch for weak boxes, and the last placed frame's pose.
+        self.room_prior: RoomPrior | None = None
+        self.room_seen: tuple[float, np.ndarray, np.ndarray] | None = None  # time, pose, K
         # Phone mode: ARKit tracks every frame, and each memory pose for a tracked frame ties
         # ARKit's world to the map's, so the map pose is current between windows.
         self.arposes: deque[tuple[int, np.ndarray]] = deque(maxlen=900)  # (frame seq, pose)
@@ -431,7 +436,11 @@ class Server:
         """The label layer, after the buzz went out: detections, and the finder's larger frame."""
         k = FINDER_LONG_SIDE / max(bgr.shape[:2])
         hi = cv2.resize(bgr, None, fx=k, fy=k, interpolation=cv2.INTER_AREA) if k < 1 else bgr
-        return self.safety.label(small, res), hi
+        res = self.safety.label(small, res)
+        seen = self.room_seen
+        if self.room_prior and seen and time.time() - seen[0] < ROOM_PRIOR_AGE_S:
+            res.obstacles = self.room_prior.apply([*res.obstacles, *res.weak], seen[1], seen[2])
+        return res, hi
 
     async def review_loop(self) -> None:
         """The deep speed: every few minutes the reviewer reads the map's change log. Off the
@@ -855,6 +864,11 @@ class Server:
                 home = homemod.load()
                 ok = home and home.fixed and (homemod.home_dir() / "room.ply").is_file()
                 self.room_matcher = RoomMatcher(_home_bgr(home), home.views) if ok else False
+                objs = homemod.home_dir() / "objects.json"
+                if ok and objs.is_file():
+                    self.room_prior = RoomPrior(
+                        json.loads(objs.read_text()), homemod.home_dir() / "room.ply"
+                    )
             m = self.room_matcher
             return m.locate(small) if m and small.shape[:2] == m.shape else None
 
@@ -865,6 +879,8 @@ class Server:
                 log.warning("room view failed: %s", f.exception())
             if hit is None or hit[1] < ROOM_VIEW_MIN_INLIERS:
                 return
+            m = self.room_matcher
+            self.room_seen = (now, hit[0], m.k / np.array([[m.shape[1]], [m.shape[0]], [1]]))
             msg = {"type": "room_pose", "seq": seq, "pose": hit[0].tolist(), "inliers": hit[1]}
             msg.update(hfov=self.room_matcher.hfov, aspect=small.shape[1] / small.shape[0])
             asyncio.ensure_future(self.hub.json(msg))

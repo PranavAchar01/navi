@@ -19,6 +19,7 @@ import torch
 
 from .align import map_resolution
 from .config import Settings
+from .roomprior import CONFIRM_CONF, LIVE_CONF
 
 DEPTH_REPO = "depth-anything/Depth-Anything-V2-Metric-Indoor-Small-hf"
 _MEAN = np.array([0.485, 0.456, 0.406], np.float32)
@@ -60,6 +61,7 @@ class SafetyResult:
     ttc_s: float = math.inf  # time to contact with what is in the path, from its closing speed
     floor_scale: float | None = None  # this frame's scale measured from the floor plane
     depth_m: np.ndarray | None = field(default=None, repr=False)  # float32 `depth`, for labels
+    weak: list[Obstacle] = field(default_factory=list)  # below the live threshold, for the room
 
 
 @dataclass
@@ -470,7 +472,11 @@ class SafetyLoop:
             t2 = t3 = time.perf_counter()
         else:
             r = self._det.predict(
-                bgr, imgsz=self.s.detector_imgsz, device=self._det_device, verbose=False, conf=0.35
+                bgr,
+                imgsz=self.s.detector_imgsz,
+                device=self._det_device,
+                verbose=False,
+                conf=CONFIRM_CONF,
             )[0]
             t2 = time.perf_counter()
             h, w = bgr.shape[:2]
@@ -490,7 +496,7 @@ class SafetyLoop:
                     int(cx0 / w * dw) : int(cx1 / w * dw) + 1,
                 ]
                 dist = float(np.percentile(patch, 25)) if patch.size else float("inf")
-                res.obstacles.append(
+                (res.obstacles if p >= LIVE_CONF else res.weak).append(
                     Obstacle(r.names[int(c)], float(p), (x0 / w, y0 / h, x1 / w, y1 / h), dist)
                 )
             t3 = time.perf_counter()

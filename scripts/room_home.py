@@ -74,6 +74,10 @@ def main() -> None:
     o3d.io.write_triangle_mesh(str(out / "room.tmp.ply"), thin, write_ascii=False)
     (out / "room.tmp.ply").replace(out / "room.ply")
     (out / "home.json").write_text(json.dumps(meta))
+    # The objects the dense run placed, which vouch for the live detector's weak boxes.
+    objs = Path(a.mesh) / f"objects-{a.tag}.json"
+    if objs.is_file():
+        (out / "objects.json").write_text(objs.read_text())
     print(f"{len(views)} views, {len(occ)} occupied cells -> {out}")
 
 
