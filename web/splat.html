@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>meta-sight room</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0b0d10;
+        color: #cfd6de;
+        font:
+          14px system-ui,
+          sans-serif;
+        overflow: hidden;
+      }
+      #status {
+        position: fixed;
+        left: 16px;
+        bottom: 16px;
+        opacity: 0.8;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="status">Loading the room</div>
+    <script type="module" src="/src/splat.ts"></script>
+  </body>
+</html>

@@ -1366,6 +1366,14 @@ def create_app(settings: Settings | None = None, session: str | None = None) -> 
             return JSONResponse({"error": "no room mesh"}, status_code=404)
         return FileResponse(f, media_type="application/octet-stream")
 
+    @app.get("/api/splat.ply")
+    async def room_splat():
+        """The room as Gaussian splats (room_splat.py then Brush), in room.ply's frame."""
+        f = homemod.home_dir() / "splat.ply"
+        if not f.is_file():
+            return JSONResponse({"error": "no room splat"}, status_code=404)
+        return FileResponse(f, media_type="application/octet-stream")
+
     @app.post("/api/ask")
     async def ask(body: Ask):
         return await srv.answer(body.text)
