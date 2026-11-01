@@ -26,6 +26,8 @@ ROOT = Path(__file__).resolve().parent.parent
 CLUSTER_M = 0.25  # hits of one label closer than this are the same object
 MIN_VIEWS = 4  # an object needs this many frames that agree
 MIN_CONF = 0.4
+MOVE_MIN_M = 0.15  # still things sit 6 to 13 cm from their indexed spot (see moved_by)
+MOVE_K = 1.5
 FLAG_VIEWS = 10  # a move is only flagged from an object this many frames of the walk agree on
 SKIP = {"person"}  # people are not part of the room
 
@@ -112,9 +114,18 @@ def place(dets: list[dict], mesh) -> list[dict]:
     return sorted(objects, key=lambda o: -o["views"])
 
 
-def changes(ref: list[dict], new: list[dict], moved_m: float = 0.3) -> list[dict]:
+def moved_by(a: dict, b: dict) -> float:
+    """How far apart two sightings must be to count as a move: the two placements' spreads,
+    widened, with a floor. Walk 20261031-004732-glasses against the index built without it put
+    the bed, laptop, keyboard, mouse, phone and a chair 6 to 13 cm from where the index had them,
+    and the desk monitor ("tv", a wide box whose centre lands anywhere on it, spreads 18 cm) 43 cm
+    off, which a flat 30 cm called a move."""
+    return max(MOVE_MIN_M, MOVE_K * (a.get("spread_m", 0.0) + b.get("spread_m", 0.0)))
+
+
+def changes(ref: list[dict], new: list[dict]) -> list[dict]:
     """What a walk saw differently from the room's index: an object with no object of its label
-    within moved_m in the index has moved there (or is new). Each one flags its spot for
+    within moved_by in the index has moved there (or is new). Each one flags its spot for
     recapture."""
     out = []
     for o in new:
@@ -122,7 +133,7 @@ def changes(ref: list[dict], new: list[dict], moved_m: float = 0.3) -> list[dict
             continue
         same = [r for r in ref if r["label"] == o["label"]]
         dist = [float(np.linalg.norm(np.subtract(r["pos"], o["pos"]))) for r in same]
-        if not same or min(dist) > moved_m:
+        if not same or all(d > moved_by(r, o) for r, d in zip(same, dist, strict=True)):
             near = same[int(np.argmin(dist))] if same else None
             out.append(
                 {

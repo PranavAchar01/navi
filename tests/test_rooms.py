@@ -114,3 +114,22 @@ def test_a_flag_needs_enough_views():
     assert changes(ref, [{**new, "views": FLAG_VIEWS - 1}]) == []
     (flag,) = changes(ref, [{**new, "views": FLAG_VIEWS}])
     assert flag["from"] == [0.0, 1.0, 0.0] and flag["nearest_m"] == 2.0
+
+
+def test_a_move_is_measured_against_how_sure_both_placements_are():
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+    from room_objects import FLAG_VIEWS, changes
+
+    def obj(label, x, spread):
+        return {"label": label, "pos": [x, 0.5, 0.0], "spread_m": spread, "views": FLAG_VIEWS}
+
+    # A keyboard placed to 5 cm that shifts 25 cm moved; a flat 30 cm missed it.
+    assert changes([obj("keyboard", 0.0, 0.05)], [obj("keyboard", 0.25, 0.05)])
+    # A wide monitor whose placements spread 18 cm, 43 cm off: still where it was.
+    assert not changes([obj("tv", 0.0, 0.19)], [obj("tv", 0.43, 0.18)])
+    # The chair test: pushed half a metre.
+    assert changes([obj("chair", 0.0, 0.14)], [obj("chair", 0.5, 0.08)])
+    assert not changes([obj("chair", 0.0, 0.14)], [obj("chair", 0.12, 0.08)])
