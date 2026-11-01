@@ -7,6 +7,10 @@ each camera by whatever the pixels disagree with. The result is aligned back ont
 cameras (Umeyama on centres), so room.ply and the saved objects stay valid.
 
     python scripts/splat_refine_poses.py data/rooms/bedroom/splat-x1 data/rooms/bedroom/splat-x3
+
+With --shared-intrinsics SOURCES (one source path per frame, as in sources.txt), frames from the
+same walk share one camera at the median of their per-frame intrinsics; --refine-focal also lets
+BA refine its focal length on the last pass.
 """
 
 from __future__ import annotations
@@ -91,6 +95,28 @@ def match(db: Path, names: list[str], pairs: list[tuple[int, int]], out: Path) -
     pycolmap.match_image_pairs(db, pairing_options=po)
 
 
+def share_cameras(db: Path, tf: dict, groups: list[str]) -> None:
+    """Point every frame of a group at one camera (and its rig) in the database, set to the
+    median of the group's per-frame intrinsics. The other per-image cameras stay, unused."""
+    with pycolmap.Database.open(db) as d:
+        for g in sorted(set(groups)):
+            fs = [f for f, k in zip(tf["frames"], groups, strict=True) if k == g]
+            ims = [d.read_image_with_name(f["file_path"]) for f in fs]
+            cam = d.read_camera(ims[0].camera_id)
+            cam.params = np.median([[f["fl_x"], f["fl_y"], f["cx"], f["cy"]] for f in fs], axis=0)
+            d.update_camera(cam)
+            rig = d.read_rig_with_sensor(cam.sensor_id)
+            for im in ims:  # the frame must list the new camera before the image moves to it
+                fr = d.read_frame(im.frame_id)
+                fr.rig_id = rig.rig_id
+                fr.clear_data_ids()
+                fr.add_data_id(pycolmap.data_t(cam.sensor_id, im.image_id))
+                d.update_frame(fr)
+            for im in ims:
+                im.camera_id = cam.camera_id
+                d.update_image(im)
+
+
 def build_recon(db: Path, tf: dict, poses: list[np.ndarray]) -> pycolmap.Reconstruction:
     rec = pycolmap.Reconstruction()
     with pycolmap.Database.open(db) as d:
@@ -123,11 +149,12 @@ def drop_outliers(rec: pycolmap.Reconstruction) -> int:
     return len(bad)
 
 
-def bundle(rec: pycolmap.Reconstruction) -> None:
-    """Pose + point BA, intrinsics fixed, Huber loss. The gauge is fixed on two cameras and the
-    result is aligned back onto the originals afterwards."""
+def bundle(rec: pycolmap.Reconstruction, focal: bool = False) -> None:
+    """Pose + point BA, intrinsics fixed unless focal, Huber loss. The gauge is fixed on two
+    cameras and the result is aligned back onto the originals afterwards."""
     o = pycolmap.BundleAdjustmentOptions()
-    o.refine_focal_length = o.refine_principal_point = o.refine_extra_params = False
+    o.refine_focal_length = focal
+    o.refine_principal_point = o.refine_extra_params = False
     o.print_summary = False
     o.ceres.loss_function_type = pycolmap.LossFunctionType.HUBER
     o.ceres.loss_function_scale = 1.0  # px
@@ -136,8 +163,9 @@ def bundle(rec: pycolmap.Reconstruction) -> None:
         cfg.add_image(i)
     for i in rec.point3D_ids():
         cfg.add_variable_point(i)
-    for cam in rec.cameras:
-        cfg.set_constant_cam_intrinsics(cam)
+    if not focal:
+        for cam in rec.cameras:
+            cfg.set_constant_cam_intrinsics(cam)
     cfg.fix_gauge(pycolmap.BundleAdjustmentGauge.TWO_CAMS_FROM_WORLD)
     pycolmap.create_default_bundle_adjuster(o, cfg, rec).solve()
     rec.update_point_3d_errors()  # the stored errors are stale after a solve
@@ -187,6 +215,8 @@ def main() -> None:
     ap.add_argument("--max-pairs-per-image", type=int, default=15)
     ap.add_argument("--iters", type=int, default=3)
     ap.add_argument("--seed-points", action="store_true", help="write the BA points to points.ply")
+    ap.add_argument("--shared-intrinsics", type=Path, metavar="SOURCES")
+    ap.add_argument("--refine-focal", action="store_true")
     a = ap.parse_args()
     t0 = time.time()
 
@@ -209,6 +239,11 @@ def main() -> None:
         verified = d.num_verified_image_pairs()
     print(f"pairs chosen {len(pairs)}, verified {verified}")
 
+    shared = a.shared_intrinsics is not None
+    focal = shared and a.refine_focal
+    if shared:
+        groups = [n.split("/")[0] for n in a.shared_intrinsics.read_text().split()]
+        share_cameras(db, tf, groups)
     rec = build_recon(db, tf, poses)
     rec = triangulate(rec, db, root, work)
     before = mean_err(rec)
@@ -216,7 +251,9 @@ def main() -> None:
     for it in range(a.iters):
         bundle(rec)
         n = drop_outliers(rec)
-        bundle(rec)
+        # focal only once the poses have settled and the outliers are gone; freed earlier, it
+        # chases the points that BA is about to drop
+        bundle(rec, focal and it + 1 == a.iters)
         print(
             f"iter {it + 1}: BA, dropped {n}, {rec.num_points3D()} points, "
             f"mean reproj {mean_err(rec):.3f} px"
@@ -225,7 +262,7 @@ def main() -> None:
             rec = triangulate(rec, db, root, work)  # re-triangulate with the refined poses
     after = mean_err(rec)
 
-    new, used, gauge, _ = refined_poses(rec, tf, poses, db)
+    new, used, gauge, ids = refined_poses(rec, tf, poses, db)
     sc = gauge[0]
     dc = np.array([np.linalg.norm(new[k][:3, 3] - poses[k][:3, 3]) for k in used]) * 100
     dr = np.array([rot_deg(new[k][:3, :3], poses[k][:3, :3]) for k in used])
@@ -236,6 +273,16 @@ def main() -> None:
     print(f"rotation change deg: median {np.median(dr):.3f} max {dr.max():.3f}")
     # the BA's own error is in its free gauge; re-triangulating from the aligned poses is the
     # same measure as "before", so the two are comparable
+    if shared:
+        # BA's focal is in pixels, so the sim3 back to the room frame leaves it alone
+        cams = [rec.cameras[rec.images[i].camera_id] for i in ids]
+        for c in {c.camera_id: c for c in cams}.values():
+            print(f"camera {c.camera_id}: fx {c.params[0]:.2f} fy {c.params[1]:.2f}")
+        for f, c in zip(tf["frames"], cams, strict=True):
+            f["fl_x"], f["fl_y"], f["cx"], f["cy"] = (float(v) for v in c.params)
+        with pycolmap.Database.open(db) as d:
+            for c in rec.cameras.values():
+                d.update_camera(c)  # the check below re-reads cameras from the database
     check = triangulate(build_recon(db, tf, new), db, root, work)
     print(
         f"mean reproj before {before:.3f} px, after BA {after:.3f} px, "
