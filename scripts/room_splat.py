@@ -44,6 +44,10 @@ def sharpness(img: np.ndarray) -> float:
     return float(cv2.Laplacian(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), cv2.CV_64F).var())
 
 
+def source(r: dict) -> str:
+    return f"{r['walk']}/{r['file']}"
+
+
 def write_points(path: Path, xyz: np.ndarray, rgb: np.ndarray) -> None:
     """Float positions and byte colours: Brush's reader stops early on Open3D's doubles."""
     row = np.dtype([*((c, "<f4") for c in "xyz"), *((c, "u1") for c in "rgb")])
@@ -67,6 +71,16 @@ def main() -> None:
     ap.add_argument("--home", default=str(ROOT / "data/rooms/bedroom/home"))
     ap.add_argument("--frames", type=int, default=1600)
     ap.add_argument("--long-side", type=int, default=960)
+    ap.add_argument(
+        "--per-walk",
+        action="store_true",
+        help="spread --frames evenly over the walks instead of over all fused frames",
+    )
+    ap.add_argument(
+        "--hold-out",
+        help="sources.txt of an earlier dataset: its every-20th frames (Brush's eval split) stay "
+        "at the same slots here, so both runs are scored on the same held-out frames",
+    )
     a = ap.parse_args()
     import open3d as o3d
 
@@ -80,9 +94,15 @@ def main() -> None:
     mh, mw = m.shape
     elsewhere = 0
     # Evenly through the fused frames, the sharper of each neighbouring pair: walking blurs most.
-    step = max(1, len(rows) // a.frames)
-    frames = []
-    for i in range(0, len(rows) - 1, step):
+    starts = range(0, len(rows) - 1, max(1, len(rows) // a.frames))
+    if a.per_walk:
+        walks = sorted({r["walk"] for r in rows})
+        starts = []
+        for w in walks:
+            idx = [i for i, r in enumerate(rows[:-1]) if r["walk"] == w]
+            starts += idx[:: max(1, len(idx) * len(walks) // a.frames)]
+    picked = []  # (row, image) in sample order
+    for i in starts:
         best = None
         for r in rows[i : i + 2]:
             img = cv2.imread(str(ROOT / "data/walks" / r["walk"] / "frames" / r["file"]))
@@ -95,6 +115,20 @@ def main() -> None:
         if hit is None or hit[1] < MIN_INLIERS:
             elsewhere += 1
             continue
+        picked.append((r, img))
+    if a.hold_out:
+        # The earlier run's held-out frames go back into the slots Brush holds out.
+        old = Path(a.hold_out).read_text().split()
+        held = {s: None for s in old[::20]}
+        for r in rows:
+            if (s := source(r)) in held:
+                held[s] = (r, cv2.imread(str(ROOT / "data/walks" / s.replace("/", "/frames/", 1))))
+        rest = [p for p in picked if source(p[0]) not in held]
+        picked, todo = [], list(held.values())
+        while todo or rest:
+            picked.append(todo.pop(0) if todo and len(picked) % 20 == 0 else rest.pop(0))
+    frames = []
+    for r, img in picked:
         k = min(1.0, a.long_side / max(img.shape[:2]))
         img = cv2.resize(img, None, fx=k, fy=k, interpolation=cv2.INTER_AREA) if k < 1 else img
         h, w = img.shape[:2]
@@ -114,6 +148,7 @@ def main() -> None:
                 "h": h,
             }
         )
+    (out / "sources.txt").write_text("".join(f"{source(r)}\n" for r, _ in picked))
     mesh = o3d.io.read_triangle_mesh(str(mdir / f"mesh-{a.tag}.ply"))
     pc = mesh.sample_points_uniformly(SEED_POINTS)  # the mesh is in the room frame already
     write_points(out / "points.ply", np.asarray(pc.points), np.asarray(pc.colors))
