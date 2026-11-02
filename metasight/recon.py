@@ -10,7 +10,9 @@ a shelf overhang).
 
 from __future__ import annotations
 
+import json
 import math
+from pathlib import Path
 
 import numpy as np
 
@@ -189,3 +191,51 @@ def trusted(pos: np.ndarray, jump_m: float = 0.15) -> np.ndarray:
     ok[0], ok[-1] = d[0], d[-1]
     ok[1:-1] = d[:-1] & d[1:]
     return ok
+
+
+def load_prior(path: Path, xf: np.ndarray | None = None, min_frames: int = 3) -> dict:
+    """A recon-v2 objects.json as boxes and edges in the live map's frame.
+
+    The bedroom home (data/rooms/bedroom/home) is built in the room mesh's frame, the same frame
+    objects.json uses, so xf is None there. For another home, xf (4x4, y stays up) takes mesh
+    coordinates into it. Returns {"floor_y", "objects": [...]}, each object with id, class,
+    hazard, movable, center (3,), size [sx, height, sz], yaw_rad, corners (8, 3: top ring then
+    bottom ring), top_height_m, floor_clearance_m and edges [{kind, height_m, points (n, 3)}].
+    Objects seen in fewer than min_frames frames are left out. Heights stay floor-relative.
+    """
+    doc = json.loads(Path(path).read_text())
+    xf = np.eye(4) if xf is None else np.asarray(xf, float)
+
+    def move(p) -> np.ndarray:
+        p = np.asarray(p, float)
+        return p @ xf[:3, :3].T + xf[:3, 3]
+
+    floor_y = float(move([0.0, doc["floor_y"], 0.0])[1])
+    objs = []
+    for o in doc["objects"]:
+        if o.get("seen", {}).get("frames", min_frames) < min_frames:
+            continue
+        b = o["obb"]
+        top = np.asarray(b["corners_top"], float)
+        bot = top.copy()
+        bot[:, 1] = b["center"][1] - b["size"][1] / 2
+        axis = xf[:3, :3] @ [math.cos(b["yaw_rad"]), 0.0, math.sin(b["yaw_rad"])]
+        objs.append(
+            {
+                "id": o["id"],
+                "class": o["class"],
+                "hazard": bool(o.get("hazard")),
+                "movable": bool(o.get("movable", True)),
+                "center": move(b["center"]),
+                "size": list(b["size"]),
+                "yaw_rad": math.atan2(axis[2], axis[0]),
+                "corners": move(np.vstack([top, bot])),
+                "top_height_m": o.get("top_height_m"),
+                "floor_clearance_m": o.get("floor_clearance_m", 0.0),
+                "edges": [
+                    {"kind": e["kind"], "height_m": e["height_m"], "points": move(e["points"])}
+                    for e in o.get("edges", [])
+                ],
+            }
+        )
+    return {"floor_y": floor_y, "objects": objs}

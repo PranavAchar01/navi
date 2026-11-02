@@ -1,3 +1,4 @@
+import json
 import math
 
 import numpy as np
@@ -63,3 +64,48 @@ def test_continuity_and_trusted_flag_jumps():
     pos = np.array([[0, 0, 0], [0.02, 0, 0], [2.0, 0, 0], [0.04, 0, 0], [0.06, 0, 0]], float)
     assert abs(recon.continuity(pos) - 0.5) < 1e-9
     assert recon.trusted(pos).tolist() == [True, False, False, False, True]
+
+
+def _prior_doc(tmp_path):
+    box = {"center": [1.0, 0.5, 2.0], "size": [1.2, 0.8, 0.6], "yaw": 0.0}
+    obj = {
+        "id": "desk_00",
+        "class": "desk",
+        "hazard": True,
+        "movable": False,
+        "obb": {
+            "center": box["center"],
+            "size": box["size"],
+            "yaw_rad": 0.0,
+            "corners_top": recon.box_corners(box, 0.9).tolist(),
+        },
+        "top_height_m": 0.8,
+        "floor_clearance_m": 0.7,
+        "edges": recon.edges(box, 0.1, 0.7),
+        "seen": {"frames": 40},
+    }
+    rare = dict(obj, id="box_01", seen={"frames": 1})
+    p = tmp_path / "objects.json"
+    p.write_text(json.dumps({"floor_y": 0.1, "objects": [obj, rare]}))
+    return p
+
+
+def test_load_prior_identity_keeps_the_mesh_frame(tmp_path):
+    pr = recon.load_prior(_prior_doc(tmp_path))
+    assert pr["floor_y"] == 0.1 and [o["id"] for o in pr["objects"]] == ["desk_00"]
+    (d,) = pr["objects"]
+    assert d["corners"].shape == (8, 3)
+    assert np.allclose(d["corners"][:4, 1], 0.9) and np.allclose(d["corners"][4:, 1], 0.1)
+    assert [e["kind"] for e in d["edges"]] == ["top", "underside"]
+    assert np.allclose(d["edges"][1]["points"][:, 1], 0.8)
+
+
+def test_load_prior_moves_boxes_with_xf(tmp_path):
+    xf = np.eye(4)
+    xf[:3, :3] = [[0, 0, 1], [0, 1, 0], [-1, 0, 0]]  # 90 degrees about +y
+    xf[:3, 3] = [0.0, -0.1, 0.0]  # floor to y = 0
+    (d,) = recon.load_prior(_prior_doc(tmp_path), xf)["objects"]
+    assert np.allclose(d["center"], [2.0, 0.4, -1.0])
+    assert math.isclose(abs(d["yaw_rad"]), math.pi / 2, abs_tol=1e-9)
+    assert np.allclose(d["corners"][4:, 1], 0.0)
+    assert d["edges"][0]["height_m"] == 0.8
