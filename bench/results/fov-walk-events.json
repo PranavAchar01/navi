@@ -1,0 +1,144 @@
+{
+ "20261102-030055-glasses": {
+  "walk": "20261102-030055-glasses",
+  "clock_offset_s": -1792300760.796,
+  "turn_speed_corr": 0.844,
+  "pitch_deg_pct": [
+   13.1,
+   33.4,
+   41.0,
+   47.4,
+   59.3
+  ],
+  "frames": 1632,
+  "dy_vs_pitch_rate_corr": -0.424,
+  "events": [
+   {
+    "seen_seq": 859,
+    "seen_file": "1793617303228-859.jpg",
+    "lost_seq": 881,
+    "lost_file": "1793617304970-881.jpg",
+    "path_m": 0.56,
+    "gap_s": 1.74,
+    "pitch_seen": 41.0,
+    "pitch_lost": 36.5,
+    "turn_deg": 112.6,
+    "kind": "turn"
+   },
+   {
+    "seen_seq": 951,
+    "seen_file": "1793617309211-951.jpg",
+    "lost_seq": 991,
+    "lost_file": "1793617311182-991.jpg",
+    "path_m": 0.48,
+    "gap_s": 1.97,
+    "pitch_seen": 47.0,
+    "pitch_lost": 47.6,
+    "turn_deg": 12.0,
+    "kind": "other"
+   },
+   {
+    "seen_seq": 1036,
+    "seen_file": "1793617313460-1036.jpg",
+    "lost_seq": 1072,
+    "lost_file": "1793617315092-1072.jpg",
+    "path_m": 0.54,
+    "gap_s": 1.63,
+    "pitch_seen": 43.7,
+    "pitch_lost": 47.2,
+    "turn_deg": 80.0,
+    "kind": "turn"
+   },
+   {
+    "seen_seq": 1164,
+    "seen_file": "1793617319003-1164.jpg",
+    "lost_seq": 1197,
+    "lost_file": "1793617320953-1197.jpg",
+    "path_m": 0.32,
+    "gap_s": 1.95,
+    "pitch_seen": 37.6,
+    "pitch_lost": 39.5,
+    "turn_deg": 126.2,
+    "kind": "turn"
+   },
+   {
+    "seen_seq": 1215,
+    "seen_file": "1793617321957-1215.jpg",
+    "lost_seq": 1228,
+    "lost_file": "1793617322667-1228.jpg",
+    "path_m": 0.54,
+    "gap_s": 0.71,
+    "pitch_seen": 32.1,
+    "pitch_lost": 33.5,
+    "turn_deg": 5.3,
+    "kind": "other"
+   },
+   {
+    "seen_seq": 1343,
+    "seen_file": "1793617329094-1343.jpg",
+    "lost_seq": 1388,
+    "lost_file": "1793617331079-1388.jpg",
+    "path_m": 0.28,
+    "gap_s": 1.99,
+    "pitch_seen": 37.0,
+    "pitch_lost": 28.7,
+    "turn_deg": 48.9,
+    "kind": "lift"
+   },
+   {
+    "seen_seq": 1418,
+    "seen_file": "1793617332333-1418.jpg",
+    "lost_seq": 1431,
+    "lost_file": "1793617333040-1431.jpg",
+    "path_m": 0.26,
+    "gap_s": 0.71,
+    "pitch_seen": 27.0,
+    "pitch_lost": 17.2,
+    "turn_deg": 19.1,
+    "kind": "lift"
+   },
+   {
+    "seen_seq": 1452,
+    "seen_file": "1793617334089-1452.jpg",
+    "lost_seq": 1478,
+    "lost_file": "1793617335295-1478.jpg",
+    "path_m": 0.39,
+    "gap_s": 1.21,
+    "pitch_seen": 21.7,
+    "pitch_lost": 31.3,
+    "turn_deg": 156.5,
+    "kind": "turn"
+   },
+   {
+    "seen_seq": 1508,
+    "seen_file": "1793617337057-1508.jpg",
+    "lost_seq": 1545,
+    "lost_file": "1793617339034-1545.jpg",
+    "path_m": 0.53,
+    "gap_s": 1.98,
+    "pitch_seen": 34.8,
+    "pitch_lost": 50.1,
+    "turn_deg": 16.4,
+    "kind": "turn"
+   },
+   {
+    "seen_seq": 1563,
+    "seen_file": "1793617340053-1563.jpg",
+    "lost_seq": 1580,
+    "lost_file": "1793617341311-1580.jpg",
+    "path_m": 0.29,
+    "gap_s": 1.26,
+    "pitch_seen": 61.1,
+    "pitch_lost": 27.9,
+    "turn_deg": 21.3,
+    "kind": "lift"
+   }
+  ],
+  "event_kinds": {
+   "lift": 3,
+   "turn": 5,
+   "other": 2
+  },
+  "safety_frames": 742
+ }
+}

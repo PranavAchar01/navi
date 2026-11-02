@@ -1,0 +1,336 @@
+"""What the glasses saw a moment ago and can no longer see: field-of-view memory for hazards.
+
+The glasses camera is narrow (about 45 by 72 degrees, portrait) and its pitch follows the head.
+A desk edge seen while looking down drops under the frame when the wearer looks up at the
+monitor, though it still sits at hip height a step ahead; a chair seen while facing it leaves
+the side of the view on a turn. Cues built from the current frame alone forget both.
+
+`HazardMemory` keeps every obstacle cell the camera has seen (5 cm floor cells, with the height
+of what stands there) in a level frame turned by the head's yaw and moved by its position, so
+a cell keeps its place in the room after it leaves the view. Heights come from the depth and the
+head pitch measured by the glasses' accelerometer, not from a floor fit, so they hold when the
+floor is out of view. While a cell is in view the live frame decides: seen again, it is
+refreshed; seen through (the depth there lies beyond it), it is dropped; hidden behind something
+nearer, it is kept. Out of view, it is kept for `keep_s` and is what `update` reports, per belt
+sector, in the head's own frame. docs/fov-catalogue.md has the failure modes and the numbers.
+
+Frames: level head frame (right, forward, up from the floor) in metres. World frame: x, z on the
+floor with the heading convention of `heading.Heading` (forward = (sin yaw, cos yaw), yaw grows
+turning left).
+"""
+
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass, field
+
+import numpy as np
+
+# The glasses' forward axis in their motion frame. The DAT docs give no axes; gravity reads about
+# -9.4 on x standing level, and the image agrees that the camera looks along +z (scripts/
+# fov_walk_events.py: the picture moves with the pitch this gives, frames at 1 degree show the
+# wall level ahead, at 73 degrees the wearer's lap).
+FWD = np.array([0.0, 0.0, 1.0])
+
+CELL_M = 0.05
+SECTORS = 8
+CORRIDOR_HALF_M = 0.45  # the path a walking body sweeps, as safety.BODY_HALF_M
+PATH_AHEAD_M = 2.0
+LOW_SLOPE = 0.02  # metres of extra height a low cell needs per metre of range
+
+
+def pitch_from_gravity(acc) -> float:
+    """Degrees the camera looks below level, from an accelerometer reading (gravity included)."""
+    a = np.asarray(acc, float)
+    n = float(np.linalg.norm(a))
+    if n < 1e-6:
+        return 0.0
+    return math.degrees(math.asin(max(-1.0, min(1.0, -float(a @ FWD) / n))))
+
+
+def floor_pitch(normal) -> float:
+    """Degrees below level the camera looks, from the floor's unit normal in camera axes
+    (OpenCV: x right, y down, z forward; the normal points up), as `safety.analyse` fits it."""
+    return -math.degrees(math.asin(max(-1.0, min(1.0, float(normal[2])))))
+
+
+class PitchFuse:
+    """Head pitch from the accelerometer, its offset learned from the floor while it is in view.
+
+    The accelerometer has no idea where the camera points inside the frame (mounting, fit on the
+    nose); the floor plane does, but only while the floor is in the frame. Each frame with a floor
+    moves the offset `alpha` of the way to agree; without one, the accelerometer carries on.
+
+    A floor that disagrees by more than `gate_deg` is not taken: after a head lift the floor fit
+    can keep the last plane on the strength of a few points (fovsim desk_lookup, 26 degrees off),
+    and a box entering the bottom of the view tilts the fit 6 to 12 degrees for a second (fovsim
+    low_box). The gate starts wide (`first_gate_deg`) until `settle` floors agree, then narrows.
+    If the floors keep disagreeing the same way for `reseed` frames, the offset itself was wrong
+    (the glasses moved on the nose) and it is taken afresh. With `snap`, a frame whose floor is
+    taken returns the floor's own pitch: steadier than the accelerometer (which shakes about 2
+    degrees frame to frame on tonight's walk), and a 2 degree error lifts the floor 7 cm at 2 m."""
+
+    def __init__(
+        self,
+        alpha: float = 0.1,
+        gate_deg: float = 4.0,
+        first_gate_deg: float = 10.0,
+        settle: int = 5,
+        reseed: int = 20,
+        snap: bool = True,
+    ):
+        self.alpha = alpha
+        self.snap = snap
+        self.gate_deg = gate_deg
+        self.first_gate_deg = first_gate_deg
+        self.settle = settle
+        self.reseed = reseed
+        self.offset: float | None = None
+        self.taken = 0
+        self._out: list[float] = []
+
+    def update(self, imu_pitch: float | None, normal=None) -> float | None:
+        fl = floor_pitch(normal) if normal is not None else None
+        if imu_pitch is None:
+            return fl
+        if fl is not None:
+            d = fl - imu_pitch
+            gate = self.first_gate_deg if self.taken < self.settle else self.gate_deg
+            if self.offset is None or abs(d - self.offset) < gate:
+                old = d if self.offset is None else self.offset
+                self.offset = old + self.alpha * (d - old)
+                self.taken += 1
+                self._out.clear()
+                if self.snap:
+                    return fl
+            else:
+                self._out = [*self._out[1 - self.reseed :], d]  # the last `reseed` refusals
+                if len(self._out) >= self.reseed and np.ptp(self._out) < self.gate_deg:
+                    self.offset = float(np.median(self._out))
+                    self.taken = 1
+                    self._out.clear()
+        return imu_pitch + (self.offset or 0.0)
+
+
+def level_points(depth: np.ndarray, hfov_deg: float, pitch_deg: float, eye_h: float):
+    """Each pixel of a z-depth map (metres) as (right, forward, height above the floor), for a
+    camera `eye_h` above the floor looking `pitch_deg` below level with no roll."""
+    h, w = depth.shape
+    f = 0.5 * w / math.tan(math.radians(hfov_deg) / 2)
+    u, v = np.meshgrid(np.arange(w) - w / 2 + 0.5, np.arange(h) - h / 2 + 0.5)
+    xc, yc, zc = u * depth / f, v * depth / f, depth
+    p = math.radians(pitch_deg)
+    fwd = math.cos(p) * zc - math.sin(p) * yc
+    up = -math.sin(p) * zc - math.cos(p) * yc
+    return xc, fwd, eye_h + up
+
+
+def level_floor(
+    depth: np.ndarray, hfov_deg: float, pitch_deg: float, eye_h: float, iters: int = 3
+) -> tuple[float, float] | None:
+    """The floor's pitch and the camera's height over it, refined from a pitch guess.
+
+    Pixels that sit within a band of the floor under the guess are fitted with a no-roll plane
+    (sin p * z + cos p * y = H in camera coordinates, y down), the band narrows, and the fit runs
+    again. A box or a desk edge at the bottom of the view stays out of the fit because it stands
+    above the band, which safety's own fit (a plane through the lowest points) does not promise:
+    in fovsim low_box it read 21 to 27 degrees for a second with the head at 15. Returns None when
+    fewer than 40 pixels look like floor, or the fit wanders more than 12 degrees off the guess."""
+    h, w = depth.shape
+    f = 0.5 * w / math.tan(math.radians(hfov_deg) / 2)
+    v = np.arange(h)[:, None] - h / 2 + 0.5
+    yc = np.broadcast_to(v * depth / f, depth.shape)
+    ok = np.isfinite(depth) & (depth > 0.05)
+    p, H = pitch_deg, eye_h
+    for tol in (0.25, 0.12, 0.06)[:iters]:
+        _, fwd, hgt = level_points(depth, hfov_deg, p, H)
+        m = ok & (np.abs(hgt) < tol) & (fwd < 4.0)
+        if m.sum() < 40:
+            return None
+        A = np.stack([depth[m], yc[m]], 1)
+        (a, b), *_ = np.linalg.lstsq(A, np.ones(len(A)), rcond=None)
+        p = math.degrees(math.atan2(a, b))
+        H = 1.0 / math.hypot(a, b)
+    if abs(p - pitch_deg) > 12.0:
+        return None
+    return p, H
+
+
+@dataclass
+class FovCues:
+    hidden: list[float]  # 8 sectors clockwise from ahead: nearest remembered cell out of view
+    hidden_h: list[float]  # its height above the floor, metres (nan where none)
+    path_m: float  # nearest remembered out-of-view cell inside the walking path
+    path_h: float
+    cells: int  # cells held
+    cleared: int  # cells dropped this frame because the camera saw through them
+    in_view: int = 0
+    near: list[float] = field(default_factory=list)  # 8: nearest held cell, in view or not
+
+
+def band_name(h: float, eye_h: float) -> str:
+    """Where on the body a hazard at height `h` meets the wearer."""
+    if not math.isfinite(h):
+        return ""
+    if h < 0.35:
+        return "low"
+    if h < 1.1:
+        return "hip"
+    return "head" if h > eye_h - 0.4 else "chest"
+
+
+class HazardMemory:
+    """Remembered obstacle cells. `update` once per frame with the scaled depth.
+
+    `keep_s`: how long a cell lives out of view. `min_hits`: frames a cell must be seen in before
+    it is reported (single-frame depth noise must not linger). `band`: heights that are in the
+    way, metres above the floor (low clutter to just over the head). `reach_m`: cells further
+    than this from the wearer are forgotten."""
+
+    def __init__(
+        self,
+        hfov_deg: float,
+        eye_h: float,
+        keep_s: float = 6.0,
+        min_hits: int = 2,
+        band: tuple[float, float] | None = None,
+        reach_m: float = 3.0,
+        max_range_m: float = 2.5,
+        stride: int = 2,
+        low_slope: float = LOW_SLOPE,
+    ):
+        self.hfov = hfov_deg
+        self.low_slope = low_slope
+        self.eye_h = eye_h
+        self.keep_s = keep_s
+        self.min_hits = min_hits
+        self.band = band or (0.08, eye_h + 0.15)
+        self.reach_m = reach_m
+        self.max_range_m = max_range_m
+        self.stride = stride
+        self.clear()
+
+    def clear(self) -> None:
+        self.key = np.zeros(0, np.int64)
+        self.pts = np.zeros((0, 3))  # world x, z, height
+        self.seen_t = np.zeros(0)
+        self.hits = np.zeros(0, np.int32)
+
+    @staticmethod
+    def _keys(x, z, hgt) -> np.ndarray:
+        i = np.floor(x / CELL_M).astype(np.int64) + (1 << 20)
+        j = np.floor(z / CELL_M).astype(np.int64) + (1 << 20)
+        k = np.clip(np.floor(hgt / 0.1).astype(np.int64), 0, 31)
+        return (i << 26) | (j << 5) | k
+
+    def update(
+        self,
+        t: float,
+        depth: np.ndarray,
+        pitch_deg: float,
+        yaw: float,
+        pos=(0.0, 0.0),
+        mask: np.ndarray | None = None,
+    ) -> FovCues:
+        """`depth`: z-depth in metres (0 or non-finite where unknown). `pos`: the head's floor
+        position (x, z) in the same frame as `yaw`. `mask`, when given, limits new cells to
+        pixels the safety geometry calls obstacles (same shape as `depth`)."""
+        s = self.stride
+        d = np.asarray(depth, np.float32)[::s, ::s]
+        hh, ww = d.shape
+        ok = np.isfinite(d) & (d > 0.05)
+        r, f, hgt = level_points(np.where(ok, d, 0), self.hfov, pitch_deg, self.eye_h)
+        fw = (math.sin(yaw), math.cos(yaw))
+        rt = (-math.cos(yaw), math.sin(yaw))
+        px, pz = float(pos[0]), float(pos[1])
+
+        # 1. What the frame says about the cells already held.
+        cleared = 0
+        in_view = np.zeros(len(self.key), bool)
+        if len(self.key):
+            dx, dz = self.pts[:, 0] - px, self.pts[:, 1] - pz
+            cr = dx * rt[0] + dz * rt[1]
+            cf = dx * fw[0] + dz * fw[1]
+            cu = self.pts[:, 2] - self.eye_h
+            p = math.radians(pitch_deg)
+            zc = math.cos(p) * cf - math.sin(p) * cu
+            yc = -math.sin(p) * cf - math.cos(p) * cu
+            foc = 0.5 * ww / math.tan(math.radians(self.hfov) / 2)
+            with np.errstate(divide="ignore", invalid="ignore"):
+                uu = np.floor(foc * cr / zc + ww / 2).astype(np.int64)
+                vv = np.floor(foc * yc / zc + hh / 2).astype(np.int64)
+            in_view = (zc > 0.1) & (uu >= 1) & (uu < ww - 1) & (vv >= 1) & (vv < hh - 1)
+            idx = np.flatnonzero(in_view)
+            live = d[vv[idx], uu[idx]]
+            known = ok[vv[idx], uu[idx]]
+            tol = 0.12 + 0.08 * zc[idx]
+            through = known & (live > zc[idx] + tol)
+            back = known & (np.abs(live - zc[idx]) <= tol)
+            self.seen_t[idx[back]] = t
+            drop = np.zeros(len(self.key), bool)
+            drop[idx[through]] = True
+            cleared = int(drop.sum())
+            old = (t - self.seen_t > self.keep_s) | (np.hypot(dx, dz) > self.reach_m)
+            keep = ~(drop | old)
+            self.key, self.pts = self.key[keep], self.pts[keep]
+            self.seen_t, self.hits = self.seen_t[keep], self.hits[keep]
+            in_view = in_view[keep]
+
+        # 2. New cells from this frame.
+        lo, hi = self.band
+        rng = np.hypot(r, f)
+        # The floor's height error grows with range (depth scale noise along a slanted ray, a
+        # degree of pitch is 3.5 cm at 2 m), so low cells need more height further out.
+        new = ok & (hgt > lo + self.low_slope * rng) & (hgt < hi) & (rng < self.max_range_m)
+        if mask is not None:
+            new &= np.asarray(mask, bool)[::s, ::s]
+        if new.any():
+            nr, nf, nh = r[new], f[new], hgt[new]
+            wx = px + nr * rt[0] + nf * fw[0]
+            wz = pz + nr * rt[1] + nf * fw[1]
+            k = self._keys(wx, wz, nh)
+            k, first = np.unique(k, return_index=True)
+            wp = np.column_stack([wx[first], wz[first], nh[first]])
+            pos_in = np.searchsorted(self.key, k)
+            pos_in = np.clip(pos_in, 0, max(len(self.key) - 1, 0))
+            have = (self.key[pos_in] == k) if len(self.key) else np.zeros(len(k), bool)
+            self.seen_t[pos_in[have]] = t
+            self.hits[pos_in[have]] += 1
+            add = ~have
+            self.key = np.concatenate([self.key, k[add]])
+            self.pts = np.vstack([self.pts, wp[add]])
+            self.seen_t = np.concatenate([self.seen_t, np.full(add.sum(), t)])
+            self.hits = np.concatenate([self.hits, np.ones(add.sum(), np.int32)])
+            in_view = np.concatenate([in_view, np.ones(add.sum(), bool)])
+            order = np.argsort(self.key)
+            self.key, self.pts = self.key[order], self.pts[order]
+            self.seen_t, self.hits, in_view = self.seen_t[order], self.hits[order], in_view[order]
+
+        # 3. Report what is held and out of view, in the head's frame.
+        out = FovCues(
+            [math.inf] * SECTORS, [math.nan] * SECTORS, math.inf, math.nan, len(self.key), cleared
+        )
+        out.in_view = int(in_view.sum())
+        out.near = [math.inf] * SECTORS
+        sure = self.hits >= self.min_hits
+        if sure.any():
+            dx, dz = self.pts[:, 0] - px, self.pts[:, 1] - pz
+            cr = dx * rt[0] + dz * rt[1]
+            cf = dx * fw[0] + dz * fw[1]
+            dist = np.maximum(np.hypot(cr, cf) - CELL_M / 2, 0.05)
+            sec = ((np.degrees(np.arctan2(cr, cf)) + 22.5) % 360 // 45).astype(int)
+            for si in range(SECTORS):
+                m = sure & (sec == si)
+                if m.any():
+                    out.near[si] = float(dist[m].min())
+                m &= ~in_view
+                if m.any():
+                    q = int(np.argmin(np.where(m, dist, np.inf)))
+                    out.hidden[si] = float(dist[q])
+                    out.hidden_h[si] = float(self.pts[q, 2])
+            pm = sure & ~in_view & (np.abs(cr) < CORRIDOR_HALF_M) & (cf > 0) & (cf < PATH_AHEAD_M)
+            if pm.any():
+                q = int(np.argmin(np.where(pm, cf, np.inf)))
+                out.path_m = float(max(cf[q] - CELL_M / 2, 0.05))
+                out.path_h = float(self.pts[q, 2])
+        return out
