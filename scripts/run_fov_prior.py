@@ -1,4 +1,4 @@
-"""Prior seed for the field-of-view memory (L29): the bedroom with a perturbed prior map.
+"""Prior seed for the field-of-view memory (L30): the bedroom with a perturbed prior map.
 
 SIMULATED USER MODEL, NOT A HUMAN STUDY. Worlds per seed (`metasight.fovprior`): the room as
 recorded with an exact prior (the ceiling, circular: the scenes are built from the same

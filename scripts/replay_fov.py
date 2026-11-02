@@ -112,7 +112,7 @@ def replay(
                 log[d["seq"]] = d
     tag = "" if band_lo is None else f"-lo{band_lo:g}"  # a variant run, kept apart from the base
     ptree, kept = None, []
-    if prior is not None:  # L29: how well the live cells line up with a prior map's surfaces
+    if prior is not None:  # L30: how well the live cells line up with a prior map's surfaces
         from scipy.spatial import cKDTree
 
         from metasight import recon
@@ -340,7 +340,7 @@ def score_walk(name: str, events: list[dict], yaw_of: dict[int, float]) -> dict:
 
 
 def align(name: str, prior: Path) -> None:
-    """Offset between the live map and a prior map (L29), from the cells `replay(prior=...)` kept
+    """Offset between the live map and a prior map (L30), from the cells `replay(prior=...)` kept
     on frames with the map pose: the translation (and the turn about the prior's origin) that
     puts the live cells nearest to the prior's surfaces, over the whole take and its thirds."""
     from scipy.spatial import cKDTree

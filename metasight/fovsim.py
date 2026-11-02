@@ -369,7 +369,7 @@ class Arms:
     # L27 cue gate on the remembered cues, letters of "sar": s still mute, a approach gate, r rear
     # mute (fovmem.gate_memory_cues). "" is the ungated memory.
     cue_gate: str = ""
-    # L29: the key of a prior map in `run(priors=...)` that seeds this arm's memory ("" none)
+    # L30: the key of a prior map in `run(priors=...)` that seeds this arm's memory ("" none)
     prior: str = ""
     approach_m: float = 0.1
     still_min_s: float = 1.0

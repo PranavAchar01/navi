@@ -1,4 +1,4 @@
-"""Perturbed prior maps for scoring the memory's prior seed (L29).
+"""Perturbed prior maps for scoring the memory's prior seed (L30).
 
 SIMULATED USER MODEL, NOT A HUMAN STUDY. The bedroom scenes (`fovrooms`) are built from the same
 `objects.json` a prior would be seeded with, so seeding it unchanged is circular: an upper bound.
