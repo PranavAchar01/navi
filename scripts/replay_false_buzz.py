@@ -51,7 +51,7 @@ def extract(names: list[str] | None = None) -> None:
         s.hfov_deg = cam.get("hfov", s.hfov_deg)
         loop = SafetyLoop(s)
         rows = [json.loads(line) for line in (w / "frames.jsonl").read_text().splitlines()]
-        ts, strips, sect, path, ttc = [], [], [], [], []
+        ts, strips, colmin, sect, path, ttc = [], [], [], [], [], []
         for r in rows[::STEP]:
             bgr = cv2.imread(str(w / "frames" / r["file"]))
             if bgr is None:
@@ -61,6 +61,7 @@ def extract(names: list[str] | None = None) -> None:
             g[res.scene.grid == 255] = math.inf
             cols = np.array_split(np.arange(g.shape[1]), STRIPS)
             strips.append([float(g[:, c].min()) for c in cols])
+            colmin.append(g.min(axis=0))  # per pixel column, so other strip counts can be cut
             ts.append(r["ts"] / 1000)
             sect.append(res.sectors)
             path.append(res.scene.path_m)
@@ -70,12 +71,21 @@ def extract(names: list[str] | None = None) -> None:
         k = w.name
         out[f"{k}/ts"] = np.array(ts)
         out[f"{k}/strips"] = np.array(strips)
+        out[f"{k}/cols"] = np.array(colmin, dtype=np.float32)
         out[f"{k}/sectors"] = np.array(sect)
         out[f"{k}/path"] = np.array(path)
         out[f"{k}/ttc"] = np.array(ttc)
         out[f"{k}/hfov"] = np.array([cam.get("hfov", 63.0)])
         print(k, len(ts), "frames", flush=True)
     np.savez(CACHE, **out)
+
+
+def _strips(d, w: str, n: int) -> np.ndarray:
+    if n == STRIPS:
+        return d[f"{w}/strips"]
+    cols = d[f"{w}/cols"]
+    groups = np.array_split(np.arange(cols.shape[1]), n)
+    return np.stack([cols[:, c].min(axis=1) for c in groups], 1)
 
 
 def _chain(*stages):
@@ -146,6 +156,7 @@ def main() -> None:
         "--layout", default="eight", choices=["eight", "diag4", "diag4-lin", "diag4-cp"],
         help="diag4: the built belt, four motors on the diagonals (firmware/belt/belt.ino)",
     )  # fmt: skip
+    ap.add_argument("--strips", type=int, default=STRIPS, help="cut from the cached columns")
     a = ap.parse_args()
     if a.extract is not None:
         extract(a.extract)
@@ -159,7 +170,7 @@ def main() -> None:
             for persist in (1, 2):
                 for felt in (1, 26):  # 26/255 is the skin model's 0.10 detection floor
                     inten = commands(
-                        d[f"{w}/strips"], d[f"{w}/path"], d[f"{w}/ttc"],
+                        _strips(d, w, a.strips), d[f"{w}/path"], d[f"{w}/ttc"],
                         float(d[f"{w}/hfov"][0]), scheme, persist,
                     )  # fmt: skip
                     if a.layout != "eight":  # what the four motors play (hapsim.to_motors)
@@ -179,6 +190,8 @@ def main() -> None:
     for k, v in tot.items():
         print(f"{k:34s} mean transient/min over {len(v)} walks: {sum(v) / len(v):5.1f}")
     name = "replay-false-buzz.json" if a.layout == "eight" else f"replay-false-buzz-{a.layout}.json"
+    if a.strips != STRIPS:
+        name = name.replace(".json", f"-{a.strips}strips.json")
     (ROOT / "bench" / "results" / name).write_text(json.dumps(res, indent=1))
 
 
