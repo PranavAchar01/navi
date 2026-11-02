@@ -48,6 +48,21 @@ class Refs:
             self.e = embed(paths)
             np.savez(cache, e=self.e)
         self.paths = paths
+        self.ts = np.array([ts_of(r["file"]) for r in rows])
+        self.walk = np.array([r["walk"] for r in rows])
+
+    def pick(self, e: np.ndarray, n: int = 5, gap_ms: int = 2000) -> list[int]:
+        """The n most similar references, no two from the same moment of the same walk."""
+        out: list[int] = []
+        for j in np.argsort(-(self.e @ e))[:200]:
+            j = int(j)
+            if all(
+                self.walk[j] != self.walk[i] or abs(self.ts[j] - self.ts[i]) > gap_ms for i in out
+            ):
+                out.append(j)
+                if len(out) == n:
+                    break
+        return out
 
     def points(self, j: int):
         if j not in self.lifted:
@@ -55,7 +70,7 @@ class Refs:
             uv = np.array([k.pt for k in kp]) if kp else np.zeros((0, 2))
             p = lift(self.scene, self.rows[j], uv) if len(uv) else np.zeros((0, 3))
             ok = np.isfinite(p).all(1)
-            self.lifted[j] = (d[ok] if d is not None else None, p[ok])
+            self.lifted[j] = (d[ok] if d is not None else None, p[ok], uv[ok])
             if len(self.lifted) > 4000:
                 self.lifted.pop(next(iter(self.lifted)))
         return self.lifted[j]
@@ -66,13 +81,21 @@ def place(path: Path, e: np.ndarray, k: np.ndarray, refs: Refs) -> dict | None:
     if dq is None:
         return None
     P, U = [], []
-    for j in np.argsort(-(refs.e @ e))[:3]:
-        dr, pr = refs.points(int(j))
+    for j in refs.pick(e):
+        dr, pr, ur = refs.points(j)
         mm = match(dr, dq)
         if len(mm) < 12:
             continue
-        P.append(pr[[a for a, _ in mm]])
-        U.append(np.array([kq[b].pt for _, b in mm]))
+        a = np.array([i for i, _ in mm])
+        uq = np.array([kq[b].pt for _, b in mm])
+        # Two-view check first: a match that breaks the epipolar geometry is wrong whatever
+        # the mesh says, and dropping it here keeps PnP from fitting the noise.
+        _, inl = cv2.findFundamentalMat(ur[a], uq, cv2.FM_RANSAC, 3.0, 0.999)
+        if inl is None or inl.sum() < 12:
+            continue
+        g = inl.ravel().astype(bool)
+        P.append(pr[a[g]])
+        U.append(uq[g])
     if not P or sum(len(p) for p in P) < MIN_INLIERS:
         return None
     P, U = np.concatenate(P).astype(np.float64), np.concatenate(U).astype(np.float64)
@@ -118,6 +141,9 @@ def main() -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     trusted = [r for rows in cams.values() for r in rows if r["trusted"]]
     refs = Refs(trusted, scene, out.parent / "ref_dino.npz")
+    # A camera outside the space the trusted cameras walked (plus half a metre) is a bad fit.
+    tp = np.array([r["pose"][:3, 3] for r in trusted])
+    box_lo, box_hi = tp.min(0) - 0.5, tp.max(0) + 0.5
     k_glasses = np.median([r["k"] for r in trusted if "glasses" in r["walk"]], 0)
 
     jobs: dict[str, list[dict]] = {}
@@ -155,6 +181,9 @@ def main() -> None:
                 f"{w} {i + len(chunk)}/{len(todo)} placed {len(placed)} {time.time() - t0:.0f}s",
                 flush=True,
             )
+        placed = [
+            r for r in placed if ((r["pose"][:3, 3] > box_lo) & (r["pose"][:3, 3] < box_hi)).all()
+        ]
         placed.sort(key=lambda r: ts_of(r["file"]))
         ok = consistent(np.array([r["pose"][:3, 3] for r in placed])) if placed else []
         kept = [r for r, g in zip(placed, ok, strict=True) if g]

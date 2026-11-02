@@ -31,7 +31,9 @@ import os
 import shutil
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import cv2
 import numpy as np
@@ -42,6 +44,7 @@ from metasight import recon  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 ROOM = ROOT / "data/rooms/bedroom"
 WALKS = ROOT / "data/walks"
+PACIFIC = ZoneInfo("America/Los_Angeles")
 W, H = 294, 518  # the dense run's intrinsics are for this frame size
 GW, GH = 147, 259  # ray grid per frame for voting
 CLASSES = [
@@ -101,6 +104,16 @@ REF = {"desk_top_m": 0.74, "door_height_m": 2.03, "ceiling_8ft_m": 2.44, "ceilin
 
 def ts_of(f: str) -> int:
     return int(f.split("-")[0].split(".")[0])
+
+
+def walk_ts(walk: str, f: str) -> int:
+    """Epoch ms of a frame. Phone and glasses frames are named by it; the video walk's frames
+    are numbered, so they count from the walk's start (its name, Pacific time) at 30 fps."""
+    t = ts_of(f)
+    if t > 10**11:
+        return t
+    start = datetime.strptime(walk[:15], "%Y%m%d-%H%M%S").replace(tzinfo=PACIFIC)
+    return int(start.timestamp() * 1000 + t * 1000 / 30)
 
 
 def load_cams(mesh_dir: Path, tag: str, path: Path | None = None) -> dict[str, list[dict]]:
@@ -235,7 +248,6 @@ def label(cams, mesh, scene, n: int, out: Path) -> None:
 
 
 def objects(mesh, scene, out: Path, version: str, mesh_dir: Path, tag: str) -> dict:
-    import open3d as o3d
 
     v = np.load(out / "votes.npz")
     votes, vis = v["votes"], v["vis"]
@@ -244,26 +256,10 @@ def objects(mesh, scene, out: Path, version: str, mesh_dir: Path, tag: str) -> d
     starts = np.concatenate([[0], np.cumsum(s["n"])])
     verts, tris = np.asarray(mesh.vertices), np.asarray(mesh.triangles)
     floor_y, floor_gap = floor_layers(verts)
-    cent = verts[tris].mean(1)
-    win = votes.argmax(1)
-    share = votes.max(1) / np.maximum(vis, 1.0)
-    keep = (votes.max(1) >= MIN_VOTES) & (share >= MIN_SHARE)
-    objs = []
-    for ci, name in enumerate(CLASSES):
-        idx = np.flatnonzero(keep & (win == ci))
-        if len(idx) < MIN_TRIS:
-            continue
-        pc = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(cent[idx]))
-        lab = np.array(pc.cluster_dbscan(BIG_CLUSTER_M if name in BIG else CLUSTER_M, 8))
-        for c in range(lab.max() + 1 if len(lab) else 0):
-            ids = idx[lab == c]
-            if len(ids) < MIN_TRIS:
-                continue
-            pts = verts[tris[ids].reshape(-1)]
-            box = recon.upright_box(pts, snap=1.35 if name in BIG else 1.0)
-            if max(box["size"]) < 0.05:
-                continue
-            objs.append(describe(name, ids, pts, box, votes, vis, floor_y, floor_gap, scene))
+    objs = [
+        describe(name, ids, pts, box, votes, vis, floor_y, floor_gap, scene)
+        for name, ids, pts, box in clusters(votes, vis, verts, tris)
+    ]
     attach_seen(objs, len(tris), s, starts, frames)
     objs = merge(objs)
     objs.sort(key=lambda o: -o["seen"]["frames"])
@@ -282,6 +278,32 @@ def objects(mesh, scene, out: Path, version: str, mesh_dir: Path, tag: str) -> d
     }
     (out / "objects.json").write_text(json.dumps(doc, indent=1))
     return doc
+
+
+def clusters(votes, vis, verts, tris, min_votes=MIN_VOTES, min_share=MIN_SHARE):
+    """Triangles won by one class, split into separate instances: (class, ids, points, box)."""
+    import open3d as o3d
+
+    cent = verts[tris].mean(1)
+    win = votes.argmax(1)
+    share = votes.max(1) / np.maximum(vis, 1.0)
+    keep = (votes.max(1) >= min_votes) & (share >= min_share)
+    out = []
+    for ci, name in enumerate(CLASSES):
+        idx = np.flatnonzero(keep & (win == ci))
+        if len(idx) < MIN_TRIS:
+            continue
+        pc = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(cent[idx]))
+        lab = np.array(pc.cluster_dbscan(BIG_CLUSTER_M if name in BIG else CLUSTER_M, 8))
+        for c in range(lab.max() + 1 if len(lab) else 0):
+            ids = idx[lab == c]
+            if len(ids) < MIN_TRIS:
+                continue
+            pts = verts[tris[ids].reshape(-1)]
+            box = recon.upright_box(pts, snap=1.35 if name in BIG else 1.0)
+            if max(box["size"]) >= 0.05:
+                out.append((name, ids, pts, box))
+    return out
 
 
 def describe(name, ids, pts, box, votes, vis, floor_y, floor_gap, scene) -> dict:
@@ -354,7 +376,7 @@ def attach_seen(objs, ntri, s, starts, frames) -> None:
         walks: dict[str, int] = {}
         for _k, f in h:
             walks[frames[f]["walk"]] = walks.get(frames[f]["walk"], 0) + 1
-        ts = [ts_of(frames[f]["file"]) for _k, f in h]
+        ts = [walk_ts(frames[f]["walk"], frames[f]["file"]) for _k, f in h]
         o["seen"] = {
             "frames": len(h),
             "walks": dict(sorted(walks.items())),
