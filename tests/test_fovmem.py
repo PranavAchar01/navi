@@ -144,3 +144,24 @@ def test_memory_gate_moved_needs_head_motion():
     assert math.isinf(out.path_m)
     out = mem.update(0.3, render(15), 15.0, -math.pi / 2)  # a 90 degree turn explains it
     assert out.hidden[6] < 1.6
+
+
+def test_fov_loop_shadow_record():
+    from types import SimpleNamespace
+
+    from metasight.fovmem import FovLoop
+
+    loop = FovLoop(HFOV, EYE, low_slope=0.0)
+    head = SimpleNamespace(yaw=None, turn=0.0, pos=None)
+    p = math.radians(15)
+    grav = [[-9.8 * math.cos(p) + 0.0, 0.0, -9.8 * math.sin(p)]]  # glasses axes, 15 down
+    grid = np.full((H, W), 0, np.uint8)  # every pixel an obstacle candidate
+    person = SimpleNamespace(label="person", box=(0.0, 0.0, 1.0, 1.0))
+    out = loop.step(0.0, render(15, box=(1.5, 0.15, 0.3)), grid, True, [person], grav, head)
+    assert out["floor"] and abs(out["pitch"] - 15) < 0.5 and out["cells"] == 0  # all masked
+    for i in range(1, 3):
+        out = loop.step(i * 0.1, render(15, box=(1.5, 0.15, 0.3)), grid, True, [], grav, head)
+    assert out["cells"] > 0
+    head.turn = -math.pi / 2  # turned right: the box is out of view on the left
+    out = loop.step(0.3, render(15), grid, True, [], grav, head)
+    assert out["hidden"][6] is not None and out["band"][6] == "low"

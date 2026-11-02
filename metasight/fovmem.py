@@ -8,11 +8,12 @@ the side of the view on a turn. Cues built from the current frame alone forget b
 `HazardMemory` keeps every obstacle cell the camera has seen (5 cm floor cells, with the height
 of what stands there) in a level frame turned by the head's yaw and moved by its position, so
 a cell keeps its place in the room after it leaves the view. Heights come from the depth and the
-head pitch measured by the glasses' accelerometer, not from a floor fit, so they hold when the
-floor is out of view. While a cell is in view the live frame decides: seen again, it is
-refreshed; seen through (the depth there lies beyond it), it is dropped; hidden behind something
-nearer, it is kept. Out of view, it is kept for `keep_s` and is what `update` reports, per belt
-sector, in the head's own frame. docs/fov-catalogue.md has the failure modes and the numbers.
+head pitch: the floor's own pitch while it is in view (`level_floor`), the accelerometer with
+the offset learned from the floor (`PitchFuse`) while it is not. While a cell is in view the
+live frame decides: seen again, it is refreshed; seen through (the depth there lies beyond it),
+it is dropped; hidden behind something nearer, it is kept. Out of view, it is kept for `keep_s`
+and is what `update` reports, per belt sector, in the head's own frame. docs/fov-catalogue.md
+has the failure modes and the numbers.
 
 Frames: level head frame (right, forward, up from the floor) in metres. World frame: x, z on the
 floor with the heading convention of `heading.Heading` (forward = (sin yaw, cos yaw), yaw grows
@@ -357,3 +358,65 @@ class HazardMemory:
                 out.path_m = float(max(cf[q] - CELL_M / 2, 0.05))
                 out.path_h = float(self.pts[q, 2])
         return out
+
+
+class FovLoop:
+    """The server's side of the memory, one call per frame (shadow mode first, see
+    docs/fov-catalogue.md). Pitch from the accelerometer and the floor, yaw and position from
+    `heading.Heading`, new cells only where the safety grid saw an obstacle and outside person
+    boxes (a passer-by must not leave a trail)."""
+
+    def __init__(self, hfov_deg: float, eye_h: float, **memory):
+        self.hfov, self.eye_h = hfov_deg, eye_h
+        self.fuse = PitchFuse()
+        self.mem = HazardMemory(hfov_deg, eye_h, **memory)
+
+    def step(self, now: float, depth_m, grid, floor: bool, obstacles, accel, heading) -> dict:
+        """`depth_m`: scaled depth in metres. `grid`: `Scene.grid` (255 = not an obstacle).
+        `obstacles`: detections with `.label` and a normalised `.box`. `accel`: recent
+        accelerometer rows (glasses axes). `heading`: the server's `Heading`."""
+        import cv2
+
+        z = np.nan_to_num(np.asarray(depth_m, np.float32), nan=0.0, posinf=0.0)
+        h, w = z.shape
+        imu = pitch_from_gravity(np.mean(accel, axis=0)) if len(accel) else None
+        guess = imu + (self.fuse.offset or 0.0) if imu is not None else 30.0
+        lf = level_floor(z, self.hfov, guess, self.eye_h) if z.any() else None
+        normal = None
+        if lf is not None:
+            p = math.radians(lf[0])
+            normal = np.array([0.0, -math.cos(p), -math.sin(p)])
+            z = z * float(np.clip(self.eye_h / lf[1], 0.8, 1.25))
+        pitch = self.fuse.update(imu, normal)
+        if pitch is None:
+            return {"pitch": None}
+        mask = None
+        if floor:
+            g = cv2.resize(np.asarray(grid, np.uint8), (w, h), interpolation=cv2.INTER_NEAREST)
+            mask = g < 255
+        for o in obstacles:
+            if o.label == "person":
+                x0, y0, x1, y1 = o.box
+                if mask is None:
+                    mask = np.ones((h, w), bool)
+                mask[int(y0 * h) : int(math.ceil(y1 * h)), int(x0 * w) : int(math.ceil(x1 * w))] = (
+                    False
+                )
+        yaw = heading.yaw if heading.yaw is not None else heading.turn
+        pos = (0.0, 0.0) if heading.pos is None else (float(heading.pos[0]), float(heading.pos[2]))
+        fc = self.mem.update(now, z, pitch, yaw, pos, mask)
+
+        def fin(v):
+            return round(v, 2) if math.isfinite(v) else None
+
+        return {
+            "pitch": round(pitch, 1),
+            "floor": lf is not None,
+            "hidden": [fin(v) for v in fc.hidden],
+            "band": [
+                band_name(hh, self.eye_h) if math.isfinite(hh) else None for hh in fc.hidden_h
+            ],
+            "path": fin(fc.path_m),
+            "cells": fc.cells,
+            "posed": heading.pos is not None,
+        }
