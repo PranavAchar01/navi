@@ -53,17 +53,19 @@ def _scan():
 
 def _one(a):
     kw, three_d, scene, i = a
+    kw = dict(kw)
+    strip_q = kw.pop("strip_q", (0.0, 1))
     if scene == "bedroom":
         rooms, xml = _scan()
         room, seed = rooms[i // 5], i % 5
     else:
         room, xml, seed = h.make_room(i), None, 0
-    belt = h.Belt(mapping=pan.DEFAULT, persist=2, **kw)
+    belt = h.Belt(**{"mapping": pan.DEFAULT, "persist": 2, **kw})
     if not three_d:
         return h.run(room, belt, h.DEFAULT_SKIN, seed=seed)
     from metasight.hapsim3d import Sensor3D
 
-    s = Sensor3D(room, xml=xml)
+    s = Sensor3D(room, xml=xml, strip_q=strip_q)
     try:
         return h.run(room, belt, h.DEFAULT_SKIN, seed=seed, sensor=s)
     finally:

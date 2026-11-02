@@ -74,12 +74,13 @@ class Sensor3D:
     """`hapsim.run(..., sensor=Sensor3D(room))`: depth rendered at 25 fps, the live geometry on it.
     `noise` is the per-frame scale error of monocular depth (log sd) plus 1% pixel noise."""
 
-    def __init__(self, room: h.Room, noise: float = 0.04, xml: str | None = None):
+    def __init__(self, room: h.Room, noise: float = 0.04, xml: str | None = None, strip_q=(0.0, 1)):
         self.m = mujoco.MjModel.from_xml_string(xml or room_xml(room))
         self.d = mujoco.MjData(self.m)
         self.r = mujoco.Renderer(self.m, GRID[1], GRID[0])
         self.r.enable_depth_rendering()
         self.noise = noise
+        self.strip_q = strip_q  # (percentile, min pixels) for geometry.grid_strips
         self.prev = None
 
     def depth(self, x: float, y: float, heading: float) -> np.ndarray:
@@ -95,7 +96,10 @@ class Sensor3D:
         z = self.depth(x, y, heading)
         z *= rng.lognormal(0, self.noise) * rng.normal(1, 0.01, z.shape).astype(np.float32)
         scene, self.prev = analyse(z, 1.0, 1.0, h.HFOV, EYE_H, self.prev)
-        strips = [s if s < h.MAX_RANGE else math.inf for s in grid_strips(scene.grid, h.STRIPS)]
+        strips = [
+            s if s < h.MAX_RANGE else math.inf
+            for s in grid_strips(scene.grid, h.STRIPS, *self.strip_q)
+        ]
         _, sectors = h.sense(room, x, y, heading, rng)
         return strips, sectors
 

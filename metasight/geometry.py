@@ -47,14 +47,18 @@ def sector_distances_from_depth(
     return out
 
 
-def grid_strips(grid: np.ndarray, n: int = 15) -> list[float]:
+def grid_strips(grid: np.ndarray, n: int = 15, q: float = 0.0, min_px: int = 1) -> list[float]:
     """Nearest obstacle per vertical strip of a `Scene.grid` (uint8 range in cm / 2, 255 where
-    nothing is), in metres; inf for a strip with no obstacle pixel. The panned cues' input."""
+    nothing is), in metres; inf for a strip with fewer than `min_px` obstacle pixels. The panned
+    cues' input. `q` > 0 takes that percentile instead of the minimum, as the sectors do."""
     out = []
     for cols in np.array_split(np.arange(grid.shape[1]), n):
         g = grid[:, cols]
         near = g[g != 255]
-        out.append(float(near.min()) * 2 / 100 if near.size else math.inf)
+        if near.size < max(1, min_px):
+            out.append(math.inf)
+            continue
+        out.append(float(np.percentile(near, q) if q else near.min()) * 2 / 100)
     return out
 
 
