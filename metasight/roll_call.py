@@ -40,10 +40,12 @@ FURNITURE = {"bed", "desk", "chair", "table", "sofa", "couch", "armchair", "dres
 ALIASES = {"dining table": "table"}  # the detector's word, then what a person says
 SAID = {"tv": "TV"}
 # What the detector's word means in a given room, checked on each object's best frame
-# (2026-11-02): the bedroom's "tv" is the desk monitor, its "couch" is the bed's headboard, its
-# "dining table" is the white folding table. None drops the word. Pranav to confirm.
+# (2026-11-02): the bedroom's "tv" is the monitors on the desk (the twin has no desk of its own,
+# and the desk is what a walker meets, so it is said as the desk), its "couch" is the bed's
+# headboard, its "dining table" is the white folding table. None drops the word. Pranav to
+# confirm.
 ROOM_NAMES: dict[str, dict[str, str | None]] = {
-    "bedroom": {"tv": "monitor", "couch": None, "sofa": None},
+    "bedroom": {"tv": "desk", "couch": None, "sofa": None},
 }
 SKIP = {"person", "wall", "window", "curtain", "rug", "picture frame", "mirror"}
 NUMBERS = ("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine")

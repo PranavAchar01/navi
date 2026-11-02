@@ -139,5 +139,5 @@ def test_room_names_say_what_the_thing_is():
         {"label": "tv", "pos": [-0.5, 1.2, -1.0], "views": 800, "conf": 0.72},
         {"label": "couch", "pos": [1.5, 0.7, 0.5], "views": 12, "conf": 0.61},  # the headboard
     ]
-    assert [i.label for i in rc.pick([], to, twin=twin, room="Bedroom")] == ["monitor"]
+    assert [i.label for i in rc.pick([], to, twin=twin, room="Bedroom")] == ["desk"]
     assert {i.label for i in rc.pick([], to, twin=twin, room="living room")} == {"tv", "couch"}
