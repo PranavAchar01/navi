@@ -94,17 +94,21 @@ enum BeepCue {
   }
 
   /// Seconds between beeps: yellow is sparse (2.0 s at 2 m to 1.2 s at 1 m), orange faster
-  /// (0.7 s to 0.4 s), red rapid (5 a second).
+  /// (0.7 s to 0.4 s), red rapid (5 a second). A cue the server raised without a distance in
+  /// its band (or a band still rising) beats at the band's middle (spatial_sound.BAND_PACE_M).
+  static let bandPaceMetres: [ProximityBand: Double] = [.slow: 1.5, .fast: 0.75, .stop: 0.3]
+
   static func interval(for warning: ProximityWarning) -> TimeInterval {
-    func lerp(_ d: Double?, _ a: (Double, Double), _ b: (Double, Double)) -> TimeInterval {
-      guard let d else { return b.1 }
+    let inBand = warning.distance.flatMap { ProximityBand(distance: $0) == warning.band ? $0 : nil }
+    func lerp(_ a: (Double, Double), _ b: (Double, Double)) -> TimeInterval {
+      let d = inBand ?? bandPaceMetres[warning.band] ?? b.0
       let t = min(1, max(0, (a.0 - d) / (a.0 - b.0)))
       return a.1 + (b.1 - a.1) * t
     }
     switch warning.band {
     case .clear: return .infinity
-    case .slow: return lerp(warning.distance, (2.0, 2.0), (1.0, 1.2))
-    case .fast: return lerp(warning.distance, (1.0, 0.7), (0.5, 0.4))
+    case .slow: return lerp((2.0, 2.0), (1.0, 1.2))
+    case .fast: return lerp((1.0, 0.7), (0.5, 0.4))
     case .stop: return 0.2
     }
   }
@@ -179,7 +183,8 @@ struct BeepScheduler: Sendable {
     else { return nil }
     // A band still rising plays as the band that has held, at that band's own pace.
     let warning =
-      ready == raw.band ? raw : ProximityWarning(sector: raw.sector, distance: nil, band: ready)
+      ready == raw.band
+      ? raw : ProximityWarning(sector: raw.sector, distance: raw.distance, band: ready)
     // The first beep, or a band worse than any yet in this warning, sounds at once. The
     // server's band flickers between fast and stop and the sector hops as the head turns, so
     // anything else, a new direction included, waits out the interval (spatial_sound.Repeats).

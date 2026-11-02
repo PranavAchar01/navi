@@ -64,6 +64,19 @@ final class BeepCueTests: XCTestCase {
     XCTAssertLessThanOrEqual(red, 0.25)
   }
 
+  func testIntervalsMatchTheRendererIncludingCuesWithoutADistanceInTheirBand() {
+    // spatial_sound.tick_period, with BAND_PACE_M for a distance outside the cue's band.
+    let cases: [(ProximityBand, Double?, TimeInterval)] = [
+      (.slow, 1.5, 1.6), (.slow, 1.9, 1.92), (.slow, nil, 1.6), (.fast, 0.9, 0.64),
+      (.fast, 0.55, 0.43), (.fast, nil, 0.55), (.fast, 1.4, 0.55), (.slow, 0.3, 1.6),
+      (.stop, 1.4, 0.2), (.stop, nil, 0.2),
+    ]
+    for (band, distance, expected) in cases {
+      let w = ProximityWarning(sector: 0, distance: distance, band: band)
+      XCTAssertEqual(BeepCue.interval(for: w), expected, accuracy: 1e-9)
+    }
+  }
+
   func testPlacementFollowsTheSector() {
     func place(_ sector: Int) -> (Float, Float) {
       let p = BeepCue.plan(for: warning(sector: sector, distance: 0.3), volume: .normal)!
@@ -142,7 +155,7 @@ final class BeepCueTests: XCTestCase {
       }
     }
     let settled = beeps.filter { $0 >= 3.2 }
-    XCTAssertGreaterThanOrEqual(beeps.filter { $0 < 3 }.count, 8)
+    XCTAssertGreaterThanOrEqual(beeps.filter { $0 < 3 }.count, 7)  // each return to stop holds 0.1 s
     XCTAssertLessThanOrEqual(settled.count, 7)
     // The head turns and the warning hops right: it keeps the settled pace.
     var side = [Double?](repeating: nil, count: 8)
