@@ -687,15 +687,20 @@ class Server:
             bearing, dist = min(live, key=near)
             g["seen"], g["seen_turn"] = now, self.heading.turn
             g["seen_reach"] = min(dist, self.path_m) if abs(bearing) < GUIDE_ALIGNED_DEG else dist
+            g["seen_at"] = dist, bearing
+            if pin is not None:
+                self.heading.sight(np.array(pin.pos), bearing)
+            rel = dist, bearing
         elif self._lost_close(g, now):
             # Walked up to it: a chair goes out of the bottom of the view (and the detector loses
             # half a chair) in the last step, with the head still facing where it was.
             self.guide, self.found_until = None, now + 2.0
             self.loop.create_task(self.hub.json(found_message(g["label"]), False))
             return None
-            if pin is not None:
-                self.heading.sight(np.array(pin.pos), bearing)
-            rel = dist, bearing
+        elif rel is None and "seen_at" in g and now - g["seen"] < LIVE_HOLD_S:
+            # The detector blinks: hold the last sighting a moment, turned with the head.
+            dist, bearing = g["seen_at"]
+            rel = dist, bearing + math.degrees(self.heading.turn - g["seen_turn"])
         if rel is None:
             return {
                 "label": g["label"],

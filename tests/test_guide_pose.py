@@ -296,3 +296,18 @@ def test_walking_up_to_the_item_until_it_leaves_the_view_counts_as_found():
 
 def replace_dist(o, d):
     return SimpleNamespace(label=o.label, box=o.box, dist_m=d)
+
+
+def test_a_sighting_points_the_guide_and_a_blink_holds_it_turned_with_the_head():
+    """In view, the camera gives the direction; a frame or two later with no detection the last
+    sighting still points, moved by the head's turn since; three seconds on it stops."""
+    t = time.time()
+    srv, now = server(10.0, [desk(2, [0.0, 0.0, 9.0], placed=False, ts=t - 20)])
+    chair = SimpleNamespace(label="desk", box=(0.45, 0.4, 0.55, 0.9), dist_m=2.5)
+    g = Server._guide(srv, [(0, 0)] * 8, now - 0.4, False, [chair])
+    assert g["in_view"] and g["dist"] == 2.5 and abs(g["bearing"]) < 5
+    srv.heading.turn += math.radians(20)  # the head turned 20 degrees left: it is now right
+    g = Server._guide(srv, [(0, 0)] * 8, now, False, [])
+    assert not g["in_view"] and 15 < g["bearing"] < 25
+    g = Server._guide(srv, [(0, 0)] * 8, now + 4.0, False, [])
+    assert g["bearing"] is None
