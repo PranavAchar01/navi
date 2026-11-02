@@ -221,3 +221,18 @@ def test_drop_memory_does_not_add_without_a_trusted_pitch():
     for i in range(5):
         out = mem.update(i / 13, render_drop(10, 2.0), 10.0, 0.0, (0.0, 0.0), add=False)
     assert math.isinf(out) and len(mem.key) == 0
+
+
+def test_memory_does_not_store_the_slab_when_the_floor_fit_sits_on_the_lower_floor():
+    # Heights measured from the lower floor lift the slab the wearer stands on by the step.
+    mem = HazardMemory(HFOV, EYE + 0.18, low_slope=0.02)
+    for i in range(6):
+        c = mem.update(i / 13, render_drop(10, 2.2), 10.0, 0.0, (0.0, 0.0))
+    assert c.cells == 0
+
+
+def test_memory_still_stores_a_box_on_a_plain_floor_seen_from_the_same_view():
+    mem = HazardMemory(HFOV, EYE, low_slope=0.02)
+    for i in range(6):
+        c = mem.update(i / 13, render(10, box=(1.8, 0.3, 0.3)), 10.0, 0.0, (0.0, 0.0))
+    assert c.cells > 0

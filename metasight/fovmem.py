@@ -40,6 +40,13 @@ CORRIDOR_HALF_M = 0.45  # the path a walking body sweeps, as safety.BODY_HALF_M
 PATH_AHEAD_M = 2.0
 LOW_SLOPE = 0.02  # metres of extra height a low cell needs per metre of range
 MIN_SPAN = 0.8  # metres of floor a pitch fit needs (L16)
+LEVEL_BIN_M = 0.10  # height bins for finding flat surfaces
+LEVEL_MIN_PX = 150  # pixels (stride 2) a flat surface needs
+LEVEL_MIN_SPAN = 0.2  # metres it must run away from the camera
+LEVEL_FEET_ROWS = 4  # bottom image rows that see the floor at the feet
+LEVEL_FEET_PX = 10  # pixels they must hold
+LEVEL_FEET_TOL_M = 0.07  # height spread of the floor at the feet
+LEVEL_DROP_M = 0.14  # a surface this far below another, and farther off, is a lower floor
 
 
 def pitch_from_gravity(acc) -> float:
@@ -167,6 +174,34 @@ def level_floor(
     if abs(p - pitch_deg) > 12.0:
         return None
     return p, H
+
+
+def stepped_floor(hgt: np.ndarray, fwd: np.ndarray, ok: np.ndarray) -> np.ndarray:
+    """Pixels on the slab the wearer stands on, when it ends in a drop.
+
+    The heights come from a floor fit that may sit on the lower floor past a step edge (both
+    floors fall inside its band), which lifts the slab 10 to 40 cm above it and makes it read as
+    an obstacle. A level is flat when a height bin holds `LEVEL_MIN_PX` pixels that run
+    `LEVEL_MIN_SPAN` away from the camera. The floor at the wearer's feet is what the bottom
+    rows of the frame see; when a flat level at least `LEVEL_DROP_M` below it starts beyond where
+    it ends, those pixels are a floor to stand on, not an obstacle (L21)."""
+    sel = ok & (fwd < 4.0) & (hgt > -0.8) & (hgt < 0.6)
+    out = np.zeros(hgt.shape, bool)
+    feet = sel[-LEVEL_FEET_ROWS:]
+    if feet.sum() < LEVEL_FEET_PX:
+        return out
+    h0 = float(np.median(hgt[-LEVEL_FEET_ROWS:][feet]))
+    near = sel & (np.abs(hgt - h0) < LEVEL_FEET_TOL_M)
+    b = np.floor((hgt + 0.8) / LEVEL_BIN_M).astype(np.int64)
+    far = float(np.percentile(fwd[near], 95))
+    for k in np.unique(b[sel]):
+        m = sel & (b == k)
+        if (k + 1) * LEVEL_BIN_M - 0.8 > h0 - LEVEL_DROP_M or m.sum() < LEVEL_MIN_PX:
+            continue
+        lo, hi = np.percentile(fwd[m], [5, 95])
+        if hi - lo >= LEVEL_MIN_SPAN and lo >= far - 0.15:
+            return near & (fwd < lo + 0.15)
+    return out
 
 
 @dataclass
@@ -307,6 +342,7 @@ class HazardMemory:
         new = ok & (hgt > lo + self.low_slope * rng) & (hgt < hi) & (rng < self.max_range_m)
         if mask is not None:
             new &= np.asarray(mask, bool)[::s, ::s]
+        new &= ~stepped_floor(hgt, f, ok)
         if new.any():
             nr, nf, nh = r[new], f[new], hgt[new]
             wx = px + nr * rt[0] + nf * fw[0]
