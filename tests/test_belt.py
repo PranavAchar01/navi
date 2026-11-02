@@ -222,3 +222,18 @@ def test_ble_pump_repeats_the_latest_command_inside_the_watchdog_then_lets_it_la
     assert seqs == sorted(set(seqs))  # each resend is a new packet
     assert all(p[10:] == writes[0][1][10:] for _, p in writes)  # the same command
     assert link.ble_latest is None
+
+
+def test_strong_puts_every_cue_at_full_strength_on_the_diagonal_motors():
+    from metasight.belt import MODES, strong
+
+    cmd = [(MODES["off"], 0)] * 8
+    cmd[0] = (MODES["fast"], 110)  # straight ahead: both front motors
+    cmd[3] = (MODES["slow"], 40)
+    cmd[4] = (MODES["guide"], 90)  # behind: takes the far slow cue beside it, as with_guide does
+    cmd[5] = (MODES["solid"], 255)  # but never a near one
+    cmd[6] = (MODES["unknown"], 0)
+    out = strong(cmd)
+    assert out[1] == out[7] == (MODES["fast"], 255)
+    assert out[3] == (MODES["guide"], 255) and out[5] == (MODES["solid"], 255)
+    assert all(out[c][0] in (MODES["off"], MODES["unknown"]) for c in (0, 2, 4, 6))

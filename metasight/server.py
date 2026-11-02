@@ -29,7 +29,7 @@ from pydantic import BaseModel
 from . import band, nav
 from . import home as homemod
 from .align import map_resolution
-from .belt import FLAG_FOUND, NAMES, BeltLink, plan
+from .belt import FLAG_FOUND, NAMES, BeltLink, plan, strong
 from .config import ROOT, SESSIONS, Settings, secret
 from .conversation import Talk
 from .geometry import CAMERA_SECTORS, SECTORS, grid_strips, merge_sectors
@@ -532,6 +532,8 @@ class Server:
             guiding = self._guide(cmd, now, bool(guide_fresh), self.last_obstacles)
             if now < self.found_until:
                 flags |= FLAG_FOUND
+            if self.s.belt_strength == "strong":
+                cmd = strong(cmd)
             if not (self.braille and self.braille.owns_belt):  # a Braille cue on the belt wins
                 self.belt.send(cmd, flags | self.activity.flag_bits(), arrived)
             buzzed = time.perf_counter()
@@ -581,6 +583,7 @@ class Server:
                     "priors": priors_did,
                     "pos": None if self.heading.pos is None else self.heading.pos.round(3).tolist(),
                     "found": now < self.found_until,
+                    "sound": self.s.sound,  # the phone plays the find beacon and hazard beeps
                     "obstacles": [
                         {
                             "label": o.label,

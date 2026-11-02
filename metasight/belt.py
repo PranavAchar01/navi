@@ -71,6 +71,27 @@ def plan(
     return out, flags
 
 
+# Which cue wins a motor when "strong" folds two cells onto it: nearer obstacles first.
+RANK = {"off": 0, "unknown": 0, "slow": 1, "guide": 2, "find": 2, "talk": 2, "fast": 3, "solid": 4}
+
+
+def strong(cmd: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    """The command for the four-motor belt at full strength: every cue at 255, and each front,
+    right, back or left cell moved onto both diagonal motors beside it (the firmware would play
+    it there at 0.7 of its strength). Distance is then told by the rhythm alone (slow 1.5 Hz,
+    fast 4 Hz, solid), for a wearer who cannot tell the cheap motors' soft levels apart."""
+    out = [(m, 255 if RANK[NAMES[m]] else i) for m, i in cmd]
+    for c in range(0, len(cmd), 2):
+        m = out[c][0]
+        if not RANK[NAMES[m]]:
+            continue
+        for d in ((c - 1) % len(cmd), c + 1):
+            if RANK[NAMES[m]] > RANK[NAMES[out[d][0]]]:
+                out[d] = (m, 255)
+        out[c] = (MODES["off"], 0)
+    return out
+
+
 def guide(cmd: list[tuple[int, int]], bearing_deg: float, dist_m: float) -> None:
     """Point the belt at a remembered item: the motor facing it plays the guide taps, from soft
     at 4 m to strong up close. It takes over the "slow" cue (something 1 to 2 m away), which
