@@ -174,7 +174,7 @@ p { margin: 0; }
 .stage #fpv { position: absolute; inset: 0; margin: auto; display: none; border-radius: inherit; }
 .stage.fpv #fpv { display: block; }
 .stage.fpv #disp { visibility: hidden; }
-.stage video, .stage #disp, .stage #overlay { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; border-radius: inherit; }
+.stage video, .stage #disp, .stage #overlay { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 .start {
   position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; gap: 16px;
   padding: 32px; z-index: 2;

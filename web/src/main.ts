@@ -283,24 +283,25 @@ $("btn-audio").addEventListener("click", async (ev) => {
 });
 
 // ---------------------------------------------------------------- map
-// The main view: the same map seen through the camera, from the live pose. The raw camera view
-// stays one tap away.
+// The other main view: the same map seen through the camera, from the live pose. The camera
+// itself is the default.
 const fpvCanvas = document.createElement("canvas");
 fpvCanvas.id = "fpv";
 stage.insertBefore(fpvCanvas, overlay);
 const fpv = new MapView(fpvCanvas);
 fpv.setFirstPerson(true);
-let fpvOn = true;
+// The camera is the canvas; everything floats over it. The map view is one tap away.
+let fpvOn = false;
 let frameAspect = 9 / 16;
 function showView() {
   const on = fpvOn && fpv.hasPose;
   stage.classList.toggle("fpv", on);
   $("btn-fpv").textContent = fpvOn ? "View: map" : "View: camera";
   if (!on) return;
-  // The map is drawn in the shape of the frame, letterboxed like the video.
+  // The map is drawn in the shape of the frame and fills the screen, cropped like the video.
   const w = stage.clientWidth;
   const h = stage.clientHeight;
-  const k = Math.min(w / frameAspect, h);
+  const k = Math.max(w / frameAspect, h);
   fpvCanvas.style.width = `${Math.round(k * frameAspect)}px`;
   fpvCanvas.style.height = `${Math.round(k)}px`;
 }

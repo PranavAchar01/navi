@@ -267,12 +267,15 @@ function drawHazards(
     }
     ctx.shadowBlur = 0;
     // Distance tag just above the part that is in the way, eased with the blob. Kept off the top
-    // edge (where the header glass sits in the app) and inside the picture at the sides.
+    // edge (where the header glass sits in the app) and on screen at the sides.
     const text = `${x.dist.toFixed(1)} m`;
     ctx.font = '600 13px "Atkinson Hyperlegible Mono", ui-monospace, monospace';
     const tw = ctx.measureText(text).width + 26;
-    const tx = Math.min(ox + w - tw / 2 - 6, Math.max(ox + tw / 2 + 6, ox + l.x * w));
-    const ty = Math.max(oy + Math.max(26, 0.09 * h), oy + l.y * h - 14);
+    // The picture overhangs the screen, so keep the tag inside what is actually visible.
+    const left = Math.max(ox, 0);
+    const right = Math.min(ox + w, ctx.canvas.clientWidth);
+    const tx = Math.min(right - tw / 2 - 6, Math.max(left + tw / 2 + 6, ox + l.x * w));
+    const ty = Math.max(Math.max(oy, 0) + Math.max(26, 0.09 * h), oy + l.y * h - 14);
     ctx.fillStyle = `rgba(255,255,255,${(0.86 * l.alpha).toFixed(3)})`;
     ctx.beginPath();
     ctx.roundRect(tx - tw / 2, ty - 13, tw, 24, 12);
@@ -456,8 +459,8 @@ export function drawOverlay(
     extra?.arcs?.draw(ctx, 0, 0, cw, ch);
     return;
   }
-  // The picture is object-fit: contain, so find where it actually sits in the canvas.
-  const scale = Math.min(cw / vw, ch / vh);
+  // The picture is object-fit: cover, filling the screen; find where it sits, overhanging the canvas.
+  const scale = Math.max(cw / vw, ch / vh);
   const w = vw * scale;
   const h = vh * scale;
   extra?.arcs?.draw(ctx, (cw - w) / 2, (ch - h) / 2, w, h);
