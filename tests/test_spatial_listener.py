@@ -120,3 +120,15 @@ def test_a_held_warning_settles_and_a_flicker_does_not_restart_it() -> None:
     msgs.append(safety(11.1, cues=off))
     msgs.append(safety(11.2, cues=off, sectors=side))
     assert ss.schedule_take(msgs)[-1].t == pytest.approx(11.2, abs=0.05)
+
+
+def test_the_strike_tells_front_from_back_and_the_side_has_no_mirror(monkeypatch) -> None:
+    rng = np.random.default_rng(0)
+    azs = (-150, -30, 30, 150)
+    with_strike = [sl.front_back(ss.tick_sound("fast"), az, "hrtf", rng, 10) for az in azs]
+    assert max(with_strike) <= 0.1
+    monkeypatch.setattr(ss, "AIR", 0.0)
+    bare = [sl.front_back(ss.tick_sound("fast"), az, "hrtf", rng, 10) for az in azs]
+    assert np.mean(bare) >= 0.3  # a bare tone is close to a coin toss
+    assert sl.front_back(ss.tick_sound("fast"), 90, "hrtf", rng) is None
+    assert sl.mirror(30) == 150 and sl.mirror(-170) == -10

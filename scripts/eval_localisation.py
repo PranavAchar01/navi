@@ -6,8 +6,9 @@ SIMULATED LISTENER MODEL, NOT A HUMAN STUDY (metasight/spatial_listener.py).
 
 Each sound plays from every 15 degrees around the head at ear height, then again after a
 10 degree head turn. Prints the mean lateral error, the mean azimuth error once the turn
-has unfolded front and back, the worst azimuth, and the share heard on the wrong side;
-writes bench/results/localisation.json.
+has unfolded front and back, the worst azimuth, the share heard on the wrong side, and the
+share of single presentations (no turn) heard in the mirrored hemisphere, front for back,
+by a listener whose ears are not the renderer's; writes bench/results/localisation.json.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ SOUNDS = {
     "slow": lambda: ss.tick_sound("slow"),
     "fast": lambda: ss.tick_sound("fast"),
     "stop": lambda: ss.tick_sound("stop"),
+    "arrive": ss.arrival_sound,
 }
 
 
@@ -40,6 +42,7 @@ def main() -> None:
     print(result["label"])
     print(
         f"{'renderer':8s} {'sound':15s} {'lateral':>8s} {'azimuth':>8s} {'worst':>6s} {'wrong':>6s}"
+        f" {'f/b':>5s}"
     )
     for method in ("hrtf", "pan"):
         for name, make in SOUNDS.items():
@@ -47,18 +50,22 @@ def main() -> None:
             rng = np.random.default_rng(0)
             rows = {az: sl.localise(mono, az, method, rng, a.reps) for az in range(-180, 180, 15)}
             worst = max(rows, key=lambda az: rows[az]["az_err"])
+            fb = {az: sl.front_back(mono, az, method, rng, a.reps) for az in rows}
+            fb = {az: v for az, v in fb.items() if v is not None}
             s = {
                 "lateral_err_deg": float(np.mean([r["lateral_err"] for r in rows.values()])),
                 "az_err_deg": float(np.mean([r["az_err"] for r in rows.values()])),
                 "worst_az": worst,
                 "worst_err_deg": rows[worst]["az_err"],
                 "wrong_side": float(np.mean([r["wrong_side"] for r in rows.values()])),
+                "front_back_static": float(np.mean(list(fb.values()))),
+                "front_back_by_az": {str(k): v for k, v in fb.items()},
                 "by_az": {str(k): v for k, v in rows.items()},
             }
             result[f"{method}/{name}"] = s
             print(
                 f"{method:8s} {name:15s} {s['lateral_err_deg']:7.1f}d {s['az_err_deg']:7.1f}d"
-                f" {s['worst_err_deg']:5.0f}d {s['wrong_side']:6.2f}"
+                f" {s['worst_err_deg']:5.0f}d {s['wrong_side']:6.2f} {s['front_back_static']:5.2f}"
             )
     OUT.write_text(json.dumps(result, indent=1))
     print(OUT)

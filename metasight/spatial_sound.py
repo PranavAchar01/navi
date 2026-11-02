@@ -204,24 +204,45 @@ def _envelope(n: int, ramp_frac: float = 0.25) -> np.ndarray:
 # the octave, 6 deg (scripts/eval_localisation.py). 1.368 is the pair's peak, kept at 1.
 SUB_OCTAVE = 0.5
 SUB_PEAK = 1.368
+# And a bright strike on the attack: partials 3 to 8 of the beep (below 18 kHz) at 1/k, 0.3 of
+# the tone, gone in about 8 ms. A tone alone sits in one or two bands, where the pinna barely
+# tells front from back: with a stranger's ears the simulated listener heard the fast and stop
+# beeps in the mirrored hemisphere 45 and 30% of the time from a single beep; with the strike,
+# 2 and 5% (front_back in spatial_listener). Lateral placement is unchanged (the delay is read
+# below 1.2 kHz).
+AIR = 0.3
+AIR_TAU_S = 0.008
+AIR_PARTIALS = range(3, 9)
 
 
 def tick_sound(kind: str) -> np.ndarray:
-    """The phone's beep (SpatialBeeper.tone): a sine and its octave below, raised-cosine
-    edges, mono."""
+    """The phone's beep (SpatialBeeper.tone): a sine and its octave below with raised-cosine
+    edges, plus the strike on the attack; peak at gain, mono."""
     hz, dur, gain = TICK_KINDS[kind]
-    t = np.arange(int(dur * SAMPLE_RATE)) / SAMPLE_RATE
-    tone = np.sin(2 * np.pi * hz * t) + SUB_OCTAVE * np.sin(np.pi * hz * t)
-    return gain * tone / SUB_PEAK * _envelope(len(t))
+    n = int(dur * SAMPLE_RATE)
+    t = np.arange(n) / SAMPLE_RATE
+    env = _envelope(n)
+    tone = (np.sin(2 * np.pi * hz * t) + SUB_OCTAVE * np.sin(np.pi * hz * t)) / SUB_PEAK * env
+    release = np.where(np.arange(n) < n // 2, 1.0, env)
+    x = tone + _strike(hz, t) * release
+    return gain * x / np.abs(x).max()
+
+
+def _strike(hz: float, t: np.ndarray) -> np.ndarray:
+    """The bright attack (AIR): partials 3 to 8 at 1/k, 1 ms in, gone in about 8 ms."""
+    s = sum(np.sin(2 * np.pi * k * hz * t) / k for k in AIR_PARTIALS if k * hz < 18_000)
+    return AIR * s * np.exp(-t / AIR_TAU_S) * np.minimum(1.0, t / 0.001)
 
 
 def _pluck(hz: float, dur: float = 0.32) -> np.ndarray:
-    """A soft mallet note: the fundamental plus a quiet fourth partial, fast attack, quick decay."""
+    """A soft mallet note: the fundamental plus a quiet fourth partial, fast attack, quick decay,
+    and the strike (with it the simulated listener's static front/back confusions for the
+    beacon fell from 28 to 12%)."""
     t = np.arange(int(dur * SAMPLE_RATE)) / SAMPLE_RATE
     tone = np.sin(2 * np.pi * hz * t) + 0.25 * np.sin(2 * np.pi * 4 * hz * t) * np.exp(-t / 0.03)
     attack = np.minimum(1.0, t / 0.004)
     fade = np.minimum(1.0, (dur - t) / (0.1 * dur))  # no click at the cut
-    return tone * attack * np.exp(-t / 0.09) * fade
+    return tone * attack * np.exp(-t / 0.09) * fade + _strike(hz, t)
 
 
 def beacon_sound(on_target: bool) -> np.ndarray:
