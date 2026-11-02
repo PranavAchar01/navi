@@ -77,7 +77,7 @@ def main() -> None:
         return d.ground_m, d.az_deg
 
     twin = json.loads(a.twin.read_text()) if a.twin else []
-    items = rc.pick(json.loads(a.pins.read_text()), to, twin=twin)
+    items = rc.pick(json.loads(a.pins.read_text()), to, twin=twin, room=a.room)
     text, _ = rc.line(items, a.room)
     print(text)
     voice = None

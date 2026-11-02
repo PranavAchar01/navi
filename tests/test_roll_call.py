@@ -27,7 +27,8 @@ ROOM = [
     pin("chair", 0.0, -1.0),  # straight ahead
     pin("person", 0.5, -0.5),  # people move: never named
     pin("laptop", 1.6, -1.0, seen=200),  # on the bed: never named apart from it
-    pin("lamp", -1.5, 1.5, seen=90),  # small things only fill spare places
+    pin("lamp", -1.0, 1.0, seen=90),  # small things only fill spare places
+    pin("bottle", 3.0, 0.0, seen=90),  # and only when near
     pin("fan", 1.0, 1.0, seen=5),  # too few sightings
     pin("cabinet", -2.0, 0.0, score=0.2),  # too unsure
     pin("tv", 2.0, 0.0, placed=False),  # not in this walk's frame
@@ -42,6 +43,7 @@ def test_pick_names_the_layout_clockwise_from_ahead():
     assert rc.pick(ROOM, to, k=6)[-2].label != "person"
     five = [i.label for i in rc.pick(ROOM, to, k=6)]
     assert "lamp" in five and "laptop" not in five and "fan" not in five
+    assert "bottle" not in five
 
 
 def test_no_pose_names_nothing():
@@ -130,3 +132,12 @@ def test_taps_follow_the_names():
     t = rc.taps(msg)
     assert [b for _, b in t] == [it["bearing"] for it in msg["items"]]
     assert t[0][0] == pytest.approx(9 / rc.SPEECH_CHARS_PER_S) and t[0][0] < t[1][0] < t[2][0]
+
+
+def test_room_names_say_what_the_thing_is():
+    twin = [
+        {"label": "tv", "pos": [-0.5, 1.2, -1.0], "views": 800, "conf": 0.72},
+        {"label": "couch", "pos": [1.5, 0.7, 0.5], "views": 12, "conf": 0.61},  # the headboard
+    ]
+    assert [i.label for i in rc.pick([], to, twin=twin, room="Bedroom")] == ["monitor"]
+    assert {i.label for i in rc.pick([], to, twin=twin, room="living room")} == {"tv", "couch"}

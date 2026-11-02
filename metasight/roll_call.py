@@ -29,15 +29,22 @@ SAME_M = 1.0  # one label closer than this is one thing
 TWIN_SHARE = 0.5  # a second thing of one kind needs half the first one's sightings
 ON_TOP_M = 0.6  # a laptop on the bed is not named apart from the bed
 MAX_ITEMS = 6
+FILL_RANGE_M = 2.0  # a small thing (not LAYOUT) is only named this close: a far bottle is noise
 MAX_PHRASES = 5  # things at one clock hour share a phrase; more than five phrases is a lecture
 # What you find your way around a room by, most useful first. Anything else fills the rest.
 LAYOUT = (
-    "door", "bed", "desk", "chair", "table", "sofa", "armchair", "dresser", "cabinet",
+    "door", "bed", "desk", "monitor", "chair", "table", "sofa", "armchair", "dresser", "cabinet",
     "nightstand", "shelf", "couch", "mini fridge", "trash can", "stool", "tv",
 )  # fmt: skip
 FURNITURE = {"bed", "desk", "chair", "table", "sofa", "couch", "armchair", "dresser", "stool"}
 ALIASES = {"dining table": "table"}  # the detector's word, then what a person says
 SAID = {"tv": "TV"}
+# What the detector's word means in a given room, checked on each object's best frame
+# (2026-11-02): the bedroom's "tv" is the desk monitor, its "couch" is the bed's headboard, its
+# "dining table" is the white folding table. None drops the word. Pranav to confirm.
+ROOM_NAMES: dict[str, dict[str, str | None]] = {
+    "bedroom": {"tv": "monitor", "couch": None, "sofa": None},
+}
 SKIP = {"person", "wall", "window", "curtain", "rug", "picture frame", "mirror"}
 NUMBERS = ("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine")
 HOURS = (
@@ -74,15 +81,21 @@ def pick(
     k: int = MAX_ITEMS,
     min_seen: int = MIN_SEEN,
     twin: Iterable = (),
+    room: str | None = None,
 ) -> list[Item]:
     """The few things worth naming, clockwise from straight ahead. `to` is heading.to: map
     point to (floor metres, bearing degrees). Pins are Pin objects or their JSON; `twin` adds
     the room twin's objects (objects-s1.json: label, pos, views, conf), which see a chair over
-    many walks where one walk's pins may not. Both must be in the frame `to` reads."""
+    many walks where one walk's pins may not. Both must be in the frame `to` reads. `room`
+    applies that room's spoken names (ROOM_NAMES)."""
+    names = ROOM_NAMES.get((room or "").lower(), {})
     keep: list[dict] = []
     for p in sorted([*pins, *twin], key=lambda p: -_seen(p)):
         label = _get(p, "label", "").lower()
         label = ALIASES.get(label, label)
+        label = names.get(label, label)
+        if label is None:
+            continue
         bar = FURNITURE_MIN_SEEN if label in FURNITURE else min_seen
         if label in SKIP or not _get(p, "placed", True) or _seen(p) < bar or _score(p) < MIN_SCORE:
             continue
@@ -102,6 +115,8 @@ def pick(
         rel = to(q["pos"])
         if rel is None:
             return []  # no pose: nothing can be placed
+        if q["label"] not in LAYOUT and rel[0] > FILL_RANGE_M:
+            continue
         if len(chosen) < k and all(
             np.linalg.norm(q["pos"] - np.asarray(c.pos)) >= ON_TOP_M for c in chosen
         ):
