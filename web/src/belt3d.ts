@@ -1,30 +1,37 @@
-// The haptic belt in 3D, for the HUD and the judge screen. The strap is the 38 mm webbing of the
-// fanny pack, each vibration module is a DiGiYes-style board (coin motor, MOSFET, flyback diode,
-// power LED, a 3-pin header with its Dupont plug), and the controller is the ESP32 DevKit on its
-// breakout shield in the pouch at the back. The chips, headers and USB-C port are KiCad library
-// models (web/public/belt, see SOURCES.md there); boards, strap and wiring are drawn here.
+// The haptic belt in 3D, for the HUD and the judge screen. The strap is the 38 mm nylon webbing
+// of the running belt, laid out almost flat as the wearer would see it looking down: the front
+// in the middle, the right on the right, the buckle at both ends. The ESP32 DevKit sits on its
+// breakout shield in the middle of the strap; each vibration module is a DiGiYes-style board
+// (coin motor, MOSFET, flyback diode, power LED, a 3-pin header with its Dupont plug) wired
+// back to the shield. The chips, headers and USB-C port are KiCad library models (web/public/
+// belt, see SOURCES.md there); boards, strap and wiring are drawn here.
 //
-// The view sits behind and above the wearer, so right on screen is right on the body. Motors
-// light and shake as hard as the server says they run. 4, 8 or 16 motors: 4 is the belt as
-// built, 8 the protocol (the HUD default), 16 the highest-fidelity layout.
+// A running motor shakes its board, wobbles its can, and sends ripples through the webbing
+// around it, coloured from yellow (a light buzz) to red (full power). 4, 8 or 16 motors: 4 is
+// the belt as built (all across the front), 8 adds four across the back (the HUD default),
+// 16 is the highest-fidelity layout.
 
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
-import { type Cell, LAYOUTS, type Layout, PINS4, angles, spread } from "./beltlayout";
+import { type Cell, LAYOUTS, type Layout, PINS4, angles, heat, spread } from "./beltlayout";
 
-const A = 0.165; // waist, half width (m)
-const B = 0.125; // waist, half depth
+const L = 0.78; // strap length, buckle end to buckle end (m)
+// The strap lies in an arc of this radius, the front farthest away: nearly flat for the four
+// front motors, curved round like the worn belt when the back motors are in view too.
+const ARC: Record<Layout, number> = { 4: 0.6, 8: 0.3, 16: 0.3 };
+let RC = ARC[8];
 const STRAP_H = 0.038;
-const STRAP_T = 0.003;
+const STRAP_T = 0.0032;
+const TILE = 0.032; // one repeat of the weave along the strap
 const MOD_W = 0.024; // module board, along the strap
 const MOD_H = 0.017;
 const PCB = 0.0016;
-const MOD_Y = 0.004;
-const MOD_SCALE = 1.6; // modules drawn larger than life so the parts read at HUD size // modules ride a little above the strap's middle; cables run under them
-const POUCH = { w: 0.112, h: 0.074, d: 0.034 };
+const MOD_Y = 0.003; // modules ride a little above the strap's middle; cables run under them
+const MOD_SCALE = 1.6; // modules drawn larger than life so the parts read at HUD size
+const PAD = 0.0018; // hook-and-loop under the shield
 const GUIDE: [number, number, number] = [90, 176, 255];
 const CAPTION: Record<Layout, string> = {
   4: "4 motors · the belt as built",
@@ -48,59 +55,88 @@ const PARTS = [
 ] as const;
 type Part = (typeof PARTS)[number];
 
-// ------------------------------------------------------------------------------ the waist
-const point = (t: number, out: number, y: number) => {
-  const n = normal(t);
-  return new THREE.Vector3(A * Math.sin(t) + n.x * out, y, -B * Math.cos(t) + n.z * out);
+// ------------------------------------------------------------------------------ the strap
+// s runs along the strap from the left end (-L/2) through the front (0) to the right end.
+const sOf = (deg: number) => (deg / 360) * L;
+// Webbing never lies dead straight: a slow wave in and out and a slight sag.
+const lie = (s: number) => 0.0011 * Math.sin(s * 23 + 0.7) + 0.0005 * Math.sin(s * 57 + 2.1);
+const sag = (s: number) => 0.0009 * Math.sin(s * 9.5 + 0.3);
+/** Out of the strap's inner face, towards the body and the view. */
+const normal = (s: number) => new THREE.Vector3(-Math.sin(s / RC), 0, Math.cos(s / RC));
+/** Along the strap, left to right on screen. */
+const along = (s: number) => new THREE.Vector3(Math.cos(s / RC), 0, Math.sin(s / RC));
+const point = (s: number, out: number, y: number) => {
+  const f = s / RC;
+  const o = out + lie(s);
+  return new THREE.Vector3(RC * Math.sin(f) - Math.sin(f) * o, y + sag(s), RC * (1 - Math.cos(f)) + Math.cos(f) * o);
 };
-const normal = (t: number) => new THREE.Vector3(Math.sin(t) / A, 0, -Math.cos(t) / B).normalize();
-/** Along the strap, pointing so the module's +x is the viewer's right when they face it. */
-const along = (t: number) => new THREE.Vector3(-A * Math.cos(t), 0, -B * Math.sin(t)).normalize();
 
-/** A band around the waist from t0 to t1 with a rounded-rectangle section. */
-function band(t0: number, t1: number, h: number, th: number, out: number, y: number, segs: number) {
-  const r = Math.min(th / 2, 0.001);
+/** A length of strap from s0 to s1: a flat section with round edges, the inner face split into
+ *  rows so it can ripple. Keeps each vertex's rest position, s, height and normal for that. */
+interface Strip {
+  geo: THREE.BufferGeometry;
+  base: Float32Array;
+  s: Float32Array;
+  y: Float32Array;
+  nx: Float32Array;
+  nz: Float32Array;
+  rings: number;
+  per: number;
+  s0: number;
+  s1: number;
+}
+function strip(s0: number, s1: number, h: number, th: number, out: number, y0: number, segs: number, rows = 14): Strip {
+  const e = th / 2;
   const prof: [number, number][] = [];
-  const corners: [number, number, number][] = [
-    [th / 2 - r, h / 2 - r, 0],
-    [-th / 2 + r, h / 2 - r, 90],
-    [-th / 2 + r, -h / 2 + r, 180],
-    [th / 2 - r, -h / 2 + r, 270],
-  ];
-  for (const [cx, cy, a0] of corners) {
-    for (let k = 0; k <= 3; k++) {
-      const a = ((a0 + k * 30) * Math.PI) / 180;
-      prof.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
-    }
+  for (let j = 0; j <= rows; j++) prof.push([e, -h / 2 + e + ((h - th) * j) / rows]);
+  for (let k = 1; k < 6; k++) {
+    const a = (k / 6) * Math.PI;
+    prof.push([e * Math.cos(a), h / 2 - e + e * Math.sin(a)]);
   }
-  const rings = segs + 1; // a closed band repeats its first ring, so the weave does not jump
-  const pos: number[] = [];
-  const uv: number[] = [];
-  const idx: number[] = [];
+  prof.push([-e, h / 2 - e], [-e, -h / 2 + e]);
+  for (let k = 1; k < 6; k++) {
+    const a = Math.PI + (k / 6) * Math.PI;
+    prof.push([e * Math.cos(a), -h / 2 + e + e * Math.sin(a)]);
+  }
   const P = prof.length;
+  const rings = segs + 1;
+  const pos = new Float32Array(rings * P * 3);
+  const uv = new Float32Array(rings * P * 2);
+  const sv = new Float32Array(rings * P);
+  const yv = new Float32Array(rings * P);
+  const nx = new Float32Array(rings * P);
+  const nz = new Float32Array(rings * P);
+  const idx: number[] = [];
   for (let i = 0; i < rings; i++) {
-    const t = t0 + ((t1 - t0) * i) / segs;
-    const n = normal(t);
-    const c = point(t, out, y);
+    const s = s0 + ((s1 - s0) * i) / segs;
+    const n = normal(s);
+    const c = point(s, out, y0);
     prof.forEach(([pn, py], j) => {
-      pos.push(c.x + n.x * pn, c.y + py, c.z + n.z * pn);
-      uv.push((i / segs) * 48, j / P);
+      const v = i * P + j;
+      pos.set([c.x + n.x * pn, c.y + py, c.z + n.z * pn], v * 3);
+      uv.set([s / TILE, (py + h / 2) / h], v * 2);
+      sv[v] = s;
+      yv[v] = y0 + py;
+      nx[v] = n.x;
+      nz[v] = n.z;
     });
   }
   for (let i = 0; i < segs; i++) {
-    const a = i * P;
-    const b = (i + 1) * P;
     for (let j = 0; j < P; j++) {
-      const j2 = (j + 1) % P;
-      idx.push(a + j, b + j, a + j2, a + j2, b + j, b + j2);
+      const a = i * P + j;
+      const b = a + P;
+      const a2 = i * P + ((j + 1) % P);
+      const b2 = a2 + P;
+      idx.push(a, b, a2, a2, b, b2);
     }
   }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
-  g.setIndex(idx);
-  g.computeVertexNormals();
-  return g;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+  geo.setAttribute("color", new THREE.BufferAttribute(new Float32Array(rings * P * 3), 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return { geo, base: pos.slice(), s: sv, y: yv, nx, nz, rings, per: P, s0, s1 };
 }
 
 // ------------------------------------------------------------------------------ textures
@@ -111,32 +147,72 @@ function canvasTex(w: number, h: number, draw: (c: CanvasRenderingContext2D) => 
   draw(cv.getContext("2d")!);
   const t = new THREE.CanvasTexture(cv);
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 4;
+  t.anisotropy = 8;
   return t;
 }
 
-/** Twill webbing: a colour map with the edge stitching and a normal map from the weave. */
+/** Nylon webbing, one tile of TILE along and the full strap height: a 2/1 twill of 0.6 mm
+ *  yarns, each yarn its own shade, a tightly ribbed bound edge, and a row of lock stitching
+ *  3 mm in from each edge. Gives a colour map and a normal map from the same yarn heights. */
 function webbing() {
-  const W = 256;
-  const H = 64;
-  const height = (x: number, y: number) => {
-    const d = ((x + y * 2) % 8) / 8;
-    return 0.5 + 0.5 * Math.sin(d * Math.PI * 2) * (0.75 + 0.25 * Math.sin((y / H) * Math.PI * 16));
+  const W = 1024;
+  const H = 512;
+  const mmU = (TILE * 1000) / W;
+  const mmV = (STRAP_H * 1000) / H;
+  let seed = 7;
+  const rnd = () => {
+    seed = (seed * 16807) % 2147483647;
+    return seed / 2147483647;
   };
+  const shade = Array.from({ length: 128 }, () => 0.88 + 0.24 * rnd());
+  const hgt = new Float32Array(W * H);
+  const tone = new Float32Array(W * H);
+  const thread = new Uint8Array(W * H);
+  for (let y = 0; y < H; y++) {
+    const vy = y * mmV;
+    const edge = Math.min(vy, STRAP_H * 1000 - vy);
+    for (let x = 0; x < W; x++) {
+      const ux = x * mmU;
+      const o = y * W + x;
+      let h: number;
+      let t: number;
+      if (edge < 2.3) {
+        const p = (ux / 0.7) % 1;
+        h = 0.5 + 0.5 * Math.sin(Math.PI * p) * (0.85 + 0.15 * Math.cos((vy / 0.45) * Math.PI * 2));
+        t = 0.92;
+      } else {
+        const wi = Math.floor(vy / 0.6);
+        const wf = vy / 0.6 - wi;
+        const ci = Math.floor(ux / 0.6);
+        const uf = ux / 0.6 - ci;
+        const over = (ci + wi) % 3 === 0; // the weft crossing over this warp yarn
+        h = over ? 0.3 + 0.4 * Math.sin(Math.PI * uf) : 0.4 + 0.6 * Math.sin(Math.PI * wf);
+        t = shade[wi % 128] * (over ? 0.82 : 1);
+      }
+      if (edge > 2.75 && edge < 3.25 && ux % 3.2 < 2.3) {
+        h = 1.2 + 0.2 * Math.sin((Math.PI * (ux % 3.2)) / 2.3);
+        thread[o] = 1;
+      }
+      hgt[o] = h + (rnd() - 0.5) * 0.08;
+      tone[o] = t * (0.95 + 0.1 * rnd());
+    }
+  }
+  const at = (x: number, y: number) => hgt[Math.min(H - 1, Math.max(0, y)) * W + ((x + W) % W)];
   const nrm = canvasTex(
     W,
     H,
     (c) => {
       const img = c.createImageData(W, H);
+      const k = 0.06; // yarn height per unit, mm
       for (let y = 0; y < H; y++) {
         for (let x = 0; x < W; x++) {
-          const dx = height(x + 1, y) - height(x - 1, y);
-          const dy = height(x, y + 1) - height(x, y - 1);
-          const v = new THREE.Vector3(-dx * 1.6, -dy * 1.6, 1).normalize();
+          const du = ((at(x + 1, y) - at(x - 1, y)) * k) / (2 * mmU);
+          const dv = ((at(x, y - 1) - at(x, y + 1)) * k) / (2 * mmV); // canvas rows run down, v up
+          const len = Math.hypot(du, dv, 1);
           const o = (y * W + x) * 4;
-          img.data[o] = (v.x * 0.5 + 0.5) * 255;
-          img.data[o + 1] = (v.y * 0.5 + 0.5) * 255;
-          img.data[o + 2] = (v.z * 0.5 + 0.5) * 255;
+          img.data[o] = (-du / len) * 127.5 + 127.5;
+          img.data[o + 1] = (-dv / len) * 127.5 + 127.5;
+          img.data[o + 2] = (1 / len) * 127.5 + 127.5;
           img.data[o + 3] = 255;
         }
       }
@@ -145,22 +221,21 @@ function webbing() {
     false,
   );
   const col = canvasTex(W, H, (c) => {
-    c.fillStyle = "#16181d";
-    c.fillRect(0, 0, W, H);
-    for (let x = 0; x < W; x += 2) {
-      c.fillStyle = `rgba(255,255,255,${0.02 + 0.02 * ((x / 2) % 3)})`;
-      c.fillRect(x, 0, 1, H);
+    const img = c.createImageData(W, H);
+    for (let o = 0; o < W * H; o++) {
+      const lit = 0.72 + 0.34 * hgt[o];
+      const [r, g, b] = thread[o] ? [118, 122, 130] : [40, 42, 47];
+      const t = thread[o] ? lit : tone[o] * lit;
+      img.data[o * 4] = Math.min(255, r * t);
+      img.data[o * 4 + 1] = Math.min(255, g * t);
+      img.data[o * 4 + 2] = Math.min(255, b * t);
+      img.data[o * 4 + 3] = 255;
     }
-    // Lock stitching along both edges of the section (v = 0..1 runs round the profile).
-    c.fillStyle = "rgba(190,196,210,0.55)";
-    for (let x = 0; x < W; x += 16) {
-      c.fillRect(x, H * 0.06, 10, 2);
-      c.fillRect(x, H * 0.44, 10, 2);
-    }
+    c.putImageData(img, 0, 0);
   });
   for (const t of [nrm, col]) {
     t.wrapS = THREE.RepeatWrapping;
-    t.wrapT = THREE.RepeatWrapping;
+    t.wrapT = THREE.ClampToEdgeWrapping;
   }
   return { col, nrm };
 }
@@ -173,6 +248,17 @@ const glowTex = () =>
     g.addColorStop(1, "rgba(255,255,255,0)");
     c.fillStyle = g;
     c.fillRect(0, 0, 128, 128);
+  });
+
+/** Soft shadow across a ribbon: dark in the middle, clear at both sides. */
+const shadowTex = () =>
+  canvasTex(8, 64, (c) => {
+    const g = c.createLinearGradient(0, 0, 0, 64);
+    g.addColorStop(0, "rgba(0,0,0,0)");
+    g.addColorStop(0.5, "rgba(0,0,0,1)");
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    c.fillStyle = g;
+    c.fillRect(0, 0, 8, 64);
   });
 
 /** A board's top face: soldermask with its silkscreen, drawn in board millimetres (0,0 centre). */
@@ -262,15 +348,16 @@ function board(wM: number, hM: number, top: THREE.Material, holes: [number, numb
 
 // ------------------------------------------------------------------------------ the scene
 interface Motor {
-  t: number;
+  s: number;
   root: THREE.Group;
   body: THREE.Group;
+  wob: THREE.Group;
   can: THREE.MeshStandardMaterial;
-  halo: THREE.Sprite;
   led: THREE.Sprite;
-  rings: THREE.Mesh[];
   level: number;
   born: number;
+  /** Its heat colour, linear, for the ripple in the webbing. */
+  lin: THREE.Color;
 }
 
 export const CAPTION_OF = CAPTION;
@@ -279,20 +366,26 @@ export class Belt3D {
   layout: Layout = 8;
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
-  private camera = new THREE.PerspectiveCamera(30, 1, 0.01, 10);
+  private camera = new THREE.PerspectiveCamera(26, 1, 0.01, 10);
   private parts = new Map<Part, THREE.Object3D>();
   private ready: Promise<void>;
   private motors: Motor[] = [];
   private layoutGroup = new THREE.Group();
+  private staticGroup = new THREE.Group();
+  private pitch = 0.3;
   private guideMesh: THREE.Mesh | null = null;
   private guideAt: number | null = null;
   private glow = glowTex();
   private fabric = webbing();
+  private strap: Strip | null = null;
+  private rippled = false;
+  private shield!: THREE.Object3D;
   private cells: Cell[] = Array.from({ length: 8 }, () => ({ rgb: null, level: 0 }));
   private caption: HTMLElement;
   private tourTimers: number[] = [];
   private visible = true;
-  private dist = 0.9;
+  private dist = 0;
+  private distTarget = 0.6;
   onLayout: ((n: Layout) => void) | null = null;
 
   constructor(private host: HTMLElement) {
@@ -307,15 +400,16 @@ export class Belt3D {
     host.appendChild(this.caption);
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-    this.scene.environmentIntensity = 0.55;
-    const sun = new THREE.DirectionalLight(0xffffff, 1.5);
-    sun.position.set(0.4, 1, 0.6);
-    this.scene.add(sun, new THREE.HemisphereLight(0xffffff, 0x404858, 0.7), this.layoutGroup);
-    this.buildStatic();
-    this.ready = this.load().then(() => {
-      this.buildController();
-      this.setLayout(this.layout);
-    });
+    this.scene.environmentIntensity = 0.6;
+    // A soft key from the upper left, as through a window, and a cool rim from behind that
+    // catches the webbing's edge.
+    const key = new THREE.DirectionalLight(0xfff6ec, 1.6);
+    key.position.set(-0.5, 0.9, 0.8);
+    const rim = new THREE.DirectionalLight(0xbcd2ff, 0.7);
+    rim.position.set(0.3, 0.6, -1);
+    this.scene.add(key, rim, new THREE.HemisphereLight(0xffffff, 0x3a4050, 0.6), this.layoutGroup, this.staticGroup);
+    this.ready = this.load();
+    this.setLayout(this.layout);
     new ResizeObserver(() => this.resize()).observe(host);
     new IntersectionObserver(([e]) => (this.visible = e.isIntersecting)).observe(host);
     this.resize();
@@ -333,7 +427,13 @@ export class Belt3D {
     this.caption.textContent = CAPTION[n];
     this.host.dataset.motors = String(n);
     this.onLayout?.(n);
-    void this.ready.then(() => this.buildMotors(n));
+    RC = ARC[n];
+    this.resize();
+    void this.ready.then(() => {
+      if (this.layout !== n) return;
+      this.rebuild();
+      this.buildMotors(n);
+    });
   }
 
   /** The demo: 4, then 8, then 16 motors, then back to the HUD default of 8. */
@@ -379,77 +479,116 @@ export class Belt3D {
     return g;
   }
 
-  /** A frame on the strap at t: x along the strap, y up, z out of the body. */
-  private frameAt(t: number, out: number, y: number) {
+  /** A frame on the strap at s: x along the strap, y up, z out of the inner face. */
+  private frameAt(s: number, out: number, y: number) {
     const g = new THREE.Group();
-    const n = normal(t);
-    g.matrix.makeBasis(along(t), new THREE.Vector3(0, 1, 0), n);
-    g.matrix.setPosition(point(t, out, y));
-    g.matrix.decompose(g.position, g.quaternion, g.scale);
+    const m = new THREE.Matrix4().makeBasis(along(s), new THREE.Vector3(0, 1, 0), normal(s));
+    m.setPosition(point(s, out, y));
+    m.decompose(g.position, g.quaternion, g.scale);
     return g;
+  }
+
+  /** Strap, buckle, shadow and controller for the current arc. */
+  private rebuild() {
+    for (const o of [...this.staticGroup.children]) {
+      this.staticGroup.remove(o);
+      o.traverse((m) => {
+        if (m instanceof THREE.Mesh) m.geometry.dispose();
+      });
+    }
+    this.rippled = false;
+    this.guideAt = null;
+    this.buildStatic();
+    this.buildController();
   }
 
   private buildStatic() {
     const { col, nrm } = this.fabric;
+    this.strap = strip(-L / 2, L / 2, STRAP_H, STRAP_T, 0, 0, 640);
     const strap = new THREE.Mesh(
-      band(0, Math.PI * 2, STRAP_H, STRAP_T, 0, 0, 360),
+      this.strap.geo,
       new THREE.MeshPhysicalMaterial({
         map: col,
         normalMap: nrm,
-        normalScale: new THREE.Vector2(0.7, 0.7),
-        roughness: 0.86,
-        sheen: 0.6,
-        sheenColor: new THREE.Color(0x4a5060),
-        sheenRoughness: 0.6,
+        normalScale: new THREE.Vector2(1, 1),
+        roughness: 0.74,
+        sheen: 1,
+        sheenColor: new THREE.Color(0x6a7184),
+        sheenRoughness: 0.42,
         side: THREE.DoubleSide,
       }),
     );
-    this.scene.add(strap);
-
-    // A soft contact shadow and an arrow on the floor pointing the way the wearer faces.
-    const floorY = -STRAP_H / 2 - POUCH.h - 0.012;
-    const shadow = new THREE.Mesh(
-      new THREE.PlaneGeometry(1, 1),
-      new THREE.MeshBasicMaterial({ map: this.glow, color: 0x000000, transparent: true, opacity: 0.45, depthWrite: false }),
-    );
-    shadow.rotation.x = -Math.PI / 2;
-    shadow.scale.set(A * 3.0, B * 3.2, 1);
-    shadow.position.y = floorY;
-    const arrow = new THREE.Shape();
-    arrow.moveTo(0, 0.026);
-    arrow.lineTo(0.022, -0.004);
-    arrow.lineTo(0.009, -0.004);
-    arrow.lineTo(0.009, -0.02);
-    arrow.lineTo(-0.009, -0.02);
-    arrow.lineTo(-0.009, -0.004);
-    arrow.lineTo(-0.022, -0.004);
-    arrow.closePath();
-    const front = new THREE.Mesh(
-      new THREE.ShapeGeometry(arrow),
-      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4, depthWrite: false }),
-    );
-    front.rotation.x = -Math.PI / 2;
-    front.position.set(0, floorY + 0.001, -B - 0.075);
-    this.scene.add(shadow, front);
-  }
-
-  /** The pouch at the back and, on it, the ESP32 DevKit seated in its breakout shield. */
-  private buildController() {
-    const back = this.frameAt(Math.PI, STRAP_T / 2, -STRAP_H / 2 - POUCH.h / 2 + 0.006);
-    this.scene.add(back);
-    const pouch = new THREE.Mesh(
-      new RoundedBoxGeometry(POUCH.w, POUCH.h, POUCH.d, 5, 0.009),
-      new THREE.MeshPhysicalMaterial({
-        color: 0x1d2027,
-        roughness: 0.92,
-        sheen: 0.5,
-        sheenColor: new THREE.Color(0x4a5060),
-        normalMap: this.fabric.nrm,
-        normalScale: new THREE.Vector2(0.5, 0.5),
+    // The ripple's colour, added over the weave so the yarn still shows through it.
+    const warm = new THREE.Mesh(
+      this.strap.geo,
+      new THREE.MeshBasicMaterial({
+        vertexColors: true,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1,
       }),
     );
-    pouch.position.z = POUCH.d / 2;
-    back.add(pouch);
+    this.staticGroup.add(strap, warm);
+
+    // Side-release buckle: the socket on the left end, the tongue on the right.
+    const buckle = new THREE.MeshPhysicalMaterial({ color: 0x1a1b1f, roughness: 0.5, clearcoat: 0.2 });
+    for (const [side, w, h] of [
+      [-1, 0.034, 0.048],
+      [1, 0.03, 0.042],
+    ] as const) {
+      const f = this.frameAt(side * (L / 2 - w / 2 + 0.004), 0, 0);
+      const box = new THREE.Mesh(new RoundedBoxGeometry(w, h, 0.0105, 4, 0.0035), buckle);
+      f.add(box);
+      this.staticGroup.add(f);
+    }
+
+    // A soft contact shadow under the strap and a darker one under the board.
+    const floorY = -0.034;
+    const pos: number[] = [];
+    const uv: number[] = [];
+    const idx: number[] = [];
+    const N = 120;
+    for (let i = 0; i <= N; i++) {
+      const s = -L / 2 + (L * i) / N;
+      const n = normal(s);
+      const c = point(s, 0, floorY);
+      for (const k of [-1, 1]) {
+        pos.push(c.x + n.x * k * 0.028, floorY, c.z + n.z * k * 0.028);
+        uv.push(i / N, (k + 1) / 2);
+      }
+      if (i < N) idx.push(2 * i, 2 * i + 1, 2 * i + 2, 2 * i + 1, 2 * i + 3, 2 * i + 2);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx);
+    const shadow = new THREE.Mesh(
+      g,
+      new THREE.MeshBasicMaterial({ map: shadowTex(), transparent: true, opacity: 0.4, depthWrite: false }),
+    );
+    const under = new THREE.Mesh(
+      new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshBasicMaterial({ map: this.glow, color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false }),
+    );
+    under.rotation.x = -Math.PI / 2;
+    under.scale.set(0.12, 0.05, 1);
+    under.position.set(0, floorY + 0.0005, 0.012);
+    this.staticGroup.add(shadow, under);
+  }
+
+  /** The ESP32 DevKit seated in its breakout shield, on hook-and-loop in the middle of the strap. */
+  private buildController() {
+    const root = this.frameAt(0, STRAP_T / 2, 0);
+    this.staticGroup.add(root);
+    const pad = new THREE.Mesh(
+      new RoundedBoxGeometry(0.05, 0.03, PAD, 2, 0.0006),
+      new THREE.MeshStandardMaterial({ color: 0x2a2c31, roughness: 0.95 }),
+    );
+    pad.position.z = PAD / 2;
+    root.add(pad);
 
     // The shield: three rows of S/V/G ports along each long edge.
     const SW = 66;
@@ -479,8 +618,9 @@ export class Belt3D {
       [-0.03, 0.024],
       [0.03, 0.024],
     ]);
-    shield.position.z = POUCH.d + 0.0005;
-    back.add(shield);
+    shield.position.z = PAD;
+    root.add(shield);
+    this.shield = shield;
     for (const side of [-1, 1]) {
       for (let k = 0; k < 3; k++) {
         const y = side * (0.0245 - 0.00254 * (k + 1) + 0.00127);
@@ -583,11 +723,14 @@ export class Belt3D {
     const can = STEEL.clone();
     const motor = new THREE.Mesh(new THREE.LatheGeometry(prof, 48), can);
     motor.rotation.x = Math.PI / 2;
-    motor.position.set(0.003, 0, PCB + 0.0004);
+    motor.position.z = 0.0004;
+    const wob = new THREE.Group(); // tilts round the pad as the eccentric weight spins
+    wob.position.set(0.003, 0, PCB);
+    wob.add(motor);
     const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.0048, 0.0048, 0.0004, 40), PLASTIC);
     pad.rotation.x = Math.PI / 2;
     pad.position.set(0.003, 0, PCB + 0.0002);
-    g.add(pad, motor);
+    g.add(pad, wob);
     for (const [y, color] of [
       [0.0011, 0xd22a2a],
       [-0.0011, 0x2a6ad2],
@@ -614,7 +757,7 @@ export class Belt3D {
     const plug = new THREE.Mesh(new THREE.BoxGeometry(0.0026, 0.0078, 0.012), PLASTIC);
     plug.position.set(-0.0095, 0, PCB + 0.0027 + 0.006);
     g.add(plug);
-    return { g, can, motor };
+    return { g, can, wob };
   }
 
   private buildMotors(n: Layout) {
@@ -625,61 +768,55 @@ export class Belt3D {
       });
     }
     this.motors = [];
+    this.scene.updateMatrixWorld(true);
     const ang = angles(n);
     const now = performance.now();
     ang.forEach((deg, i) => {
-      const t = (deg * Math.PI) / 180;
-      const root = this.frameAt(t, STRAP_T / 2, MOD_Y);
+      const s = sOf(deg);
+      const root = this.frameAt(s, STRAP_T / 2, MOD_Y);
       const name = n === 4 ? PINS4[i] : `M${i + 1}`;
-      const { g, can } = this.module(name);
+      const { g, can, wob } = this.module(name);
       root.add(g);
-      const halo = this.sprite(0xffffff, 0.05, 0, true);
-      halo.position.set(0.003, 0, 0.008);
       const led = this.sprite(0xff3b30, 0.005, 0);
       led.position.set(0.0095, -0.0035, PCB + 0.001);
-      const rings = [0, 1].map(() => {
-        const r = new THREE.Mesh(
-          new THREE.RingGeometry(0.0062, 0.0072, 48),
-          new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
-        );
-        r.position.set(0.003, 0, PCB + 0.0032);
-        g.add(r);
-        return r;
-      });
-      g.add(halo, led);
+      g.add(led);
       if (n !== 16) {
         const tag = this.tag(n === 4 ? PINS4[i] : String(i + 1));
-        tag.position.set(0, STRAP_H / 2 - MOD_Y + 0.009, 0.004);
+        tag.position.set(0, (STRAP_H / 2 - MOD_Y) / MOD_SCALE + 0.0075, 0.004);
         root.add(tag);
       }
       this.layoutGroup.add(root);
-      this.motors.push({ t, root, body: g, can, halo, led, rings, level: 0, born: now + i * 45 });
-      this.cable(t, i, n);
+      this.motors.push({ s, root, body: g, wob, can, led, level: 0, born: now + i * 45, lin: new THREE.Color() });
+      const rank = ang.filter((a) => Math.sign(a) === Math.sign(deg) && Math.abs(a) < Math.abs(deg)).length;
+      this.cable(s, rank, Math.sign(deg));
     });
   }
 
-  /** Three Dupont wires from a module's plug along the bottom of the strap to the pouch. */
-  private cable(t: number, i: number, n: Layout) {
-    const dir = t <= Math.PI ? 1 : -1;
-    const end = Math.PI - dir * (0.05 + 0.012 * (i % (n / 2)));
-    const lane = Math.abs(end - t) / Math.PI; // farther modules ride further out, on top
-    const out0 = STRAP_T / 2 + 0.0012 + 0.0016 * Math.round(lane * (n / 2));
-    const f = this.frameAt(t, STRAP_T / 2, MOD_Y);
+  /** Three Dupont wires from a module's plug, down to the strap's lower edge, along it to the
+   *  middle and up into the shield's pin header: one pin per module, nearest modules innermost. */
+  private cable(s: number, rank: number, side: number) {
+    const f = this.frameAt(s, STRAP_T / 2, MOD_Y);
     f.scale.setScalar(MOD_SCALE);
     f.updateMatrixWorld();
     const plugTop = f.localToWorld(new THREE.Vector3(-0.0095, 0, PCB + 0.0145));
+    const out0 = STRAP_T / 2 + 0.0011 + 0.0012 * rank;
+    const end = side * 0.042;
+    const pin = 8 + side * (rank + 0.5) - 0.5; // 0..15 along the 1x16 header
     const colors = [0x6b3a1e, 0xc0262d, 0xe8761b];
     colors.forEach((color, k) => {
       const dy = (k - 1) * 0.00115;
       const pts = [plugTop.clone().add(new THREE.Vector3(0, dy, 0))];
-      pts.push(point(t - dir * 0.012, out0 + 0.006, MOD_Y - 0.01 + dy));
-      const y = -STRAP_H / 2 + 0.0055 + dy;
-      const steps = Math.max(2, Math.ceil(Math.abs(end - t) / 0.06));
-      for (let s = 1; s <= steps; s++) pts.push(point(t + ((end - t) * s) / steps, out0, y));
-      pts.push(point(end, out0 + 0.002, -STRAP_H / 2 - 0.006 + dy));
+      pts.push(point(s - 0.012, out0 + 0.006, MOD_Y - 0.011 + dy));
+      const y = -STRAP_H / 2 + 0.0045 + dy;
+      const steps = Math.max(2, Math.ceil(Math.abs(end - s) / 0.03));
+      for (let i = 1; i <= steps; i++) pts.push(point(s + ((end - s) * i) / steps, out0, y));
+      const rowY = -(0.0245 - 0.00254 * (k + 1) + 0.00127);
+      const x = 0.004 + 0.00254 * (pin - 7.5);
+      pts.push(this.shield.localToWorld(new THREE.Vector3(x, rowY - 0.006, PCB + 0.006)));
+      pts.push(this.shield.localToWorld(new THREE.Vector3(x, rowY, PCB + 0.0088)));
       const curve = new THREE.CatmullRomCurve3(pts, false, "centripetal");
       const mesh = new THREE.Mesh(
-        new THREE.TubeGeometry(curve, Math.max(24, steps * 6), 0.00055, 6),
+        new THREE.TubeGeometry(curve, Math.max(32, steps * 8), 0.00055, 6),
         new THREE.MeshStandardMaterial({ color, roughness: 0.45 }),
       );
       this.layoutGroup.add(mesh);
@@ -697,9 +834,11 @@ export class Belt3D {
       return;
     }
     this.guideAt = bearing;
-    const t = (bearing * Math.PI) / 180;
-    const half = ((10 + 40 * Math.min(1, Math.abs(bearing) / 150)) * Math.PI) / 180;
-    const g = band(t - half, t + half, 0.004, STRAP_T + 0.0016, 0, STRAP_H / 2 - 0.0025, 48);
+    const b = ((bearing + 540) % 360) - 180;
+    const half = 10 + 40 * Math.min(1, Math.abs(b) / 150);
+    const s0 = Math.max(-L / 2 + 0.03, sOf(b - half));
+    const s1 = Math.min(L / 2 - 0.03, sOf(b + half));
+    const g = strip(s0, s1, 0.004, STRAP_T + 0.0016, 0, STRAP_H / 2 - 0.0025, 48, 1).geo;
     if (!this.guideMesh) {
       this.guideMesh = new THREE.Mesh(
         g,
@@ -718,58 +857,103 @@ export class Belt3D {
   }
 
   // ---------------------------------------------------------------------------- frames
+  /** Frame the motors in use: the front for 4, the whole strap, buckle to buckle, for 8 and 16. */
   private resize() {
     const w = this.host.clientWidth;
     const h = this.host.clientHeight;
     if (!w || !h) return;
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
-    // Fit a sphere round the belt and pouch, whatever the panel's shape.
-    const r = 0.205;
-    const half = (this.camera.fov * Math.PI) / 360;
-    const fit = Math.min(half, Math.atan(Math.tan(half) * this.camera.aspect));
-    this.dist = r / Math.sin(fit);
     this.camera.updateProjectionMatrix();
+    const reach = this.layout === 4 ? sOf(75) + 0.034 : L / 2 + 0.006;
+    const f = reach / RC;
+    const tanV = Math.tan((this.camera.fov * Math.PI) / 360);
+    const tanH = tanV * this.camera.aspect;
+    this.distTarget = Math.max((RC * Math.sin(f)) / tanH + RC * (1 - Math.cos(f)), 0.05 / tanV);
+    if (!this.dist) this.dist = this.distTarget;
+  }
+
+  /** Ripples in the webbing round each running motor: rings moving out from it, faster and
+   *  deeper the harder it runs, tinted by its heat colour. */
+  private ripple(sec: number) {
+    const st = this.strap;
+    if (!st) return;
+    const live = this.motors.filter((m) => m.level > 0.01);
+    if (!live.length && !this.rippled) return;
+    this.rippled = live.length > 0;
+    const pos = st.geo.attributes.position.array as Float32Array;
+    const col = st.geo.attributes.color.array as Float32Array;
+    pos.set(st.base);
+    col.fill(0);
+    const R = 0.075;
+    const ds = (st.s1 - st.s0) / (st.rings - 1);
+    for (const m of live) {
+      const k = m.level;
+      const amp = 0.0011 * k;
+      const w = Math.PI * 2 * (1.4 + 2.2 * k);
+      const kappa = (Math.PI * 2) / 0.018;
+      const i0 = Math.max(0, Math.floor((m.s - R - st.s0) / ds));
+      const i1 = Math.min(st.rings - 1, Math.ceil((m.s - st.s0 + R) / ds));
+      for (let v = i0 * st.per; v < (i1 + 1) * st.per; v++) {
+        const dx = st.s[v] - m.s;
+        const dy = (st.y[v] - MOD_Y) * 1.3;
+        const d2 = dx * dx + dy * dy;
+        if (d2 > R * R) continue;
+        const d = Math.sqrt(d2);
+        const wave = Math.sin(sec * w - d * kappa);
+        const env = Math.exp(-d2 / (0.034 * 0.034)) * (1 - d / R);
+        const disp = amp * env * wave;
+        pos[v * 3] += st.nx[v] * disp;
+        pos[v * 3 + 2] += st.nz[v] * disp;
+        const c = k * env * (0.18 + 0.82 * Math.max(0, wave)) * 0.5;
+        col[v * 3] += m.lin.r * c;
+        col[v * 3 + 1] += m.lin.g * c;
+        col[v * 3 + 2] += m.lin.b * c;
+      }
+    }
+    st.geo.attributes.position.needsUpdate = true;
+    st.geo.attributes.color.needsUpdate = true;
+    st.geo.computeVertexNormals();
   }
 
   private frame(ms: number) {
     if (!this.visible || document.hidden) return;
-    const sway = Math.sin(ms / 4200) * 0.07;
-    const pitch = 0.62;
+    this.dist += (this.distTarget - this.dist) * 0.08;
+    const sway = Math.sin(ms / 5200) * 0.035;
+    this.pitch += ((this.layout === 4 ? 0.3 : 0.5) - this.pitch) * 0.08;
+    const pitch = this.pitch;
+    const look = new THREE.Vector3(0, -0.004, 0.01);
     this.camera.position.set(
-      Math.sin(sway) * Math.cos(pitch) * this.dist,
-      Math.sin(pitch) * this.dist - 0.042,
-      Math.cos(sway) * Math.cos(pitch) * this.dist,
+      look.x + Math.sin(sway) * Math.cos(pitch) * this.dist,
+      look.y + Math.sin(pitch) * this.dist,
+      look.z + Math.cos(sway) * Math.cos(pitch) * this.dist,
     );
-    this.camera.lookAt(0, -0.042, 0);
+    this.camera.lookAt(look);
 
     const drive = spread(this.cells, this.layout);
     const sec = ms / 1000;
+    const col = new THREE.Color();
     this.motors.forEach((m, i) => {
       const target = drive[i]?.level ?? 0;
       m.level += (target - m.level) * (target > m.level ? 0.6 : 0.25);
       const k = m.level;
-      const rgb = drive[i]?.rgb ?? [255, 190, 70];
-      const col = new THREE.Color(`rgb(${rgb.join(",")})`);
-      // Pop in after a layout change, one after another round the belt.
+      const [r, g, b] = heat(k);
+      col.setRGB(r / 255, g / 255, b / 255, THREE.SRGBColorSpace);
+      m.lin.copy(col);
+      // Pop in after a layout change, one after another along the belt.
       const age = Math.min(1, Math.max(0, (performance.now() - m.born) / 320));
       const ease = 1 - (1 - age) ** 3;
       m.root.scale.setScalar(MOD_SCALE * (0.001 + 0.999 * ease));
-      // A running motor shakes its board, enough to see from across a room.
-      const amp = 0.0007 * k;
-      m.body.position.set(amp * Math.sin(sec * 97 + i), amp * Math.cos(sec * 83 + i * 2), amp * 0.6 * Math.sin(sec * 71));
-      m.can.emissive.copy(col).multiplyScalar(0.55 * k);
-      m.halo.material.color.copy(col);
-      m.halo.material.opacity = 0.85 * k;
-      m.halo.scale.setScalar(0.026 + 0.03 * k);
+      // A running motor shakes its board and wobbles its can round the eccentric weight.
+      const amp = 0.00035 * k;
+      m.body.position.set(amp * Math.sin(sec * 97 + i), amp * Math.cos(sec * 83 + i * 2), 0);
+      const tilt = 0.11 * k;
+      m.wob.rotation.set(tilt * Math.sin(sec * 38 + i), tilt * Math.cos(sec * 38 + i), 0);
+      m.can.emissive.copy(col).multiplyScalar(0.22 * k);
+      m.led.material.color.copy(col);
       m.led.material.opacity = k > 0.02 ? 1 : 0;
-      m.rings.forEach((r, j) => {
-        const p = (sec * (0.8 + 1.6 * k) + j * 0.5) % 1;
-        r.scale.setScalar(1 + p * 1.8);
-        (r.material as THREE.MeshBasicMaterial).color.copy(col);
-        (r.material as THREE.MeshBasicMaterial).opacity = k > 0.02 ? (1 - p) * 0.8 * k : 0;
-      });
     });
+    this.ripple(sec);
     if (this.guideMesh?.visible) {
       (this.guideMesh.material as THREE.MeshStandardMaterial).emissiveIntensity = 1.2 + 0.6 * Math.sin(sec * 5);
     }

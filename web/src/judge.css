@@ -235,7 +235,7 @@ body.judge {
   z-index: 2;
   right: 1.8vw;
   bottom: 3vh;
-  width: 40vh;
+  width: 72vh;
   padding: 1.4vh 1.4vh 0.6vh;
   border-radius: 4vh;
 }
@@ -248,7 +248,7 @@ body.judge {
 .j-belt3d {
   position: relative;
   width: 100%;
-  aspect-ratio: 1.15;
+  aspect-ratio: 2.5;
   cursor: pointer;
 }
 .j-belt3d .belt3d-canvas {
@@ -256,6 +256,7 @@ body.judge {
   inset: 0;
   width: 100%;
   height: 100%;
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
 }
 .j-belt3d .belt3d-caption {
   display: none;
