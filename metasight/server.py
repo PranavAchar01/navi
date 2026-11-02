@@ -26,12 +26,13 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import band, nav
+from . import band, nav, roll_call
 from . import home as homemod
 from .align import map_resolution
 from .belt import FLAG_FOUND, NAMES, BeltLink, RhythmHold, plan, strong
 from .config import ROOT, SESSIONS, Settings, secret
 from .conversation import Talk
+from .fovmem import FovLoop
 from .geometry import CAMERA_SECTORS, SECTORS, grid_strips, merge_sectors
 from .haptics import make_output
 from .heading import Heading, wrap
@@ -132,6 +133,15 @@ def beside_in_frame(
     return min(fixed)[2] if fixed else None
 
 
+def found_message(label: str) -> dict:
+    """What the phone says when the guide arrives: for a seat, how to sit without looking."""
+    if label in ("chair", "armchair", "sofa", "bench", "stool"):
+        text = f"{label.capitalize()} right in front of you. Turn around, reach back for the seat."
+    else:
+        text = f"Your {label} is about one step ahead."
+    return {"type": "answer", "label": label, "text": text, "pin": None, "language": "template"}
+
+
 class Server:
     def __init__(self, settings: Settings, session: str):
         self.s = settings
@@ -156,6 +166,7 @@ class Server:
         self.onboarding = Onboarding()  # first run: walk, name things, feel the modes
         self._load_watch(settings)
         self.talk = Talk(settings.hfov_deg)
+        self.rollcall_taps = roll_call.BeltTaps()
         self.persist = Persist(2)  # two frames near before a motor fires
         self.persist_strips = Median(3) if self.s.cue_median else Persist(2)  # panned cues' strips
         self.path_filter = Median(3) if self.s.cue_median else None
@@ -191,6 +202,7 @@ class Server:
         self.live_where: dict[str, tuple] = {}
         self.last_obstacles: list = []  # the label layer's last result, for the item guide
         self.heading = Heading(settings.hfov_deg)  # carries the head's turn between map poses
+        self.fov = FovLoop(settings.hfov_deg, settings.eye_height_m, low_slope=0.02)
         self.map_sectors: list[float] = [math.inf] * 8
         self.map_pose_ts = 0.0
         # The map flattened to a floor plan (nav.py): routes for the item guide, priors for the
@@ -524,12 +536,17 @@ class Server:
                 priors_did = {**did, "ms": round(pri.ms, 2), "shadow": True}
                 if changed:  # the command the priors would have sent, for replays
                     priors_did.update(raw=[list(c) for c in cmd], after=shadow)
+            # Shadow (fov-lab): what the out-of-view hazard memory would cue; logged, not applied.
+            fov = self.fov.step(
+                now, res.depth_m, sc.grid, sc.floor, res.obstacles, list(self.accel), self.heading
+            )
             cmd = self.activity.calm(cmd, flags)
             if (demo := self.onboarding.demo_cmd(now)) is not None:
                 cmd = demo  # the belt intro: a mode's pattern, nothing else
             # Two layers: the stop cue above comes from depth and the floor alone and goes out
             # now; the speaker turn and the item guide ride on the last frame's labels.
             cmd = self.talk.overlay(cmd, now)
+            cmd = self.rollcall_taps.overlay(cmd, now)
             # The heading is carried between poses, so guidance tolerates an older position.
             guide_fresh = self.memory_ready and self.guide_pose_fresh(now)
             self.path_m = sc.path_m
@@ -587,6 +604,7 @@ class Server:
                     "eye_h": self.s.eye_height_m,
                     "guide": guiding,
                     "priors": priors_did,
+                    "fov": fov,
                     "pos": None if self.heading.pos is None else self.heading.pos.round(3).tolist(),
                     "found": now < self.found_until,
                     "sound": self.s.sound,  # the phone plays the find beacon and hazard beeps
@@ -692,6 +710,7 @@ class Server:
         reach = min(dist, self.path_m) if live and abs(bearing) < GUIDE_ALIGNED_DEG else dist
         if reach < self.s.found_m or (step is not None and step.arrived):
             self.guide, self.found_until = None, now + 2.0
+            self.loop.create_task(self.hub.json(found_message(g["label"]), False))
             return None
         if step is not None:
             bearing = step.bearing_deg
@@ -1257,6 +1276,21 @@ class Server:
             return
         self.talk.cues_enabled = self.activity.profile.speaker_cues
         await self.hub.json(ev, True)
+        if mode == "explore":
+            await self.roll_call()
+
+    async def roll_call(self) -> None:
+        """What is around me, from the map's pins and the room twin, clockwise from ahead: the
+        phone says it and plucks each name from where the thing is; the belt taps toward each."""
+        home = homemod.home_dir()
+        room = roll_call.room_name(home)
+        twin = roll_call.twin_objects(home)
+        items = roll_call.pick(list(self.pins.pins.values()), self.heading.to, twin=twin, room=room)
+        if not items:
+            return
+        msg = roll_call.message(items, room)
+        await self.hub.json(msg, False)
+        self.rollcall_taps.start(msg, time.time())
 
     def known_labels(self) -> list[str]:
         return sorted({*self.pins.labels(), *self.live_last})

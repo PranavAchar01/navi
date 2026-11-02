@@ -107,7 +107,8 @@ class RhythmHold:
             self.cur, self.since = list(cmd), [now] * len(cmd)
             return list(cmd)
         for i, (want, held) in enumerate(zip(cmd, self.cur, strict=True)):
-            up = RANK[NAMES[want[0]]] >= RANK[NAMES[held[0]]]
+            # the guide only ever replaces a cue on purpose (pan.with_guide): never held back
+            up = RANK[NAMES[want[0]]] >= RANK[NAMES[held[0]]] or want[0] == MODES["guide"]
             # `since` is when the held cue was last asked for (or first played)
             if up or now - self.since[i] >= self.hold_s:
                 self.cur[i], self.since[i] = want, now

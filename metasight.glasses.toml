@@ -27,10 +27,10 @@ belt_strength = "strong"
 cue_median = true  # 3-frame median on depth strips and path: rhythm flips 93-99 -> 75-89 a minute
 cue_hold_s = 0.25  # a rhythm steps down only after 0.25 s: fast/solid flicker 74 -> 23 runs a minute
 map_sides = false  # the map's side/back sectors buzzed the rear motors half the 11-02 take
-# Bedroom ranges: silent past 1.3 m, fast inside 1.0, solid inside 0.6 (street defaults 1.5/1.6/0.7)
+# Bedroom ranges: silent past 1.3 m, fast inside 1.0, solid inside 0.5 (street defaults 1.5/1.6/0.7)
 cue_off_m = 1.3
 cue_fast_m = 1.0
-cue_solid_m = 0.6
+cue_solid_m = 0.5
 found_m = 0.9
 sound = true  # spatial sound on the phone: the find beacon and the hazard beeps (false: silent)
 

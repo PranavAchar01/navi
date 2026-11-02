@@ -9,6 +9,6 @@ run() { # name port sets...
     --ask "where is my chair" --ask-at ${ASK_AT:-56} --braille off "${args[@]}" \
     --record $R/$name.jsonl > $R/$name.out 2>&1
 }
-run "$1" 8450 $2 & run "$3" 8451 $4 & wait
+P=${PORT:-8450}; run "$1" $P $2 & run "$3" $((P + 1)) $4 & wait
 for n in "$1" "$3"; do grep -E "^answer|answer latency" $R/$n.out; done
 .venv/bin/python scripts/score_take.py $R/$1.jsonl $R/$3.jsonl
