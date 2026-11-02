@@ -103,11 +103,14 @@ def ts_of(f: str) -> int:
     return int(f.split("-")[0].split(".")[0])
 
 
-def load_cams(mesh_dir: Path, tag: str) -> dict[str, list[dict]]:
-    """Cameras in the mesh frame, one per frame (the last pass wins), in time order per walk."""
+def load_cams(mesh_dir: Path, tag: str, path: Path | None = None) -> dict[str, list[dict]]:
+    """Cameras in the mesh frame, one per frame (the last pass wins), in time order per walk.
+    path: a recon_reloc.py cams file instead of the dense run's (already in the mesh frame)."""
     xf = np.array(json.loads((mesh_dir / f"frame-{tag}.json").read_text()))
+    if path:
+        xf = np.eye(4)
     by: dict[str, dict[str, dict]] = {}
-    for ln in (mesh_dir / "cams.jsonl").read_text().splitlines():
+    for ln in (path or mesh_dir / "cams.jsonl").read_text().splitlines():
         r = json.loads(ln) if ln else None
         if r and "k" in r:
             r["pose"], r["k"] = xf @ np.array(r["pose"]), np.array(r["k"])
@@ -422,6 +425,7 @@ def main() -> None:
     ap.add_argument("--version", required=True)
     ap.add_argument("--mesh", help="room_dense.py output dir (default: current.json's)")
     ap.add_argument("--tag")
+    ap.add_argument("--cams", help="recon_reloc.py cams file (default: the dense run's)")
     ap.add_argument("--steps", nargs="+", default=["label", "objects", "score"])
     ap.add_argument("--frames", type=int, default=2000)
     a = ap.parse_args()
@@ -436,7 +440,7 @@ def main() -> None:
     out.mkdir(parents=True, exist_ok=True)
     mesh = o3d.io.read_triangle_mesh(str(mesh_dir / f"mesh-{tag}.ply"))
     scene = scene_of(mesh)
-    cams = load_cams(mesh_dir, tag)
+    cams = load_cams(mesh_dir, tag, Path(a.cams) if a.cams else None)
     from room_watch import take_slot
 
     slot = take_slot()
