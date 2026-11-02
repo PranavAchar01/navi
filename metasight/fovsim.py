@@ -190,26 +190,35 @@ SCENES: dict[str, Scene] = {
 }
 
 
+def _colour(b: Box) -> str:
+    # Walls pale, furniture wood: only the colour view cares, depth is the same.
+    return "0.86 0.84 0.8 1" if max(b[3:5]) >= 1.5 and b[5] >= 1.0 else "0.66 0.47 0.3 1"
+
+
 def _box_xml(b: Box, name: str = "") -> str:
     nm = f' name="{name}"' if name else ""
     return (
         f'<geom{nm} type="box" pos="{b[0]:.4f} {b[1]:.4f} {b[2]:.4f}" '
-        f'size="{b[3]:.4f} {b[4]:.4f} {b[5]:.4f}"/>'
+        f'size="{b[3]:.4f} {b[4]:.4f} {b[5]:.4f}" rgba="{_colour(b)}"/>'
     )
 
 
 def scene_xml(sc: Scene, w: int, h: int, hfov: float) -> str:
     fovy = 2 * math.degrees(math.atan(math.tan(math.radians(hfov) / 2) * h / w))
-    geoms = ['<geom type="plane" size="20 20 0.1" pos="0 0 0"/>']
+    geoms = ['<geom type="plane" size="20 20 0.1" pos="0 0 0" material="floor"/>']
     geoms += [_box_xml(b) for b in sc.boxes]
     bodies = "".join(
         f'<body name="mover{i}" mocap="true" pos="{m[0][0]} {m[0][1]} {m[0][2]}">'
-        f'<geom type="box" size="{m[0][3]} {m[0][4]} {m[0][5]}"/></body>'
+        f'<geom type="box" size="{m[0][3]} {m[0][4]} {m[0][5]}" rgba="0.3 0.45 0.7 1"/></body>'
         for i, m in enumerate(sc.movers)
     )
     return (
-        f'<mujoco><visual><global offwidth="{w}" offheight="{h}"/>'
-        '<map znear="0.02" zfar="20"/></visual><worldbody>'
+        f'<mujoco><visual><global offwidth="{max(w, 540)}" offheight="{max(h, 960)}"/>'
+        '<map znear="0.02" zfar="20"/></visual><asset>'
+        '<texture name="chk" type="2d" builtin="checker" rgb1="0.82 0.82 0.8" '
+        'rgb2="0.7 0.7 0.68" width="64" height="64"/>'
+        '<material name="floor" texture="chk" texrepeat="20 20"/></asset><worldbody>'
+        '<light pos="0 0 3" dir="0 0 -1" directional="true" diffuse="0.6 0.6 0.6"/>'
         + "".join(geoms)
         + bodies
         + f'<camera name="eye" pos="0 0 {EYE_H}" fovy="{fovy:.4f}"/></worldbody></mujoco>'
@@ -337,16 +346,20 @@ def run(
     noise: float = 0.04,
     eye_h_cfg: float = EYE_H,
     trace: list | None = None,
+    record: list | None = None,
 ) -> list[Score]:
     """Play one scene once; score the live cue alone (first) and live plus each memory arm.
     `eye_h_cfg` is the eye height the software believes (the glasses profile says 1.22). Each
-    false cue is appended to `trace` as (t, arm index, sector, cue, truth) when one is given."""
+    false cue is appended to `trace` as (t, arm index, sector, cue, truth) when one is given.
+    With `record`, each frame appends a dict: the camera's colour view (540x960), the truth and
+    every cue (sectors, path), for the demo renders."""
     rng = np.random.default_rng(seed)
     w, h = GRID[1], GRID[0]  # portrait, as the glasses stream
     m = mujoco.MjModel.from_xml_string(scene_xml(sc, w, h, hfov))
     dd = mujoco.MjData(m)
     r = mujoco.Renderer(m, h, w)
     r.enable_depth_rendering()
+    rc = mujoco.Renderer(m, 960, 540) if record is not None else None
     pts = (
         np.vstack([_surface(b) for b in sc.boxes + sc.unseen])
         if sc.boxes or sc.unseen
@@ -486,7 +499,20 @@ def run(
             if true_path < DANGER_M:
                 sco.path_danger += 1
                 sco.path_missed += _miss(true_path, path)
+        if rc is not None:
+            rc.update_scene(dd, camera="eye")
+            record.append(
+                {
+                    "t": t,
+                    "rgb": rc.render(),
+                    "truth": (true_sec, true_path),
+                    "cues": cues,
+                    "blind": bool(rate > sc.blur_dps),
+                }
+            )
         last = (x, y, yaw)
         t += 1.0 / FPS
+    if rc is not None:
+        rc.close()
     r.close()
     return scores
