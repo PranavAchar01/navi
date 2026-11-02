@@ -133,3 +133,14 @@ def test_memory_keys_dedupe():
     n = len(mem.key)
     mem.update(0.1, z, 15.0, 0.0)
     assert len(mem.key) == n and np.all(np.diff(mem.key) > 0) and mem.hits.max() == 2
+
+
+def test_memory_gate_moved_needs_head_motion():
+    mem = HazardMemory(HFOV, EYE, low_slope=0.0, gate="moved")
+    for i in range(2):
+        mem.update(i * 0.1, render(15, box=(1.5, 0.15, 0.3)), 15.0, 0.0)
+    # Same pose, frame lost (blank depth): nothing out of view the head's motion explains.
+    out = mem.update(0.2, np.zeros((H, W), np.float32), 15.0, 0.0)
+    assert math.isinf(out.path_m)
+    out = mem.update(0.3, render(15), 15.0, -math.pi / 2)  # a 90 degree turn explains it
+    assert out.hidden[6] < 1.6

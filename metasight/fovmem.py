@@ -185,7 +185,9 @@ class HazardMemory:
     `keep_s`: how long a cell lives out of view. `min_hits`: frames a cell must be seen in before
     it is reported (single-frame depth noise must not linger). `band`: heights that are in the
     way, metres above the floor (low clutter to just over the head). `reach_m`: cells further
-    than this from the wearer are forgotten."""
+    than this from the wearer are forgotten. `gate`: None reports every held cell; "hip_pitch"
+    only those under 1.1 m whose head pitch changed more than `gate_deg` since they were seen;
+    "moved" those the head's pitch, yaw (same `gate_deg`) or a 0.3 m step since explains."""
 
     def __init__(
         self,
@@ -198,9 +200,13 @@ class HazardMemory:
         max_range_m: float = 2.5,
         stride: int = 2,
         low_slope: float = LOW_SLOPE,
+        gate: str | None = None,
+        gate_deg: float = 15.0,
     ):
         self.hfov = hfov_deg
         self.low_slope = low_slope
+        self.gate = gate
+        self.gate_deg = gate_deg
         self.eye_h = eye_h
         self.keep_s = keep_s
         self.min_hits = min_hits
@@ -215,6 +221,7 @@ class HazardMemory:
         self.pts = np.zeros((0, 3))  # world x, z, height
         self.seen_t = np.zeros(0)
         self.hits = np.zeros(0, np.int32)
+        self.seen_pose = np.zeros((0, 4))  # head pitch (deg), yaw (rad), x, z when last seen
 
     @staticmethod
     def _keys(x, z, hgt) -> np.ndarray:
@@ -243,6 +250,7 @@ class HazardMemory:
         fw = (math.sin(yaw), math.cos(yaw))
         rt = (-math.cos(yaw), math.sin(yaw))
         px, pz = float(pos[0]), float(pos[1])
+        pose = np.array([pitch_deg, yaw, px, pz])
 
         # 1. What the frame says about the cells already held.
         cleared = 0
@@ -267,6 +275,7 @@ class HazardMemory:
             through = known & (live > zc[idx] + tol)
             back = known & (np.abs(live - zc[idx]) <= tol)
             self.seen_t[idx[back]] = t
+            self.seen_pose[idx[back]] = pose
             drop = np.zeros(len(self.key), bool)
             drop[idx[through]] = True
             cleared = int(drop.sum())
@@ -274,6 +283,7 @@ class HazardMemory:
             keep = ~(drop | old)
             self.key, self.pts = self.key[keep], self.pts[keep]
             self.seen_t, self.hits = self.seen_t[keep], self.hits[keep]
+            self.seen_pose = self.seen_pose[keep]
             in_view = in_view[keep]
 
         # 2. New cells from this frame.
@@ -295,16 +305,19 @@ class HazardMemory:
             pos_in = np.clip(pos_in, 0, max(len(self.key) - 1, 0))
             have = (self.key[pos_in] == k) if len(self.key) else np.zeros(len(k), bool)
             self.seen_t[pos_in[have]] = t
+            self.seen_pose[pos_in[have]] = pose
             self.hits[pos_in[have]] += 1
             add = ~have
             self.key = np.concatenate([self.key, k[add]])
             self.pts = np.vstack([self.pts, wp[add]])
             self.seen_t = np.concatenate([self.seen_t, np.full(add.sum(), t)])
             self.hits = np.concatenate([self.hits, np.ones(add.sum(), np.int32)])
+            self.seen_pose = np.vstack([self.seen_pose, np.tile(pose, (int(add.sum()), 1))])
             in_view = np.concatenate([in_view, np.ones(add.sum(), bool)])
             order = np.argsort(self.key)
             self.key, self.pts = self.key[order], self.pts[order]
             self.seen_t, self.hits, in_view = self.seen_t[order], self.hits[order], in_view[order]
+            self.seen_pose = self.seen_pose[order]
 
         # 3. Report what is held and out of view, in the head's frame.
         out = FovCues(
@@ -313,6 +326,16 @@ class HazardMemory:
         out.in_view = int(in_view.sum())
         out.near = [math.inf] * SECTORS
         sure = self.hits >= self.min_hits
+        if self.gate is not None and len(self.key):
+            # Report a held cell only when the head's own motion explains why it left the view.
+            sp = self.seen_pose
+            dp = np.abs(pitch_deg - sp[:, 0]) > self.gate_deg
+            if self.gate == "hip_pitch":
+                sure &= dp & (self.pts[:, 2] < 1.1)
+            else:  # "moved": pitch, yaw or a step
+                dy = np.abs((yaw - sp[:, 1] + math.pi) % (2 * math.pi) - math.pi)
+                step = np.hypot(px - sp[:, 2], pz - sp[:, 3]) > 0.3
+                sure &= dp | (dy > math.radians(self.gate_deg)) | step
         if sure.any():
             dx, dz = self.pts[:, 0] - px, self.pts[:, 1] - pz
             cr = dx * rt[0] + dz * rt[1]

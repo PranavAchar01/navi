@@ -22,15 +22,11 @@ import numpy as np
 from metasight import fovsim as F
 
 ROOT = Path(__file__).resolve().parent.parent
+REC = dict(low_slope=0.02, mask=True, people=True)  # the recommended memory (L14)
 ARMS = {
-    "memory": F.Arms(),
-    "memory, floor mask": F.Arms(mask=True),
-    "memory, mask + people": F.Arms(mask=True, people=True),
-    "memory, safety's floor": F.Arms(level=False),
-    "memory, low slope 0.02": F.Arms(low_slope=0.02, mask=True, people=True),
-    "memory, no position": F.Arms(pos="none", mask=True, people=True),
-    "memory, speed 15% off": F.Arms(pos="speed", mask=True, people=True),
-    "memory, keep 3 s": F.Arms(keep_s=3.0, mask=True, people=True),
+    "memory": F.Arms(**REC),
+    "memory, gate hip+pitch": F.Arms(**REC, gate="hip_pitch"),
+    "memory, gate moved": F.Arms(**REC, gate="moved"),
 }
 
 

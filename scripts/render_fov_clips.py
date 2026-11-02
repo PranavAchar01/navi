@@ -24,7 +24,7 @@ from metasight import fovsim as F
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "data" / "demo-takes" / "fov"
 ARM = F.Arms(low_slope=0.02, mask=True, people=True)
-ARM_KEY = "memory, low slope 0.02"  # the same settings in run_fov.py
+ARM_KEY = "memory"  # REC in run_fov.py
 TITLES = {
     "desk_lookup": "Looks up from the desk: the edge drops out of view",
     "shelf_head": "Shelf at head height: above the frame on the approach",

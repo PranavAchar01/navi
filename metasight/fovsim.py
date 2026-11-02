@@ -301,6 +301,7 @@ class Arms:
     low_slope: float = 0.04  # low cells need this much more height per metre of range
     level: bool = True  # fovmem.level_floor from the pitch guess, not safety's floor plane
     people: bool = False  # a person detector's box is kept out of the memory (people move)
+    gate: str | None = None  # HazardMemory report gate: None, "hip_pitch" or "moved"
 
 
 @dataclass
@@ -371,7 +372,14 @@ def run(
     ]
     jitter = rng.normal(0, [0.05, 0.05, 2.0, 3.0, 3.0])
     mems = [
-        HazardMemory(hfov, eye_h_cfg, keep_s=a.keep_s, min_hits=a.min_hits, low_slope=a.low_slope)
+        HazardMemory(
+            hfov,
+            eye_h_cfg,
+            keep_s=a.keep_s,
+            min_hits=a.min_hits,
+            low_slope=a.low_slope,
+            gate=a.gate,
+        )
         for a in arms
     ]
     yaw_err = [0.0] * len(arms)
@@ -474,13 +482,14 @@ def run(
                 pos,
                 mask,
             )
+            lv_k, path_k = live, scene.path_m
             if not a.memory:
-                cues.append((live, scene.path_m))
+                cues.append((lv_k, path_k))
                 continue
             cues.append(
                 (
-                    [min(lv, hv) for lv, hv in zip(live, fc.hidden, strict=True)],
-                    min(scene.path_m, fc.path_m),
+                    [min(lv, hv) for lv, hv in zip(lv_k, fc.hidden, strict=True)],
+                    min(path_k, fc.path_m),
                 )
             )
         for ai, (sco, (sec, path)) in enumerate(zip(scores, cues, strict=True)):

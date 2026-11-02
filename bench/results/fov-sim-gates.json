@@ -1,0 +1,830 @@
+{
+ "hfov": 44.8,
+ "eye_cfg": 1.6,
+ "seeds": 20,
+ "scenes": {
+  "desk_lookup": {
+   "note": "His example: the desk edge is seen while looking down, then he looks up at the monitor and steps in; the edge is under the frame at hip height.",
+   "arms": {
+    "live": {
+     "miss": 0.122,
+     "front_miss": 0.064,
+     "path_miss": 0.048,
+     "false_per_min": 11.8,
+     "danger": 3298,
+     "frames": 1320
+    },
+    "live, IMU up": {
+     "miss": 0.679,
+     "front_miss": 0.658,
+     "path_miss": 0.647,
+     "false_per_min": 7.1,
+     "danger": 3298,
+     "frames": 1320,
+     "miss_diff_ci": [
+      0.521,
+      0.597
+     ]
+    },
+    "memory": {
+     "miss": 0.058,
+     "front_miss": 0.001,
+     "path_miss": 0.008,
+     "false_per_min": 20.1,
+     "danger": 3298,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.102,
+      -0.038
+     ]
+    },
+    "memory, IMU up": {
+     "miss": 0.057,
+     "front_miss": 0.0,
+     "path_miss": 0.0,
+     "false_per_min": 15.4,
+     "danger": 3298,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.101,
+      -0.039
+     ]
+    },
+    "memory, gate hip+pitch": {
+     "miss": 0.066,
+     "front_miss": 0.01,
+     "path_miss": 0.01,
+     "false_per_min": 20.1,
+     "danger": 3298,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.085,
+      -0.034
+     ]
+    },
+    "memory, gate moved": {
+     "miss": 0.066,
+     "front_miss": 0.01,
+     "path_miss": 0.01,
+     "false_per_min": 20.1,
+     "danger": 3298,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.086,
+      -0.034
+     ]
+    },
+    "memory, gate moved, IMU up": {
+     "miss": 0.179,
+     "front_miss": 0.131,
+     "path_miss": 0.001,
+     "false_per_min": 15.4,
+     "danger": 3298,
+     "frames": 1320,
+     "miss_diff_ci": [
+      0.025,
+      0.089
+     ]
+    }
+   }
+  },
+  "shelf_head": {
+   "note": "A shelf at head height seen from across the room; walking up to it the wearer looks at the floor, and the shelf is above the top of the frame.",
+   "arms": {
+    "live": {
+     "miss": 0.877,
+     "front_miss": 0.877,
+     "path_miss": 0.974,
+     "false_per_min": 51.6,
+     "danger": 1069,
+     "frames": 1180
+    },
+    "live, IMU up": {
+     "miss": 0.802,
+     "front_miss": 0.802,
+     "path_miss": 0.849,
+     "false_per_min": 41.6,
+     "danger": 1069,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.219,
+      0.031
+     ]
+    },
+    "memory": {
+     "miss": 0.0,
+     "front_miss": 0.0,
+     "path_miss": 0.0,
+     "false_per_min": 150.1,
+     "danger": 1069,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.909,
+      -0.845
+     ]
+    },
+    "memory, IMU up": {
+     "miss": 0.0,
+     "front_miss": 0.0,
+     "path_miss": 0.0,
+     "false_per_min": 140.8,
+     "danger": 1069,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.909,
+      -0.843
+     ]
+    },
+    "memory, gate hip+pitch": {
+     "miss": 0.453,
+     "front_miss": 0.453,
+     "path_miss": 0.938,
+     "false_per_min": 146.1,
+     "danger": 1069,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.47,
+      -0.377
+     ]
+    },
+    "memory, gate moved": {
+     "miss": 0.0,
+     "front_miss": 0.0,
+     "path_miss": 0.0,
+     "false_per_min": 150.1,
+     "danger": 1069,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.909,
+      -0.844
+     ]
+    },
+    "memory, gate moved, IMU up": {
+     "miss": 0.0,
+     "front_miss": 0.0,
+     "path_miss": 0.0,
+     "false_per_min": 140.8,
+     "danger": 1069,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.908,
+      -0.844
+     ]
+    }
+   }
+  },
+  "low_box": {
+   "note": "A shoebox on the floor ahead, seen from 2 m; walking up with the head level it drops under the bottom edge at about 1.2 m.",
+   "arms": {
+    "live": {
+     "miss": 0.949,
+     "front_miss": 0.949,
+     "path_miss": 0.899,
+     "false_per_min": 3.0,
+     "danger": 1720,
+     "frames": 1320
+    },
+    "live, IMU up": {
+     "miss": 0.949,
+     "front_miss": 0.949,
+     "path_miss": 0.899,
+     "false_per_min": 5.3,
+     "danger": 1720,
+     "frames": 1320,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "memory": {
+     "miss": 0.049,
+     "front_miss": 0.05,
+     "path_miss": 0.0,
+     "false_per_min": 22.5,
+     "danger": 1720,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.933,
+      -0.866
+     ]
+    },
+    "memory, IMU up": {
+     "miss": 0.049,
+     "front_miss": 0.05,
+     "path_miss": 0.0,
+     "false_per_min": 24.8,
+     "danger": 1720,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.931,
+      -0.866
+     ]
+    },
+    "memory, gate hip+pitch": {
+     "miss": 0.949,
+     "front_miss": 0.949,
+     "path_miss": 0.899,
+     "false_per_min": 3.0,
+     "danger": 1720,
+     "frames": 1320,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "memory, gate moved": {
+     "miss": 0.054,
+     "front_miss": 0.054,
+     "path_miss": 0.011,
+     "false_per_min": 22.5,
+     "danger": 1720,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.927,
+      -0.858
+     ]
+    },
+    "memory, gate moved, IMU up": {
+     "miss": 0.054,
+     "front_miss": 0.054,
+     "path_miss": 0.011,
+     "false_per_min": 24.8,
+     "danger": 1720,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.928,
+      -0.855
+     ]
+    }
+   }
+  },
+  "chair_legs": {
+   "note": "A chair on thin legs, seat at 0.45 m: approached looking down, then the head comes up to look for the table beyond it.",
+   "arms": {
+    "live": {
+     "miss": 0.735,
+     "front_miss": 0.731,
+     "path_miss": 0.573,
+     "false_per_min": 21.8,
+     "danger": 2329,
+     "frames": 1180
+    },
+    "live, IMU up": {
+     "miss": 0.735,
+     "front_miss": 0.731,
+     "path_miss": 0.573,
+     "false_per_min": 44.9,
+     "danger": 2329,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.002,
+      0.002
+     ]
+    },
+    "memory": {
+     "miss": 0.027,
+     "front_miss": 0.024,
+     "path_miss": 0.0,
+     "false_per_min": 36.4,
+     "danger": 2329,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.735,
+      -0.683
+     ]
+    },
+    "memory, IMU up": {
+     "miss": 0.027,
+     "front_miss": 0.024,
+     "path_miss": 0.0,
+     "false_per_min": 59.5,
+     "danger": 2329,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.735,
+      -0.683
+     ]
+    },
+    "memory, gate hip+pitch": {
+     "miss": 0.089,
+     "front_miss": 0.086,
+     "path_miss": 0.046,
+     "false_per_min": 35.7,
+     "danger": 2329,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.67,
+      -0.622
+     ]
+    },
+    "memory, gate moved": {
+     "miss": 0.064,
+     "front_miss": 0.06,
+     "path_miss": 0.02,
+     "false_per_min": 35.7,
+     "danger": 2329,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.698,
+      -0.649
+     ]
+    },
+    "memory, gate moved, IMU up": {
+     "miss": 0.064,
+     "front_miss": 0.06,
+     "path_miss": 0.02,
+     "false_per_min": 58.8,
+     "danger": 2329,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.698,
+      -0.65
+     ]
+    }
+   }
+  },
+  "doorway_turn": {
+   "note": "Walking through a 0.8 m doorway while looking 70 degrees to the right (someone called): the jambs left the view a step before the shoulders pass them.",
+   "arms": {
+    "live": {
+     "miss": 0.575,
+     "front_miss": 0.2,
+     "path_miss": 0.165,
+     "false_per_min": 9.3,
+     "danger": 2061,
+     "frames": 1180
+    },
+    "live, IMU up": {
+     "miss": 0.575,
+     "front_miss": 0.2,
+     "path_miss": 0.165,
+     "false_per_min": 9.9,
+     "danger": 2061,
+     "frames": 1180,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "memory": {
+     "miss": 0.024,
+     "front_miss": 0.002,
+     "path_miss": 0.0,
+     "false_per_min": 97.2,
+     "danger": 2061,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.582,
+      -0.5
+     ]
+    },
+    "memory, IMU up": {
+     "miss": 0.024,
+     "front_miss": 0.002,
+     "path_miss": 0.0,
+     "false_per_min": 98.5,
+     "danger": 2061,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.582,
+      -0.5
+     ]
+    },
+    "memory, gate hip+pitch": {
+     "miss": 0.575,
+     "front_miss": 0.2,
+     "path_miss": 0.165,
+     "false_per_min": 9.3,
+     "danger": 2061,
+     "frames": 1180,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "memory, gate moved": {
+     "miss": 0.024,
+     "front_miss": 0.002,
+     "path_miss": 0.0,
+     "false_per_min": 93.2,
+     "danger": 2061,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.582,
+      -0.503
+     ]
+    },
+    "memory, gate moved, IMU up": {
+     "miss": 0.024,
+     "front_miss": 0.002,
+     "path_miss": 0.0,
+     "false_per_min": 94.5,
+     "danger": 2061,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.583,
+      -0.5
+     ]
+    }
+   }
+  },
+  "turn_back": {
+   "note": "Standing at a table, turning the head away 90 degrees to talk, then turning the body back toward the table and stepping in: the edge is at the side, then ahead.",
+   "arms": {
+    "live": {
+     "miss": 0.535,
+     "front_miss": 0.287,
+     "path_miss": 0.406,
+     "false_per_min": 1.8,
+     "danger": 4151,
+     "frames": 1320
+    },
+    "live, IMU up": {
+     "miss": 0.523,
+     "front_miss": 0.269,
+     "path_miss": 0.388,
+     "false_per_min": 3.0,
+     "danger": 4151,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.033,
+      0.0
+     ]
+    },
+    "memory": {
+     "miss": 0.035,
+     "front_miss": 0.021,
+     "path_miss": 0.009,
+     "false_per_min": 2.4,
+     "danger": 4151,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.537,
+      -0.471
+     ]
+    },
+    "memory, IMU up": {
+     "miss": 0.029,
+     "front_miss": 0.012,
+     "path_miss": 0.005,
+     "false_per_min": 3.5,
+     "danger": 4151,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.556,
+      -0.472
+     ]
+    },
+    "memory, gate hip+pitch": {
+     "miss": 0.184,
+     "front_miss": 0.227,
+     "path_miss": 0.125,
+     "false_per_min": 1.8,
+     "danger": 4151,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.371,
+      -0.335
+     ]
+    },
+    "memory, gate moved": {
+     "miss": 0.045,
+     "front_miss": 0.036,
+     "path_miss": 0.03,
+     "false_per_min": 2.4,
+     "danger": 4151,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.515,
+      -0.468
+     ]
+    },
+    "memory, gate moved, IMU up": {
+     "miss": 0.033,
+     "front_miss": 0.018,
+     "path_miss": 0.012,
+     "false_per_min": 3.5,
+     "danger": 4151,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.548,
+      -0.469
+     ]
+    }
+   }
+  },
+  "fast_turn_blur": {
+   "note": "A fast head sweep (about 200 deg/s) across a table at hip height: the frames in the sweep are smeared and read as nothing.",
+   "arms": {
+    "live": {
+     "miss": 0.373,
+     "front_miss": 0.301,
+     "path_miss": 0.367,
+     "false_per_min": 3.0,
+     "danger": 3011,
+     "frames": 1040
+    },
+    "live, IMU up": {
+     "miss": 0.373,
+     "front_miss": 0.301,
+     "path_miss": 0.368,
+     "false_per_min": 1.5,
+     "danger": 3011,
+     "frames": 1040,
+     "miss_diff_ci": [
+      -0.001,
+      0.0
+     ]
+    },
+    "memory": {
+     "miss": 0.1,
+     "front_miss": 0.092,
+     "path_miss": 0.007,
+     "false_per_min": 6.8,
+     "danger": 3011,
+     "frames": 1040,
+     "miss_diff_ci": [
+      -0.284,
+      -0.262
+     ]
+    },
+    "memory, IMU up": {
+     "miss": 0.1,
+     "front_miss": 0.092,
+     "path_miss": 0.007,
+     "false_per_min": 5.2,
+     "danger": 3011,
+     "frames": 1040,
+     "miss_diff_ci": [
+      -0.284,
+      -0.262
+     ]
+    },
+    "memory, gate hip+pitch": {
+     "miss": 0.373,
+     "front_miss": 0.301,
+     "path_miss": 0.367,
+     "false_per_min": 3.0,
+     "danger": 3011,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "memory, gate moved": {
+     "miss": 0.133,
+     "front_miss": 0.128,
+     "path_miss": 0.062,
+     "false_per_min": 6.8,
+     "danger": 3011,
+     "frames": 1040,
+     "miss_diff_ci": [
+      -0.25,
+      -0.232
+     ]
+    },
+    "memory, gate moved, IMU up": {
+     "miss": 0.133,
+     "front_miss": 0.128,
+     "path_miss": 0.062,
+     "false_per_min": 5.2,
+     "danger": 3011,
+     "frames": 1040,
+     "miss_diff_ci": [
+      -0.25,
+      -0.232
+     ]
+    }
+   }
+  },
+  "side_entry": {
+   "note": "Someone steps into the path from the side, inside 1 m: they were never in the view before, so memory cannot help (a control).",
+   "arms": {
+    "live": {
+     "miss": 0.018,
+     "front_miss": 0.018,
+     "path_miss": 0.0,
+     "false_per_min": 14.2,
+     "danger": 820,
+     "frames": 1040
+    },
+    "live, IMU up": {
+     "miss": 0.02,
+     "front_miss": 0.02,
+     "path_miss": 0.0,
+     "false_per_min": 17.2,
+     "danger": 820,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.003
+     ]
+    },
+    "memory": {
+     "miss": 0.018,
+     "front_miss": 0.018,
+     "path_miss": 0.0,
+     "false_per_min": 14.2,
+     "danger": 820,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "memory, IMU up": {
+     "miss": 0.02,
+     "front_miss": 0.02,
+     "path_miss": 0.0,
+     "false_per_min": 17.2,
+     "danger": 820,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.003
+     ]
+    },
+    "memory, gate hip+pitch": {
+     "miss": 0.018,
+     "front_miss": 0.018,
+     "path_miss": 0.0,
+     "false_per_min": 14.2,
+     "danger": 820,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "memory, gate moved": {
+     "miss": 0.018,
+     "front_miss": 0.018,
+     "path_miss": 0.0,
+     "false_per_min": 14.2,
+     "danger": 820,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "memory, gate moved, IMU up": {
+     "miss": 0.02,
+     "front_miss": 0.02,
+     "path_miss": 0.0,
+     "false_per_min": 17.2,
+     "danger": 820,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.003
+     ]
+    }
+   }
+  },
+  "glass_pane": {
+   "note": "A glass door the depth cannot see (a control: nothing to remember).",
+   "arms": {
+    "live": {
+     "miss": 0.998,
+     "front_miss": 0.998,
+     "path_miss": 1.0,
+     "false_per_min": 0.0,
+     "danger": 1408,
+     "frames": 1040
+    },
+    "live, IMU up": {
+     "miss": 0.999,
+     "front_miss": 0.999,
+     "path_miss": 1.0,
+     "false_per_min": 0.0,
+     "danger": 1408,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.002
+     ]
+    },
+    "memory": {
+     "miss": 0.998,
+     "front_miss": 0.998,
+     "path_miss": 1.0,
+     "false_per_min": 0.0,
+     "danger": 1408,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "memory, IMU up": {
+     "miss": 0.999,
+     "front_miss": 0.999,
+     "path_miss": 1.0,
+     "false_per_min": 0.0,
+     "danger": 1408,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.002
+     ]
+    },
+    "memory, gate hip+pitch": {
+     "miss": 0.998,
+     "front_miss": 0.998,
+     "path_miss": 1.0,
+     "false_per_min": 0.0,
+     "danger": 1408,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "memory, gate moved": {
+     "miss": 0.998,
+     "front_miss": 0.998,
+     "path_miss": 1.0,
+     "false_per_min": 0.0,
+     "danger": 1408,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "memory, gate moved, IMU up": {
+     "miss": 0.999,
+     "front_miss": 0.999,
+     "path_miss": 1.0,
+     "false_per_min": 0.0,
+     "danger": 1408,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.002
+     ]
+    }
+   }
+  }
+ },
+ "total": {
+  "live": {
+   "miss": 0.535,
+   "front_miss": 0.454,
+   "path_miss": 0.46,
+   "false_per_min": 12.9,
+   "danger": 19867,
+   "frames": 10620
+  },
+  "live, IMU up": {
+   "miss": 0.621,
+   "front_miss": 0.555,
+   "path_miss": 0.542,
+   "false_per_min": 14.5,
+   "danger": 19867,
+   "frames": 10620
+  },
+  "memory": {
+   "miss": 0.114,
+   "front_miss": 0.11,
+   "path_miss": 0.079,
+   "false_per_min": 39.1,
+   "danger": 19867,
+   "frames": 10620
+  },
+  "memory, IMU up": {
+   "miss": 0.112,
+   "front_miss": 0.109,
+   "path_miss": 0.077,
+   "false_per_min": 40.8,
+   "danger": 19867,
+   "frames": 10620
+  },
+  "memory, gate hip+pitch": {
+   "miss": 0.354,
+   "front_miss": 0.319,
+   "path_miss": 0.342,
+   "false_per_min": 26.0,
+   "danger": 19867,
+   "frames": 10620
+  },
+  "memory, gate moved": {
+   "miss": 0.127,
+   "front_miss": 0.126,
+   "path_miss": 0.094,
+   "false_per_min": 38.6,
+   "danger": 19867,
+   "frames": 10620
+  },
+  "memory, gate moved, IMU up": {
+   "miss": 0.143,
+   "front_miss": 0.145,
+   "path_miss": 0.09,
+   "false_per_min": 40.3,
+   "danger": 19867,
+   "frames": 10620
+  }
+ }
+}
