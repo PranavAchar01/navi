@@ -105,6 +105,16 @@ def main() -> None:
     ap.add_argument("--floor2d", action="store_true")
     ap.add_argument("--eye", type=float, default=1.6)
     ap.add_argument("--no-ticks", action="store_true", help="the beacon only")
+    ap.add_argument(
+        "--lead", type=float, default=0.0, help="seconds of silence before the first pose row"
+    )
+    ap.add_argument("--length", type=float, help="pad or cut the WAV to this many seconds")
+    ap.add_argument(
+        "--ticks-after-arrive",
+        action="store_true",
+        help="keep hazard ticks once the item is reached (default: the wearer is reaching for "
+        "it, so its neighbours fall quiet)",
+    )
     ap.add_argument("--pan", action="store_true", help="stereo pan instead of the KEMAR HRTF")
     a = ap.parse_args()
 
@@ -123,29 +133,36 @@ def main() -> None:
     if a.no_ticks:
         hazards = []
     method = "pan" if a.pan else "hrtf"
-    x = ss.render(t, pos, fwd, up, target=target, hazards=hazards, method=method)
+    events = ss.schedule(t, pos, fwd, up, target, hazards)
+    arrived = next((e.t for e in events if e.kind == "arrive"), math.inf)
+    if not a.ticks_after_arrive:
+        events = [e for e in events if e.t <= arrived or e.kind not in ss.BAND_PACE_M]
+    events = [ss.Event(e.t - t[0] + a.lead, e.kind, e.where) for e in events]
+    total = a.length if a.length else a.lead + float(t[-1] - t[0])
+    x = ss.mix(events, total, method)
     a.out.parent.mkdir(parents=True, exist_ok=True)
     ss.write_wav(a.out, x, a.rate)
 
-    events = ss.schedule(t, pos, fwd, up, target, hazards)
     first: dict[str, float] = {}
     counts: dict[str, int] = {}
     for e in events:
-        first.setdefault(e.kind, round(float(e.t - t[0]), 3))
+        first.setdefault(e.kind, round(float(e.t), 3))
         counts[e.kind] = counts.get(e.kind, 0) + 1
     note = {
         "wav": str(a.out),
         "rate_hz": a.rate,
         "method": method,
         "duration_s": round(len(x) / ss.SAMPLE_RATE, 3),
-        "t0": f"WAV time 0 = the first pose row (t = {t[0]:.3f} in the pose file)",
+        "t0": f"pose t = {t[0]:.3f} plays at WAV {a.lead:.3f} s",
+        "lead_s": a.lead,
+        "ticks_after_arrive": a.ticks_after_arrive,
         "pose_rows": len(t),
         "pose_rate_hz": round((len(t) - 1) / (t[-1] - t[0]), 2) if len(t) > 1 else None,
         "first_s": first,
         "counts": counts,
         "events": [
             {
-                "t": round(float(e.t - t[0]), 3),
+                "t": round(float(e.t), 3),
                 "kind": e.kind,
                 "az_deg": round(e.where.az_deg, 1),
                 "ground_m": None if math.isnan(e.where.ground_m) else round(e.where.ground_m, 2),
