@@ -6,6 +6,8 @@ data/
 shots/proximity_frames/
 *.mp4
 *.npz
+# The 157 KB KEMAR head-related impulse responses the spatial sound renders with.
+!metasight/hrtf/*.npz
 *.pt
 __pycache__/
 bench/*.log
