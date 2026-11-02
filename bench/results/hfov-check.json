@@ -1,0 +1,526 @@
+{
+ "label": "REAL RECORDED FRAMES; NOT A HUMAN STUDY",
+ "profile_hfov": 44.8,
+ "eye_height_m": 1.45,
+ "takes": {
+  "20261102-023733-glasses": {
+   "frames_sampled": 300,
+   "frames_with_floor": 127,
+   "rms": {
+    "best": 40.0,
+    "boot_p5_p95": [
+     40.0,
+     65.0
+    ],
+    "boot_valid": 500
+   },
+   "bend": {
+    "best": 52.5,
+    "boot_p5_p95": [
+     40.4,
+     59.5
+    ],
+    "boot_valid": 392
+   },
+   "dpitch": {
+    "best": 53.0,
+    "boot_p5_p95": [
+     50.0,
+     57.0
+    ],
+    "boot_valid": 500
+   },
+   "curve": {
+    "40": {
+     "rms_m": 0.0328,
+     "bend_m": -0.0012,
+     "dpitch_std_deg": 5.39
+    },
+    "41": {
+     "rms_m": 0.0328,
+     "bend_m": -0.0024,
+     "dpitch_std_deg": 5.22
+    },
+    "42": {
+     "rms_m": 0.0328,
+     "bend_m": -0.0037,
+     "dpitch_std_deg": 5.0
+    },
+    "43": {
+     "rms_m": 0.0328,
+     "bend_m": -0.006,
+     "dpitch_std_deg": 4.79
+    },
+    "44": {
+     "rms_m": 0.0328,
+     "bend_m": -0.0079,
+     "dpitch_std_deg": 4.62
+    },
+    "45": {
+     "rms_m": 0.0328,
+     "bend_m": -0.0067,
+     "dpitch_std_deg": 4.52
+    },
+    "46": {
+     "rms_m": 0.0329,
+     "bend_m": -0.0058,
+     "dpitch_std_deg": 4.42
+    },
+    "47": {
+     "rms_m": 0.0329,
+     "bend_m": -0.0039,
+     "dpitch_std_deg": 4.31
+    },
+    "48": {
+     "rms_m": 0.033,
+     "bend_m": -0.0021,
+     "dpitch_std_deg": 4.2
+    },
+    "49": {
+     "rms_m": 0.033,
+     "bend_m": -0.0007,
+     "dpitch_std_deg": 4.11
+    },
+    "50": {
+     "rms_m": 0.033,
+     "bend_m": -0.0007,
+     "dpitch_std_deg": 4.05
+    },
+    "51": {
+     "rms_m": 0.0331,
+     "bend_m": -0.0003,
+     "dpitch_std_deg": 4.01
+    },
+    "52": {
+     "rms_m": 0.0331,
+     "bend_m": -0.0007,
+     "dpitch_std_deg": 3.99
+    },
+    "53": {
+     "rms_m": 0.0331,
+     "bend_m": 0.0007,
+     "dpitch_std_deg": 3.99
+    },
+    "54": {
+     "rms_m": 0.0331,
+     "bend_m": 0.0018,
+     "dpitch_std_deg": 3.99
+    },
+    "55": {
+     "rms_m": 0.0332,
+     "bend_m": 0.0013,
+     "dpitch_std_deg": 4.01
+    },
+    "56": {
+     "rms_m": 0.0332,
+     "bend_m": 0.0013,
+     "dpitch_std_deg": 4.06
+    },
+    "57": {
+     "rms_m": 0.0332,
+     "bend_m": 0.0014,
+     "dpitch_std_deg": 4.11
+    },
+    "58": {
+     "rms_m": 0.0332,
+     "bend_m": 0.0003,
+     "dpitch_std_deg": 4.16
+    },
+    "59": {
+     "rms_m": 0.0332,
+     "bend_m": 0.0005,
+     "dpitch_std_deg": 4.23
+    },
+    "60": {
+     "rms_m": 0.0332,
+     "bend_m": 0.0013,
+     "dpitch_std_deg": 4.28
+    },
+    "61": {
+     "rms_m": 0.0332,
+     "bend_m": 0.0016,
+     "dpitch_std_deg": 4.32
+    },
+    "62": {
+     "rms_m": 0.0332,
+     "bend_m": 0.0022,
+     "dpitch_std_deg": 4.35
+    },
+    "63": {
+     "rms_m": 0.0332,
+     "bend_m": 0.0017,
+     "dpitch_std_deg": 4.39
+    },
+    "64": {
+     "rms_m": 0.0331,
+     "bend_m": 0.0009,
+     "dpitch_std_deg": 4.44
+    },
+    "65": {
+     "rms_m": 0.033,
+     "bend_m": 0.0013,
+     "dpitch_std_deg": 4.52
+    }
+   }
+  },
+  "20261102-025349-glasses": {
+   "frames_sampled": 300,
+   "frames_with_floor": 94,
+   "rms": {
+    "best": 41.0,
+    "boot_p5_p95": [
+     40.0,
+     42.0
+    ],
+    "boot_valid": 500
+   },
+   "bend": {
+    "best": 64.3,
+    "boot_p5_p95": [
+     40.8,
+     64.3
+    ],
+    "boot_valid": 362
+   },
+   "dpitch": {
+    "best": 63.0,
+    "boot_p5_p95": [
+     44.0,
+     65.0
+    ],
+    "boot_valid": 500
+   },
+   "curve": {
+    "40": {
+     "rms_m": 0.0323,
+     "bend_m": 0.0135,
+     "dpitch_std_deg": 3.92
+    },
+    "41": {
+     "rms_m": 0.0322,
+     "bend_m": 0.0114,
+     "dpitch_std_deg": 3.8
+    },
+    "42": {
+     "rms_m": 0.0325,
+     "bend_m": 0.008,
+     "dpitch_std_deg": 3.65
+    },
+    "43": {
+     "rms_m": 0.0325,
+     "bend_m": 0.0035,
+     "dpitch_std_deg": 3.51
+    },
+    "44": {
+     "rms_m": 0.0326,
+     "bend_m": 0.0055,
+     "dpitch_std_deg": 3.43
+    },
+    "45": {
+     "rms_m": 0.0326,
+     "bend_m": 0.0061,
+     "dpitch_std_deg": 3.53
+    },
+    "46": {
+     "rms_m": 0.0327,
+     "bend_m": 0.0065,
+     "dpitch_std_deg": 3.64
+    },
+    "47": {
+     "rms_m": 0.0327,
+     "bend_m": 0.0068,
+     "dpitch_std_deg": 3.65
+    },
+    "48": {
+     "rms_m": 0.0328,
+     "bend_m": 0.0044,
+     "dpitch_std_deg": 3.7
+    },
+    "49": {
+     "rms_m": 0.0329,
+     "bend_m": 0.0046,
+     "dpitch_std_deg": 3.71
+    },
+    "50": {
+     "rms_m": 0.033,
+     "bend_m": 0.0042,
+     "dpitch_std_deg": 3.8
+    },
+    "51": {
+     "rms_m": 0.033,
+     "bend_m": 0.0072,
+     "dpitch_std_deg": 3.86
+    },
+    "52": {
+     "rms_m": 0.0331,
+     "bend_m": 0.0079,
+     "dpitch_std_deg": 3.81
+    },
+    "53": {
+     "rms_m": 0.0333,
+     "bend_m": 0.0084,
+     "dpitch_std_deg": 3.68
+    },
+    "54": {
+     "rms_m": 0.0336,
+     "bend_m": 0.0082,
+     "dpitch_std_deg": 3.57
+    },
+    "55": {
+     "rms_m": 0.0336,
+     "bend_m": 0.0049,
+     "dpitch_std_deg": 3.49
+    },
+    "56": {
+     "rms_m": 0.0336,
+     "bend_m": 0.0018,
+     "dpitch_std_deg": 3.49
+    },
+    "57": {
+     "rms_m": 0.0335,
+     "bend_m": 0.0004,
+     "dpitch_std_deg": 3.48
+    },
+    "58": {
+     "rms_m": 0.0335,
+     "bend_m": 0.0016,
+     "dpitch_std_deg": 3.46
+    },
+    "59": {
+     "rms_m": 0.0335,
+     "bend_m": 0.0029,
+     "dpitch_std_deg": 3.46
+    },
+    "60": {
+     "rms_m": 0.0336,
+     "bend_m": 0.0036,
+     "dpitch_std_deg": 3.45
+    },
+    "61": {
+     "rms_m": 0.0337,
+     "bend_m": 0.0031,
+     "dpitch_std_deg": 3.4
+    },
+    "62": {
+     "rms_m": 0.0338,
+     "bend_m": 0.0017,
+     "dpitch_std_deg": 3.36
+    },
+    "63": {
+     "rms_m": 0.0339,
+     "bend_m": 0.0008,
+     "dpitch_std_deg": 3.32
+    },
+    "64": {
+     "rms_m": 0.0338,
+     "bend_m": 0.0004,
+     "dpitch_std_deg": 3.32
+    },
+    "65": {
+     "rms_m": 0.0337,
+     "bend_m": -0.0011,
+     "dpitch_std_deg": 3.34
+    }
+   }
+  },
+  "20261102-030055-glasses": {
+   "frames_sampled": 327,
+   "frames_with_floor": 86,
+   "rms": {
+    "best": 40.0,
+    "boot_p5_p95": [
+     40.0,
+     41.0
+    ],
+    "boot_valid": 500
+   },
+   "bend": {
+    "best": 48.0,
+    "boot_p5_p95": [
+     40.3,
+     55.2
+    ],
+    "boot_valid": 470
+   },
+   "dpitch": {
+    "best": 58.0,
+    "boot_p5_p95": [
+     56.0,
+     63.0
+    ],
+    "boot_valid": 500
+   },
+   "curve": {
+    "40": {
+     "rms_m": 0.0315,
+     "bend_m": 0.0026,
+     "dpitch_std_deg": 4.56
+    },
+    "41": {
+     "rms_m": 0.0316,
+     "bend_m": 0.006,
+     "dpitch_std_deg": 4.47
+    },
+    "42": {
+     "rms_m": 0.0317,
+     "bend_m": 0.0026,
+     "dpitch_std_deg": 4.37
+    },
+    "43": {
+     "rms_m": 0.032,
+     "bend_m": 0.0031,
+     "dpitch_std_deg": 4.23
+    },
+    "44": {
+     "rms_m": 0.032,
+     "bend_m": 0.0048,
+     "dpitch_std_deg": 4.13
+    },
+    "45": {
+     "rms_m": 0.0321,
+     "bend_m": 0.0046,
+     "dpitch_std_deg": 4.05
+    },
+    "46": {
+     "rms_m": 0.0322,
+     "bend_m": 0.0034,
+     "dpitch_std_deg": 3.97
+    },
+    "47": {
+     "rms_m": 0.0323,
+     "bend_m": 0.0019,
+     "dpitch_std_deg": 3.83
+    },
+    "48": {
+     "rms_m": 0.0325,
+     "bend_m": -0.0001,
+     "dpitch_std_deg": 3.65
+    },
+    "49": {
+     "rms_m": 0.0327,
+     "bend_m": 0.0001,
+     "dpitch_std_deg": 3.43
+    },
+    "50": {
+     "rms_m": 0.0329,
+     "bend_m": -0.0024,
+     "dpitch_std_deg": 3.3
+    },
+    "51": {
+     "rms_m": 0.033,
+     "bend_m": -0.0039,
+     "dpitch_std_deg": 3.19
+    },
+    "52": {
+     "rms_m": 0.033,
+     "bend_m": -0.0037,
+     "dpitch_std_deg": 3.12
+    },
+    "53": {
+     "rms_m": 0.033,
+     "bend_m": -0.0047,
+     "dpitch_std_deg": 3.09
+    },
+    "54": {
+     "rms_m": 0.0332,
+     "bend_m": -0.0058,
+     "dpitch_std_deg": 3.03
+    },
+    "55": {
+     "rms_m": 0.0331,
+     "bend_m": -0.0071,
+     "dpitch_std_deg": 2.96
+    },
+    "56": {
+     "rms_m": 0.0332,
+     "bend_m": -0.0088,
+     "dpitch_std_deg": 2.91
+    },
+    "57": {
+     "rms_m": 0.0332,
+     "bend_m": -0.0097,
+     "dpitch_std_deg": 2.88
+    },
+    "58": {
+     "rms_m": 0.0333,
+     "bend_m": -0.0106,
+     "dpitch_std_deg": 2.87
+    },
+    "59": {
+     "rms_m": 0.0333,
+     "bend_m": -0.0114,
+     "dpitch_std_deg": 2.88
+    },
+    "60": {
+     "rms_m": 0.0334,
+     "bend_m": -0.0127,
+     "dpitch_std_deg": 2.9
+    },
+    "61": {
+     "rms_m": 0.0335,
+     "bend_m": -0.0138,
+     "dpitch_std_deg": 2.92
+    },
+    "62": {
+     "rms_m": 0.0335,
+     "bend_m": -0.0151,
+     "dpitch_std_deg": 2.94
+    },
+    "63": {
+     "rms_m": 0.0336,
+     "bend_m": -0.0159,
+     "dpitch_std_deg": 2.97
+    },
+    "64": {
+     "rms_m": 0.0336,
+     "bend_m": -0.0164,
+     "dpitch_std_deg": 3.01
+    },
+    "65": {
+     "rms_m": 0.0336,
+     "bend_m": -0.0168,
+     "dpitch_std_deg": 3.05
+    }
+   }
+  }
+ },
+ "compare_45_vs_61": {
+  "20261102-023733-glasses": {
+   "hfov45": {
+    "rms_m": 0.0328,
+    "bend_m": -0.0067,
+    "dpitch_std_deg": 4.52
+   },
+   "hfov61": {
+    "rms_m": 0.0332,
+    "bend_m": 0.0016,
+    "dpitch_std_deg": 4.32
+   }
+  },
+  "20261102-025349-glasses": {
+   "hfov45": {
+    "rms_m": 0.0326,
+    "bend_m": 0.0061,
+    "dpitch_std_deg": 3.53
+   },
+   "hfov61": {
+    "rms_m": 0.0337,
+    "bend_m": 0.0031,
+    "dpitch_std_deg": 3.4
+   }
+  },
+  "20261102-030055-glasses": {
+   "hfov45": {
+    "rms_m": 0.0321,
+    "bend_m": 0.0046,
+    "dpitch_std_deg": 4.05
+   },
+   "hfov61": {
+    "rms_m": 0.0335,
+    "bend_m": -0.0138,
+    "dpitch_std_deg": 2.92
+   }
+  }
+ },
+ "verdict": "Floor flatness cannot separate the hfovs: rms is 3 cm everywhere (the fit band is narrowed around the plane) and the edge bend is millimetres, with a bootstrap that spans the whole range. Fitted pitch against accelerometer pitch is steadier at 55 to 64 than at 45 on all three takes, so 61 fits better than 44.8; weak evidence."
+}
