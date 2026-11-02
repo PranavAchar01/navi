@@ -237,7 +237,14 @@ final class SpatialBeeper {
 
   // MARK: - Sounds
 
-  /// A short sine with a raised-cosine attack and release, so it never clicks.
+  /// Each beep carries the octave below at half strength (spatial_sound.SUB_OCTAVE): a pure
+  /// 1320 or 2000 Hz tone gives the ear an interaural delay it cannot place, so the stop beep
+  /// was heard far off and often on the wrong side; 1.368 keeps the pair's peak at 1.
+  static let subOctave = 0.5
+  static let subPeak = 1.368
+
+  /// A short sine and its octave below, with a raised-cosine attack and release, so it never
+  /// clicks.
   static func tone(_ kind: BeepKind) -> AVAudioPCMBuffer? {
     let count = AVAudioFrameCount(kind.duration * sampleRate)
     guard let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1),
@@ -249,7 +256,9 @@ final class SpatialBeeper {
     for i in 0..<Int(count) {
       let edge = min(i, Int(count) - 1 - i)
       let envelope = edge >= ramp ? 1.0 : 0.5 * (1 - cos(.pi * Double(edge) / Double(ramp)))
-      samples[i] = Float(sin(2 * .pi * kind.frequency * Double(i) / sampleRate) * envelope)
+      let phase = 2 * .pi * kind.frequency * Double(i) / sampleRate
+      let tone = (sin(phase) + subOctave * sin(phase / 2)) / subPeak
+      samples[i] = Float(tone * envelope)
     }
     return buffer
   }

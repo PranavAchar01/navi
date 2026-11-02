@@ -41,6 +41,10 @@ BEACON_HZ = 523.25  # C5; the aligned figure adds the G above
 TICK_RANGE_M = 2.0  # hazards are silent at 2 m or more, as on the phone
 
 HRTF = Path(__file__).parent / "hrtf" / "mit_kemar_compact.npz"
+# A real head's delay at our sounds' frequencies (0.5 to 2 kHz) runs above Woodworth's
+# high-frequency figure; at 1.0 the simulated listener heard the pluck 13 deg toward the
+# middle, at 1.15 7 deg; 1.25 overshoots into the stop beep's ambiguity (eval_localisation).
+PAN_ITD_SCALE = 1.15
 HRTF_GAIN = 0.78  # the set's front response is 0.96: this puts the front level with the pan
 
 
@@ -153,11 +157,21 @@ def _envelope(n: int, ramp_frac: float = 0.25) -> np.ndarray:
     return np.where(edge >= ramp, 1.0, 0.5 * (1 - np.cos(np.pi * edge / ramp)))
 
 
+# Each beep carries the octave below at half strength. A pure 1320 or 2000 Hz tone gives the
+# ear a delay it cannot place (a peak every period, or only the envelope): the simulated
+# listener put the stop beep 69 deg off and on the wrong side a third of the time; with
+# the octave, 6 deg (scripts/eval_localisation.py). 1.368 is the pair's peak, kept at 1.
+SUB_OCTAVE = 0.5
+SUB_PEAK = 1.368
+
+
 def tick_sound(kind: str) -> np.ndarray:
-    """The phone's beep (SpatialBeeper.tone): a sine with raised-cosine edges, mono."""
+    """The phone's beep (SpatialBeeper.tone): a sine and its octave below, raised-cosine
+    edges, mono."""
     hz, dur, gain = TICK_KINDS[kind]
     t = np.arange(int(dur * SAMPLE_RATE)) / SAMPLE_RATE
-    return gain * np.sin(2 * np.pi * hz * t) * _envelope(len(t))
+    tone = np.sin(2 * np.pi * hz * t) + SUB_OCTAVE * np.sin(np.pi * hz * t)
+    return gain * tone / SUB_PEAK * _envelope(len(t))
 
 
 def _pluck(hz: float, dur: float = 0.32) -> np.ndarray:
@@ -231,7 +245,7 @@ def place_pan(mono: np.ndarray, az_deg: float) -> np.ndarray:
     source behind dulled on both ears, so back is not the same as front."""
     az = math.radians(((az_deg + 180) % 360) - 180)
     lat = math.asin(max(-1.0, min(1.0, math.sin(az))))  # lateral angle, front/back folded
-    itd = HEAD_RADIUS_M / SPEED_OF_SOUND * (abs(lat) + abs(math.sin(lat)))
+    itd = PAN_ITD_SCALE * HEAD_RADIUS_M / SPEED_OF_SOUND * (abs(lat) + abs(math.sin(lat)))
     shift = int(round(itd * SAMPLE_RATE))
     s = abs(math.sin(lat))
     near = mono * (1 + 0.3 * s)
@@ -314,6 +328,111 @@ def schedule(
         events.append(Event(float(t), b, d))
         last_tick = (float(t), i, rank[b])
     return events
+
+
+STALE_S = 1.5  # BeaconScheduler / the beat loop: an old safety message plays nothing
+SECTOR_NAMES = (
+    "front",
+    "front-right",
+    "right",
+    "back-right",
+    "back",
+    "back-left",
+    "left",
+    "front-left",
+)
+MODE_BAND = {"slow": "slow", "fast": "fast", "solid": "stop"}
+BAND_PACE_M = {"slow": 1.5, "fast": 0.75, "stop": 0.3}  # mid-band distance for a bare cue
+
+
+def take_warning(msg: dict) -> tuple[int, float | None, str] | None:
+    """ProximityReading.warning on one safety message: (sector, metres, band) for the most
+    urgent sector (strongest band, then ahead before the sides, then nearest). The front
+    sector also counts the walking path, as ServerLink.proximity does."""
+    rank = {"slow": 1, "fast": 2, "stop": 3}
+    dist = list(msg.get("sectors") or [])
+    cues = msg.get("cues") or []
+    modes = [c.get("mode", "unknown") for c in cues]
+    if dist and msg.get("path") is not None:
+        dist[0] = min(dist[0] if dist[0] is not None else math.inf, msg["path"])
+    best = None
+    for i, mode in enumerate(modes[:8]):
+        if mode == "unknown":
+            continue
+        d = dist[i] if i < len(dist) else None
+        bands = [b for b in (band(d) if d is not None else None, MODE_BAND.get(mode)) if b]
+        if not bands:
+            continue
+        b = max(bands, key=rank.get)
+        key = (rank[b], i == 0, -(d if d is not None else math.inf))
+        if best is None or key > best[0]:
+            best = (key, (i, d, b))
+    return best[1] if best else None
+
+
+def schedule_take(msgs: list[dict], beacon: bool = True, ticks: bool = True) -> list[Event]:
+    """What the phone plays over a recorded take (judge replay or live jsonl), from its
+    safety messages alone: the guide beacon at the guide's bearing and distance, the arrival
+    notes when "found" turns on, and the hazard beep from the most urgent sector. Times are
+    seconds from the first message."""
+    safety = [m for m in msgs if m.get("type") == "safety"]
+    if not safety:
+        return []
+    t0 = min(m["wall"] for m in msgs)
+    walls = np.array([m["wall"] - t0 for m in safety])
+    rank = {"slow": 1, "fast": 2, "stop": 3}
+    events: list[Event] = []
+    next_beacon = -math.inf
+    was_found = False
+    last_tick: tuple[float, int, int] | None = None
+    for t in np.arange(walls[0], walls[-1] + STEP_S, STEP_S):
+        k = int(np.searchsorted(walls, t, side="right") - 1)
+        m = safety[k]
+        if t - walls[k] > STALE_S:
+            next_beacon, last_tick = -math.inf, None
+            continue
+        g = m.get("guide") or {}
+        fix = g.get("bearing") is not None and g.get("dist") is not None
+        found = bool(m.get("found"))
+        if beacon and found and not was_found:
+            here = Direction(g.get("bearing") or 0.0, 0.0, 1.0, 1.0)
+            events.append(Event(float(t), "arrive", here))
+        was_found = found
+        if not (beacon and fix and not found):
+            next_beacon = -math.inf
+        elif t >= next_beacon:
+            d = Direction(float(g["bearing"]), 0.0, float(g["dist"]), float(g["dist"]))
+            kind = "beacon_aligned" if aligned(d.az_deg) else "beacon"
+            events.append(Event(float(t), kind, d))
+            next_beacon = t + beacon_period(d.ground_m)
+        w = take_warning(m) if ticks else None
+        if w is None:
+            last_tick = None
+            continue
+        i, dist, b = w
+        # A cue raised by the server without a distance beats at its band's own pace.
+        dist_m = dist if dist is not None and band(dist) == b else BAND_PACE_M[b]
+        if (
+            last_tick is not None
+            and last_tick[1] == i
+            and last_tick[2] >= rank[b]
+            and t - last_tick[0] < tick_period(dist_m)
+        ):
+            continue
+        az = ((i * 45 + 180) % 360) - 180
+        events.append(Event(float(t), b, Direction(float(az), 0.0, dist_m, dist_m)))
+        last_tick = (float(t), i, rank[b])
+    return events
+
+
+def render_take(
+    msgs: list[dict], method: str = "hrtf", beacon: bool = True, ticks: bool = True
+) -> np.ndarray:
+    """(n, 2) float32 stereo of what the phone plays over a recorded take, t = 0 at its first
+    message, so it lines up with a clip cut from the same take."""
+    events = schedule_take(msgs, beacon, ticks)
+    total = max(m["wall"] for m in msgs) - min(m["wall"] for m in msgs) + 1.0
+    return mix(events, total, method)
 
 
 def _sound(kind: str) -> tuple[np.ndarray, bool]:
