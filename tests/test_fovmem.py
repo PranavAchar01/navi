@@ -7,6 +7,7 @@ from metasight.fovmem import (
     PitchFuse,
     band_name,
     floor_pitch,
+    gate_memory_cues,
     level_floor,
     level_points,
     loose_floor,
@@ -281,3 +282,45 @@ def test_loose_floor_backs_a_pitch_that_agrees_and_not_one_that_does_not():
     assert not loose_floor(z, HFOV, 20.5, EYE, 23.0)  # the pitch in use is 3 degrees off
     assert not loose_floor(z, HFOV, 20.5, EYE * 1.3, 20.2)  # camera height 30% off
     assert not loose_floor(np.zeros_like(z), HFOV, 20.0, EYE, 20.0)  # no depth, no floor
+
+
+def _ring(**kw):
+    """A step result with a cell in every sector: 0.8 m away, `close` metres closed on."""
+    hidden = [0.8] * 8
+    band = ["low"] * 8
+    close = [kw.get("close", 0.5)] * 8
+    return hidden, band, close
+
+
+def test_gate_still_mute_silences_the_sectors_the_camera_sees_only_after_a_second():
+    h, b, c = _ring()
+    kw = dict(approach=False, mute_rear=False)
+    gh, gb, _ = gate_memory_cues(h, b, c, 1.5, **kw)
+    assert [gh[s] for s in (7, 0, 1)] == [None] * 3 and gb[0] is None
+    assert gh[2] == 0.8 and gh[4] == 0.8  # sectors out of the camera's view keep their cue
+    assert gate_memory_cues(h, b, c, 0.9, **kw)[0] == h  # a step within the second: no mute
+    assert gate_memory_cues(h, b, c, None, **kw)[0] == h  # unknown stillness never mutes
+    _, _, p = gate_memory_cues(h, b, c, 2.0, path=0.7, path_close=0.5, **kw)
+    assert p is None  # the path cell is ahead, in view
+
+
+def test_gate_approach_needs_the_wearer_to_have_closed_in_on_the_cell():
+    h, b, c = _ring()
+    c[0], c[1], c[2], c[3] = 0.05, -0.2, None, math.nan
+    kw = dict(mute_still=False, mute_rear=False)
+    gh, _, p = gate_memory_cues(h, b, c, 0.0, path=0.6, path_close=0.05, **kw)
+    assert gh[0] is None and gh[1] is None and gh[2] is None and gh[3] is None
+    assert gh[4] == 0.8 and gh[7] == 0.8  # 0.5 m closed
+    assert p is None
+    assert gate_memory_cues(h, b, c, 0.0, path=0.6, path_close=0.4, **kw)[2] == 0.6
+
+
+def test_gate_rear_mute_keeps_front_and_side_only():
+    h, b, c = _ring()
+    gh, gb, _ = gate_memory_cues(h, b, c, 0.0, mute_still=False, approach=False)
+    assert [s for s in range(8) if gh[s] is not None] == [0, 1, 2, 6, 7]
+    assert gb[4] is None and gb[0] == "low"
+    # the gate never adds a cue: no cell stays no cell
+    none = [None] * 8
+    assert gate_memory_cues(none, none, none, 0.0, mute_still=False)[0] == none
+    assert gate_memory_cues([math.inf] * 8, none, none, 0.0, approach=False)[0] == none

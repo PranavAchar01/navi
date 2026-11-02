@@ -17,7 +17,7 @@ the closed-loop walker (sim-montage) can load the same boxes.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import mujoco
 import numpy as np
@@ -27,12 +27,15 @@ from .fovmem import (
     DropMemory,
     HazardMemory,
     PitchFuse,
+    band_name,
+    gate_memory_cues,
     level_floor,
     loose_floor,
 )
 from .safety import GRID, analyse
 
 EYE_H = 1.6
+STILL_SPEED_MPS = 0.15  # the walker is still under this speed (no step)
 HFOV = 44.8
 FPS = 13.0
 DANGER_M = 1.0
@@ -350,6 +353,7 @@ class Arms:
     fuse: bool = True  # learn the accelerometer's pitch offset from the floor while in view
     snap: bool = True  # with a floor in view, take its pitch as is
     low_slope: float = 0.04  # low cells need this much more height per metre of range
+    band_lo: float | None = None  # lowest height (m) a cell is held at; None is HazardMemory's 0.08
     level: bool = True  # fovmem.level_floor from the pitch guess, not safety's floor plane
     people: bool = False  # a person detector's box is kept out of the memory (people move)
     gate: str | None = None  # HazardMemory report gate: None, "hip_pitch" or "moved"
@@ -360,6 +364,11 @@ class Arms:
     min_span: float | None = None  # level_floor: the floor seen must run this far (m)
     # trust "level" also on a frame with no fit of its own when a no-span fit agrees (L24)
     loose: bool = False
+    # L27 cue gate on the remembered cues, letters of "sar": s still mute, a approach gate, r rear
+    # mute (fovmem.gate_memory_cues). "" is the ungated memory.
+    cue_gate: str = ""
+    approach_m: float = 0.1
+    still_min_s: float = 1.0
 
 
 @dataclass
@@ -412,6 +421,32 @@ def _miss(true: float, cue: float) -> bool:
     return true < DANGER_M and not cue <= true + MISS_TOL_M
 
 
+def _merge(a: Arms, live, path_m, fc, still_s: float, eye_h: float):
+    """Live cue merged with the (gated) remembered cues, as the server's `min` merge."""
+    hid, path = fc.hidden, fc.path_m
+    if a.cue_gate:
+        g = a.cue_gate
+        band = [band_name(h, eye_h) if math.isfinite(h) else None for h in fc.hidden_h]
+        hid_n = [h if math.isfinite(h) else None for h in fc.hidden]
+        close = [c if math.isfinite(c) else None for c in fc.hidden_close]
+        gh, _, gp = gate_memory_cues(
+            hid_n,
+            band,
+            close,
+            still_s,
+            path=fc.path_m,
+            path_close=fc.path_close,
+            mute_still="s" in g,
+            approach="a" in g,
+            mute_rear="r" in g,
+            min_close_m=a.approach_m,
+            still_min_s=a.still_min_s,
+        )
+        hid = [math.inf if h is None else h for h in gh]
+        path = math.inf if gp is None else gp
+    return [min(lv, hv) for lv, hv in zip(live, hid, strict=True)], min(path_m, path)
+
+
 def run(
     sc: Scene,
     arms: list[Arms],
@@ -452,6 +487,7 @@ def run(
             min_hits=a.min_hits,
             low_slope=a.low_slope,
             gate=a.gate,
+            band=None if a.band_lo is None else (a.band_lo, eye_h_cfg + 0.15),
             max_range_m=a.max_range_m,
         )
         for a in arms
@@ -466,6 +502,7 @@ def run(
     dmems = [DropMemory(hfov, eye_h_cfg) for _ in arms]
     scores = [Score() for _ in range(len(arms) + 1)]
     prev_plane, plane_t, hold = None, -math.inf, None
+    still_t0 = 0.0  # since when the walker has been under STILL_SPEED_MPS
     scale = 1.0  # the server's running depth scale (SafetyLoop._geometry): the floor is the ruler
     last = None
     t = 0.0
@@ -505,6 +542,9 @@ def run(
         rate = 0.0
         if last is not None:
             rate = abs(math.degrees(yaw - last[2])) * FPS
+            if math.hypot(x - last[0], y - last[1]) * FPS >= STILL_SPEED_MPS:
+                still_t0 = t
+        still_s = t - still_t0
         if rate > sc.blur_dps:
             z[:] = 0.0
         prev = prev_plane if t - plane_t < 1.5 else None
@@ -524,7 +564,14 @@ def run(
         cues = [(live, scene.path_m)]
         drop_true = drop_truth(sc.edges, x, y, yaw)
         drop_cues = [scene.drop_m]
+        shared: dict = {}  # arms that differ only in their cue gate share one memory run
         for k, (a, mem) in enumerate(zip(arms, mems, strict=True)):
+            mkey = repr(replace(a, cue_gate=""))
+            if mkey in shared:
+                fc, dm, lf = shared[mkey]
+                drop_cues.append(min(scene.drop_m, dm) if a.memory else scene.drop_m)
+                cues.append(_merge(a, live, scene.path_m, fc, still_s, eye_h_cfg))
+                continue
             yaw_err[k] += math.radians(a.yaw_drift_dps) / FPS * arng[k].choice([-1, 1])
             if a.pos == "true":
                 pos = (y, x)
@@ -578,16 +625,12 @@ def run(
                 ld = level_floor(z, hfov, guess, eye_h_cfg / scale)
                 backed = ld is not None and abs(ld[0] - imu) < 2.0
             dm = dmems[k].update(t, zk, imu, yaw + yaw_err[k], pos, add=backed)
+            shared[mkey] = (fc, dm, lf)
             drop_cues.append(min(scene.drop_m, dm) if a.memory else scene.drop_m)
             if not a.memory:
                 cues.append((lv_k, path_k))
                 continue
-            cues.append(
-                (
-                    [min(lv, hv) for lv, hv in zip(lv_k, fc.hidden, strict=True)],
-                    min(path_k, fc.path_m),
-                )
-            )
+            cues.append(_merge(a, lv_k, path_k, fc, still_s, eye_h_cfg))
         for ai, (sco, (sec, path)) in enumerate(zip(scores, cues, strict=True)):
             sco.frames += 1
             for s in range(8):

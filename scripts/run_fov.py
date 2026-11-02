@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import asdict
 from pathlib import Path
@@ -30,7 +31,17 @@ REC = dict(**L14, trust="level", min_span=0.8, loose=True)
 ARMS = {
     "memory, L14": F.Arms(**L14),
     "memory": F.Arms(**REC),
+    # L27 cue gate (fovmem.gate_memory_cues): s still mute, a approach gate, r rear mute
+    "gate s": F.Arms(**REC, cue_gate="s"),
+    "gate a": F.Arms(**REC, cue_gate="a"),
+    "gate r": F.Arms(**REC, cue_gate="r"),
+    "gate sar": F.Arms(**REC, cue_gate="sar"),
 }
+
+# Tuning hook: FOV_ARMS_EXTRA='{"name": {"cue_gate": "a", "approach_m": 0.1}}' adds arms (an
+# environment variable, so the worker processes see it too).
+for _name, _kw in json.loads(os.environ.get("FOV_ARMS_EXTRA", "{}")).items():
+    ARMS[_name] = F.Arms(**REC, **_kw)
 
 
 def _scene(name: str, objects: str | None = None) -> F.Scene:

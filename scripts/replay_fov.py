@@ -30,7 +30,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
-LOCKS = ROOT.parent
+LOCKS = ROOT.parents[3] if ROOT.parent.name == "worktrees" else ROOT.parent
 RES = ROOT / "bench" / "results"
 STILL_W = 0.3  # rad/s, mean gyro speed over a second (the seated head scans: median 0.48)
 MEM_GAP_M = 0.5  # memory nearer than live by this much is a memory-only cue
@@ -84,7 +84,7 @@ def clock(walk: Path, frames: list[dict], mot: np.ndarray) -> tuple[float, float
     return fw.clock_offset(t_img, np.linalg.norm(shift, axis=1) / dt, mot)
 
 
-def replay(walk: Path, cues: Path | None) -> None:
+def replay(walk: Path, cues: Path | None, band_lo: float | None = None) -> None:
     import cv2
 
     from metasight.config import Settings
@@ -96,7 +96,8 @@ def replay(walk: Path, cues: Path | None) -> None:
     s = Settings.load(ROOT / "metasight.glasses.toml")
     s.hfov_deg = cam.get("hfov", s.hfov_deg)
     loop = SafetyLoop(s)
-    fov = FovLoop(s.hfov_deg, s.eye_height_m, low_slope=0.02)
+    band = None if band_lo is None else (band_lo, s.eye_height_m + 0.15)
+    fov = FovLoop(s.hfov_deg, s.eye_height_m, low_slope=0.02, band=band)
     head = Heading(s.hfov_deg)
     frames = sorted((json.loads(x) for x in open(walk / "frames.jsonl")), key=lambda f: f["ts"])
     mot = load_motion(walk)
@@ -107,7 +108,8 @@ def replay(walk: Path, cues: Path | None) -> None:
             d = json.loads(line)
             if d.get("type") == "safety":
                 log[d["seq"]] = d
-    out = RES / f"fov-walk-replay-{walk.name}.jsonl"
+    tag = "" if band_lo is None else f"-lo{band_lo:g}"  # a variant run, kept apart from the base
+    out = RES / f"fov-walk-replay-{walk.name}{tag}.jsonl"
     accel: list[np.ndarray] = []
     m = 0
     t_prev = mot[0, 0]
@@ -149,6 +151,21 @@ def replay(walk: Path, cues: Path | None) -> None:
                 "yaw_src": "log" if lg is not None and lg.get("yaw") is not None else "gyro",
             }
             row.update(r)
+            if fov.last_cues is not None and r.get("pitch") is not None:
+                xz = fov.last_cues.hidden_xz
+                row["xz"] = [
+                    None if not math.isfinite(v[0]) else [round(v[0], 3), round(v[1], 3)]
+                    for v in xz
+                ]
+                row["hpos"] = (
+                    None
+                    if hd.pos is None
+                    else [round(float(hd.pos[0]), 3), round(float(hd.pos[2]), 3)]
+                )
+                row["hh"] = [
+                    None if not math.isfinite(v) else round(v, 3) for v in fov.last_cues.hidden_h
+                ]
+                row["hyaw"] = round(float(hd.yaw if hd.yaw is not None else hd.turn), 4)
             fh.write(json.dumps(row) + "\n")
     print(f"{walk.name}: {len(frames)} frames, clock corr {corr:.3f} -> {out}")
 
@@ -197,6 +214,38 @@ def score_walk(name: str, events: list[dict], yaw_of: dict[int, float]) -> dict:
         for part, sel in (("all", np.ones(len(rows), bool)), ("still", still)):
             mins = max(float(np.sum(sel)) * step / 60, 1e-6)
             out[f"mem_only_cues_per_min_{tag}_{part}"] = round(runs(flag & sel) / mins, 1)
+    # L27 cue gate (fovmem.gate_memory_cues) on the same rows: memory-only cues (any distance)
+    # per minute, overall, in gyro-still stretches and in step-still stretches (no step for 1 s).
+    if rows and "close" in rows[0]:
+        from metasight.fovmem import gate_memory_cues
+
+        nostep = np.array([(r.get("still_s") or 0.0) > 1.0 for r in rows])
+        out["step_still_share"] = round(float(nostep.mean()), 3)
+        mins = max(float(nostep.sum()) * step / 60, 1e-6)
+        out["mem_only_cues_per_min_any_step_still"] = round(runs(mem_only & nostep) / mins, 1)
+        for g in ("s", "a", "r", "sar"):
+            flag = np.zeros(len(rows), bool)
+            for i, r in enumerate(rows):
+                gh, _, _ = gate_memory_cues(
+                    r["hidden"],
+                    r["band"],
+                    r["close"],
+                    r.get("still_s"),
+                    mute_still="s" in g,
+                    approach="a" in g,
+                    mute_rear="r" in g,
+                )
+                lv = liv(r)
+                flag[i] = any(gh[k] is not None and lv[k] - gh[k] > MEM_GAP_M for k in range(8))
+            for part, sel in (
+                ("all", np.ones(len(rows), bool)),
+                ("gyro_still", still),
+                ("step_still", nostep),
+            ):
+                mins = max(float(np.sum(sel)) * step / 60, 1e-6)
+                out[f"gate_{g}_mem_only_cues_per_min_any_{part}"] = round(
+                    runs(flag & sel) / mins, 1
+                )
     for part, sel in (("all", np.ones(len(rows), bool)), ("still", still)):
         mins = max(float(np.sum(sel)) * step / 60, 1e-6)
         n = sum(runs(onsets[:, k] & sel) for k in range(8))
@@ -268,6 +317,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("walk", nargs="+")
     ap.add_argument("--cues")
+    ap.add_argument("--band-lo", type=float, help="lowest height (m) a cell is held at (L27)")
     ap.add_argument("--score", action="store_true")
     ap.add_argument(
         "--yaw-cues", help="cue log with the map yaw; applies to the first walk only (--score)"
@@ -295,7 +345,7 @@ def main() -> None:
         return
     slot = take_slot()
     try:
-        replay(Path(a.walk[0]), Path(a.cues) if a.cues else None)
+        replay(Path(a.walk[0]), Path(a.cues) if a.cues else None, a.band_lo)
     finally:
         release(slot)
 

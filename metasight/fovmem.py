@@ -42,6 +42,11 @@ LOW_SLOPE = 0.02  # metres of extra height a low cell needs per metre of range
 MIN_SPAN = 0.8  # metres of floor a pitch fit needs (L16)
 LOOSE_DEG = 1.0  # a no-span fit backs the pitch when it agrees this closely (L24)
 LOOSE_H = 0.10  # and its camera height is within this share of eye height
+STILL_S = 1.0  # no step for this long is "still" (L27 gate)
+APPROACH_M = 0.1  # a remembered cell cues once the wearer has closed this much on it (L27 gate)
+STEP_STD = 1.2  # m/s^2: spread of |accel| over the recent window that counts as walking
+CAMERA_SECTORS = (7, 0, 1)  # the sectors the live cue covers (three image columns)
+REAR_SECTORS = (3, 4, 5)
 LEVEL_BIN_M = 0.10  # height bins for finding flat surfaces
 LEVEL_MIN_PX = 150  # pixels (stride 2) a flat surface needs
 LEVEL_MIN_SPAN = 0.2  # metres it must run away from the camera
@@ -234,6 +239,12 @@ class FovCues:
     cleared: int  # cells dropped this frame because the camera saw through them
     in_view: int = 0
     near: list[float] = field(default_factory=list)  # 8: nearest held cell, in view or not
+    # 8: metres the wearer has moved toward the reported hidden cell since it was last seen
+    # (distance from where it was last seen minus distance now; nan where none). `path_close`
+    # is the same for the path cell.
+    hidden_close: list[float] = field(default_factory=list)
+    path_close: float = math.nan
+    hidden_xz: list[tuple[float, float]] = field(default_factory=list)  # 8: that cell's world x, z
 
 
 def band_name(h: float, eye_h: float) -> str:
@@ -394,6 +405,8 @@ class HazardMemory:
         )
         out.in_view = int(in_view.sum())
         out.near = [math.inf] * SECTORS
+        out.hidden_close = [math.nan] * SECTORS
+        out.hidden_xz = [(math.nan, math.nan)] * SECTORS
         sure = self.hits >= self.min_hits
         if self.gate is not None and len(self.key):
             # Report a held cell only when the head's own motion explains why it left the view.
@@ -410,6 +423,13 @@ class HazardMemory:
             cr = dx * rt[0] + dz * rt[1]
             cf = dx * fw[0] + dz * fw[1]
             dist = np.maximum(np.hypot(cr, cf) - CELL_M / 2, 0.05)
+            then = np.maximum(
+                np.hypot(
+                    self.pts[:, 0] - self.seen_pose[:, 2], self.pts[:, 1] - self.seen_pose[:, 3]
+                )
+                - CELL_M / 2,
+                0.05,
+            )
             sec = ((np.degrees(np.arctan2(cr, cf)) + 22.5) % 360 // 45).astype(int)
             for si in range(SECTORS):
                 m = sure & (sec == si)
@@ -420,11 +440,14 @@ class HazardMemory:
                     q = int(np.argmin(np.where(m, dist, np.inf)))
                     out.hidden[si] = float(dist[q])
                     out.hidden_h[si] = float(self.pts[q, 2])
+                    out.hidden_close[si] = float(then[q] - dist[q])
+                    out.hidden_xz[si] = (float(self.pts[q, 0]), float(self.pts[q, 1]))
             pm = sure & ~in_view & (np.abs(cr) < CORRIDOR_HALF_M) & (cf > 0) & (cf < PATH_AHEAD_M)
             if pm.any():
                 q = int(np.argmin(np.where(pm, cf, np.inf)))
                 out.path_m = float(max(cf[q] - CELL_M / 2, 0.05))
                 out.path_h = float(self.pts[q, 2])
+                out.path_close = float(then[q] - dist[q])
         return out
 
 
@@ -564,6 +587,59 @@ class DropMemory:
         return float(cf[pm].min()) if pm.any() else math.inf
 
 
+def gate_memory_cues(
+    hidden,
+    band,
+    close,
+    still_s: float,
+    seen=CAMERA_SECTORS,
+    path=None,
+    path_close=None,
+    *,
+    mute_still: bool = True,
+    approach: bool = True,
+    mute_rear: bool = True,
+    still_min_s: float = STILL_S,
+    min_close_m: float = APPROACH_M,
+):
+    """The cue gate for remembered cells (L27), a pure function of one `FovLoop.step` result.
+
+    `hidden`, `band`, `close`: the step's `hidden`, `band` and `close` (8 sectors, None or inf
+    where no cell). `still_s`: seconds since the wearer's last step (None = unknown, never mute).
+    `seen`: sectors the camera currently sees. `path`, `path_close`: the step's `path` and
+    `path_close`. Returns `(hidden, band, path)`, the same shapes with a muted cue as None (no
+    cue). Never adds a cue, so merging with `min(live, hidden)` can only lose cues.
+    (a) `mute_still`: still for over `still_min_s` seconds, no cue for a sector in `seen`.
+    (b) `approach`: a cue only when `close` (metres moved toward the cell since it was last seen)
+        is at least `min_close_m`.
+    (c) `mute_rear`: no cue in the back, back-left and back-right sectors."""
+    still = mute_still and still_s is not None and still_s > still_min_s
+    out_h, out_b = [], []
+    for s in range(SECTORS):
+        h, b = hidden[s], band[s]
+        keep = h is not None and math.isfinite(h)
+        if keep and still and s in seen:
+            keep = False
+        if keep and approach:
+            c = close[s] if close is not None else None
+            keep = c is not None and math.isfinite(c) and c >= min_close_m
+        if keep and mute_rear and s in REAR_SECTORS:
+            keep = False
+        out_h.append(h if keep else None)
+        out_b.append(b if keep else None)
+    p = path
+    if p is not None and math.isfinite(p):
+        if still:  # the walking path is ahead: the camera sees it
+            p = None
+        elif approach and not (
+            path_close is not None and math.isfinite(path_close) and path_close >= min_close_m
+        ):
+            p = None
+    else:
+        p = None
+    return out_h, out_b, p
+
+
 class FovLoop:
     """The server's side of the memory, one call per frame (shadow mode first, see
     docs/fov-catalogue.md). Pitch from the accelerometer and the floor, yaw and position from
@@ -575,6 +651,11 @@ class FovLoop:
         self.fuse = PitchFuse()
         self.mem = HazardMemory(hfov_deg, eye_h, **memory)
         self.drops = DropMemory(hfov_deg, eye_h)
+        self.last_step: float | None = (
+            None  # time of the last frame whose accelerometer shows a step
+        )
+        self.first_t: float | None = None
+        self.last_cues: FovCues | None = None  # the full memory report of the last step
 
     def step(self, now: float, depth_m, grid, floor: bool, obstacles, accel, heading) -> dict:
         """`depth_m`: scaled depth in metres. `grid`: `Scene.grid` (255 = not an obstacle).
@@ -584,6 +665,10 @@ class FovLoop:
 
         z = np.nan_to_num(np.asarray(depth_m, np.float32), nan=0.0, posinf=0.0)
         h, w = z.shape
+        if self.first_t is None:
+            self.first_t = now
+        if len(accel) >= 10 and float(np.std(np.linalg.norm(accel, axis=1))) > STEP_STD:
+            self.last_step = now
         imu = pitch_from_gravity(np.mean(accel, axis=0)) if len(accel) else None
         guess = imu + (self.fuse.offset or 0.0) if imu is not None else 30.0
         lf = level_floor(z, self.hfov, guess, self.eye_h, min_span=MIN_SPAN) if z.any() else None
@@ -612,7 +697,7 @@ class FovLoop:
             mask = np.zeros((h, w), bool)
         yaw = heading.yaw if heading.yaw is not None else heading.turn
         pos = (0.0, 0.0) if heading.pos is None else (float(heading.pos[0]), float(heading.pos[2]))
-        fc = self.mem.update(now, z, pitch, yaw, pos, mask)
+        fc = self.last_cues = self.mem.update(now, z, pitch, yaw, pos, mask)
         drop = self.drops.update(now, z, pitch, yaw, pos, add=lf is not None)
 
         def fin(v):
@@ -626,6 +711,11 @@ class FovLoop:
                 band_name(hh, self.eye_h) if math.isfinite(hh) else None for hh in fc.hidden_h
             ],
             "path": fin(fc.path_m),
+            "close": [fin(v) for v in fc.hidden_close],
+            "path_close": fin(fc.path_close),
+            "still_s": round(
+                now - (self.last_step if self.last_step is not None else self.first_t), 2
+            ),
             "cells": fc.cells,
             "drop": fin(drop),
             "posed": heading.pos is not None,

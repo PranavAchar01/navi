@@ -49,6 +49,70 @@
       -0.124,
       -0.049
      ]
+    },
+    "gate s": {
+     "miss": 0.096,
+     "front_miss": 0.048,
+     "path_miss": 0.043,
+     "false_per_min": 13.6,
+     "false_far_per_min": 7.7,
+     "drop_miss": null,
+     "drop_false_per_min": 13.0,
+     "drop_danger": 0,
+     "danger": 3307,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.049,
+      -0.024
+     ]
+    },
+    "gate a": {
+     "miss": 0.065,
+     "front_miss": 0.015,
+     "path_miss": 0.006,
+     "false_per_min": 13.6,
+     "false_far_per_min": 7.7,
+     "drop_miss": null,
+     "drop_false_per_min": 13.0,
+     "drop_danger": 0,
+     "danger": 3307,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.108,
+      -0.036
+     ]
+    },
+    "gate r": {
+     "miss": 0.052,
+     "front_miss": 0.002,
+     "path_miss": 0.006,
+     "false_per_min": 13.6,
+     "false_far_per_min": 7.7,
+     "drop_miss": null,
+     "drop_false_per_min": 13.0,
+     "drop_danger": 0,
+     "danger": 3307,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.124,
+      -0.049
+     ]
+    },
+    "gate sar": {
+     "miss": 0.108,
+     "front_miss": 0.061,
+     "path_miss": 0.043,
+     "false_per_min": 13.6,
+     "false_far_per_min": 7.7,
+     "drop_miss": null,
+     "drop_false_per_min": 13.0,
+     "drop_danger": 0,
+     "danger": 3307,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.036,
+      -0.013
+     ]
     }
    }
   },
@@ -79,7 +143,7 @@
      "danger": 1087,
      "frames": 1180,
      "miss_diff_ci": [
-      -0.907,
+      -0.909,
       -0.84
      ]
     },
@@ -95,8 +159,72 @@
      "danger": 1087,
      "frames": 1180,
      "miss_diff_ci": [
+      -0.892,
+      -0.767
+     ]
+    },
+    "gate s": {
+     "miss": 0.041,
+     "front_miss": 0.041,
+     "path_miss": 0.0,
+     "false_per_min": 54.2,
+     "false_far_per_min": 15.2,
+     "drop_miss": null,
+     "drop_false_per_min": 32.4,
+     "drop_danger": 0,
+     "danger": 1087,
+     "frames": 1180,
+     "miss_diff_ci": [
       -0.891,
       -0.772
+     ]
+    },
+    "gate a": {
+     "miss": 0.047,
+     "front_miss": 0.047,
+     "path_miss": 0.002,
+     "false_per_min": 54.2,
+     "false_far_per_min": 15.2,
+     "drop_miss": null,
+     "drop_false_per_min": 32.4,
+     "drop_danger": 0,
+     "danger": 1087,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.889,
+      -0.759
+     ]
+    },
+    "gate r": {
+     "miss": 0.041,
+     "front_miss": 0.041,
+     "path_miss": 0.0,
+     "false_per_min": 54.2,
+     "false_far_per_min": 15.2,
+     "drop_miss": null,
+     "drop_false_per_min": 32.4,
+     "drop_danger": 0,
+     "danger": 1087,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.893,
+      -0.768
+     ]
+    },
+    "gate sar": {
+     "miss": 0.047,
+     "front_miss": 0.047,
+     "path_miss": 0.002,
+     "false_per_min": 54.2,
+     "false_far_per_min": 15.2,
+     "drop_miss": null,
+     "drop_false_per_min": 32.4,
+     "drop_danger": 0,
+     "danger": 1087,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.886,
+      -0.764
      ]
     }
    }
@@ -128,8 +256,8 @@
      "danger": 1823,
      "frames": 1320,
      "miss_diff_ci": [
-      -0.939,
-      -0.91
+      -0.938,
+      -0.911
      ]
     },
     "memory": {
@@ -146,6 +274,70 @@
      "miss_diff_ci": [
       -0.939,
       -0.911
+     ]
+    },
+    "gate s": {
+     "miss": 0.21,
+     "front_miss": 0.21,
+     "path_miss": 0.128,
+     "false_per_min": 5.9,
+     "false_far_per_min": 1.2,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 1823,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.759,
+      -0.731
+     ]
+    },
+    "gate a": {
+     "miss": 0.029,
+     "front_miss": 0.029,
+     "path_miss": 0.0,
+     "false_per_min": 5.9,
+     "false_far_per_min": 1.2,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 1823,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.939,
+      -0.911
+     ]
+    },
+    "gate r": {
+     "miss": 0.029,
+     "front_miss": 0.029,
+     "path_miss": 0.0,
+     "false_per_min": 5.9,
+     "false_far_per_min": 1.2,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 1823,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.94,
+      -0.911
+     ]
+    },
+    "gate sar": {
+     "miss": 0.21,
+     "front_miss": 0.21,
+     "path_miss": 0.128,
+     "false_per_min": 5.9,
+     "false_far_per_min": 1.2,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 1823,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.759,
+      -0.732
      ]
     }
    }
@@ -177,7 +369,7 @@
      "danger": 2318,
      "frames": 1180,
      "miss_diff_ci": [
-      -0.752,
+      -0.75,
       -0.702
      ]
     },
@@ -193,8 +385,72 @@
      "danger": 2318,
      "frames": 1180,
      "miss_diff_ci": [
-      -0.749,
+      -0.75,
       -0.701
+     ]
+    },
+    "gate s": {
+     "miss": 0.197,
+     "front_miss": 0.197,
+     "path_miss": 0.14,
+     "false_per_min": 76.7,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 2318,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.574,
+      -0.521
+     ]
+    },
+    "gate a": {
+     "miss": 0.05,
+     "front_miss": 0.05,
+     "path_miss": 0.018,
+     "false_per_min": 81.3,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 2318,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.723,
+      -0.669
+     ]
+    },
+    "gate r": {
+     "miss": 0.019,
+     "front_miss": 0.019,
+     "path_miss": 0.0,
+     "false_per_min": 81.3,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 2318,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.752,
+      -0.701
+     ]
+    },
+    "gate sar": {
+     "miss": 0.229,
+     "front_miss": 0.229,
+     "path_miss": 0.158,
+     "false_per_min": 76.7,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 2318,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.545,
+      -0.49
      ]
     }
    }
@@ -242,8 +498,72 @@
      "danger": 2077,
      "frames": 1180,
      "miss_diff_ci": [
-      -0.573,
+      -0.574,
       -0.558
+     ]
+    },
+    "gate s": {
+     "miss": 0.001,
+     "front_miss": 0.0,
+     "path_miss": 0.0,
+     "false_per_min": 100.5,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 2077,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.574,
+      -0.558
+     ]
+    },
+    "gate a": {
+     "miss": 0.055,
+     "front_miss": 0.098,
+     "path_miss": 0.071,
+     "false_per_min": 91.2,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 2077,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.527,
+      -0.497
+     ]
+    },
+    "gate r": {
+     "miss": 0.325,
+     "front_miss": 0.0,
+     "path_miss": 0.0,
+     "false_per_min": 55.5,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 2077,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.251,
+      -0.234
+     ]
+    },
+    "gate sar": {
+     "miss": 0.379,
+     "front_miss": 0.098,
+     "path_miss": 0.071,
+     "false_per_min": 46.3,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 2077,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.199,
+      -0.178
      ]
     }
    }
@@ -275,7 +595,7 @@
      "danger": 4141,
      "frames": 1320,
      "miss_diff_ci": [
-      -0.528,
+      -0.527,
       -0.482
      ]
     },
@@ -291,8 +611,72 @@
      "danger": 4141,
      "frames": 1320,
      "miss_diff_ci": [
-      -0.529,
+      -0.528,
       -0.481
+     ]
+    },
+    "gate s": {
+     "miss": 0.138,
+     "front_miss": 0.18,
+     "path_miss": 0.089,
+     "false_per_min": 4.7,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 4141,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.421,
+      -0.373
+     ]
+    },
+    "gate a": {
+     "miss": 0.436,
+     "front_miss": 0.2,
+     "path_miss": 0.175,
+     "false_per_min": 1.2,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 4141,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.118,
+      -0.079
+     ]
+    },
+    "gate r": {
+     "miss": 0.134,
+     "front_miss": 0.013,
+     "path_miss": 0.001,
+     "false_per_min": 4.1,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 4141,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.424,
+      -0.377
+     ]
+    },
+    "gate sar": {
+     "miss": 0.436,
+     "front_miss": 0.2,
+     "path_miss": 0.175,
+     "false_per_min": 1.2,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 4141,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.118,
+      -0.079
      ]
     }
    }
@@ -324,8 +708,8 @@
      "danger": 3014,
      "frames": 1040,
      "miss_diff_ci": [
-      -0.274,
-      -0.252
+      -0.273,
+      -0.253
      ]
     },
     "memory": {
@@ -340,8 +724,72 @@
      "danger": 3014,
      "frames": 1040,
      "miss_diff_ci": [
-      -0.273,
+      -0.274,
       -0.253
+     ]
+    },
+    "gate s": {
+     "miss": 0.289,
+     "front_miss": 0.302,
+     "path_miss": 0.366,
+     "false_per_min": 3.8,
+     "false_far_per_min": 3.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 3014,
+     "frames": 1040,
+     "miss_diff_ci": [
+      -0.09,
+      -0.082
+     ]
+    },
+    "gate a": {
+     "miss": 0.374,
+     "front_miss": 0.302,
+     "path_miss": 0.366,
+     "false_per_min": 3.0,
+     "false_far_per_min": 3.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 3014,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "gate r": {
+     "miss": 0.115,
+     "front_miss": 0.104,
+     "path_miss": 0.005,
+     "false_per_min": 4.5,
+     "false_far_per_min": 3.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 3014,
+     "frames": 1040,
+     "miss_diff_ci": [
+      -0.269,
+      -0.25
+     ]
+    },
+    "gate sar": {
+     "miss": 0.374,
+     "front_miss": 0.302,
+     "path_miss": 0.366,
+     "false_per_min": 3.0,
+     "false_far_per_min": 3.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 3014,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
      ]
     }
    }
@@ -378,6 +826,70 @@
      ]
     },
     "memory": {
+     "miss": 0.014,
+     "front_miss": 0.014,
+     "path_miss": 0.002,
+     "false_per_min": 10.5,
+     "false_far_per_min": 9.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 813,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "gate s": {
+     "miss": 0.014,
+     "front_miss": 0.014,
+     "path_miss": 0.002,
+     "false_per_min": 10.5,
+     "false_far_per_min": 9.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 813,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "gate a": {
+     "miss": 0.014,
+     "front_miss": 0.014,
+     "path_miss": 0.002,
+     "false_per_min": 10.5,
+     "false_far_per_min": 9.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 813,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "gate r": {
+     "miss": 0.014,
+     "front_miss": 0.014,
+     "path_miss": 0.002,
+     "false_per_min": 10.5,
+     "false_far_per_min": 9.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 813,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "gate sar": {
      "miss": 0.014,
      "front_miss": 0.014,
      "path_miss": 0.002,
@@ -441,6 +953,70 @@
       0.0,
       0.0
      ]
+    },
+    "gate s": {
+     "miss": null,
+     "front_miss": null,
+     "path_miss": null,
+     "false_per_min": 20.3,
+     "false_far_per_min": 20.3,
+     "drop_miss": 0.203,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 602,
+     "danger": 0,
+     "frames": 1840,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "gate a": {
+     "miss": null,
+     "front_miss": null,
+     "path_miss": null,
+     "false_per_min": 20.3,
+     "false_far_per_min": 20.3,
+     "drop_miss": 0.203,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 602,
+     "danger": 0,
+     "frames": 1840,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "gate r": {
+     "miss": null,
+     "front_miss": null,
+     "path_miss": null,
+     "false_per_min": 20.3,
+     "false_far_per_min": 20.3,
+     "drop_miss": 0.203,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 602,
+     "danger": 0,
+     "frames": 1840,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "gate sar": {
+     "miss": null,
+     "front_miss": null,
+     "path_miss": null,
+     "false_per_min": 20.3,
+     "false_far_per_min": 20.3,
+     "drop_miss": 0.203,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 602,
+     "danger": 0,
+     "frames": 1840,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
     }
    }
   },
@@ -481,6 +1057,70 @@
      "path_miss": null,
      "false_per_min": 49.6,
      "false_far_per_min": 49.6,
+     "drop_miss": 0.151,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 602,
+     "danger": 0,
+     "frames": 1840,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "gate s": {
+     "miss": null,
+     "front_miss": null,
+     "path_miss": null,
+     "false_per_min": 36.9,
+     "false_far_per_min": 36.9,
+     "drop_miss": 0.151,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 602,
+     "danger": 0,
+     "frames": 1840,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "gate a": {
+     "miss": null,
+     "front_miss": null,
+     "path_miss": null,
+     "false_per_min": 49.6,
+     "false_far_per_min": 49.6,
+     "drop_miss": 0.151,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 602,
+     "danger": 0,
+     "frames": 1840,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "gate r": {
+     "miss": null,
+     "front_miss": null,
+     "path_miss": null,
+     "false_per_min": 49.6,
+     "false_far_per_min": 49.6,
+     "drop_miss": 0.151,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 602,
+     "danger": 0,
+     "frames": 1840,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "gate sar": {
+     "miss": null,
+     "front_miss": null,
+     "path_miss": null,
+     "false_per_min": 36.9,
+     "false_far_per_min": 36.9,
      "drop_miss": 0.151,
      "drop_false_per_min": 0.0,
      "drop_danger": 602,
@@ -539,6 +1179,70 @@
       0.0,
       0.0
      ]
+    },
+    "gate s": {
+     "miss": 0.996,
+     "front_miss": 0.996,
+     "path_miss": 1.0,
+     "false_per_min": 0.0,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 1424,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "gate a": {
+     "miss": 0.996,
+     "front_miss": 0.996,
+     "path_miss": 1.0,
+     "false_per_min": 0.0,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 1424,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "gate r": {
+     "miss": 0.996,
+     "front_miss": 0.996,
+     "path_miss": 1.0,
+     "false_per_min": 0.0,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 1424,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "gate sar": {
+     "miss": 0.996,
+     "front_miss": 0.996,
+     "path_miss": 1.0,
+     "false_per_min": 0.0,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 1424,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
     }
    }
   }
@@ -574,6 +1278,54 @@
    "path_miss": 0.078,
    "false_per_min": 31.8,
    "false_far_per_min": 11.9,
+   "drop_miss": 0.177,
+   "drop_false_per_min": 3.9,
+   "drop_danger": 1204,
+   "danger": 20004,
+   "frames": 14300
+  },
+  "gate s": {
+   "miss": 0.204,
+   "front_miss": 0.22,
+   "path_miss": 0.182,
+   "false_per_min": 29.7,
+   "false_far_per_min": 10.3,
+   "drop_miss": 0.177,
+   "drop_false_per_min": 3.9,
+   "drop_danger": 1204,
+   "danger": 20004,
+   "frames": 14300
+  },
+  "gate a": {
+   "miss": 0.246,
+   "front_miss": 0.185,
+   "path_miss": 0.161,
+   "false_per_min": 30.6,
+   "false_far_per_min": 11.9,
+   "drop_miss": 0.177,
+   "drop_false_per_min": 3.9,
+   "drop_danger": 1204,
+   "danger": 20004,
+   "frames": 14300
+  },
+  "gate r": {
+   "miss": 0.166,
+   "front_miss": 0.111,
+   "path_miss": 0.078,
+   "false_per_min": 28.0,
+   "false_far_per_min": 11.9,
+   "drop_miss": 0.177,
+   "drop_false_per_min": 3.9,
+   "drop_danger": 1204,
+   "danger": 20004,
+   "frames": 14300
+  },
+  "gate sar": {
+   "miss": 0.324,
+   "front_miss": 0.237,
+   "path_miss": 0.203,
+   "false_per_min": 24.9,
+   "false_far_per_min": 10.3,
    "drop_miss": 0.177,
    "drop_false_per_min": 3.9,
    "drop_danger": 1204,
