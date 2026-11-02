@@ -175,3 +175,13 @@ def render(
             m = int(0.12 * ss.SAMPLE_RATE)  # the name lands just after the pluck
             out[n0 + m : n0 + m + len(c)] += c[: len(out) - n0 - m, None] * 0.7
     return np.tanh(out).astype(np.float32)
+
+
+SPEECH_CHARS_PER_S = 14.0  # iOS AVSpeechUtteranceDefaultSpeechRate reads about this fast
+
+
+def taps(msg: dict, chars_per_s: float = SPEECH_CHARS_PER_S) -> list[tuple[float, float]]:
+    """(seconds after the line starts, bearing) for one belt tap per name, estimated from where
+    the name sits in the text. The phone plucks on the real word timing; the belt is on the Mac
+    and only has this estimate."""
+    return [(it["start"] / chars_per_s, it["bearing"]) for it in msg["items"]]

@@ -86,3 +86,10 @@ def test_render_plucks_from_each_side():
     voice = [np.full(4410, 0.1), np.full(8820, 0.1)]  # room name, then the one item
     st = rc.render(left, HEAD, FWD, UP, voice=voice)
     assert len(st) > (4410 + 8820) and np.abs(st).max() < 1
+
+
+def test_taps_follow_the_names():
+    msg = rc.message(rc.pick(ROOM, to, k=3), "bedroom")
+    t = rc.taps(msg)
+    assert [b for _, b in t] == [it["bearing"] for it in msg["items"]]
+    assert t[0][0] == pytest.approx(9 / rc.SPEECH_CHARS_PER_S) and t[0][0] < t[1][0] < t[2][0]
