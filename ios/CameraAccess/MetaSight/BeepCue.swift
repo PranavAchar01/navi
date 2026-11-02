@@ -241,3 +241,26 @@ struct BeaconScheduler: Sendable {
     return BeaconCue.plan(dist: dist, bearing: bearing, volume: volume)
   }
 }
+
+// MARK: - Room roll call: each name plucks from where the thing is
+
+/// One named thing in the server's roll call (metasight/roll_call.py): where it is and where its
+/// name sits in the spoken text (start and length in characters; the text is plain ASCII).
+struct RollCallItem: Equatable, Sendable, Decodable {
+  let label: String
+  let bearing: Double
+  let dist: Double
+  let start: Int
+  let length: Int
+}
+
+enum RollCall {
+  /// The items whose names begin inside the range the speech synthesizer is about to say.
+  static func due(_ items: [RollCallItem], spoken: NSRange) -> [RollCallItem] {
+    items.filter { NSLocationInRange($0.start, spoken) }
+  }
+
+  static func plan(_ item: RollCallItem, volume: BeepVolume) -> BeaconPlan {
+    BeaconCue.plan(dist: item.dist, bearing: item.bearing, volume: volume)
+  }
+}

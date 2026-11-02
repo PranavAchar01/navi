@@ -207,4 +207,16 @@ final class BeepCueTests: XCTestCase {
     off.play(BeaconCue.plan(dist: 2, bearing: -90, volume: .normal))
     XCTAssertTrue(off.playedBeacon.isEmpty)
   }
+
+  func testRollCallPlucksEachNameAsItIsSpoken() {
+    let items = [
+      RollCallItem(label: "bed", bearing: 60, dist: 2, start: 9, length: 3),
+      RollCallItem(label: "desk", bearing: -60, dist: 1, start: 40, length: 4),
+    ]
+    XCTAssertEqual(RollCall.due(items, spoken: NSRange(location: 9, length: 3)).map(\.label), ["bed"])
+    XCTAssertEqual(RollCall.due(items, spoken: NSRange(location: 13, length: 2)), [])
+    XCTAssertEqual(RollCall.due(items, spoken: NSRange(location: 40, length: 4)).map(\.label), ["desk"])
+    XCTAssertGreaterThan(RollCall.plan(items[0], volume: .normal).x, 0)
+    XCTAssertLessThan(RollCall.plan(items[1], volume: .normal).x, 0)
+  }
 }

@@ -9,11 +9,19 @@
 import AVFoundation
 
 @MainActor
-final class AnswerSpeaker {
+final class AnswerSpeaker: NSObject, AVSpeechSynthesizerDelegate {
   private let synthesizer = AVSpeechSynthesizer()
   private var sessionConfigured = false
+  /// Called with each range of the text as it is about to be spoken (the roll call's plucks).
+  private var onRange: ((NSRange) -> Void)?
 
-  func speak(_ text: String) {
+  override init() {
+    super.init()
+    synthesizer.delegate = self
+  }
+
+  func speak(_ text: String, onRange: ((NSRange) -> Void)? = nil) {
+    self.onRange = onRange
     // Like the beeper, nothing plays on a simulator or a Mac; the answer is still on screen.
     guard !Self.isSimulatorOrMac else { return }
     configureSessionIfNeeded()
@@ -24,6 +32,13 @@ final class AnswerSpeaker {
     let utterance = AVSpeechUtterance(string: text)
     utterance.rate = AVSpeechUtteranceDefaultSpeechRate
     synthesizer.speak(utterance)
+  }
+
+  nonisolated func speechSynthesizer(
+    _ synthesizer: AVSpeechSynthesizer, willSpeakRangeOfSpeechString characterRange: NSRange,
+    utterance: AVSpeechUtterance
+  ) {
+    MainActor.assumeIsolated { onRange?(characterRange) }
   }
 
   private static var isSimulatorOrMac: Bool {

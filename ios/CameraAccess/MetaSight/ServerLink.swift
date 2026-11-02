@@ -16,6 +16,7 @@
 //   beltaudio <- {"type":"beltaudio","cmd":[[mode,duty] x 8],"flags":n}  haptic Braille pulses, heard
 //   safety <- {"type":"safety","sectors":[8],"cues":[{"mode":...}],"path":m|null,"guide":{...}|null,"found":b,
 //             "sound":b}  sound is the server's switch; the guide also drives the spatial beacon
+//   rollcall <- {"type":"rollcall","text":"...","items":[{"label","bearing","dist","start","length"}]}
 //
 
 import Foundation
@@ -405,6 +406,11 @@ final class ServerLink {
     let cmd: [[Int]]
   }
 
+  private struct RollCallMessage: Decodable {
+    let text: String
+    let items: [RollCallItem]
+  }
+
   private struct SafetyMessage: Decodable {
     struct Cue: Decodable {
       let mode: String
@@ -504,6 +510,18 @@ final class ServerLink {
     case "beltaudio":
       guard let msg = try? decoder.decode(BeltAudioMessage.self, from: data) else { return }
       beltAudio.updateBraille(cmd: msg.cmd)
+    case "rollcall":
+      // "Bedroom. Bed at two o'clock, two metres. ..." with a pluck from each thing as its
+      // name is said.
+      guard let msg = try? decoder.decode(RollCallMessage.self, from: data),
+        beeper.volume != .silent
+      else { return }
+      speaker.speak(msg.text) { [weak self] range in
+        guard let self else { return }
+        for item in RollCall.due(msg.items, spoken: range) {
+          self.beeper.play(RollCall.plan(item, volume: self.beeper.volume))
+        }
+      }
     case "safety":
       guard let msg = try? decoder.decode(SafetyMessage.self, from: data) else { return }
       guide = msg.guide
