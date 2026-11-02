@@ -314,6 +314,9 @@ class Score:
     danger: int = 0
     missed: int = 0
     false: int = 0
+    # A false cue with nothing in the neighbouring sectors either: not a hazard put one sector
+    # over by a 0.1 m cell error at a sector edge (fovsim doorway_turn, the jamb behind).
+    false_far: int = 0
     frames: int = 0
     path_danger: int = 0
     path_missed: int = 0
@@ -333,6 +336,9 @@ class Score:
             "front_miss": r(self.front_missed, self.front_danger),
             "path_miss": r(self.path_missed, self.path_danger),
             "false_per_min": round(self.false / (self.frames / FPS / 60), 1)
+            if self.frames
+            else None,
+            "false_far_per_min": round(self.false_far / (self.frames / FPS / 60), 1)
             if self.frames
             else None,
             "danger": self.danger,
@@ -516,6 +522,8 @@ def run(
                         sco.front_missed += _miss(true_sec[s], sec[s])
                 if sec[s] < DANGER_M and true_sec[s] > sec[s] + FALSE_TOL_M:
                     sco.false += 1
+                    near = min(true_sec[(s + j) % 8] for j in (-1, 0, 1))
+                    sco.false_far += near > sec[s] + FALSE_TOL_M
                     if trace is not None:
                         trace.append((round(t, 2), ai, s, round(sec[s], 2), true_sec[s]))
             if true_path < DANGER_M:
