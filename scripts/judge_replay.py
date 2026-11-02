@@ -147,10 +147,15 @@ async def play(a, url: str) -> None:
     answer_ms: list[float] = []
     stage_ms: dict[str, list[float]] = {}
 
+    rec = open(a.record, "w") if a.record else None
+
     async def reader():
         async for m in ws:
             if isinstance(m, str):
                 d = json.loads(m)
+                if rec and d["type"] in ("safety", "answer", "belt"):
+                    d.pop("hazards", None)
+                    rec.write(json.dumps({"wall": time.time(), **d}) + "\n")
                 if d["type"] == "status" and d.get("memory") == "ready":
                     ready.set()
                 elif d["type"] == "safety":
@@ -225,6 +230,8 @@ async def play(a, url: str) -> None:
     print(f"answer latency ms (ask sent to answer back): {[round(x) for x in answer_ms]}")
     rd.cancel()
     await ws.close()
+    if rec:
+        rec.close()
 
 
 async def ask(ws, text: str, asked_at: list[float]) -> None:
@@ -239,6 +246,18 @@ async def ask(ws, text: str, asked_at: list[float]) -> None:
     await asyncio.sleep(0.4)
     await ws.send(json.dumps({"type": "ask", "text": text}))
     asked_at.append(time.time())
+
+
+def judge_config(text: str, safety: dict[str, str]) -> str:
+    """The profile with these [safety] keys replaced (values as TOML, e.g. '"emulator"'): the
+    live profile's own belt line would otherwise make the replay drive the real belt."""
+    keep = [
+        ln
+        for ln in text.splitlines()
+        if ln.split("=", 1)[0].strip() not in {k.strip() for k in safety}
+    ]
+    added = "".join(f"{k.strip()} = {v.strip()}\n" for k, v in safety.items())
+    return "\n".join(keep).replace("[safety]\n", "[safety]\n" + added, 1) + "\n"
 
 
 def interrupted(*_) -> None:
@@ -270,6 +289,13 @@ def main() -> None:
     ap.add_argument(
         "--no-server", action="store_true", help="feed a judge server that is already running"
     )
+    ap.add_argument(
+        "--set",
+        action="append",
+        default=[],
+        help="a [safety] key for this run, e.g. map_sides=false",
+    )
+    ap.add_argument("--record", type=Path, help="write every safety and answer message here")
     a = ap.parse_args()
     url = f"ws://127.0.0.1:{a.port}/ws"
     if a.no_server:
@@ -284,12 +310,14 @@ def main() -> None:
     # Braille cell events, for the judge view's touch panel.
     config = home / "judge.toml"
     config.write_text(
-        (ROOT / "metasight.glasses.toml")
-        .read_text()
-        .replace(
-            "[safety]\n",
-            f'[safety]\nbelt_addr = "127.0.0.1:{a.belt_port}"\nbraille = "{a.braille}"\n',
-            1,
+        judge_config(
+            (ROOT / "metasight.glasses.toml").read_text(),
+            {
+                "belt": '"emulator"',
+                "belt_addr": f'"127.0.0.1:{a.belt_port}"',
+                "braille": f'"{a.braille}"',
+                **dict(kv.split("=", 1) for kv in a.set),
+            },
         )
     )
     env = {

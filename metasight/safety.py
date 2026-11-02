@@ -84,14 +84,20 @@ SECTOR_HALF_DEG = 22.5
 
 
 def _fit_floor(
-    P: np.ndarray, prev: tuple[np.ndarray, float] | None, tol: float, c_lo: float, c_hi: float
+    P: np.ndarray,
+    prev: tuple[np.ndarray, float] | None,
+    tol: float,
+    c_lo: float,
+    c_hi: float,
+    level: float = 0.75,
 ):
     """RANSAC plane through the lower part of the view, normal near vertical, oriented up.
 
     Returns (n, c) with height(P) = P @ n + c, or None. Only planes whose distance below the
     camera `c` (raw units) is within [c_lo, c_hi] can be the floor: a bed or table top is level
     too, but it is not an eye height below you. The previous plane is one candidate, which keeps
-    the floor steady from frame to frame.
+    the floor steady from frame to frame. `level`: the least |cos| between the plane's normal and
+    the camera's vertical, so how far the camera may pitch down and still see a floor.
     """
     h = P.shape[0]
     low = P[int(h * 0.55) :].reshape(-1, 3)
@@ -108,8 +114,8 @@ def _fit_floor(
     keep = nn >= 1e-6
     n = n[keep] / nn[keep, None]
     a = a[keep]
-    level = np.abs(n[:, 1]) >= 0.75  # camera y is down: the floor normal is mostly vertical
-    n, a = n[level], a[level]
+    keep = np.abs(n[:, 1]) >= level  # camera y is down: the floor normal is mostly vertical
+    n, a = n[keep], a[keep]
     n[n[:, 1] > 0] *= -1  # point up
     N = np.vstack([prev[0][None], n]) if prev is not None else n
     C = -np.einsum("ij,ij->i", a, n)
@@ -133,7 +139,7 @@ def _fit_floor(
     cen = inl.mean(0)
     _, _, vt = np.linalg.svd(inl - cen, full_matrices=False)
     n2 = vt[2] if vt[2][1] < 0 else -vt[2]
-    if abs(n2[1]) >= 0.75:
+    if abs(n2[1]) >= level:
         n, c = n2, -float(cen @ n2)
     return (n, c) if c_lo < c < c_hi else None
 
@@ -163,6 +169,7 @@ def analyse(
     eye_h: float,
     prev: tuple[np.ndarray, float] | None,
     hold: np.ndarray | None = None,
+    level: float = 0.75,
 ) -> tuple[Scene, tuple[np.ndarray, float] | None]:
     """Floor-aligned obstacle geometry for one frame.
 
@@ -182,7 +189,7 @@ def analyse(
     # Plane tolerance in raw units: 4 cm at the expected scale.
     # The floor gate uses the lens prior, not the running scale, so a wrong plane cannot drag
     # the scale and the gate along with it.
-    plane = _fit_floor(P, prev, 0.04 / scale, 0.75 * eye_h / prior, 1.3 * eye_h / prior)
+    plane = _fit_floor(P, prev, 0.04 / scale, 0.75 * eye_h / prior, 1.3 * eye_h / prior, level)
     found = plane is not None
     if plane is None and hold is not None:
         # Floor out of view (a desk fills the bottom of the frame): keep the last floor
@@ -408,8 +415,9 @@ class SafetyLoop:
         prev = self.plane if now - self.plane_t < 1.5 else None
         prior = self.s.depth_scale
         hold = self.plane[0] if self.plane is not None and now - self.plane_t < 5.0 else None
+        level = math.cos(math.radians(self.s.floor_pitch_deg))
         scene, plane = analyse(
-            raw, self.scale, prior, self.s.hfov_deg, self.s.eye_height_m, prev, hold
+            raw, self.scale, prior, self.s.hfov_deg, self.s.eye_height_m, prev, hold, level
         )
         meas = None
         if plane is not None:

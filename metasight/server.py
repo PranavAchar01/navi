@@ -494,7 +494,8 @@ class Server:
             sc = res.scene
             # Side and back sectors come from the map; trust them only while the pose is fresh.
             map_fresh = self.memory_ready and self.map_pose_ts and now - self.map_pose_ts < 3.0
-            known = [n in CAMERA_SECTORS or bool(map_fresh) for n in SECTORS]
+            sides = bool(map_fresh) and self.s.map_sides
+            known = [n in CAMERA_SECTORS or sides for n in SECTORS]
             if self.s.belt_cues == "panned":
                 strips = self.persist_strips(grid_strips(sc.grid))
                 targets = scene_targets(strips, self.s.hfov_deg, merged, known)

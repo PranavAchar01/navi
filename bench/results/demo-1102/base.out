@@ -1,0 +1,13 @@
+judge server pid 42867 on :8450, log /var/folders/fp/28_vknr53x943stmdqpbrhl40000gn/T/ms-judge-8450.log, slot .heavy-lock-2
+open http://127.0.0.1:8450/judge.html
+poses: 1632 of 1632 frames
+lap 1 start
+answer: I haven't seen your chair yet. If it has an AirTag, Find My on your phone can play a sound; or walk past where you left it and ask again.
+lap 1: 1632 frames in 88.0 s
+safety messages with a guide: {'any': 0, 'dist': 0, 'bearing': 0}
+cue latency ms: n=1547 p50=45 p95=84 max=630
+stage depth ms: p50=20.7 p95=28.6
+stage detect ms: p50=6.1 p95=15.9
+stage post ms: p50=0.5 p95=1.1
+stage total ms: p50=27.5 p95=41.1
+answer latency ms (ask sent to answer back): [8375]

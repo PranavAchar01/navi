@@ -53,6 +53,9 @@ class Settings:
     # frames of 7 walks, 0.40 misses 0 of 513 near cues (1.0 missed 121). bench/mesh_reflex.py
     depth_scale: float = 0.40
     eye_height_m: float = 1.37  # camera height above the floor; the live depth's ruler
+    # How far the camera may pitch down and still find the floor. A phone is held near upright;
+    # the glasses look down about 40 degrees while walking (gravity in tonight's take).
+    floor_pitch_deg: float = 41.0
     hfov_deg: float = 105.0  # horizontal field of view of the camera feeding the safety loop
     map_intrinsics: bool = False  # tell MapAnything the lens (hfov_deg) instead of letting it guess
     # emulator: spawn firmware/emulator/belt-emu; udp: a real belt on Wi-Fi; app: the phone app
@@ -65,6 +68,9 @@ class Settings:
     # cues lose the bearing: 58% vs 73% of simulated walks reach the goal
     # (docs/belt-sim-experiments.md L1, L2).
     belt_cues: str = "panned"
+    # Side and back sectors from the map. Off, only the three camera sectors can buzz: in a
+    # small room the map's walls and furniture sit inside 1 m behind the wearer most of the time.
+    map_sides: bool = True
     braille: str = "off"  # deafblind mode: off | emulator | wrist | belt | audio (docs/braille.md)
     braille_addr: str = ""  # BLE address of the wrist band, for braille = "wrist"
     braille_dot_ms: int = 250  # a cell is on this long (ERM motors need 50-100 ms to spin up)
@@ -130,11 +136,13 @@ class Settings:
             "segment",
             "depth_scale",
             "eye_height_m",
+            "floor_pitch_deg",
             "hfov_deg",
             "map_intrinsics",
             "belt",
             "belt_addr",
             "belt_cues",
+            "map_sides",
             "braille",
             "braille_addr",
             "braille_dot_ms",
