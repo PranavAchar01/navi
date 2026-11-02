@@ -23,15 +23,21 @@ import numpy as np
 from . import spatial_sound as ss
 
 MIN_SEEN = 20  # sightings before a pin is trusted enough to name
+FURNITURE_MIN_SEEN = 10  # furniture stays put, so fewer sightings will do
 MIN_SCORE = 0.5
 SAME_M = 1.0  # one label closer than this is one thing
+TWIN_SHARE = 0.5  # a second thing of one kind needs half the first one's sightings
 ON_TOP_M = 0.6  # a laptop on the bed is not named apart from the bed
 MAX_ITEMS = 6
+MAX_PHRASES = 5  # things at one clock hour share a phrase; more than five phrases is a lecture
 # What you find your way around a room by, most useful first. Anything else fills the rest.
 LAYOUT = (
     "door", "bed", "desk", "chair", "table", "sofa", "armchair", "dresser", "cabinet",
-    "nightstand", "shelf", "mini fridge", "trash can", "stool", "tv",
+    "nightstand", "shelf", "couch", "mini fridge", "trash can", "stool", "tv",
 )  # fmt: skip
+FURNITURE = {"bed", "desk", "chair", "table", "sofa", "couch", "armchair", "dresser", "stool"}
+ALIASES = {"dining table": "table"}  # the detector's word, then what a person says
+SAID = {"tv": "TV"}
 SKIP = {"person", "wall", "window", "curtain", "rug", "picture frame", "mirror"}
 NUMBERS = ("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine")
 HOURS = (
@@ -52,28 +58,41 @@ def _get(p, k, default=None):
     return p.get(k, default) if isinstance(p, dict) else getattr(p, k, default)
 
 
+def _seen(p) -> int:
+    """Pins count sightings in `seen`, the room twin's objects in `views`."""
+    return int(_get(p, "seen", None) or _get(p, "views", 0) or 0)
+
+
+def _score(p) -> float:
+    s = _get(p, "score", None)
+    return float(_get(p, "conf", 0.0) if s is None else s)
+
+
 def pick(
     pins: Iterable,
     to: Callable[[np.ndarray], tuple[float, float] | None],
     k: int = MAX_ITEMS,
     min_seen: int = MIN_SEEN,
+    twin: Iterable = (),
 ) -> list[Item]:
     """The few things worth naming, clockwise from straight ahead. `to` is heading.to: map
-    point to (floor metres, bearing degrees). Pins are Pin objects or their JSON."""
+    point to (floor metres, bearing degrees). Pins are Pin objects or their JSON; `twin` adds
+    the room twin's objects (objects-s1.json: label, pos, views, conf), which see a chair over
+    many walks where one walk's pins may not. Both must be in the frame `to` reads."""
     keep: list[dict] = []
-    for p in sorted(pins, key=lambda p: -_get(p, "seen", 0)):
+    for p in sorted([*pins, *twin], key=lambda p: -_seen(p)):
         label = _get(p, "label", "").lower()
-        if (
-            label in SKIP
-            or not _get(p, "placed", True)
-            or _get(p, "seen", 0) < min_seen
-            or _get(p, "score", 0.0) < MIN_SCORE
-        ):
+        label = ALIASES.get(label, label)
+        bar = FURNITURE_MIN_SEEN if label in FURNITURE else min_seen
+        if label in SKIP or not _get(p, "placed", True) or _seen(p) < bar or _score(p) < MIN_SCORE:
             continue
         pos = np.asarray(_get(p, "pos"), float)
-        if any(q["label"] == label and np.linalg.norm(q["pos"] - pos) < SAME_M for q in keep):
+        same = [q for q in keep if q["label"] == label]
+        if any(np.linalg.norm(q["pos"] - pos) < SAME_M for q in same):
             continue
-        keep.append({"label": label, "pos": pos, "seen": _get(p, "seen", 0)})
+        if same and _seen(p) < TWIN_SHARE * same[0]["seen"]:
+            continue  # a faint second bed is the map's noise, not a second bed
+        keep.append({"label": label, "pos": pos, "seen": _seen(p)})
 
     def useful(q):
         return (LAYOUT.index(q["label"]) if q["label"] in LAYOUT else len(LAYOUT), -q["seen"])
@@ -107,23 +126,55 @@ def metres(d: float) -> str:
     return f"{word} metre" + ("" if whole == 1 else "s")
 
 
+def phrases(items: list[Item], cap: int = MAX_PHRASES) -> list[list[Item]]:
+    """Items (already clockwise) grouped by clock hour, at most `cap` groups: "Desk and basket
+    at eight o'clock" is one phrase, not two."""
+    groups: list[list[Item]] = []
+    for it in items:
+        if groups and clock(groups[-1][0].bearing_deg) == clock(it.bearing_deg):
+            groups[-1].append(it)
+        else:
+            groups.append([it])
+    return groups[:cap]
+
+
+def sentence(group: list[Item], at: int = 0) -> tuple[str, list[tuple[int, int]]]:
+    """One phrase, "Basket and desk at eight o'clock, one and a half metres." (the nearest's
+    distance), and each name's (start, length) counted from `at`."""
+    text, spans = "", []
+    for i, it in enumerate(group):
+        name = SAID.get(it.label) or (it.label.capitalize() if i == 0 else it.label)
+        if i:
+            text += " and " if i == len(group) - 1 else ", "
+        spans.append((at + len(text), len(name)))
+        text += name
+    near = min(it.dist_m for it in group)
+    return f"{text} at {clock(group[0].bearing_deg)}, {metres(near)}.", spans
+
+
 def line(items: list[Item], room: str | None = None) -> tuple[str, list[tuple[int, int]]]:
-    """The spoken roll call and, for each item, (start, length) of its name in the text, so the
-    phone can pluck from the item's direction as the name is spoken."""
+    """The spoken roll call and, for each spoken item, (start, length) of its name in the text,
+    so the phone can pluck from the item's direction as the name is spoken."""
     text = f"{room.capitalize()}. " if room else ""
-    spans = []
+    spans: list[tuple[int, int]] = []
     if not items:
         return text + "I don't know this room well enough yet.", []
-    for it in items:
-        name = it.label.capitalize()
-        spans.append((len(text), len(name)))
-        text += f"{name} at {clock(it.bearing_deg)}, {metres(it.dist_m)}. "
+    for group in phrases(items):
+        said, sp = sentence(group, len(text))
+        spans += sp
+        text += said + " "
     return text.strip(), spans
+
+
+def spoken(items: list[Item]) -> list[Item]:
+    """The items the line actually names (the phrase cap can drop the last few)."""
+    return [it for g in phrases(items) for it in g]
 
 
 def message(items: list[Item], room: str | None = None) -> dict:
     """The websocket message for the phone: the text to say and each name's place in it."""
     text, spans = line(items, room)
+    items = spoken(items)
     return {
         "type": "rollcall",
         "text": text,
@@ -150,30 +201,35 @@ def render(
     lead_s: float = 0.4,
     method: str = "hrtf",
 ) -> np.ndarray:
-    """Stereo track for the video. `voice` is one mono clip per sentence at ss.SAMPLE_RATE (the
-    room name first when there is one, then one per item); each item's pluck starts with its
-    sentence, from the item's true direction. Without voice, plucks are `gap_s` apart."""
-    starts, t = [], lead_s
+    """Stereo track for the video. `voice` is one mono clip per spoken sentence at
+    ss.SAMPLE_RATE: the room name first, then one per phrase (`phrases`). Each name's pluck
+    plays from the item's true direction where the name falls in its clip (by its place in the
+    sentence). Without voice, phrases are `gap_s` apart."""
+    groups = phrases(items)
     clips = list(voice) if voice else []
-    room_clip = clips.pop(0) if len(clips) == len(items) + 1 else None
-    if room_clip is not None:
-        t += len(room_clip) / ss.SAMPLE_RATE
-    for i in range(len(items)):
-        starts.append(t)
-        t += (len(clips[i]) / ss.SAMPLE_RATE + 0.15) if clips else gap_s
+    room_clip = clips.pop(0) if len(clips) == len(groups) + 1 else None
+    t = lead_s + (len(room_clip) / ss.SAMPLE_RATE if room_clip is not None else 0.0)
+    plan = []  # (phrase start s, phrase length s, group, clip)
+    for i, g in enumerate(groups):
+        c = clips[i] if clips else None
+        length = len(c) / ss.SAMPLE_RATE if c is not None else gap_s
+        plan.append((t, length, g, c))
+        t += length + (0.15 if c is not None else 0.0)
     out = np.zeros((int((t + 0.5) * ss.SAMPLE_RATE), 2))
     if room_clip is not None:
         n0 = int(lead_s * ss.SAMPLE_RATE)
         out[n0 : n0 + len(room_clip)] += room_clip[:, None] * 0.7
-    for i, (it, t0) in enumerate(zip(items, starts, strict=True)):
-        n0 = int(t0 * ss.SAMPLE_RATE)
-        d = ss.relative(head, fwd, up, np.asarray(it.pos))
-        st = ss.place(ss.beacon_sound(False) * ss.beacon_gain(d.ground_m), d, method)
-        out[n0 : n0 + len(st)] += st[: len(out) - n0]
-        if clips:
-            c = clips[i]
-            m = int(0.12 * ss.SAMPLE_RATE)  # the name lands just after the pluck
-            out[n0 + m : n0 + m + len(c)] += c[: len(out) - n0 - m, None] * 0.7
+    m = int(0.12 * ss.SAMPLE_RATE)  # the voice starts just after the first pluck
+    for t0, length, g, c in plan:
+        said, spans = sentence(g)
+        for it, (start, _) in zip(g, spans, strict=True):
+            n0 = int((t0 + length * start / len(said)) * ss.SAMPLE_RATE)
+            d = ss.relative(head, fwd, up, np.asarray(it.pos))
+            st = ss.place(ss.beacon_sound(False) * ss.beacon_gain(d.ground_m), d, method)
+            out[n0 : n0 + len(st)] += st[: len(out) - n0]
+        if c is not None:
+            n0 = int(t0 * ss.SAMPLE_RATE) + m
+            out[n0 : n0 + len(c)] += c[: len(out) - n0, None] * 0.7
     return np.tanh(out).astype(np.float32)
 
 

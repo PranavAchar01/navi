@@ -2,7 +2,8 @@
 TTS, voice cedar) with a pluck from each named thing's true direction as its name is said.
 
 Run: PYTHONPATH=. .venv/bin/python scripts/render_roll_call.py data/walks/<walk>/pins.json \
-        [--head X Y Z] [--yaw DEG] [--room bedroom] [--no-voice]
+        [--twin data/rooms/bedroom/v003/objects-s1.json] [--head X Y Z] [--yaw DEG] \
+        [--room bedroom] [--no-voice]
 The head looks along -z turned by --yaw degrees to the right, y up (the map frame). The OpenAI
 key comes from the keychain (OPENAI_API_KEY) or the environment.
 """
@@ -64,6 +65,7 @@ def main() -> None:
     ap.add_argument("--head", type=float, nargs=3, default=(0.0, 1.5, 0.0))
     ap.add_argument("--yaw", type=float, default=0.0)
     ap.add_argument("--room", default="bedroom")
+    ap.add_argument("--twin", type=Path, help="the room twin's objects-s1.json, same frame")
     ap.add_argument("--no-voice", action="store_true")
     a = ap.parse_args()
     head = np.array(a.head)
@@ -74,16 +76,14 @@ def main() -> None:
         d = ss.relative(head, fwd, up, p)
         return d.ground_m, d.az_deg
 
-    items = rc.pick(json.loads(a.pins.read_text()), to)
+    twin = json.loads(a.twin.read_text()) if a.twin else []
+    items = rc.pick(json.loads(a.pins.read_text()), to, twin=twin)
     text, _ = rc.line(items, a.room)
     print(text)
     voice = None
     if not a.no_voice:
         key = openai_key()
-        sentences = [f"{a.room.capitalize()}."] + [
-            f"{it.label.capitalize()} at {rc.clock(it.bearing_deg)}, {rc.metres(it.dist_m)}."
-            for it in items
-        ]
+        sentences = [f"{a.room.capitalize()}."] + [rc.sentence(g)[0] for g in rc.phrases(items)]
         voice = [speak(s, key) for s in sentences]
     OUT.mkdir(parents=True, exist_ok=True)
     path = OUT / "roll-call.wav"

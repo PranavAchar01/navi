@@ -22,6 +22,7 @@ ROOM = [
     pin("bed", 1.7, -1.0),  # ahead right: about two o'clock
     pin("desk", -1.0, -0.6),  # ahead left: ten o'clock
     pin("desk", -1.3, -0.5, seen=30),  # the same desk again
+    pin("desk", 1.5, 1.5, seen=20),  # a faint second desk: map noise
     pin("door", 0.0, 2.0),  # behind
     pin("chair", 0.0, -1.0),  # straight ahead
     pin("person", 0.5, -0.5),  # people move: never named
@@ -76,6 +77,8 @@ def test_line_and_message_point_at_each_name():
     msg = rc.message(items, "bedroom")
     assert msg["type"] == "rollcall" and msg["items"][0]["bearing"] > 0
     assert rc.line([], None)[0].startswith("I don't know")
+    tv = rc.Item("tv", (0, 0, 0), 1.0, 0.0)
+    assert rc.sentence([tv])[0] == "TV at twelve o'clock, one metre."
 
 
 def test_render_plucks_from_each_side():
@@ -83,9 +86,43 @@ def test_render_plucks_from_each_side():
     st = rc.render(left, HEAD, FWD, UP)
     e = (st.astype(float) ** 2).sum(0)
     assert e[0] > 2 * e[1]
-    voice = [np.full(4410, 0.1), np.full(8820, 0.1)]  # room name, then the one item
+    voice = [np.full(4410, 0.1), np.full(8820, 0.1)]  # room name, then the one phrase
     st = rc.render(left, HEAD, FWD, UP, voice=voice)
     assert len(st) > (4410 + 8820) and np.abs(st).max() < 1
+
+
+def test_one_clock_hour_is_one_phrase_and_five_at_most():
+    items = [
+        rc.Item("basket", (0, 0, 0), 1.4, -120.0),
+        rc.Item("desk", (0, 0, 0), 2.0, -115.0),
+        rc.Item("door", (0, 0, 0), 2.0, -60.0),
+        rc.Item("trash can", (0, 0, 0), 2.1, -58.0),
+    ]
+    text, spans = rc.line(items)
+    assert text == (
+        "Basket and desk at eight o'clock, one and a half metres. "
+        "Door and trash can at ten o'clock, two metres."
+    )
+    assert [text[s : s + n].lower() for s, n in spans] == ["basket", "desk", "door", "trash can"]
+    many = [rc.Item(f"thing{i}", (0, 0, 0), 1.0, 30.0 * i) for i in range(7)]
+    assert len(rc.phrases(many)) == rc.MAX_PHRASES
+    assert len(rc.message(many)["items"]) == rc.MAX_PHRASES  # only what is said
+
+
+def test_twin_objects_fill_in_furniture_the_pins_missed():
+    twin = [
+        {"label": "chair", "pos": [-0.5, 0.4, -1.0], "views": 105, "conf": 0.71},
+        {"label": "chair", "pos": [-0.7, 0.4, -1.1], "views": 30, "conf": 0.8},  # same chair
+        {"label": "dining table", "pos": [1.0, 0.7, 1.0], "views": 22, "conf": 0.55},
+        {"label": "lamp", "pos": [1.5, 1.0, 1.5], "views": 12, "conf": 0.9},  # not furniture
+        {"label": "stool", "pos": [-1.5, 0.3, 1.5], "views": 12, "conf": 0.8},  # furniture: 12 do
+    ]
+    items = rc.pick([], to, twin=twin)
+    labels = [i.label for i in items]
+    assert labels.count("chair") == 1 and labels.count("table") == 1 and "stool" in labels
+    assert "lamp" not in labels
+    chair = next(i for i in items if i.label == "chair")
+    assert rc.clock(chair.bearing_deg) == "eleven o'clock"
 
 
 def test_taps_follow_the_names():
