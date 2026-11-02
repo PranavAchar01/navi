@@ -242,9 +242,15 @@ final class SpatialBeeper {
   /// was heard far off and often on the wrong side; 1.368 keeps the pair's peak at 1.
   static let subOctave = 0.5
   static let subPeak = 1.368
+  /// And a bright strike on the attack (spatial_sound.AIR): partials 3 to 8 at 1/k, 0.3 of the
+  /// tone, gone in about 8 ms. A tone alone sits in one or two bands where the ear barely tells
+  /// front from back; the simulated listener (another head's ears) put the fast and stop beeps
+  /// in the mirrored hemisphere 45 and 30% of the time, and 2 and 5% with the strike.
+  static let air = 0.3
+  static let airTau = 0.008
 
-  /// A short sine and its octave below, with a raised-cosine attack and release, so it never
-  /// clicks.
+  /// A short sine and its octave below with a raised-cosine attack and release, so it never
+  /// clicks, plus the strike; peak at 1.
   static func tone(_ kind: BeepKind) -> AVAudioPCMBuffer? {
     let count = AVAudioFrameCount(kind.duration * sampleRate)
     guard let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1),
@@ -252,28 +258,45 @@ final class SpatialBeeper {
       let samples = buffer.floatChannelData?[0]
     else { return nil }
     buffer.frameLength = count
+    let n = Int(count)
     let ramp = max(1, Int(Double(count) * 0.25))
-    for i in 0..<Int(count) {
-      let edge = min(i, Int(count) - 1 - i)
+    var x = [Double](repeating: 0, count: n)
+    for i in 0..<n {
+      let edge = min(i, n - 1 - i)
       let envelope = edge >= ramp ? 1.0 : 0.5 * (1 - cos(.pi * Double(edge) / Double(ramp)))
-      let phase = 2 * .pi * kind.frequency * Double(i) / sampleRate
-      let tone = (sin(phase) + subOctave * sin(phase / 2)) / subPeak
-      samples[i] = Float(tone * envelope)
+      let t = Double(i) / sampleRate
+      let phase = 2 * .pi * kind.frequency * t
+      let tone = (sin(phase) + subOctave * sin(phase / 2)) / subPeak * envelope
+      let release = i < n / 2 ? 1.0 : envelope
+      x[i] = tone + strike(kind.frequency, t) * release
     }
+    let peak = x.map(abs).max() ?? 1
+    for i in 0..<n { samples[i] = Float(x[i] / max(peak, 1e-9)) }
     return buffer
+  }
+
+  /// The bright attack (spatial_sound._strike): partials 3 to 8 at 1/k, 1 ms in, gone in
+  /// about 8 ms.
+  static func strike(_ hz: Double, _ t: Double) -> Double {
+    var s = 0.0
+    for k in 3...8 where Double(k) * hz < 18_000 {
+      s += sin(2 * .pi * Double(k) * hz * t) / Double(k)
+    }
+    return air * s * exp(-t / airTau) * min(1, t / 0.001)
   }
 }
 
 extension SpatialBeeper {
   /// The beacon's mallet note (spatial_sound._pluck): the fundamental plus a quiet fourth
-  /// partial, a 4 ms attack, a 90 ms decay and a short fade so the cut never clicks.
+  /// partial, a 4 ms attack, a 90 ms decay and a short fade so the cut never clicks, and the
+  /// strike, which helps tell front from back.
   static func pluck(_ hz: Double, duration: Double = 0.32) -> [Float] {
     let n = Int(duration * sampleRate)
     return (0..<n).map { i in
       let t = Double(i) / sampleRate
       let tone = sin(2 * .pi * hz * t) + 0.25 * sin(2 * .pi * 4 * hz * t) * exp(-t / 0.03)
       let fade = min(1, (duration - t) / (0.1 * duration))
-      return Float(tone * min(1, t / 0.004) * exp(-t / 0.09) * fade)
+      return Float(tone * min(1, t / 0.004) * exp(-t / 0.09) * fade + strike(hz, t))
     }
   }
 

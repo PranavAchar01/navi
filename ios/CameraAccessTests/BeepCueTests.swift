@@ -255,4 +255,37 @@ final class BeepCueTests: XCTestCase {
     XCTAssertGreaterThan(RollCall.plan(items[0], volume: .normal).x, 0)
     XCTAssertLessThan(RollCall.plan(items[1], volume: .normal).x, 0)
   }
+
+  func testBeepsMatchTheRendererSampleForSample() {
+    // spatial_sound.tick_sound(kind) / gain at samples 20, 100, 300 and the middle.
+    let expected: [(BeepKind, Int, [Float])] = [
+      (.tick, 529, [-0.049, 0.16429, -0.82709, -0.27959]),
+      (.soft, 3087, [0.03334, -0.03953, -0.08884, -0.4829]),
+      (.clear, 3969, [-0.03267, -0.05795, -0.10464, 0.14162]),
+    ]
+    for (kind, count, values) in expected {
+      guard let buffer = SpatialBeeper.tone(kind), let x = buffer.floatChannelData?[0] else {
+        return XCTFail("no buffer for \(kind)")
+      }
+      XCTAssertEqual(Int(buffer.frameLength), count)
+      for (i, v) in zip([20, 100, 300, count / 2], values) {
+        XCTAssertEqual(x[i], v, accuracy: 2e-4, "\(kind) sample \(i)")
+      }
+    }
+  }
+
+  func testPlucksMatchTheRendererSampleForSample() {
+    // spatial_sound._pluck(523.25) and _pluck(523.25 * 1.26, 0.45) at samples 20, 100, 300, 7000.
+    let cases: [(Double, Double, Int, [Float])] = [
+      (0.32, 1.0, 14112, [0.06043, 0.33607, -0.17559, 0.05884]),
+      (0.45, 1.26, 19845, [0.13858, 0.00134, 0.01981, -0.1388]),
+    ]
+    for (duration, ratio, count, values) in cases {
+      let x = SpatialBeeper.pluck(BeaconCue.hz * ratio, duration: duration)
+      XCTAssertEqual(x.count, count)
+      for (i, v) in zip([20, 100, 300, 7000], values) {
+        XCTAssertEqual(x[i], v, accuracy: 2e-4, "pluck x\(ratio) sample \(i)")
+      }
+    }
+  }
 }
