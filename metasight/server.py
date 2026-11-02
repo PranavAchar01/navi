@@ -29,7 +29,7 @@ from pydantic import BaseModel
 from . import band, nav
 from . import home as homemod
 from .align import map_resolution
-from .belt import FLAG_FOUND, NAMES, BeltLink, plan, strong
+from .belt import FLAG_FOUND, NAMES, BeltLink, RhythmHold, plan, strong
 from .config import ROOT, SESSIONS, Settings, secret
 from .conversation import Talk
 from .geometry import CAMERA_SECTORS, SECTORS, grid_strips, merge_sectors
@@ -162,6 +162,7 @@ class Server:
             off_m=self.s.cue_off_m, fast_m=self.s.cue_fast_m, solid_m=self.s.cue_solid_m
         )
         self.path_m = math.inf  # this frame's clear distance straight ahead
+        self.rhythm = RhythmHold(self.s.cue_hold_s)
         self.activity = Activity()  # guide, find, talk or explore (modes.py)
         self.talk.cues_enabled = self.activity.profile.speaker_cues
         self.voice: VoiceAsk | None = None  # spoken questions through Muse Voice Transcribe
@@ -534,6 +535,8 @@ class Server:
                 flags |= FLAG_FOUND
             if self.s.belt_strength == "strong":
                 cmd = strong(cmd)
+            if self.s.cue_hold_s > 0:
+                cmd = self.rhythm(cmd, now)
             if not (self.braille and self.braille.owns_belt):  # a Braille cue on the belt wins
                 self.belt.send(cmd, flags | self.activity.flag_bits(), arrived)
             buzzed = time.perf_counter()

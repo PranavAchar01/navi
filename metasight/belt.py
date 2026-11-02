@@ -92,6 +92,28 @@ def strong(cmd: list[tuple[int, int]]) -> list[tuple[int, int]]:
     return out
 
 
+class RhythmHold:
+    """Keeps each motor's rhythm long enough to be felt. A nearer cue (a higher RANK) takes the
+    motor at once; a weaker one only once the held cue has not been asked for in `hold_s`, so a
+    depth reading flickering between fast and solid does not chop the pulses into noise."""
+
+    def __init__(self, hold_s: float):
+        self.hold_s = hold_s
+        self.cur: list[tuple[int, int]] | None = None
+        self.since: list[float] = []
+
+    def __call__(self, cmd: list[tuple[int, int]], now: float) -> list[tuple[int, int]]:
+        if self.cur is None or len(self.cur) != len(cmd):
+            self.cur, self.since = list(cmd), [now] * len(cmd)
+            return list(cmd)
+        for i, (want, held) in enumerate(zip(cmd, self.cur, strict=True)):
+            up = RANK[NAMES[want[0]]] >= RANK[NAMES[held[0]]]
+            # `since` is when the held cue was last asked for (or first played)
+            if up or now - self.since[i] >= self.hold_s:
+                self.cur[i], self.since[i] = want, now
+        return list(self.cur)
+
+
 def guide(cmd: list[tuple[int, int]], bearing_deg: float, dist_m: float) -> None:
     """Point the belt at a remembered item: the motor facing it plays the guide taps, from soft
     at 4 m to strong up close. It takes over the "slow" cue (something 1 to 2 m away), which

@@ -237,3 +237,18 @@ def test_strong_puts_every_cue_at_full_strength_on_the_diagonal_motors():
     assert out[1] == out[7] == (MODES["fast"], 255)
     assert out[3] == (MODES["guide"], 255) and out[5] == (MODES["solid"], 255)
     assert all(out[c][0] in (MODES["off"], MODES["unknown"]) for c in (0, 2, 4, 6))
+
+
+def test_rhythm_hold_escalates_at_once_and_steps_down_only_after_the_hold():
+    from metasight.belt import MODES, RhythmHold
+
+    fast, solid, off = (MODES["fast"], 255), (MODES["solid"], 255), (MODES["off"], 0)
+    h = RhythmHold(0.5)
+    assert h([fast] * 4, 0.0)[0] == fast
+    assert h([solid] * 4, 0.1)[0] == solid  # nearer: at once
+    assert h([fast] * 4, 0.2)[0] == solid  # one flicker back is not felt
+    assert h([solid] * 4, 0.3)[0] == solid
+    assert h([fast] * 4, 0.5)[0] == solid
+    assert h([fast] * 4, 0.81)[0] == fast  # 0.5 s with no solid asked for
+    assert h([off] * 4, 0.9)[0] == fast
+    assert h([off] * 4, 1.32)[0] == off

@@ -24,6 +24,7 @@ belt_addr = ""
 # Every cue at full strength, distance told by rhythm (slow, fast, solid): the motors are faint
 # and graded cues ran at median duty 42 (slow), 114 (fast), 157 (solid), guide 73 of 255.
 belt_strength = "strong"
+cue_hold_s = 0.25  # a rhythm steps down only after 0.25 s: fast/solid flicker 74 -> 23 runs a minute
 map_sides = false  # the map's side/back sectors buzzed the rear motors half the 11-02 take
 # Bedroom ranges: silent past 1.3 m, fast inside 1.0, solid inside 0.6 (street defaults 1.5/1.6/0.7)
 cue_off_m = 1.3
