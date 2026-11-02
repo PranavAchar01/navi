@@ -26,6 +26,7 @@ ARMS = {
     for scheme in ("sector", "panned")
     for layout in ("eight", "diag4")
 }
+ARMS["panned diag4-lin"] = dict(scheme="panned", layout="diag4", fold="lin")
 
 
 def _one(a):
@@ -57,10 +58,12 @@ def main() -> None:
                 f"false/min {m['false_per_min']:4.1f}  cost {m['cost']:5.1f}",
                 flush=True,
             )
-    for scheme in ("sector", "panned"):
-        d, lo, hi = _paired(runs[f"{scheme} eight"], runs[f"{scheme} diag4"])
-        out[f"{scheme} diag4-eight"] = {"cost_diff": d, "ci95": [lo, hi]}
-        print(f"{scheme}: diag4 minus eight cost {d:+.1f} (95% {lo:+.1f} to {hi:+.1f})")
+    pairs = [(f"{s} diag4", f"{s} eight") for s in ("sector", "panned")]
+    pairs.append(("panned diag4-lin", "panned diag4"))
+    for arm, ref in pairs:
+        d, lo, hi = _paired(runs[ref], runs[arm])
+        out[f"{arm} minus {ref}"] = {"cost_diff": d, "ci95": [lo, hi]}
+        print(f"{arm} minus {ref}: cost {d:+.1f} (95% {lo:+.1f} to {hi:+.1f})")
     (ROOT / "bench" / "results" / "layout-sim.json").write_text(json.dumps(out, indent=1))
 
 

@@ -22,6 +22,7 @@ from pathlib import Path
 
 import numpy as np
 
+from metasight import hapsim as h
 from metasight import pan
 from metasight.belt import MODES, plan
 
@@ -86,7 +87,7 @@ def _chain(*stages):
     return run
 
 
-def commands(strips, path, ttc, hfov, scheme, persist, felt=1):
+def commands(strips, path, ttc, hfov, scheme, persist):
     filt = pan.Persist(persist)
     hold = {
         "panned+hold": pan.Hold,
@@ -114,8 +115,8 @@ def commands(strips, path, ttc, hfov, scheme, persist, felt=1):
         else:
             tg = pan.cluster_strips(st, pan.strip_bearings(len(st), hfov))
             c, _ = pan.plan_pan(tg, [True] * 8, p, tt, math.inf, hold=hold)
-        cmds.append([i >= felt and m != MODES["unknown"] for m, i in c])
-    return np.array(cmds)
+        cmds.append([0 if m == MODES["unknown"] else i for m, i in c])
+    return np.array(cmds, dtype=float)  # intensity 0..255 per direction; the caller thresholds
 
 
 def transient(on: np.ndarray, ts: np.ndarray, max_s: float = 0.5) -> int:
@@ -142,7 +143,7 @@ def main() -> None:
         "--extract", nargs="*", metavar="WALK", help="depth strips (all walks, or those named)"
     )
     ap.add_argument(
-        "--layout", default="eight", choices=["eight", "diag4"],
+        "--layout", default="eight", choices=["eight", "diag4", "diag4-lin"],
         help="diag4: the built belt, four motors on the diagonals (firmware/belt/belt.ino)",
     )  # fmt: skip
     a = ap.parse_args()
@@ -157,14 +158,14 @@ def main() -> None:
         for scheme in ("sector", "panned", "panned+hold", "panned+track", "panned+track+hold"):
             for persist in (1, 2):
                 for felt in (1, 26):  # 26/255 is the skin model's 0.10 detection floor
-                    on = commands(
+                    inten = commands(
                         d[f"{w}/strips"], d[f"{w}/path"], d[f"{w}/ttc"],
-                        float(d[f"{w}/hfov"][0]), scheme, persist, felt,
+                        float(d[f"{w}/hfov"][0]), scheme, persist,
                     )  # fmt: skip
-                    if a.layout == "diag4":  # a motor plays the max of its cell and both sides
-                        on = np.stack(
-                            [on[:, [c - 1, c, (c + 1) % 8]].any(1) for c in (1, 3, 5, 7)], 1
-                        )
+                    if a.layout != "eight":  # what the four motors play (hapsim.to_motors)
+                        fold = "lin" if a.layout == "diag4-lin" else "max3"
+                        inten = np.stack([h.to_motors(r / 255, "diag4", fold) * 255 for r in inten])
+                    on = inten >= felt
                     n = transient(on, ts)
                     key = f"{w} {scheme} persist={persist} felt>={felt}"
                     res[key] = {

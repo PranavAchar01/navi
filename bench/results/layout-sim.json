@@ -55,18 +55,39 @@
   "stop_violations": 0,
   "cost": 35.84343999999998
  },
- "sector diag4-eight": {
+ "panned diag4-lin": {
+  "runs": 100,
+  "success": 0.74,
+  "collisions": 1.54,
+  "time_s": 12.250540540540456,
+  "efficiency": 1.023302205223882,
+  "contact_s": 25.033800000000078,
+  "false_per_min": 0.0,
+  "guide_frames": 0,
+  "stop_frames": 0,
+  "stop_overridden": 0,
+  "stop_violations": 0,
+  "cost": 33.783529999999985
+ },
+ "sector diag4 minus sector eight": {
   "cost_diff": 14.155809999999997,
   "ci95": [
    7.331675749999999,
    21.251940499999986
   ]
  },
- "panned diag4-eight": {
+ "panned diag4 minus panned eight": {
   "cost_diff": 0.34670000000000023,
   "ci95": [
    -4.1287515,
    3.5931829999999954
+  ]
+ },
+ "panned diag4-lin minus panned diag4": {
+  "cost_diff": -2.0599099999999977,
+  "ci95": [
+   -5.5021765,
+   1.136110999999991
   ]
  }
 }

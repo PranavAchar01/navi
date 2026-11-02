@@ -62,6 +62,7 @@ class Belt:
     planner: bool = False  # steer by nav.Navigator's waypoint bearing instead of the sim's BFS
     persist: int = 1  # frames a strip must stay near (pan.Persist); 1 = off
     layout: str = "eight"  # eight motors, one per cell | diag4: firmware/belt's four diagonals
+    fold: str = "max3"  # diag4: max3 = max of own cell and both neighbours | lin = own + half each
 
 
 @dataclass(frozen=True)
@@ -291,10 +292,15 @@ def duty(mode: int, inten: int, t: float, belt: Belt) -> float:
 MOTOR_DEG = {"eight": [k * 45.0 for k in range(8)], "diag4": [45.0, 135.0, 225.0, 315.0]}
 
 
-def to_motors(drive: np.ndarray, layout: str) -> np.ndarray:
-    """Eight cell drives to what the physical motors play."""
+def to_motors(drive: np.ndarray, layout: str, fold: str = "max3") -> np.ndarray:
+    """Eight cell drives to what the physical motors play. lin is linear panning: a cell between
+    two motors gives each half, so the pair sums back to the cell's drive."""
     if layout == "eight":
         return drive
+    if fold == "lin":
+        return np.array(
+            [min(1.0, drive[c] + 0.5 * (drive[c - 1] + drive[(c + 1) % 8])) for c in (1, 3, 5, 7)]
+        )
     return np.array([max(drive[c - 1], drive[c], drive[(c + 1) % 8]) for c in (1, 3, 5, 7)])
 
 
@@ -367,7 +373,8 @@ def perceive(window: np.ndarray, belt: Belt, skin: Skin, rng) -> list[tuple[floa
         elif len(run) == 2:
             a, b = float(amps[0]), float(amps[1])
             if belt.layout == "diag4":
-                f, lv = b / (a + b), max(a, b)
+                f = b / (a + b)
+                lv = a + b if belt.fold == "lin" else max(a, b)
             elif p.pan == "linear":
                 f, lv = b / (a + b), a + b
             elif p.pan == "nearest":
@@ -499,7 +506,7 @@ def run(
         while pending and pending[0][0] <= t:
             live = pending.popleft()[1]
         drive = np.array([0.0 if m == MODES["guide"] else duty(m, i, t, belt) for m, i in live])
-        drive = to_motors(drive, belt.layout)
+        drive = to_motors(drive, belt.layout, belt.fold)
         felt.amp += (drive - felt.amp) * k_rise
         felt.adapt += np.where(felt.amp > skin.floor, DT / skin.adapt_s, -2 * DT / skin.adapt_s)
         felt.adapt = np.clip(felt.adapt, 0, 1)
