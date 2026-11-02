@@ -45,7 +45,7 @@ from .modes import implied as implied_activity
 from .motion import FallDetector, Sample, ShakeDetector
 from .notes import Notes, asks_notes, caption, notes_command
 from .onboarding import PATTERNS, Onboarding, pattern_length, wants_setup
-from .pan import GUIDE_ALIGNED_DEG, Params, Persist, plan_pan, scene_targets, with_guide
+from .pan import GUIDE_ALIGNED_DEG, Median, Params, Persist, plan_pan, scene_targets, with_guide
 from .pins import PinStore, confirmed, layer_of
 from .providers import make_language, make_reviewer
 from .providers.finder import LOOKALIKES
@@ -157,7 +157,8 @@ class Server:
         self._load_watch(settings)
         self.talk = Talk(settings.hfov_deg)
         self.persist = Persist(2)  # two frames near before a motor fires
-        self.persist_strips = Persist(2)  # the same, on the panned cues' depth strips
+        self.persist_strips = Median(3) if self.s.cue_median else Persist(2)  # panned cues' strips
+        self.path_filter = Median(3) if self.s.cue_median else None
         self.cue_range = Params(
             off_m=self.s.cue_off_m, fast_m=self.s.cue_fast_m, solid_m=self.s.cue_solid_m
         )
@@ -503,6 +504,8 @@ class Server:
             known = [n in CAMERA_SECTORS or sides for n in SECTORS]
             if self.s.belt_cues == "panned":
                 strips = self.persist_strips(grid_strips(sc.grid))
+                if self.path_filter is not None:
+                    sc.path_m = self.path_filter([sc.path_m])[0]
                 p = self.cue_range
                 targets = scene_targets(strips, self.s.hfov_deg, merged, known, p)
                 cmd, flags = plan_pan(targets, known, sc.path_m, res.ttc_s, sc.drop_m, p)

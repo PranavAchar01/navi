@@ -163,3 +163,13 @@ def test_four_diagonal_motors_fold_the_eight_directions():
 def test_walker_on_four_motors_reaches_the_goal_in_a_seeded_room():
     r = h.run(h.make_room(3), h.Belt(layout="diag4", persist=2), seed=0)
     assert r.success
+
+
+def test_median_drops_a_one_frame_phantom_and_a_one_frame_gap():
+    f = pan.Median(3)
+    assert f([3.0]) == [3.0]
+    assert f([0.5]) == [3.0]  # one near frame: not yet (of two, the larger)
+    assert f([3.0]) == [3.0]
+    assert f([0.5]) == [0.5]  # two of the last three near: it counts
+    assert f([0.5]) == [0.5]
+    assert f([3.0]) == [0.5]  # one far frame inside a real obstacle: still near

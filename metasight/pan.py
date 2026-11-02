@@ -288,6 +288,19 @@ class Persist:
         return [max(col) for col in zip(*self.hist, strict=True)]
 
 
+class Median:
+    """Each strip reports the median of its last `n` readings (n odd): a one-frame phantom never
+    reaches a motor, as with Persist, and neither does a one-frame gap in a real obstacle, so a
+    cue sitting at a band edge stops flicking between two rhythms. Delay as Persist(n // 2 + 1)."""
+
+    def __init__(self, n: int = 3):
+        self.hist: deque[list[float]] = deque(maxlen=n)
+
+    def __call__(self, strips: list[float]) -> list[float]:
+        self.hist.append(list(strips))
+        return [sorted(col)[len(col) // 2] for col in zip(*self.hist, strict=True)]
+
+
 GUIDE_ALIGNED_DEG = 10.0
 GUIDE_SOFT, GUIDE_FIRM = 90, 170  # drive 0..255: always below the obstacle cues (>= 204 close in)
 

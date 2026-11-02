@@ -74,6 +74,9 @@ class Settings:
     # "graded": intensity follows distance. "strong": every cue at full strength on the four
     # diagonal motors, distance told by rhythm alone (belt.strong), for faint motors.
     belt_strength: str = "graded"
+    # Depth strips and the path ahead through a 3-frame median (pan.Median) instead of the
+    # 2-frame near filter (pan.Persist) and the raw path.
+    cue_median: bool = False
     cue_hold_s: float = 0.0  # a motor's rhythm steps down only after this long (belt.RhythmHold)
     # Panned cue ranges (pan.Params): silent beyond cue_off_m, slow pulse down to cue_fast_m, fast
     # down to cue_solid_m, solid inside. The defaults are the street ones; a bedroom wants shorter.
@@ -156,6 +159,7 @@ class Settings:
             "map_sides",
             "belt_strength",
             "cue_hold_s",
+            "cue_median",
             "cue_off_m",
             "cue_fast_m",
             "cue_solid_m",
