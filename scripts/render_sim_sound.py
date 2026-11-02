@@ -12,7 +12,13 @@ y -> -z, head height --eye metres, heading radians counter-clockwise from +x.
 The scene is a JSON file: {"target": [x, y, z], "hazards": [{"lo": [..], "hi": [..]}, ..]};
 a hazard without "hi" is a point.
 
-    PYTHONPATH=. .venv/bin/python scripts/render_sim_sound.py POSES SCENE --out OUT.wav
+A simwalk sidecar (<clip>.pose.jsonl from the sim montage) needs no scene: its first line is a
+header with the target and every object's oriented box, the rows carry x, y, z (z up, floor
+frame) and a unit forward vector, and t = frame / fps from video frame 0. The target sounds as
+the beacon; every other object ticks from the nearest face of its box (its yaw folded into an
+axis-aligned box).
+
+    PYTHONPATH=. .venv/bin/python scripts/render_sim_sound.py POSES [SCENE] --out OUT.wav
 """
 
 from __future__ import annotations
@@ -37,6 +43,41 @@ def load_rows(path: Path) -> list[dict]:
     return [json.loads(x) for x in path.read_text().splitlines() if x.strip()]
 
 
+def _pick(d: dict, *keys: str):
+    return next(d[k] for k in keys if k in d)
+
+
+def sidecar(path: Path, ticks_on_target: bool = False):
+    """A simwalk <clip>.pose.jsonl: (t, pos, fwd, up, target, hazards, header)."""
+    lines = [json.loads(x) for x in path.read_text().splitlines() if x.strip()]
+    head, rows = lines[0], lines[1:]
+    t = np.array([r["t"] for r in rows], float)
+    pos = np.array([[r["x"], r["y"], r["z"]] for r in rows], float)
+    fwd = np.array([r["forward"] for r in rows], float)
+    up = np.tile([0.0, 0.0, 1.0], (len(t), 1))
+    objects = head.get("objects", [])
+    tgt = head.get("target")
+    if isinstance(tgt, dict):
+        tgt = tgt.get("name", tgt.get("centre", tgt.get("center")))
+    target, hazards = None, []
+    for o in objects:
+        c = np.asarray(_pick(o, "centre", "center"), float)
+        hx, hy, hz = _pick(o, "half", "half_sizes", "half_size", "halfsize")
+        yaw = math.radians(o.get("yaw_deg", 0.0))
+        ex = abs(math.cos(yaw)) * hx + abs(math.sin(yaw)) * hy
+        ey = abs(math.sin(yaw)) * hx + abs(math.cos(yaw)) * hy
+        is_target = tgt is not None and tgt in (o.get("name"), o.get("label"))
+        if is_target and target is None:
+            target = c
+            if not ticks_on_target:
+                continue
+        lo, hi = c - [ex, ey, hz], c + [ex, ey, hz]
+        hazards.append(ss.Hazard(tuple(lo), tuple(hi)))
+    if target is None and isinstance(tgt, list):
+        target = np.asarray(tgt, float)
+    return t, pos, fwd, up, target, hazards, head
+
+
 def track(rows: list[dict], floor2d: bool, eye: float):
     t = np.array([r["t"] for r in rows], float)
     if floor2d:
@@ -58,22 +99,29 @@ def track(rows: list[dict], floor2d: bool, eye: float):
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("poses", type=Path)
-    ap.add_argument("scene", type=Path)
+    ap.add_argument("scene", type=Path, nargs="?")
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--rate", type=int, default=48_000)
     ap.add_argument("--floor2d", action="store_true")
     ap.add_argument("--eye", type=float, default=1.6)
+    ap.add_argument("--no-ticks", action="store_true", help="the beacon only")
     ap.add_argument("--pan", action="store_true", help="stereo pan instead of the KEMAR HRTF")
     a = ap.parse_args()
 
-    t, pos, fwd = track(load_rows(a.poses), a.floor2d, a.eye)
-    scene = json.loads(a.scene.read_text())
-    target = np.asarray(scene["target"], float) if scene.get("target") else None
-    hazards = [
-        ss.Hazard(tuple(h["lo"]), tuple(h["hi"]) if h.get("hi") else None)
-        for h in scene.get("hazards", [])
-    ]
-    up = np.tile(UP, (len(t), 1))
+    rows = load_rows(a.poses)
+    if "scenario" in rows[0] or a.scene is None:
+        t, pos, fwd, up, target, hazards, _ = sidecar(a.poses)
+    else:
+        t, pos, fwd = track(rows, a.floor2d, a.eye)
+        up = np.tile(UP, (len(t), 1))
+        scene = json.loads(a.scene.read_text())
+        target = np.asarray(scene["target"], float) if scene.get("target") else None
+        hazards = [
+            ss.Hazard(tuple(h["lo"]), tuple(h["hi"]) if h.get("hi") else None)
+            for h in scene.get("hazards", [])
+        ]
+    if a.no_ticks:
+        hazards = []
     method = "pan" if a.pan else "hrtf"
     x = ss.render(t, pos, fwd, up, target=target, hazards=hazards, method=method)
     a.out.parent.mkdir(parents=True, exist_ok=True)
