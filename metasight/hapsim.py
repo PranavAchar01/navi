@@ -453,7 +453,10 @@ def run(
     seed: int = 0,
     max_s: float = 90.0,
     phantom_rate: float = 0.0,
+    sensor=None,
 ) -> Result:
+    """One walk. `sensor(room, x, y, heading, rng)` replaces the 2D ray cast (hapsim3d renders
+    depth instead); it returns (strips, sectors) like `sense`."""
     rng = np.random.default_rng(seed * 7919 + room.seed)
     x, y, heading = room.start
     wps = waypoints(room)
@@ -478,7 +481,7 @@ def run(
     while t < max_s:
         if t - last_sense >= SENSE_DT - 1e-9:
             last_sense = t
-            strips, sectors = sense(room, x, y, heading, rng)
+            strips, sectors = (sensor or sense)(room, x, y, heading, rng)
             mid = min(strips[STRIPS // 2 - 1 : STRIPS // 2 + 2])
             ttc = mid / last_speed if last_speed > 0.05 else math.inf
             truth = list(strips), list(sectors)
