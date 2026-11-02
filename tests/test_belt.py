@@ -167,3 +167,58 @@ def test_serial_kind_writes_packets_and_reads_telemetry_from_the_stream():
     assert got[:6] == want[:6] and got[10:] == want[10:]  # all but the timestamp
     assert states and states[-1]["device"] == "ESP32 (USB)"
     assert states[-1]["duty"][0] == 200 and states[-1]["age_ms"] == 12
+
+
+def test_ble_pump_repeats_the_latest_command_inside_the_watchdog_then_lets_it_lapse():
+    """One command, sent once: the pump resends it with fresh seqs well inside the belt's 250 ms
+    watchdog for BLE_HOLD_S, then stops so a stalled pipeline still reads as a lost link."""
+    import asyncio
+    import sys
+    import types
+
+    from metasight import belt as beltmod
+    from metasight.belt import BeltLink
+
+    writes: list[tuple[float, bytes]] = []
+
+    class Client:
+        def __init__(self, target):
+            self.is_connected = False
+
+        async def connect(self):
+            self.is_connected = True
+
+        async def write_gatt_char(self, uuid, pkt, response):
+            writes.append((time.monotonic(), bytes(pkt)))
+
+    class Scanner:
+        @staticmethod
+        async def find_device_by_name(name, timeout):
+            return "AA:BB"
+
+    fake = types.ModuleType("bleak")
+    fake.BleakClient, fake.BleakScanner = Client, Scanner
+    old, sys.modules["bleak"] = sys.modules.get("bleak"), fake
+    old_hold, beltmod.BLE_HOLD_S = beltmod.BLE_HOLD_S, 0.4
+
+    async def go():
+        link = BeltLink("ble", "", lambda s: None)
+        link.send([(MODES["solid"], 200)] + [(MODES["off"], 0)] * 7, 0, time.monotonic())
+        await asyncio.sleep(0.8)
+        return link
+
+    try:
+        link = asyncio.run(go())
+    finally:
+        beltmod.BLE_HOLD_S = old_hold
+        if old is None:
+            sys.modules.pop("bleak")
+        else:
+            sys.modules["bleak"] = old
+    assert 6 <= len(writes) <= 10  # about 20 Hz for 0.4 s, then silence
+    gaps = [b[0] - a[0] for a, b in zip(writes, writes[1:], strict=False)]
+    assert max(gaps) < 0.15  # far inside the 250 ms watchdog
+    seqs = [struct.unpack_from("<H", p, 4)[0] for _, p in writes]
+    assert seqs == sorted(set(seqs))  # each resend is a new packet
+    assert all(p[10:] == writes[0][1][10:] for _, p in writes)  # the same command
+    assert link.ble_latest is None

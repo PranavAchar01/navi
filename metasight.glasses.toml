@@ -17,6 +17,8 @@ eye_height_m = 1.22  # phone held at chest; measured on the global map (floor pl
 hfov_deg = 44.8  # see the note at the top
 map_intrinsics = true  # MapAnything gets the lens: TUM mean error 18.7 -> 12.5 cm
 detector_imgsz = 384
+belt = "ble"  # the four-motor belt over Bluetooth, found by its name "metasight-belt"
+belt_addr = ""
 
 [memory]
 watchlist = [

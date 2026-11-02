@@ -35,6 +35,8 @@ FLAG_FOUND = 2
 BELT_SERVICE_UUID = "6d657461-7369-6768-742d-62656c740000"
 BELT_CHAR_UUID = "6d657461-7369-6768-742d-62656c740001"
 BELT_BLE_NAME = "metasight-belt"
+BLE_HZ = 20  # well inside the belt's 250 ms watchdog
+BLE_HOLD_S = 1.0
 
 
 def plan(
@@ -120,8 +122,10 @@ class BeltLink:
         self.ble_addr = addr
         self.relay = relay
         self.on_state = on_state
-        self.ble_busy = False
         self.ble_client = None
+        self.ble_task: asyncio.Task | None = None
+        self.ble_latest: tuple[list[tuple[int, int]], int, float] | None = None
+        self.ble_writes = 0
         self.proc: subprocess.Popen | None = None
         self.transport: asyncio.DatagramTransport | None = None
         self.ser = None  # serial.Serial when kind == "serial"
@@ -186,33 +190,45 @@ class BeltLink:
         elif self.ser is not None:
             self.ser.write(pkt)
         elif self.kind == "ble":
-            if not self.ble_busy:  # a slow write drops frames rather than queueing them
-                self.ble_busy = True
-                asyncio.ensure_future(self._ble_write(pkt))
+            self.ble_latest = (cmd, flags, time.monotonic())
+            if self.ble_task is None or self.ble_task.done():
+                self.ble_task = asyncio.ensure_future(self._ble_pump())
         elif self.kind == "app" and self.relay:
             self.relay({"type": "beltcmd", "pkt": base64.b64encode(pkt).decode()})
         if not self._udp and self.kind != "serial":
             self._command_state(flags)
 
-    async def _ble_write(self, pkt: bytes) -> None:
-        try:
-            if self.ble_client is None or not self.ble_client.is_connected:
-                from bleak import BleakClient, BleakScanner  # optional: only desk testing needs it
+    async def _ble_pump(self) -> None:
+        """Writes the latest command at a steady BLE_HZ, each with a fresh seq. The belt plays
+        its lost-link taps after 250 ms without a packet, and frames (and BLE writes) arrive in
+        bursts, so one packet per frame let it fall into those taps between cues. A command
+        older than BLE_HOLD_S is not repeated: a stalled pipeline still reads as a lost link."""
+        from bleak import BleakClient, BleakScanner  # optional: only the Bluetooth belt needs it
 
-                target = self.ble_addr
-                if not target or target == "scan":
-                    target = await BleakScanner.find_device_by_name(BELT_BLE_NAME, timeout=8.0)
-                    if target is None:
-                        log.warning("belt: no %s found over Bluetooth", BELT_BLE_NAME)
-                        return
-                self.ble_client = BleakClient(target)
-                await self.ble_client.connect()
-            await self.ble_client.write_gatt_char(BELT_CHAR_UUID, pkt, response=False)
-        except Exception as e:
-            log.warning("belt: Bluetooth write failed: %s", e)
-            self.ble_client = None
-        finally:
-            self.ble_busy = False
+        while self.ble_latest is not None:
+            cmd, flags, at = self.ble_latest
+            if time.monotonic() - at > BLE_HOLD_S:
+                self.ble_latest = None
+                return
+            try:
+                if self.ble_client is None or not self.ble_client.is_connected:
+                    target = self.ble_addr
+                    if not target or target == "scan":
+                        target = await BleakScanner.find_device_by_name(BELT_BLE_NAME, timeout=8.0)
+                        if target is None:
+                            log.warning("belt: no %s found over Bluetooth", BELT_BLE_NAME)
+                            continue
+                    self.ble_client = BleakClient(target)
+                    await self.ble_client.connect()
+                    log.warning("belt: connected over Bluetooth")
+                self.seq = (self.seq + 1) & 0xFFFF
+                pkt = packet(cmd, flags, self.seq, int(time.monotonic() * 1000))
+                await self.ble_client.write_gatt_char(BELT_CHAR_UUID, pkt, response=False)
+                self.ble_writes += 1
+            except Exception as e:
+                log.warning("belt: Bluetooth write failed: %s", e)
+                self.ble_client = None
+            await asyncio.sleep(1 / BLE_HZ)
 
     def _command_state(self, flags: int) -> None:
         """No telemetry over Bluetooth: report the command itself, at most 30 times a second."""
