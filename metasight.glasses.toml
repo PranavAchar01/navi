@@ -19,6 +19,7 @@ map_intrinsics = true  # MapAnything gets the lens: TUM mean error 18.7 -> 12.5 
 detector_imgsz = 384
 belt = "ble"  # the four-motor belt over Bluetooth, found by its name "metasight-belt"
 belt_addr = ""
+sound = true  # spatial sound on the phone: the find beacon and the hazard beeps (false: silent)
 
 [memory]
 watchlist = [
