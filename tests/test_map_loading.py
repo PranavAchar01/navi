@@ -35,6 +35,8 @@ def fake(answered):
         llm_pool=None,
         in_q=queue.Queue(),
         braille=None,
+        live_seen=(0.0, []),
+        _in_view_now=lambda text: False,
     )
 
 
@@ -179,3 +181,24 @@ def test_a_voice_turn_before_the_map_loads_is_told_at_once():
 
     res, took = asyncio.run(run())
     assert res["text"] == server.MAP_LOADING and took < 0.5 and answered == []
+
+
+def test_a_thing_in_view_is_answered_from_the_camera_before_the_map_loads(monkeypatch):
+    """The demo's first ask after a restart: the chair is right there, so the camera answers."""
+    import time
+
+    monkeypatch.setattr(server, "MAP_WAIT_S", 0.05)
+    answered = []
+
+    async def run():
+        srv = fake(answered)
+        srv.loop = asyncio.get_running_loop()
+        srv.live_seen = (time.time(), [("keys", 4.0, 1.8)])
+        srv._in_view_now = lambda text: Server._in_view_now(srv, text)
+        return await Server.answer(srv, "where are my keys")
+
+    res = asyncio.run(run())
+    assert res["text"] == "Your keys are by the sink." and answered == ["where are my keys"]
+    srv = fake([])
+    srv.live_seen = (time.time() - 10, [("keys", 4.0, 1.8)])  # seen, but not now
+    assert not Server._in_view_now(srv, "where are my keys")

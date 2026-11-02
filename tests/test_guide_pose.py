@@ -38,6 +38,7 @@ def server(pose_age_s: float, pins: list[Pin], ar_age_s: float = float("inf")):
     srv._guide_pin = lambda g: Server._guide_pin(srv, g)
     srv.pose_ts = lambda: Server.pose_ts(srv)
     srv.guide_pose_fresh = lambda now: Server.guide_pose_fresh(srv, now)
+    srv._lost_close = lambda g, now: Server._lost_close(srv, g, now)
     return srv, now
 
 
@@ -269,3 +270,29 @@ def test_the_guide_message_names_the_pin_turn_and_distance():
     g = guide(srv, now)
     assert g["pin_id"] == 3 and g["turn"] == "ahead" and abs(g["bearing_deg"]) < 1
     assert not Server.guide_to(srv, 99) and Server.guide_to(srv, None) and srv.guide is None
+
+
+def test_walking_up_to_the_item_until_it_leaves_the_view_counts_as_found():
+    """The chair drops out of the bottom of the view in the last step: found, once it has been
+    gone half a second with the head still facing it. A turn away, a single missed frame or a
+    last sighting from across the room is not found."""
+    t = time.time()
+    seen_box = SimpleNamespace(label="desk", box=(0.45, 0.4, 0.55, 0.9), dist_m=1.1)
+    for gap, turned_deg, last_dist, found in [
+        (0.8, 5.0, 1.1, True),
+        (0.1, 5.0, 1.1, False),  # one missed detection
+        (0.8, 60.0, 1.1, False),  # turned away
+        (0.8, 5.0, 2.5, False),  # lost from across the room
+        (3.0, 5.0, 1.1, False),  # long gone: the guide carries on as before
+    ]:
+        srv, now = server(10.0, [desk(2, [0.0, 0.0, 9.0], placed=True, ts=t - 20)])
+        srv.loop = SimpleNamespace(create_task=lambda c: c.close())
+        srv.hub = SimpleNamespace(json=lambda *a: asyncio.sleep(0))
+        Server._guide(srv, [(0, 0)] * 8, now - gap, False, [replace_dist(seen_box, last_dist)])
+        srv.heading.turn += math.radians(turned_deg)
+        Server._guide(srv, [(0, 0)] * 8, now, False, [])
+        assert (srv.guide is None) is found, (gap, turned_deg, last_dist)
+
+
+def replace_dist(o, d):
+    return SimpleNamespace(label=o.label, box=o.box, dist_m=d)

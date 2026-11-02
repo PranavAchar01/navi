@@ -76,6 +76,7 @@ from .walk import WALKS, WalkRecorder
 MAX_PENDING_KEYFRAMES = 12
 SIGHT_AGREE_DEG = 50.0  # after a lock, a sighting further than this from it is another object
 SIGHT_HOLD_S = 6.0  # how long a lock vets new sightings
+LOST_CLOSE_S = (0.5, 2.0)  # out of view this long right after being seen within reach: reached
 POSE_FRESH_S = 6.0  # a map pose older than this gives no direction
 # The guide still points from the last pose this long. With the phone's ARKit the position
 # itself is tracked, so a minute is fine; with only a memory window's pose (the glasses) the
@@ -684,7 +685,14 @@ class Server:
         if live:
             near = (lambda b: abs(b[0] - rel[1])) if rel else (lambda b: b[1])
             bearing, dist = min(live, key=near)
-            g["seen"] = now
+            g["seen"], g["seen_turn"] = now, self.heading.turn
+            g["seen_reach"] = min(dist, self.path_m) if abs(bearing) < GUIDE_ALIGNED_DEG else dist
+        elif self._lost_close(g, now):
+            # Walked up to it: a chair goes out of the bottom of the view (and the detector loses
+            # half a chair) in the last step, with the head still facing where it was.
+            self.guide, self.found_until = None, now + 2.0
+            self.loop.create_task(self.hub.json(found_message(g["label"]), False))
+            return None
             if pin is not None:
                 self.heading.sight(np.array(pin.pos), bearing)
             rel = dist, bearing
@@ -731,6 +739,16 @@ class Server:
             "route": None if step is None else _finite(step.route_m),
             "narrow": None if step is None else _finite(step.narrow_m),
         }
+
+    def _lost_close(self, g: dict, now: float) -> bool:
+        """The item has been out of view for half a second to two (one missed detection is not
+        enough), was last seen within reach plus half a metre, and the head has turned less than
+        30 degrees since."""
+        return (
+            LOST_CLOSE_S[0] <= now - g.get("seen", -math.inf) < LOST_CLOSE_S[1]
+            and g.get("seen_reach", math.inf) < self.s.found_m + 0.5
+            and abs(math.degrees(self.heading.turn - g.get("seen_turn", math.inf))) < 30.0
+        )
 
     def guide_to(self, pin_id) -> bool:
         """Point the belt at a pin for 90 s, as after "where is my X"; None stops the guide.
@@ -1004,6 +1022,13 @@ class Server:
         on the live bank it took 1.5 to 1.7 s where Wonder took 2.9 to 13.9 s for the same
         grounded steps. Wonder keeps the background review, where nobody waits."""
         return lambda goal: errand_plan(self.language, self.pins, goal, time.time())
+
+    def _in_view_now(self, text: str) -> bool:
+        """The thing asked about is in the camera's view: answered from the camera, no map
+        needed (the first ask after a restart, before the home map has loaded)."""
+        seen_at, seen = self.live_seen
+        labels = sorted({o[0] for o in seen}) if time.time() - seen_at <= LIVE_SEEN_S else []
+        return bool(labels) and parse_query(text, labels) is not None
 
     def _answer_sync(self, text: str) -> dict:
         if (needs_tools(text) or asks_notes(text)) and hasattr(self.language, "_client"):
@@ -1346,9 +1371,12 @@ class Server:
                 await asyncio.wait_for(self.map_loaded.wait(), 0 if quiet_unknown else MAP_WAIT_S)
                 pending = None  # it was answered from the empty bank
             except TimeoutError:
-                pending = asyncio.get_running_loop().create_future()
-                loading = {"type": "answer", "label": None, "text": MAP_LOADING, "pin": None}
-                pending.set_result({**loading, "loading": True})
+                pending = (
+                    None if self._in_view_now(text) else asyncio.get_running_loop().create_future()
+                )
+                if pending is not None:
+                    loading = {"type": "answer", "label": None, "text": MAP_LOADING, "pin": None}
+                    pending.set_result({**loading, "loading": True})
         if pending is not None:
             res = await pending
         else:
