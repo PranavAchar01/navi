@@ -40,6 +40,10 @@ LABEL_M = 2.0
 VIEW_LABEL_M = 3.0
 MAX_LABELS = 5
 RING_S = 1.1
+OUTLINE_M = 1.5  # remembered objects keep their outline this close to the walker
+FADE_M = 0.5  # and fade out over this much further
+HERO = (255, 236, 190)  # the warm glow under the scenario's target
+DIRS = ["F", "FR", "R", "BR", "B", "BL", "L", "FL"]  # belt cells, clockwise from ahead
 SIT_DROP_M = 0.5
 NAMES = {
     "bed_00": "bed",
@@ -95,6 +99,85 @@ def in_view(fr: dict, pts: np.ndarray) -> bool:
 def sample(obb) -> np.ndarray:
     c = corners(obb)
     return np.vstack([c, c.mean(axis=0), (c[:4] + c[4:]) / 2])
+
+
+def gap_to(o: dict, x: float, y: float) -> float:
+    """Floor distance from a point to an object's footprint (0 inside it)."""
+    cx, cy, _, hx, hy, _, yaw = o["obb"]
+    c, s = math.cos(yaw), math.sin(yaw)
+    u, v = (x - cx) * c + (y - cy) * s, -(x - cx) * s + (y - cy) * c
+    return math.hypot(max(abs(u) - hx, 0.0), max(abs(v) - hy, 0.0))
+
+
+def tucked(doc: dict) -> set[str]:
+    """Low clutter whose middle sits inside a desk's or bed's footprint: under the furniture, so
+    a label or box on it would land on the desk instead."""
+    hosts = [o for o in doc["objects"] if o["label"] in ("desk", "bed")]
+    out = set()
+    for o in doc["objects"]:
+        if o["label"] in ("desk", "bed", "chair"):
+            continue
+        if any(gap_to(p, o["obb"][0], o["obb"][1]) == 0 for p in hosts):
+            out.add(o["name"])
+    return out
+
+
+def heat(k: float) -> tuple[int, int, int]:
+    """The belt's heat colour (web/src/beltlayout.ts heat)."""
+    k = min(max(k, 0.0), 1.0)
+    stops = [(0.0, (255, 226, 110)), (0.5, (255, 150, 40)), (1.0, (255, 48, 36))]
+    (k0, c0), (k1, c1) = stops[:2] if k < 0.5 else stops[1:]
+    f = (k - k0) / (k1 - k0)
+    return tuple(round(a + (b - a) * f) for a, b in zip(c0, c1, strict=True))
+
+
+def felt8(fr: dict) -> list[float]:
+    """Felt levels per belt cell, clockwise from ahead; the 4-motor belt sits on the diagonals."""
+    f = fr["felt"]
+    return [0.0, f[0], 0.0, f[1], 0.0, f[2], 0.0, f[3]] if len(f) == 4 else list(f)
+
+
+def direction_ring(levels: list[float], four: bool, size: int) -> Image.Image:
+    """The belt from above, front up: eight cells round a head, each lit in its heat colour as
+    hard as it buzzes, so a viewer reads which side is talking."""
+    k = 4
+    img = Image.new("RGBA", (size * k, size * k), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    c = size * k / 2
+    r0, r1 = 0.24 * size * k, 0.37 * size * k
+    for i, lv in enumerate(levels):
+        if four and i % 2 == 0:
+            continue
+        a0, a1 = -90 + 45 * i - 19, -90 + 45 * i + 19  # PIL angles: clockwise from +x
+        if lv > 0.05:
+            col = (*heat(lv), int(110 + 145 * min(lv, 1.0)))
+        else:
+            col = (206, 210, 216, 255)
+        bb = (c - r1, c - r1, c + r1, c + r1)
+        d.pieslice(bb, a0, a1, fill=col)
+        d.ellipse((c - r0, c - r0, c + r0, c + r0), fill=(0, 0, 0, 0))
+    d.ellipse(
+        (c - r0 + 2 * k, c - r0 + 2 * k, c + r0 - 2 * k, c + r0 - 2 * k), fill=(250, 250, 252, 255)
+    )
+    hr = 0.1 * size * k  # the head, nose up
+    d.ellipse((c - hr, c - hr, c + hr, c + hr), fill=(60, 64, 72, 255))
+    d.polygon(
+        [(c, c - hr - 7 * k), (c - 5 * k, c - hr + 2 * k), (c + 5 * k, c - hr + 2 * k)],
+        fill=(60, 64, 72, 255),
+    )
+    img = img.resize((size, size), Image.LANCZOS)
+    d = ImageDraw.Draw(img)
+    f = ImageFont.truetype(FONT, 11)
+    for i, lab in enumerate(DIRS):
+        if four and i % 2 == 0:
+            continue
+        a = math.radians(-90 + 45 * i)
+        rr = 0.445 * size
+        x, y = size / 2 + rr * math.cos(a), size / 2 + rr * math.sin(a)
+        on = levels[i] > 0.05
+        tw = d.textlength(lab, font=f)
+        d.text((x - tw / 2, y - 7), lab, font=f, fill=(30, 32, 36) if on else (130, 134, 142))
+    return img
 
 
 def view_states(doc: dict) -> list[dict[str, str]]:
@@ -243,6 +326,7 @@ def untangle(labels: list) -> list:
 
 def draw_frame(doc, k, base: Image.Image, cam: Cam, states, rings, belt, memo=None):
     fr = doc["frames"][k]
+    hidden = tucked(doc)
     w, h = base.width * SS, base.height * SS
     walls = np.array(doc["walls"])
     room = (
@@ -300,15 +384,38 @@ def draw_frame(doc, k, base: Image.Image, cam: Cam, states, rings, belt, memo=No
         x, y = cam.px((p["x"], p["y"], 0.01))
         d.ellipse((x - 2 * SS, y - 2 * SS, x + 2 * SS, y + 2 * SS), fill=(255, 255, 255, 120))
 
-    # oriented boxes
+    # the scenario's target glows softly on the floor, so the hero object reads first
+    objs = {o["name"]: o for o in doc["objects"]}
+    goal = objs.get(doc.get("target") or doc.get("hazard") or "")
+    if goal is not None:
+        gx, gy = goal["obb"][0], goal["obb"][1]
+        rad = max(goal["obb"][3:5]) + 0.28
+        glow = Image.new("L", (w, h), 0)
+        gpts = [
+            cam.px((gx + rad * math.cos(q), gy + rad * math.sin(q), 0.01))
+            for q in np.linspace(0, 2 * math.pi, 48)
+        ]
+        ImageDraw.Draw(glow).polygon(gpts, fill=150)
+        glow = glow.filter(ImageFilter.GaussianBlur(22 * SS))
+        gl = Image.new("RGBA", (w, h), (*HERO, 0))
+        gl.putalpha(glow)
+        out = Image.alpha_composite(out, gl)
+
+    # oriented boxes: what is in view, and what is remembered close by; the rest fade away
     st = states[k]
     edges = [(0, 1), (1, 2), (2, 3), (3, 0), (4, 5), (5, 6), (6, 7), (7, 4)]
     edges += [(i, i + 4) for i in range(4)]
-    objs = {o["name"]: o for o in doc["objects"]}
     for name, state in st.items():
         o = objs[name]
-        col = IN_VIEW if state == "view" else REMEMBERED
-        alpha = 235 if state == "view" else 200
+        if name in hidden:
+            continue
+        if state == "view":
+            col, alpha = IN_VIEW, 235
+        else:
+            fade = 1 - (gap_to(o, fr["x"], fr["y"]) - OUTLINE_M) / FADE_M
+            col, alpha = REMEMBERED, int(200 * min(1.0, fade))
+            if alpha <= 0:
+                continue
         c = [cam.px(p) for p in corners(o["obb"])]
         for i, j in edges:
             d.line([c[i], c[j]], fill=(*col, alpha), width=int(1.6 * SS))
@@ -318,6 +425,8 @@ def draw_frame(doc, k, base: Image.Image, cam: Cam, states, rings, belt, memo=No
     items = []
     for o in sorted(doc["objects"], key=lambda o: math.dist(o["obb"][:2], me[:2])):
         state = st.get(o["name"])
+        if o["name"] in hidden:
+            continue
         gap = math.dist(o["obb"][:2], me[:2]) - max(o["obb"][3:5])
         big = max(o["obb"][3:6]) >= 0.1
         if not state or not (gap <= LABEL_M or (state == "view" and big and gap <= VIEW_LABEL_M)):
@@ -330,7 +439,7 @@ def draw_frame(doc, k, base: Image.Image, cam: Cam, states, rings, belt, memo=No
         items.append((NAMES.get(o["name"], o["label"]), dims, cam.px((cx, cy, cz + hz)), col))
     wx, wy = cam.px((fr["x"], fr["y"], 0.9))
     blocked = [(wx - 60 * SS, wy - 110 * SS, wx + 60 * SS, wy + 110 * SS)]
-    blocked += [(w - 700 * SS, 0, w, 300 * SS), (0, 0, 700 * SS, 150 * SS)]
+    blocked += [(w - 900 * SS, 0, w, 300 * SS), (0, 0, 700 * SS, 150 * SS)]
     blocked += [(0, h - 120 * SS, 620 * SS, h)]
     f, fs = font(15), font(12, mono=True)
     ox0, ox1 = float(np.min(walls[:, 0] - walls[:, 3])), float(np.max(walls[:, 0] + walls[:, 3]))
@@ -378,11 +487,18 @@ def draw_frame(doc, k, base: Image.Image, cam: Cam, states, rings, belt, memo=No
             status = f"sat after {m['collisions']} contacts, not counted"
         if doc.get("cut_s"):  # the clip stops early; the walk ran on to the time limit
             status = f"not reached in {m['time_s']:.0f} s"
+    # live while walking (elapsed time, running minimum clearance), the result once it is over
+    walked = min(t, m["time_s"])
+    clear = fr.get("min_clear", m["min_clear_m"])
+    if done:
+        clock_s = f"{m['time_s']:.1f} s" if m["success"] else f"{m['time_s']:.0f} s, no goal"
+    else:
+        clock_s = f"{walked:.1f} s"
     rows = [
         ("collisions", f"{fr['collisions']}"),
-        ("min clearance", f"{m['min_clear_m']:.2f} m" if done else "-"),
-        ("time to goal", f"{m['time_s']:.1f} s" if done and m["success"] else "-"),
-        ("false buzzes", f"{m['false_per_min']:.1f} /min" if done else "-"),
+        ("min clearance", f"{m['min_clear_m'] if done else clear:.2f} m"),
+        ("time to goal", clock_s),
+        ("false buzzes", f"{m['false_per_min']:.1f} /min" if done else f"{fr.get('false', 0)}"),
         ("status", status),
     ]
     y0 = h - 112 * SS
@@ -408,15 +524,18 @@ def draw_frame(doc, k, base: Image.Image, cam: Cam, states, rings, belt, memo=No
 
     out = Image.alpha_composite(out, ov).resize(base.size, Image.LANCZOS)
 
-    if belt is not None:  # the 3D belt in a card, top right
+    if belt is not None:  # the 3D belt in a card, top right, with the cells from above
         bw = 600
         bh = int(belt.height * bw / belt.width)
-        card = Image.new("RGBA", (bw + 16, bh + 44), (245, 245, 247, 236))
-        card.paste(belt.convert("RGB").resize((bw, bh), Image.LANCZOS), (8, 36))
+        rs = min(max(bh, 150), 190)
+        card = Image.new("RGBA", (rs + bw + 24, max(bh, rs) + 44), (245, 245, 247, 236))
+        card.paste(belt.convert("RGB").resize((bw, bh), Image.LANCZOS), (rs + 16, 36))
+        ring = direction_ring(felt8(fr), doc["layout"] != "eight", rs)
+        card.alpha_composite(ring, (8, 36 + (max(bh, rs) - rs) // 2))
         cd = ImageDraw.Draw(card)
         cd.text(
             (16, 10),
-            "belt, seen from behind  ·  what the walker feels",
+            "what the walker feels  ·  from above, front up  ·  belt from behind",
             font=ImageFont.truetype(FONT, 14),
             fill=(60, 64, 72),
         )

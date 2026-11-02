@@ -1,6 +1,7 @@
 // The 3D belt driven by a simulated walk (scripts/export_sim_scene.py writes the cues), for the
-// sim render: ?cues=/_cut/sim/NAME.belt.json&layout=8. window.__go() replays the cues in real
-// time for a live tab capture and returns the wall-clock start in ms; window.__show(t) holds
+// sim render: ?cues=/_cut/sim/NAME.belt.json&layout=8, plus &glow=1.2 for brighter cans at card
+// size. window.__go() replays the cues in real time for a live tab capture and returns the
+// wall-clock start in ms; window.__show(t) holds
 // the belt at one moment, for a still.
 import { Belt3D } from "./belt3d";
 import type { Layout } from "./beltlayout";
@@ -23,6 +24,7 @@ const src = q.get("cues") ?? "";
 if (!src.startsWith("/_cut/sim/")) throw new Error("cues must be under /_cut/sim/");
 const belt = new Belt3D(document.getElementById("belt") as HTMLElement);
 belt.setLayout(Number(q.get("layout") ?? 8) as Layout);
+belt.canGlow = Number(q.get("glow") ?? belt.canGlow);
 const { cues } = (await (await fetch(src)).json()) as { cues: Cue[] };
 window.__done = false;
 const IDLE: Belt = {

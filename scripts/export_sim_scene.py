@@ -82,6 +82,8 @@ def frames(sc: S.Scenario, tr: S.Trace) -> list[dict]:
                 "sit": 0.0,
                 "felt": [round(float(v), 3) for v in s[4]],
                 "collisions": int(s[6]),
+                "min_clear": round(max(0.0, float(s[7])), 3),  # running minimum, metres
+                "false": int(s[8]),  # false onsets so far
                 "walking": True,
             }
         )

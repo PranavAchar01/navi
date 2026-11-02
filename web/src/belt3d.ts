@@ -366,6 +366,8 @@ export const CAPTION_OF = CAPTION;
 
 export class Belt3D {
   layout: Layout = 8;
+  /** How brightly a running can glows; the sim render turns it up to read at card size. */
+  canGlow = 0.22;
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(26, 1, 0.01, 10);
@@ -952,7 +954,7 @@ export class Belt3D {
       m.body.position.set(amp * Math.sin(sec * 97 + i), amp * Math.cos(sec * 83 + i * 2), 0);
       const tilt = 0.11 * k;
       m.wob.rotation.set(tilt * Math.sin(sec * 38 + i), tilt * Math.cos(sec * 38 + i), 0);
-      m.can.emissive.copy(col).multiplyScalar(0.22 * k);
+      m.can.emissive.copy(col).multiplyScalar(this.canGlow * k);
       m.led.material.color.copy(col);
       m.led.material.opacity = k > 0.02 ? 1 : 0;
     });

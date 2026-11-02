@@ -12,6 +12,9 @@ next to the output as cam.json (world-to-pixel matrix) for the overlay pass.
 Look references: his footage (white walls, light grey laminate, beige upholstered bed, black
 standing desk with an orange mat, white folding table under the whiteboard, black mesh chair).
 Assets and licences: data/assets/sim-hifi/PROVENANCE.md.
+Desk, monitor, keyboard, laptop and chair are Sketchfab models via Objaverse, CC-BY: "Standing
+Desk" by Ryan_Nein, "Monitor" by microsoft, "Wireless keyboard" by dmitriyslavyanskiy, "Laptop"
+by Aullwen, "Office Chair" by FangedAnteater (data/assets/sim-hifi/objaverse/PROVENANCE.json).
 """
 
 from __future__ import annotations
@@ -531,59 +534,66 @@ def build_bed(o, M, wall_y0):
         p.rotation_euler = (math.radians(-head_s * 12), 0, math.radians(3 - 6 * k))
 
 
+def glb(stem, at, yaw, scale, front):
+    """Import a sourced model (data/assets/sim-hifi/objaverse, CC-BY, see PROVENANCE.json) under
+    one empty: footprint centred on at[0:2], bottom on at[2], turned so its front (model-frame
+    angle `front`) points along `yaw`. `scale` is one factor or per model axis. Returns the
+    empty and the placed world box (lo, hi)."""
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=str(ASSETS / "objaverse" / f"{stem}.glb"))
+    new = [o for o in bpy.data.objects if o not in before]
+    for o in new:
+        for c in list(o.users_collection):
+            c.objects.unlink(o)
+        COLL.objects.link(o)
+    bpy.context.view_layer.update()
+    pts = [o.matrix_world @ Vector(c) for o in new if o.type == "MESH" for c in o.bound_box]
+    lo = Vector((min(q.x for q in pts), min(q.y for q in pts), min(q.z for q in pts)))
+    hi = Vector((max(q.x for q in pts), max(q.y for q in pts), max(q.z for q in pts)))
+    sc = (scale,) * 3 if isinstance(scale, (int, float)) else scale
+    root = _link(bpy.data.objects.new(stem, None))
+    for o in new:
+        if o.parent is None:
+            o.parent = root
+    root.matrix_world = (
+        Matrix.Translation(at)
+        @ Matrix.Rotation(yaw - front, 4, "Z")
+        @ Matrix.Diagonal((*sc, 1.0))
+        @ Matrix.Translation((-(lo.x + hi.x) / 2, -(lo.y + hi.y) / 2, -lo.z))
+    )
+    bpy.context.view_layer.update()
+    pts = [o.matrix_world @ Vector(c) for o in new if o.type == "MESH" for c in o.bound_box]
+    wlo = Vector((min(q.x for q in pts), min(q.y for q in pts), min(q.z for q in pts)))
+    whi = Vector((max(q.x for q in pts), max(q.y for q in pts), max(q.z for q in pts)))
+    return root, (wlo, whi), (hi - lo)
+
+
 def build_desk_black(o, M, wall_x0):
-    """His black standing desk: top, two T-legs, an orange mat, a monitor and keyboard."""
+    """His black standing desk (sourced model) at the twin's box, with a monitor, keyboard and
+    laptop on it, all facing into the room."""
     cx, cy, _, hx, hy, hz, _ = o["obb"]
     top = 2 * hz
-    box("desk_top", (cx, cy, top - 0.015), (hx, hy, 0.015), M["black_matte"], bevel=0.004)
-    for sy in (-1, 1):
-        ly = cy + sy * (hy - 0.12)
-        box(
-            "desk_col",
-            (cx, ly, (top - 0.03) / 2 + 0.02),
-            (0.04, 0.03, (top - 0.03) / 2 - 0.02),
-            M["black"],
-            bevel=0.005,
-        )
-        box("desk_foot", (cx, ly, 0.02), (hx - 0.05, 0.035, 0.02), M["black"], bevel=0.008)
-        box("desk_arm", (cx, ly, top - 0.045), (hx - 0.06, 0.025, 0.015), M["black"], bevel=0.004)
-    box("desk_beam", (cx - 0.1, cy, top - 0.07), (0.02, hy - 0.12, 0.025), M["black"])
     back = -1 if abs((cx - hx) - wall_x0) < abs((cx + hx) - wall_x0) else 1
     front = -back
-    box(
-        "desk_mat",
-        (cx + front * 0.08, cy - 0.15, top + 0.002),
-        (0.2, 0.42, 0.002),
-        M["orange"],
-        bevel=0.003,
+    face = 0.0 if front > 0 else math.pi
+    long_y = hy >= hx
+    w, d = (2 * hy, 2 * hx) if long_y else (2 * hx, 2 * hy)
+    # the model is 1.60 x 0.78 x 1.10 m, long along x, front toward -y
+    glb("desk", (cx, cy, 0.0), face, (w / 1.601, d / 0.775, top / 1.098), -math.pi / 2)
+    _, (mlo, mhi), _ = glb(
+        "monitor", (cx + back * (hx - 0.17), cy - 0.15, top), face, 0.0125, -math.pi / 2
     )
-    # monitor on a stand near the wall, screen facing into the room
-    mx = cx + back * (hx - 0.16)
-    box("mon_base", (mx, cy - 0.15, top + 0.006), (0.1, 0.13, 0.006), M["black"], bevel=0.004)
-    box("mon_neck", (mx + back * 0.03, cy - 0.15, top + 0.2), (0.015, 0.03, 0.19), M["black"])
-    mon = box("mon_panel", (mx, cy - 0.15, top + 0.4), (0.018, 0.34, 0.2), M["black"], bevel=0.004)
-    _ = mon
+    # a lit screen just proud of the panel, so the monitor reads as one from above
+    fx = mhi.x if front > 0 else mlo.x
     box(
         "mon_screen",
-        (mx + front * 0.0195, cy - 0.15, top + 0.405),
-        (0.0005, 0.325, 0.185),
+        (fx + front * 0.004, cy - 0.15, mlo.z + 0.62 * (mhi.z - mlo.z)),
+        (0.0005, 0.29, 0.155),
         M["screen"],
         bevel=0,
     )
-    box(
-        "keyboard",
-        (cx + front * 0.08, cy - 0.15, top + 0.012),
-        (0.06, 0.2, 0.01),
-        M["black"],
-        bevel=0.004,
-    )
-    box(
-        "mouse",
-        (cx + front * 0.1, cy + 0.15, top + 0.015),
-        (0.03, 0.018, 0.013),
-        M["black"],
-        bevel=0.012,
-    )
+    glb("keyboard", (cx + front * 0.1, cy - 0.15, top), face, 0.0095, -math.pi / 2)
+    glb("laptop", (cx + front * 0.02, cy + 0.42, top), face + 0.25 * front, 0.011, -math.pi / 2)
 
 
 def build_laptop(o, M, z_on=None, open_=True):
@@ -662,48 +672,24 @@ def build_whiteboard(f, M):
 
 
 def build_office_chair(o, M):
-    """A black mesh task chair: five-star base on casters, gas lift, seat, mesh back, arms.
-    The sim chair's back sits on the side away from where the seat faces."""
-    cx, cy, _, hx, hy, hz, _ = o["obb"]
+    """His black mesh task chair (sourced model), seat facing away from the twin's back box.
+    A touch larger and a shade lighter than true black so it reads from above: it is the
+    hero object of the find-the-chair scenes."""
+    cx, cy = o["obb"][0], o["obb"][1]
     backs = [b for b in o["boxes"] if b[5] > 0.15 and b[2] > 0.5]
     if backs:
         bx, by = backs[0][0] - cx, backs[0][1] - cy
         face = math.atan2(-by, -bx)
     else:
         face = 0.0
-    for k in range(5):
-        a = face + k * 2 * math.pi / 5
-        ex, ey = cx + 0.28 * math.cos(a), cy + 0.28 * math.sin(a)
-        mx, my = (cx + ex) / 2, (cy + ey) / 2
-        box("star", (mx, my, 0.075), (0.14, 0.022, 0.016), M["black"], yaw=a, bevel=0.008)
-        cyl("caster", ex, ey, 0.0, 0.05, 0.025, M["black_matte"], rot=(0, math.pi / 2, a))
-    cyl("lift", cx, cy, 0.08, 0.40, 0.022, M["grey_metal"])
-    cyl("lift_cover", cx, cy, 0.08, 0.26, 0.032, M["black"])
-    box("seat", (cx, cy, 0.45), (0.25, 0.25, 0.045), M["mesh"], yaw=face, bevel=0.04, seg=4)
-    bxo, byo = rot2(-0.25, 0, face)
-    back = box(
-        "back",
-        (cx + bxo, cy + byo, 0.78),
-        (0.03, 0.23, 0.26),
-        M["mesh"],
-        yaw=face,
-        bevel=0.03,
-        seg=4,
-    )
-    back.rotation_euler = Euler((0, math.radians(-8), face), "ZYX")
-    sx, sy = rot2(-0.22, 0, face)
-    box("spine", (cx + sx, cy + sy, 0.55), (0.02, 0.04, 0.09), M["black"], yaw=face, bevel=0.01)
-    for s in (-1, 1):
-        ax, ay = rot2(-0.02, s * 0.27, face)
-        box("arm_post", (cx + ax, cy + ay, 0.56), (0.015, 0.015, 0.08), M["black"], yaw=face)
-        box(
-            "arm_pad",
-            (cx + ax, cy + ay, 0.645),
-            (0.12, 0.03, 0.012),
-            M["black_matte"],
-            yaw=face,
-            bevel=0.01,
-        )
+    root, _, _ = glb("chair", (cx, cy, 0.0), face, 0.0105, math.pi)  # model is in cm, faces -x
+    for ch in root.children_recursive:
+        for sl in getattr(ch, "material_slots", []):
+            m = sl.material
+            b = m and m.node_tree and _bsdf(m)
+            if b and not b.inputs["Base Color"].is_linked:
+                b.inputs["Base Color"].default_value = (0.045, 0.047, 0.052, 1.0)
+                b.inputs["Roughness"].default_value = 0.42
 
 
 def build_nightstand(o, M):
