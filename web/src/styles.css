@@ -176,11 +176,18 @@ p { margin: 0; }
 .start h1 { font-size: 31px; line-height: 1.1; letter-spacing: -0.035em; max-width: 17ch; }
 .start p { color: var(--ink-soft); max-width: 34ch; }
 .hud { position: absolute; left: 14px; bottom: 14px; display: flex; align-items: flex-end; gap: 10px; pointer-events: none; z-index: 2; }
-#ring {
-  width: 168px; height: 168px; border-radius: 50%; border: 1px solid rgb(255 255 255 / 34%);
-  background: radial-gradient(circle, rgb(14 18 38 / 72%), rgb(14 18 38 / 52%));
+.belt3d {
+  position: relative; width: 236px; height: 176px; border-radius: 22px; overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 34%);
+  background: radial-gradient(120% 90% at 50% 35%, rgb(30 36 66 / 70%), rgb(10 13 28 / 62%));
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 45%), 0 8px 24px rgb(0 0 0 / 35%);
+}
+.belt3d-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.belt3d-caption {
+  position: absolute; left: 0; right: 0; bottom: 7px; text-align: center; pointer-events: none;
+  font: 600 10px/1 "Atkinson Hyperlegible Mono", ui-monospace, monospace; letter-spacing: 0.04em;
+  color: rgb(255 255 255 / 72%); text-shadow: 0 1px 2px rgb(0 0 0 / 60%);
 }
 .readout { --r: 10px; --blur: 8px; padding: 3px 9px; font-size: 11px; color: var(--ink-soft); }
 

@@ -235,7 +235,7 @@ body.judge {
   z-index: 2;
   right: 1.8vw;
   bottom: 3vh;
-  width: 34vh;
+  width: 40vh;
   padding: 1.4vh 1.4vh 0.6vh;
   border-radius: 4vh;
 }
@@ -245,10 +245,26 @@ body.judge {
   font-weight: 700;
   color: var(--dim);
 }
-.j-belt canvas {
-  display: block;
+.j-belt3d {
+  position: relative;
   width: 100%;
-  aspect-ratio: 1;
+  aspect-ratio: 1.15;
+  cursor: pointer;
+}
+.j-belt3d .belt3d-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.j-belt3d .belt3d-caption {
+  display: none;
+}
+.j-belt-number {
+  min-height: 3.4vh;
+  margin-top: -1vh;
+  text-align: center;
+  font: 800 3vh "Atkinson Hyperlegible Next", system-ui, sans-serif;
 }
 
 /* The one transient caption: the question as it is heard, then the answer with its crop and,

@@ -1,3 +1,4 @@
+import type { Cell } from "./beltlayout";
 import { type Belt, type Hazard, SECTOR_NAMES, type Safety } from "./types";
 import { CAUTION, DANGER, GUIDE, MEMORY, PERSON, type RGB, ease, rgba } from "./visual";
 
@@ -473,7 +474,7 @@ export function drawOverlay(
   drawHazards(ctx, s.hazards, (cw - w) / 2, (ch - h) / 2, w, h, thin);
 }
 
-const MODE_RGB: Record<string, [number, number, number]> = {
+export const MODE_RGB: Record<string, [number, number, number]> = {
   slow: CAUTION,
   fast: DANGER,
   solid: DANGER,
@@ -615,4 +616,23 @@ export class BeltCells {
       el.style.setProperty("--duty", (v / 255).toFixed(2));
     });
   }
+}
+
+/** The belt's own telemetry as 3D cells: each motor as bright as the firmware drives it. */
+export function cellsFromBelt(b: Belt): Cell[] {
+  return b.duty.map((d, i) => {
+    const rgb = MODE_RGB[b.lost ? "lost" : b.modes[i]] ?? null;
+    return { rgb, level: rgb ? d / 255 : 0 };
+  });
+}
+
+/** With no belt connected, the server's cues as 3D cells, pulsing at each cue's own rate. */
+export function cellsFromCues(s: Safety | null, nowMs: number): Cell[] {
+  return Array.from({ length: 8 }, (_, i) => {
+    const q = s?.cues[i];
+    const rgb = q ? (MODE_RGB[q.mode] ?? null) : null;
+    if (!q || !rgb) return { rgb: null, level: 0 };
+    const pulse = q.rate_hz > 0 ? 0.55 + 0.45 * Math.abs(Math.sin((nowMs / 1000) * Math.PI * q.rate_hz)) : 1;
+    return { rgb, level: Math.max(0.35, Math.min(1, q.intensity)) * pulse };
+  });
 }

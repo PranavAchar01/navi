@@ -4,7 +4,8 @@ import { Source } from "./camera";
 import { MapView } from "./map3d";
 import { setupGlass } from "./glass";
 import { Net } from "./net";
-import { BeltCells, EdgeArcs, type ScreenPin, drawOverlay, drawRing } from "./overlay";
+import { Belt3D } from "./belt3d";
+import { BeltCells, EdgeArcs, type ScreenPin, cellsFromBelt, cellsFromCues, drawOverlay } from "./overlay";
 import { streamMic } from "./mic";
 import { listen, speak } from "./speech";
 import type { Answer, Belt, Device, Mode, PinJson, Safety } from "./types";
@@ -15,7 +16,11 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const net = new Net();
 const video = $<HTMLVideoElement>("video");
 const overlay = $<HTMLCanvasElement>("overlay");
-const ring = $<HTMLCanvasElement>("ring");
+// The belt in 3D: eight motors by default; the demo tour shows the built four and sixteen.
+const belt3d = new Belt3D($("belt3d"));
+belt3d.onLayout = (n) => ($("btn-motors").textContent = `Belt: ${n} motors`);
+$("btn-motors").addEventListener("click", () => belt3d.next());
+$("btn-belt-tour").addEventListener("click", () => belt3d.tour());
 const belt = new BeltCells($("belt"));
 const map = new MapView($<HTMLCanvasElement>("map3d"));
 // On wide screens the map is the corner minimap: a floor plan, not an orbit view.
@@ -203,7 +208,9 @@ function frame(now: number) {
   const extra = { pins: screenPins(now), arcs };
   if (viewing) drawOverlay(overlay, disp.width, disp.height, bySeq.get(viewSeq) ?? latest, false, extra);
   else drawOverlay(overlay, video.videoWidth, video.videoHeight, syncedFrame(now), false, extra);
-  drawRing(ring, chipState.belt, latest, bearing);
+  // The belt's own telemetry when one is connected, otherwise what the server would send it.
+  const b = chipState.belt;
+  belt3d.set(b ? cellsFromBelt(b) : cellsFromCues(latest, now), bearing ?? null);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

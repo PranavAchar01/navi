@@ -6,6 +6,8 @@
 import "./judge.css";
 import * as THREE from "three";
 import { PLYLoader } from "three/examples/jsm/loaders/PLYLoader.js";
+import { Belt3D, CAPTION_OF } from "./belt3d";
+import type { Cell } from "./beltlayout";
 import { MapView } from "./map3d";
 import { Net } from "./net";
 import { drawOverlay } from "./overlay";
@@ -26,7 +28,18 @@ const net = new Net();
 const frameBox = $("frame");
 const cam = $<HTMLCanvasElement>("cam");
 const camOverlay = $<HTMLCanvasElement>("cam-overlay");
-const beltCanvas = $<HTMLCanvasElement>("belt");
+// The belt: eight motors by default. B steps through 4, 8 and 16; T (or ?belt=tour) plays the
+// demo tour once, 4 then 8 then 16, and settles back on 8.
+const belt3d = new Belt3D($("belt"));
+const beltNumber = $("belt-number");
+belt3d.onLayout = (n) => ($("belt-title").textContent = `Haptic belt · ${CAPTION_OF[n]}`);
+$("belt").addEventListener("click", () => belt3d.next());
+window.addEventListener("keydown", (e) => {
+  if (e.key === "b") belt3d.next();
+  if (e.key === "t") belt3d.tour();
+});
+if (new URLSearchParams(location.search).get("belt") === "tour") belt3d.tour();
+if (import.meta.env.DEV) Object.assign(window, { __belt: belt3d });
 
 let latest: Safety | null = null;
 const filter = new WarningFilter();
@@ -313,94 +326,39 @@ setInterval(() => {
   }
 }, 100);
 
-/** The belt from above: the wearer in the middle, eight buzzers glowing amber as hard as the
- *  server drives them, the guide buzzer blue, Braille dots lilac. The one number sits inside. */
+/** The belt in 3D, behind the wearer: buzzers glowing amber as hard as the server drives them,
+ *  the guide buzzer blue, Braille dots lilac. The one number sits under it. */
 function drawBelt(s: Safety | null) {
-  const dpr = window.devicePixelRatio || 1;
-  const size = beltCanvas.clientWidth;
-  if (size < 40) return;
-  if (beltCanvas.width !== size * dpr) {
-    beltCanvas.width = size * dpr;
-    beltCanvas.height = size * dpr;
-  }
-  const ctx = beltCanvas.getContext("2d")!;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, size, size);
-  const c = size / 2;
-  const R = size * 0.36;
   const now = performance.now();
-  // Shoulders and head, nose forward.
-  ctx.fillStyle = "rgba(255,255,255,0.16)";
-  ctx.beginPath();
-  ctx.ellipse(c, c, R * 0.42, R * 0.26, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = "rgba(255,255,255,0.32)";
-  ctx.beginPath();
-  ctx.arc(c, c, R * 0.15, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(c - R * 0.06, c - R * 0.135);
-  ctx.lineTo(c, c - R * 0.24);
-  ctx.lineTo(c + R * 0.06, c - R * 0.135);
-  ctx.fill();
-  ctx.strokeStyle = "rgba(255,255,255,0.18)";
-  ctx.lineWidth = size * 0.03;
-  ctx.beginPath();
-  ctx.arc(c, c, R, 0, Math.PI * 2);
-  ctx.stroke();
   const cues = s?.cues ?? [];
-  const motor = size * 0.06;
-  for (let i = 0; i < 8; i++) {
-    const a = ((i * 45 - 90) * Math.PI) / 180;
+  const cells: Cell[] = Array.from({ length: 8 }, (_, i) => {
     const q = cues[i];
     const mode = (q?.mode as string) ?? "off";
     const guide = mode === "guide";
     const touch = onBelt && brailleDots.some((d) => BELT_OF_DOT[d - 1] === i);
     // Only obstacle cues buzz amber; "lost" (no trusted data) and "off" stay dark.
     const buzzing = mode === "slow" || mode === "fast" || mode === "solid";
-    const strength = touch ? 1 : buzzing ? Math.max(0.35, Math.min(1, q.intensity)) : 0;
-    const on = strength > 0 || guide;
-    const rgb = touch ? [201, 166, 255] : guide ? [90, 176, 255] : [255, 190, 70];
-    const k = guide ? 0.85 : strength;
+    const strength = touch ? 1 : buzzing ? Math.max(0.35, Math.min(1, q.intensity)) : guide ? 0.85 : 0;
     // Fast and solid buzz harder than slow: the glow breathes at the cue's own rate.
     const rate = q?.rate_hz ?? 0;
-    const pulse = on && rate > 0 ? 0.7 + 0.3 * Math.abs(Math.sin((now / 1000) * Math.PI * rate)) : 1;
-    const x = c + R * Math.cos(a);
-    const y = c + R * Math.sin(a);
-    if (on) {
-      const glow = ctx.createRadialGradient(x, y, motor * 0.6, x, y, motor * (1.6 + 1.6 * k));
-      glow.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${(0.55 * k * pulse).toFixed(3)})`);
-      glow.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)`);
-      ctx.fillStyle = glow;
-      ctx.beginPath();
-      ctx.arc(x, y, motor * (1.6 + 1.6 * k), 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.fillStyle = on
-      ? `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${(0.45 + 0.55 * k * pulse).toFixed(3)})`
-      : "rgba(255,255,255,0.14)";
-    ctx.beginPath();
-    ctx.arc(x, y, motor, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  // One number inside the ring, under the wearer: the obstacle when there is one, otherwise the
-  // distance to what they are being guided to.
+    const pulse = strength > 0 && rate > 0 ? 0.7 + 0.3 * Math.abs(Math.sin((now / 1000) * Math.PI * rate)) : 1;
+    const rgb: [number, number, number] = touch ? [201, 166, 255] : guide ? [90, 176, 255] : [255, 190, 70];
+    return { rgb: strength > 0 ? rgb : null, level: strength * pulse };
+  });
+  belt3d.set(cells);
+  // One number under the belt: the obstacle when there is one, otherwise the distance to what
+  // they are being guided to.
   const w = said;
   const g = s?.guide;
-  let text: string | null = null;
+  let text = "";
   let color = "#fff";
   if (w && w.band > 0) text = w.band === STOP ? "Stop" : distanceText(w.dist);
   else if (g && g.dist !== null) {
     text = distanceText(g.dist);
     color = "rgb(90,176,255)";
   }
-  if (text) {
-    ctx.font = `800 ${Math.round(size * 0.1)}px "Atkinson Hyperlegible Next", system-ui, sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = color;
-    ctx.fillText(text, c, c + R * 0.56);
-  }
+  if (beltNumber.textContent !== text) beltNumber.textContent = text;
+  beltNumber.style.color = color;
 }
 
 /** The frame's hazards with their tags in the same rounding, and the nearest one carrying the
