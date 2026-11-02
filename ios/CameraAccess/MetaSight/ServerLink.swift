@@ -14,7 +14,8 @@
 //   belt   <- {"type":"belt","duty":[8],"modes":[8],"lost":b,"found":b,"latency_ms":n|null}
 //   beltcmd <- {"type":"beltcmd","pkt":"<base64 of the 26-byte belt command>"}  relayed to the belt over BLE
 //   beltaudio <- {"type":"beltaudio","cmd":[[mode,duty] x 8],"flags":n}  haptic Braille pulses, heard
-//   safety <- {"type":"safety","sectors":[8],"cues":[{"mode":...}],"path":m|null,"guide":{...}|null,"found":b}
+//   safety <- {"type":"safety","sectors":[8],"cues":[{"mode":...}],"path":m|null,"guide":{...}|null,"found":b,
+//             "sound":b}  sound is the server's switch; the guide also drives the spatial beacon
 //
 
 import Foundation
@@ -413,6 +414,8 @@ final class ServerLink {
     let path: Double?
     let guide: GuideTarget?
     let found: Bool?
+    /// The server's sound switch; nil (an older server) counts as on.
+    let sound: Bool?
   }
 
   func handle(_ text: String) {
@@ -505,6 +508,8 @@ final class ServerLink {
       guard let msg = try? decoder.decode(SafetyMessage.self, from: data) else { return }
       guide = msg.guide
       finder.update(guide: msg.guide, found: msg.found ?? false)
+      beeper.serverSound = msg.sound ?? true
+      beeper.update(guide: msg.guide, found: msg.found ?? false)
       let reading = msg.sectors.flatMap { sectors in
         msg.cues.map { Self.proximity(sectors: sectors, modes: $0.map(\.mode), path: msg.path) }
       }

@@ -158,3 +158,86 @@ struct BeepScheduler: Sendable {
   }
 }
 
+
+// MARK: - The beacon: the item being found plays from where it is
+
+/// What the beacon plays: one pluck off target, the pluck and the fifth above when the wearer
+/// faces the item, three rising notes once on arrival.
+enum BeaconSound: Int, CaseIterable, Sendable {
+  case pluck, pair, arrive
+}
+
+/// One beacon sound to play now, placed like a beep (AVAudio3DPoint convention).
+struct BeaconPlan: Equatable, Sendable {
+  let sound: BeaconSound
+  let gain: Float
+  let x: Float
+  let y: Float
+  let z: Float
+}
+
+/// The beacon rules; metasight/spatial_sound.py is the reference and pins the same numbers.
+/// It plays only while a guide has a direction and a distance, so it is never constant.
+enum BeaconCue {
+  static let arriveMetres = 0.8
+  static let alignedDegrees = 10.0
+  static let far = (metres: 4.0, seconds: 1.4)
+  static let near = (metres: arriveMetres, seconds: 0.45)
+  static let baseGain = 0.5
+  static let hz = 523.25
+
+  /// Seconds between plucks: 1.4 s at 4 m or more, down to 0.45 s at arrival.
+  static func period(dist: Double) -> TimeInterval {
+    let t = min(1, max(0, (far.metres - dist) / (far.metres - near.metres)))
+    return far.seconds + (near.seconds - far.seconds) * t
+  }
+
+  /// Inverse distance from 1 m, held between a quarter and full: far stays audible.
+  static func gain(dist: Double) -> Double { baseGain * min(1, max(0.25, 1 / max(dist, 1e-3))) }
+
+  static func aligned(bearing: Double) -> Bool { abs(bearing) <= alignedDegrees }
+
+  static func plan(dist: Double, bearing: Double, volume: BeepVolume) -> BeaconPlan {
+    let radians = bearing * .pi / 180
+    let r = BeepCue.placementMetres
+    return BeaconPlan(
+      sound: aligned(bearing: bearing) ? .pair : .pluck,
+      gain: Float(gain(dist: dist)) * volume.scale,
+      x: Float(sin(radians) * r), y: 0, z: Float(-cos(radians) * r))
+  }
+}
+
+/// Decides when the next beacon sound is due: on the period while a guide has a fix, the
+/// arrival notes once when the server says found, silence when the guide ends or goes stale.
+struct BeaconScheduler: Sendable {
+  private var next: Date?
+  private var wasFound = false
+  private var lastBearing = 0.0
+
+  init() {}
+
+  mutating func next(
+    guide: GuideTarget?, found: Bool, receivedAt: Date?, now: Date, volume: BeepVolume
+  ) -> BeaconPlan? {
+    defer { wasFound = found }
+    guard let receivedAt, now.timeIntervalSince(receivedAt) < BeepScheduler.staleAfter else {
+      next = nil
+      return nil
+    }
+    if found, !wasFound {
+      next = nil
+      let r = lastBearing * .pi / 180
+      return BeaconPlan(
+        sound: .arrive, gain: 0.8 * volume.scale,
+        x: Float(sin(r) * BeepCue.placementMetres), y: 0, z: Float(-cos(r) * BeepCue.placementMetres))
+    }
+    guard let guide, let dist = guide.dist, let bearing = guide.bearing else {
+      next = nil
+      return nil
+    }
+    lastBearing = bearing
+    if let due = next, now < due { return nil }
+    next = now.addingTimeInterval(BeaconCue.period(dist: dist))
+    return BeaconCue.plan(dist: dist, bearing: bearing, volume: volume)
+  }
+}

@@ -150,4 +150,61 @@ final class BeepCueTests: XCTestCase {
       XCTAssertFalse(SpatialBeeper(output: .device).canSound)
     #endif
   }
+
+  // MARK: - The beacon (rules pinned to metasight/spatial_sound.py)
+
+  private func guide(dist: Double?, bearing: Double?) -> GuideTarget {
+    GuideTarget(label: "chair", dist: dist, bearing: bearing)
+  }
+
+  func testBeaconQuickensAsItCloses() {
+    XCTAssertEqual(BeaconCue.period(dist: 6), 1.4, accuracy: 1e-9)
+    XCTAssertEqual(BeaconCue.period(dist: BeaconCue.arriveMetres), 0.45, accuracy: 1e-9)
+    XCTAssertLessThan(BeaconCue.period(dist: 2), BeaconCue.period(dist: 3))
+    XCTAssertEqual(BeaconCue.gain(dist: 10), BeaconCue.baseGain / 4, accuracy: 1e-9)
+  }
+
+  func testBeaconPlacementLeftRightFrontBack() {
+    let right = BeaconCue.plan(dist: 2, bearing: 90, volume: .normal)
+    XCTAssertEqual(right.x, 1, accuracy: 1e-6)
+    XCTAssertEqual(right.z, 0, accuracy: 1e-6)
+    XCTAssertLessThan(BeaconCue.plan(dist: 2, bearing: -90, volume: .normal).x, -0.99)
+    XCTAssertLessThan(BeaconCue.plan(dist: 2, bearing: 0, volume: .normal).z, -0.99)  // ahead is -z
+    XCTAssertGreaterThan(BeaconCue.plan(dist: 2, bearing: 180, volume: .normal).z, 0.99)
+    XCTAssertEqual(BeaconCue.plan(dist: 2, bearing: 5, volume: .normal).sound, .pair)
+    XCTAssertEqual(BeaconCue.plan(dist: 2, bearing: -40, volume: .normal).sound, .pluck)
+  }
+
+  func testBeaconSchedulerPlaysOnThePeriodThenChimesOnce() {
+    var s = BeaconScheduler()
+    let t0 = Date()
+    let g = guide(dist: 3, bearing: 30)
+    XCTAssertNotNil(s.next(guide: g, found: false, receivedAt: t0, now: t0, volume: .normal))
+    XCTAssertNil(s.next(guide: g, found: false, receivedAt: t0, now: t0 + 0.5, volume: .normal))
+    let due = t0 + BeaconCue.period(dist: 3) + 0.01
+    XCTAssertNotNil(s.next(guide: g, found: false, receivedAt: due, now: due, volume: .normal))
+    // No direction (the map has no fresh pose): silent, not a guess.
+    let blind = guide(dist: nil, bearing: nil)
+    XCTAssertNil(s.next(guide: blind, found: false, receivedAt: due + 2, now: due + 2, volume: .normal))
+    // Arrival: the chime once, from the last direction, then nothing.
+    let a = s.next(guide: nil, found: true, receivedAt: due + 3, now: due + 3, volume: .normal)
+    XCTAssertEqual(a?.sound, .arrive)
+    XCTAssertGreaterThan(a?.x ?? 0, 0)
+    XCTAssertNil(s.next(guide: nil, found: true, receivedAt: due + 3.1, now: due + 3.1, volume: .normal))
+    // A stale guide never keeps calling.
+    XCTAssertNil(s.next(guide: g, found: false, receivedAt: due + 4, now: due + 9, volume: .normal))
+  }
+
+  func testABeaconOnTheLeftIsLouderInTheLeftEarAndOffIsSilent() throws {
+    let beeper = SpatialBeeper(output: .offline(maximumFrames: 16384))
+    beeper.volume = .normal
+    beeper.play(BeaconCue.plan(dist: 2, bearing: -90, volume: .normal))
+    let e = energy(try XCTUnwrap(beeper.renderOffline(frames: 16384)))
+    XCTAssertGreaterThan(e.left, e.right * 1.5)
+    let off = SpatialBeeper(output: .offline(maximumFrames: 16384))
+    off.volume = .normal
+    off.serverSound = false
+    off.play(BeaconCue.plan(dist: 2, bearing: -90, volume: .normal))
+    XCTAssertTrue(off.playedBeacon.isEmpty)
+  }
 }

@@ -49,6 +49,16 @@ final class SpatialBeeper {
   @ObservationIgnored private var ticker: Task<Void, Never>?
   @ObservationIgnored private var observers: [NSObjectProtocol] = []
   @ObservationIgnored private(set) var played: [BeepPlan] = []
+  /// The beacon: the item being found plays from where it is, on its own HRTF source.
+  @ObservationIgnored private let beaconPlayer = AVAudioPlayerNode()
+  @ObservationIgnored private var beaconBuffers: [BeaconSound: AVAudioPCMBuffer] = [:]
+  @ObservationIgnored private var beaconScheduler = BeaconScheduler()
+  @ObservationIgnored private var latestGuide: (guide: GuideTarget?, found: Bool, at: Date?) =
+    (nil, false, nil)
+  @ObservationIgnored private(set) var playedBeacon: [BeaconPlan] = []
+  /// The server's sound switch (`sound` in metasight.toml [safety]); off silences the beeps
+  /// and the beacon, the spoken answers stay.
+  var serverSound = true
 
   init(output: Output = .device, defaults: UserDefaults = .standard) {
     self.output = output
@@ -61,6 +71,7 @@ final class SpatialBeeper {
     }
     guard canSound else { return }
     for kind in BeepKind.allCases { buffers[kind] = Self.tone(kind) }
+    for sound in BeaconSound.allCases { beaconBuffers[sound] = Self.beacon(sound) }
     build()
   }
 
@@ -77,6 +88,16 @@ final class SpatialBeeper {
   /// The latest proximity reading from the server. Starts the beat loop on first use.
   func update(_ reading: ProximityReading?, receivedAt: Date = Date()) {
     latest = (reading, receivedAt)
+    startTicker()
+  }
+
+  /// The guide from the same safety message (nil when nothing is being looked for) and found.
+  func update(guide: GuideTarget?, found: Bool, receivedAt: Date = Date()) {
+    latestGuide = (guide, found, receivedAt)
+    startTicker()
+  }
+
+  private func startTicker() {
     guard canSound, ticker == nil, case .device = output else { return }
     ticker = Task { [weak self] in
       while !Task.isCancelled {
@@ -90,19 +111,38 @@ final class SpatialBeeper {
     ticker?.cancel()
     ticker = nil
     player.stop()
+    beaconPlayer.stop()
     if case .device = output, engine.isRunning { engine.pause() }
   }
 
   /// One step of the beat loop; exposed so tests can drive time.
   func tick(now: Date) {
+    if let plan = beaconScheduler.next(
+      guide: latestGuide.guide, found: latestGuide.found, receivedAt: latestGuide.at, now: now,
+      volume: volume)
+    {
+      play(plan)
+    }
     guard let plan = scheduler.next(
       reading: latest.reading, receivedAt: latest.at, now: now, volume: volume)
     else { return }
     play(plan)
   }
 
+  func play(_ plan: BeaconPlan) {
+    guard canSound, serverSound, volume != .silent, let buffer = beaconBuffers[plan.sound]
+    else { return }
+    playedBeacon.append(plan)
+    if playedBeacon.count > 64 { playedBeacon.removeFirst(32) }
+    guard startEngine() else { return }
+    beaconPlayer.position = AVAudio3DPoint(x: plan.x, y: plan.y, z: plan.z)
+    beaconPlayer.volume = plan.gain
+    beaconPlayer.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
+    if !beaconPlayer.isPlaying { beaconPlayer.play() }
+  }
+
   func play(_ plan: BeepPlan) {
-    guard canSound, volume != .silent, let buffer = buffers[plan.kind] else { return }
+    guard canSound, serverSound, volume != .silent, let buffer = buffers[plan.kind] else { return }
     played.append(plan)
     if played.count > 64 { played.removeFirst(32) }
     guard startEngine() else { return }
@@ -132,10 +172,12 @@ final class SpatialBeeper {
       try? engine.enableManualRenderingMode(.offline, format: stereo, maximumFrameCount: maximum)
     }
     engine.attach(environment)
-    engine.attach(player)
-    player.renderingAlgorithm = .HRTFHQ
-    player.sourceMode = .pointSource
-    engine.connect(player, to: environment, format: mono)
+    for node in [player, beaconPlayer] {
+      engine.attach(node)
+      node.renderingAlgorithm = .HRTFHQ
+      node.sourceMode = .pointSource
+      engine.connect(node, to: environment, format: mono)
+    }
     engine.connect(environment, to: engine.mainMixerNode, format: stereo)
     environment.listenerPosition = AVAudio3DPoint(x: 0, y: 0, z: 0)
     environment.distanceAttenuationParameters.referenceDistance = Float(BeepCue.placementMetres)
@@ -209,6 +251,49 @@ final class SpatialBeeper {
       let envelope = edge >= ramp ? 1.0 : 0.5 * (1 - cos(.pi * Double(edge) / Double(ramp)))
       samples[i] = Float(sin(2 * .pi * kind.frequency * Double(i) / sampleRate) * envelope)
     }
+    return buffer
+  }
+}
+
+extension SpatialBeeper {
+  /// The beacon's mallet note (spatial_sound._pluck): the fundamental plus a quiet fourth
+  /// partial, a 4 ms attack, a 90 ms decay and a short fade so the cut never clicks.
+  static func pluck(_ hz: Double, duration: Double = 0.32) -> [Float] {
+    let n = Int(duration * sampleRate)
+    return (0..<n).map { i in
+      let t = Double(i) / sampleRate
+      let tone = sin(2 * .pi * hz * t) + 0.25 * sin(2 * .pi * 4 * hz * t) * exp(-t / 0.03)
+      let fade = min(1, (duration - t) / (0.1 * duration))
+      return Float(tone * min(1, t / 0.004) * exp(-t / 0.09) * fade)
+    }
+  }
+
+  static func beacon(_ sound: BeaconSound) -> AVAudioPCMBuffer? {
+    let hz = BeaconCue.hz
+    var samples: [Float]
+    switch sound {
+    case .pluck:
+      samples = pluck(hz)
+    case .pair:
+      let gap = Int(0.11 * sampleRate)
+      let (a, b) = (pluck(hz), pluck(hz * 1.5))
+      samples = [Float](repeating: 0, count: gap + b.count)
+      for (i, v) in a.enumerated() { samples[i] += v }
+      for (i, v) in b.enumerated() { samples[gap + i] += 0.8 * v }
+    case .arrive:
+      let gap = Int(0.09 * sampleRate)
+      let notes = [1.0, 1.26, 1.5].map { pluck(hz * $0, duration: 0.45) }
+      samples = [Float](repeating: 0, count: 2 * gap + notes[2].count)
+      for (k, note) in notes.enumerated() {
+        for (i, v) in note.enumerated() { samples[k * gap + i] += 0.8 * v }
+      }
+    }
+    guard let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1),
+      let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(samples.count)),
+      let out = buffer.floatChannelData?[0]
+    else { return nil }
+    buffer.frameLength = AVAudioFrameCount(samples.count)
+    for (i, v) in samples.enumerated() { out[i] = v }
     return buffer
   }
 }
