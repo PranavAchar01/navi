@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 from concurrent.futures import ProcessPoolExecutor
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -28,6 +29,11 @@ ARMS = {
 }
 ARMS["panned diag4-lin"] = dict(scheme="panned", layout="diag4", fold="lin")
 ARMS["panned diag4-cp"] = dict(scheme="panned", layout="diag4", fold="cp")
+ODD = replace(pan.DEFAULT, cells="odd")
+ARMS["panned diag4-odd"] = dict(scheme="panned", layout="diag4", fold="cp", mapping=ODD)
+ARMS["panned diag4-odd-cp"] = dict(
+    scheme="panned", layout="diag4", fold="cp", mapping=replace(ODD, pan="constant_power")
+)
 
 
 def _one(a):
@@ -50,7 +56,7 @@ def main() -> None:
     out, runs = {}, {}
     with ProcessPoolExecutor(4) as pool:
         for name, kw in ARMS.items():
-            b = h.Belt(mapping=pan.DEFAULT, persist=2, **kw)
+            b = h.Belt(**{"mapping": pan.DEFAULT, "persist": 2, **kw})
             rs = list(pool.map(_one, [(b, s) for s in HELD], chunksize=2))
             runs[name] = rs
             m = out[name] = h.summarize(rs)
@@ -62,6 +68,7 @@ def main() -> None:
     pairs = [(f"{s} diag4", f"{s} eight") for s in ("sector", "panned")]
     pairs.append(("panned diag4-lin", "panned diag4"))
     pairs.append(("panned diag4-cp", "panned diag4"))
+    pairs += [(f"panned diag4-{x}", "panned diag4-cp") for x in ("odd", "odd-cp")]
     for arm, ref in pairs:
         d, lo, hi = _paired(runs[ref], runs[arm])
         out[f"{arm} minus {ref}"] = {"cost_diff": d, "ci95": [lo, hi]}

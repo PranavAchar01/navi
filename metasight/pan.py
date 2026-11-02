@@ -44,6 +44,8 @@ class Params:
     k_targets: int = 1
     sep_deg: float = 45.0
     tie_m: float = 0.15
+    cells: str = "eight"  # eight: pan between neighbouring cells | odd: between the diagonal cells
+    # only (the four-motor belt's motors, 90 degrees apart)
 
 
 DEFAULT = Params()
@@ -53,8 +55,14 @@ def wrap(deg: float) -> float:
     return (deg + 180.0) % 360.0 - 180.0
 
 
-def pan_gains(bearing_deg: float, pan: str = "constant_power") -> tuple[int, float, int, float]:
-    """(motor a, gain a, motor b, gain b) for a bearing; b is the next motor clockwise."""
+def pan_gains(
+    bearing_deg: float, pan: str = "constant_power", cells: str = "eight"
+) -> tuple[int, float, int, float]:
+    """(motor a, gain a, motor b, gain b) for a bearing; b is the next motor clockwise. With
+    cells "odd" the pair is two diagonal cells 90 degrees apart (the four-motor belt)."""
+    if cells == "odd":
+        a, ga, b, gb = pan_gains((bearing_deg - STEP) / 2, pan)
+        return (2 * a + 1) % N, ga, (2 * b + 1) % N, gb
     b = bearing_deg % 360.0
     a = int(b // STEP) % N
     f = (b - (b // STEP) * STEP) / STEP  # 0 at motor a, 1 at the next
@@ -105,7 +113,7 @@ def plan_targets(targets: list[Target], p: Params = DEFAULT) -> list[tuple[int, 
     best = [(0.0, MODES["off"])] * N
     for t in select(targets, p):
         lv, mode = level(t.dist_m, p), mode_for(t.dist_m, p)
-        a, ga, b, gb = pan_gains(t.bearing_deg, p.pan)
+        a, ga, b, gb = pan_gains(t.bearing_deg, p.pan, p.cells)
         for m, g in ((a, ga), (b, gb)):
             if g > 0 and lv * g > best[m][0]:
                 best[m] = (lv * g, mode)

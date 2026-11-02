@@ -83,6 +83,34 @@
   "stop_violations": 0,
   "cost": 33.73795999999999
  },
+ "panned diag4-odd": {
+  "runs": 100,
+  "success": 0.73,
+  "collisions": 1.83,
+  "time_s": 10.787671232876573,
+  "efficiency": 1.0397929662021854,
+  "contact_s": 24.528600000000054,
+  "false_per_min": 2.6289294104486216,
+  "guide_frames": 0,
+  "stop_frames": 0,
+  "stop_overridden": 0,
+  "stop_violations": 0,
+  "cost": 35.92901999999998
+ },
+ "panned diag4-odd-cp": {
+  "runs": 100,
+  "success": 0.74,
+  "collisions": 1.58,
+  "time_s": 10.551621621621486,
+  "efficiency": 1.045449648745811,
+  "contact_s": 23.679000000000027,
+  "false_per_min": 2.5758167966322407,
+  "guide_frames": 0,
+  "stop_frames": 0,
+  "stop_overridden": 0,
+  "stop_violations": 0,
+  "cost": 33.88066999999999
+ },
  "sector diag4 minus sector eight": {
   "cost_diff": 14.155809999999997,
   "ci95": [
@@ -109,6 +137,20 @@
   "ci95": [
    -4.36982275,
    -0.533014500000005
+  ]
+ },
+ "panned diag4-odd minus panned diag4-cp": {
+  "cost_diff": 2.19106,
+  "ci95": [
+   0.44013974999999994,
+   4.794421499999998
+  ]
+ },
+ "panned diag4-odd-cp minus panned diag4-cp": {
+  "cost_diff": 0.14271000000000067,
+  "ci95": [
+   -0.37878949999999906,
+   0.6547582500000004
   ]
  }
 }
