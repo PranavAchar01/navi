@@ -132,8 +132,14 @@ enum BeepCue {
 /// (a stale reading must never keep beeping at an obstacle that may be gone).
 struct BeepScheduler: Sendable {
   static let staleAfter: TimeInterval = 1.5
+  /// A warning that holds settles to one beep a second after 3 s (spatial_sound.Repeats): the
+  /// belt still holds it, and five stop beeps a second at a desk is noise the wearer turns off.
+  static let settleAfter: TimeInterval = 3
+  static let settledInterval: TimeInterval = 1
 
-  private var last: (at: Date, sector: Int, band: ProximityBand)?
+  /// The warning being beeped: its sector, when it began, and the worst band it has reached.
+  private var held: (sector: Int, since: Date, top: ProximityBand)?
+  private var lastAt: Date?
 
   init() {}
 
@@ -143,17 +149,24 @@ struct BeepScheduler: Sendable {
     guard let reading, let receivedAt, now.timeIntervalSince(receivedAt) < Self.staleAfter,
       let warning = reading.warning
     else {
-      last = nil
+      held = nil
       return nil
     }
-    // A new or stronger warning sounds at once; a repeat waits out its interval.
-    if let l = last, l.sector == warning.sector, l.band >= warning.band,
-      now.timeIntervalSince(l.at) < BeepCue.interval(for: warning)
-    {
-      return nil
+    // A new sector, or a band worse than any yet in this warning, sounds at once (the
+    // server's band flickers between fast and stop); a repeat waits out its interval.
+    if held?.sector != warning.sector {
+      held = (warning.sector, now, warning.band)
+    } else if let h = held, warning.band > h.top {
+      held = (h.sector, h.since, warning.band)
+    } else if let h = held, let l = lastAt {
+      var interval = BeepCue.interval(for: warning)
+      if now.timeIntervalSince(h.since) >= Self.settleAfter {
+        interval = max(interval, Self.settledInterval)
+      }
+      if now.timeIntervalSince(l) < interval { return nil }
     }
     guard let plan = BeepCue.plan(for: warning, volume: volume) else { return nil }
-    last = (now, warning.sector, warning.band)
+    lastAt = now
     return plan
   }
 }

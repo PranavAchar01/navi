@@ -98,3 +98,17 @@ def test_the_walking_path_counts_for_the_front_sector() -> None:
     assert ss.take_warning(m) == (0, 0.4, "stop")
     x = ss.render_take([safety(i * 0.1, path=0.4) for i in range(30)])
     assert x.shape[1] == 2 and np.abs(x).max() > 0
+
+
+def test_a_held_warning_settles_and_a_flicker_does_not_restart_it() -> None:
+    off = [{"mode": "off"}] * 8
+    near, mid = [0.3] + [None] * 7, [0.7] + [None] * 7
+    flicker = [near if (i // 8) % 2 == 0 else mid for i in range(250)]  # 10 s at a desk
+    msgs = [safety(i * 0.04, cues=off, sectors=d) for i, d in enumerate(flicker)]
+    t = [e.t for e in ss.schedule_take(msgs)]
+    assert len([x for x in t if x < 3]) >= 8
+    assert len([x for x in t if x >= 3.2]) <= 7
+    side = [None, None, 0.3] + [None] * 5
+    msgs.append(safety(10.04, cues=off, sectors=side))
+    last = ss.schedule_take(msgs)[-1]
+    assert last.where.az_deg == 90 and last.t == pytest.approx(10.04, abs=0.05)

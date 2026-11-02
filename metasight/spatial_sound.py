@@ -39,6 +39,11 @@ BEACON_NEAR = (ARRIVE_M, 0.45)
 BEACON_GAIN = 0.5
 BEACON_HZ = 523.25  # C5; the aligned figure adds the G above
 TICK_RANGE_M = 2.0  # hazards are silent at 2 m or more, as on the phone
+# A warning that holds (same sector, no stronger band) settles to one beep a second after 3 s:
+# the belt still holds it, and a stop beep five times a second for half a minute at a desk
+# is the constant noise the wearer turns off.
+SETTLE_AFTER_S = 3.0
+SETTLED_PERIOD_S = 1.0
 
 HRTF = Path(__file__).parent / "hrtf" / "mit_kemar_compact.npz"
 # A real head's delay at our sounds' frequencies (0.5 to 2 kHz) runs above Woodworth's
@@ -146,6 +151,40 @@ def tick_period(dist_m: float) -> float:
     if b == "fast":
         return _lerp(dist_m, (1.0, 0.7), (0.5, 0.4))
     return 0.2
+
+
+def repeat_period(period: float, held_s: float) -> float:
+    """BeepScheduler: the band's interval, eased to one a second once a warning has held for
+    SETTLE_AFTER_S. A new sector or a stronger band starts over at full pace."""
+    return max(period, SETTLED_PERIOD_S) if held_s >= SETTLE_AFTER_S else period
+
+
+class Repeats:
+    """BeepScheduler's memory of the warning it is beeping. A warning keeps its place while
+    the same sector stays warned; the server's band flickers between fast and stop at a desk,
+    so only a new sector or a band worse than any yet in this warning sounds at once.
+    Everything else waits out the band's interval, eased once the warning has held."""
+
+    RANK = {"slow": 1, "fast": 2, "stop": 3}
+
+    def __init__(self) -> None:
+        self.sector: int | None = None
+        self.since = self.last = -math.inf
+        self.top = 0
+
+    def clear(self) -> None:
+        self.sector = None
+
+    def due(self, t: float, sector: int, kind: str, period: float) -> bool:
+        r = self.RANK[kind]
+        if sector != self.sector:
+            self.sector, self.since, self.top = sector, t, r
+        elif r > self.top:
+            self.top = r
+        elif t - self.last < repeat_period(period, t - self.since):
+            return False
+        self.last = t
+        return True
 
 
 # ---- the sounds ----
@@ -291,13 +330,13 @@ def schedule(
 ) -> list[Event]:
     """What plays when, decided every 40 ms like the phone. The beacon runs until the head is
     within 0.8 m of the target, then the arrival chime plays once. Only the nearest hazard
-    ticks; a new or closer band sounds at once, a repeat waits out its interval."""
+    ticks; a new or closer band sounds at once, a repeat waits out its interval (one a second
+    once the warning has held 3 s)."""
     times = np.asarray(times, float)
     events: list[Event] = []
     next_beacon = -math.inf
     arrived = target is None or not beacon
-    last_tick: tuple[float, int, int] | None = None  # (time, hazard index, band rank)
-    rank = {"slow": 1, "fast": 2, "stop": 3}
+    repeats = Repeats()
     for t in np.arange(times[0], times[-1], STEP_S):
         k = int(np.clip(np.searchsorted(times, t, side="right") - 1, 0, len(times) - 1))
         head, fwd, up = positions[k], forwards[k], ups[k]
@@ -316,17 +355,10 @@ def schedule(
         d, i = min(near, key=lambda x: x[0].ground_m)
         b = band(d.ground_m)
         if b is None:
-            last_tick = None
+            repeats.clear()
             continue
-        if (
-            last_tick is not None
-            and last_tick[1] == i
-            and last_tick[2] >= rank[b]
-            and t - last_tick[0] < tick_period(d.ground_m)
-        ):
-            continue
-        events.append(Event(float(t), b, d))
-        last_tick = (float(t), i, rank[b])
+        if repeats.due(float(t), i, b, tick_period(d.ground_m)):
+            events.append(Event(float(t), b, d))
     return events
 
 
@@ -380,16 +412,16 @@ def schedule_take(msgs: list[dict], beacon: bool = True, ticks: bool = True) -> 
         return []
     t0 = min(m["wall"] for m in msgs)
     walls = np.array([m["wall"] - t0 for m in safety])
-    rank = {"slow": 1, "fast": 2, "stop": 3}
     events: list[Event] = []
     next_beacon = -math.inf
     was_found = False
-    last_tick: tuple[float, int, int] | None = None
+    repeats = Repeats()
     for t in np.arange(walls[0], walls[-1] + STEP_S, STEP_S):
         k = int(np.searchsorted(walls, t, side="right") - 1)
         m = safety[k]
         if t - walls[k] > STALE_S:
-            next_beacon, last_tick = -math.inf, None
+            next_beacon = -math.inf
+            repeats.clear()
             continue
         g = m.get("guide") or {}
         fix = g.get("bearing") is not None and g.get("dist") is not None
@@ -407,21 +439,15 @@ def schedule_take(msgs: list[dict], beacon: bool = True, ticks: bool = True) -> 
             next_beacon = t + beacon_period(d.ground_m)
         w = take_warning(m) if ticks else None
         if w is None:
-            last_tick = None
+            repeats.clear()
             continue
         i, dist, b = w
         # A cue raised by the server without a distance beats at its band's own pace.
         dist_m = dist if dist is not None and band(dist) == b else BAND_PACE_M[b]
-        if (
-            last_tick is not None
-            and last_tick[1] == i
-            and last_tick[2] >= rank[b]
-            and t - last_tick[0] < tick_period(dist_m)
-        ):
+        if not repeats.due(float(t), i, b, tick_period(dist_m)):
             continue
         az = ((i * 45 + 180) % 360) - 180
         events.append(Event(float(t), b, Direction(float(az), 0.0, dist_m, dist_m)))
-        last_tick = (float(t), i, rank[b])
     return events
 
 

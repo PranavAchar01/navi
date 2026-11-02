@@ -103,6 +103,36 @@ final class BeepCueTests: XCTestCase {
     XCTAssertNil(scheduler.next(reading: red, receivedAt: t1, now: t1.addingTimeInterval(3), volume: .normal))
   }
 
+  func testAHeldWarningSettlesAndAFlickerDoesNotRestartIt() {
+    var scheduler = BeepScheduler()
+    var near = [Double?](repeating: nil, count: 8)
+    near[0] = 0.3
+    var mid = near
+    mid[0] = 0.7
+    let off = [String](repeating: "off", count: 8)
+    let stop = ProximityReading(distances: near, modes: off)
+    let fast = ProximityReading(distances: mid, modes: off)
+    let t0 = Date()
+    var beeps: [Double] = []
+    // Ten seconds at a desk, the band flickering between stop and fast every 0.3 s.
+    for step in 0..<250 {
+      let t = t0.addingTimeInterval(Double(step) * 0.04)
+      let reading = (step / 8) % 2 == 0 ? stop : fast
+      if scheduler.next(reading: reading, receivedAt: t, now: t, volume: .normal) != nil {
+        beeps.append(Double(step) * 0.04)
+      }
+    }
+    let settled = beeps.filter { $0 >= 3.2 }
+    XCTAssertGreaterThanOrEqual(beeps.filter { $0 < 3 }.count, 8)
+    XCTAssertLessThanOrEqual(settled.count, 7)
+    // A new sector sounds at once, at full pace again.
+    var side = [Double?](repeating: nil, count: 8)
+    side[2] = 0.3
+    let t1 = t0.addingTimeInterval(10.04)
+    XCTAssertNotNil(
+      scheduler.next(reading: ProximityReading(distances: side, modes: off), receivedAt: t1, now: t1, volume: .normal))
+  }
+
   // MARK: - Engine, rendered offline
 
   private func energy(_ buffer: AVAudioPCMBuffer) -> (left: Float, right: Float) {
