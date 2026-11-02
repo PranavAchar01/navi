@@ -137,6 +137,20 @@ struct BeepScheduler: Sendable {
   static let settleAfter: TimeInterval = 3
   static let settledInterval: TimeInterval = 1
 
+  /// How long a band must hold before it beeps (spatial_sound.RISE_S, tuned on take1 by
+  /// scripts/score_ticks.py): a one-frame phantom never sounds, a real warning beeps 0.1 to
+  /// 0.3 s later. Shorter than the display's WarningFilter.rise: sound is the fast channel.
+  static func rise(_ band: ProximityBand) -> TimeInterval {
+    switch band {
+    case .stop: 0.1
+    case .fast: 0.2
+    case .slow, .clear: 0.3
+    }
+  }
+  private static let slack: TimeInterval = 0.001
+
+  /// When the raw warning first reached each band, and has stayed at or above it since.
+  private var heldSince: [ProximityBand: Date] = [:]
   /// The warning being beeped, from its first beep until all is clear: when it began and the
   /// worst band it has reached.
   private var held: (since: Date, top: ProximityBand)?
@@ -148,11 +162,24 @@ struct BeepScheduler: Sendable {
     reading: ProximityReading?, receivedAt: Date?, now: Date, volume: BeepVolume
   ) -> BeepPlan? {
     guard let reading, let receivedAt, now.timeIntervalSince(receivedAt) < Self.staleAfter,
-      let warning = reading.warning
+      let raw = reading.warning
     else {
       held = nil
+      heldSince = [:]
       return nil
     }
+    for band in [ProximityBand.slow, .fast, .stop] {
+      heldSince[band] = raw.band >= band ? heldSince[band] ?? now : nil
+    }
+    guard
+      let ready = [ProximityBand.stop, .fast, .slow].first(where: {
+        guard let since = heldSince[$0] else { return false }
+        return now.timeIntervalSince(since) >= Self.rise($0) - Self.slack
+      })
+    else { return nil }
+    // A band still rising plays as the band that has held, at that band's own pace.
+    let warning =
+      ready == raw.band ? raw : ProximityWarning(sector: raw.sector, distance: nil, band: ready)
     // The first beep, or a band worse than any yet in this warning, sounds at once. The
     // server's band flickers between fast and stop and the sector hops as the head turns, so
     // anything else, a new direction included, waits out the interval (spatial_sound.Repeats).

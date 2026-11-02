@@ -425,17 +425,54 @@ def take_warning(msg: dict) -> tuple[int, float | None, str] | None:
     return best[1] if best else None
 
 
+# How long a band must hold before it beeps (BeepScheduler.rise). Tuned on take1 and its
+# judge replays by scripts/score_ticks.py: every beep inside a warning under 0.5 s goes (2.1
+# a minute on the live config), rear beeps on the real take drop from 37% to 27%, and a real
+# warning beeps 0.1 to 0.3 s later. The phone's display waits longer (WarningFilter.rise).
+RISE_S = {"stop": 0.1, "fast": 0.2, "slow": 0.3}
+
+
+class Onset:
+    """A warning beeps only once its band has held for rise[band]: a one-frame phantom never
+    sounds. The band played is the strongest one that has held long enough."""
+
+    RANK = {"slow": 1, "fast": 2, "stop": 3}
+
+    def __init__(self, rise: dict[str, float]) -> None:
+        self.rise = rise
+        self.since: dict[str, float] = {}
+
+    def clear(self) -> None:
+        self.since = {}
+
+    def gate(
+        self, t: float, w: tuple[int, float | None, str] | None
+    ) -> tuple[int, float | None, str] | None:
+        r = self.RANK[w[2]] if w else 0
+        for b, rank in self.RANK.items():
+            if rank <= r:
+                self.since.setdefault(b, t)
+            else:
+                self.since.pop(b, None)
+        ok = [b for b in self.since if t - self.since[b] >= self.rise.get(b, 0.0) - 1e-9]
+        if not w or not ok:
+            return None
+        return (w[0], w[1], max(ok, key=self.RANK.get))
+
+
 def schedule_take(
     msgs: list[dict],
     beacon: bool = True,
     ticks: bool = True,
     start: float | None = None,
     end: float | None = None,
+    rise: dict[str, float] | None = RISE_S,
 ) -> list[Event]:
     """What the phone plays over a recorded take (judge replay or live jsonl), from its
     safety messages alone: the guide beacon at the guide's bearing and distance, the arrival
     notes when "found" turns on, and the hazard beep from the most urgent sector. Times are
-    seconds from start (wall clock; default the first message), up to end."""
+    seconds from start (wall clock; default the first message), up to end. rise=None beeps
+    on the first frame of a warning."""
     safety = [m for m in msgs if m.get("type") == "safety"]
     if not safety:
         return []
@@ -445,12 +482,15 @@ def schedule_take(
     next_beacon = -math.inf
     was_found = False
     repeats = Repeats()
+    onset = Onset(rise) if rise else None
     for t in np.arange(walls[0], walls[-1] + STEP_S, STEP_S):
         k = int(np.searchsorted(walls, t, side="right") - 1)
         m = safety[k]
         if t - walls[k] > STALE_S:
             next_beacon = -math.inf
             repeats.clear()
+            if onset:
+                onset.clear()
             continue
         g = m.get("guide") or {}
         fix = g.get("bearing") is not None and g.get("dist") is not None
@@ -467,6 +507,8 @@ def schedule_take(
             events.append(Event(float(t), kind, d))
             next_beacon = t + beacon_period(d.ground_m)
         w = take_warning(m) if ticks else None
+        if onset:
+            w = onset.gate(float(t), w)
         if w is None:
             repeats.clear()
             continue

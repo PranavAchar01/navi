@@ -85,22 +85,41 @@ final class BeepCueTests: XCTestCase {
     XCTAssertGreaterThan(quiet, 0)
   }
 
-  func testSchedulerRepeatsOnTheIntervalAndSoundsNewWarningsAtOnce() {
+  func testSchedulerRepeatsOnTheIntervalAndSoundsNewWarningsOnceTheyHold() {
     var scheduler = BeepScheduler()
     var d = [Double?](repeating: nil, count: 8)
     d[0] = 1.5
     let yellow = ProximityReading(distances: d, modes: [String](repeating: "off", count: 8))
     let t0 = Date()
-    XCTAssertNotNil(scheduler.next(reading: yellow, receivedAt: t0, now: t0, volume: .normal))
-    XCTAssertNil(scheduler.next(reading: yellow, receivedAt: t0.addingTimeInterval(0.4), now: t0.addingTimeInterval(0.5), volume: .normal))
-    XCTAssertNotNil(scheduler.next(reading: yellow, receivedAt: t0.addingTimeInterval(1.6), now: t0.addingTimeInterval(1.7), volume: .normal))
-    // It got closer: red sounds immediately.
+    func at(_ s: Double) -> Date { t0.addingTimeInterval(s) }
+    // Yellow beeps once it has held for 0.3 s, then every 1.6 s at 1.5 m.
+    XCTAssertNil(scheduler.next(reading: yellow, receivedAt: t0, now: t0, volume: .normal))
+    XCTAssertNotNil(scheduler.next(reading: yellow, receivedAt: at(0.3), now: at(0.3), volume: .normal))
+    XCTAssertNil(scheduler.next(reading: yellow, receivedAt: at(0.7), now: at(0.8), volume: .normal))
+    XCTAssertNotNil(scheduler.next(reading: yellow, receivedAt: at(1.9), now: at(2.0), volume: .normal))
+    // It got closer: red sounds as soon as it has held for 0.1 s.
     d[0] = 0.3
     let red = ProximityReading(distances: d, modes: [String](repeating: "off", count: 8))
-    let t1 = t0.addingTimeInterval(1.8)
-    XCTAssertEqual(scheduler.next(reading: red, receivedAt: t1, now: t1, volume: .normal)?.kind, .clear)
+    XCTAssertNil(scheduler.next(reading: red, receivedAt: at(2.1), now: at(2.1), volume: .normal))
+    XCTAssertEqual(scheduler.next(reading: red, receivedAt: at(2.2), now: at(2.2), volume: .normal)?.kind, .clear)
     // Readings stopped arriving: silence, not a beep at a stale obstacle.
-    XCTAssertNil(scheduler.next(reading: red, receivedAt: t1, now: t1.addingTimeInterval(3), volume: .normal))
+    XCTAssertNil(scheduler.next(reading: red, receivedAt: at(2.2), now: at(5.2), volume: .normal))
+  }
+
+  func testAOneFramePhantomNeverBeeps() {
+    var scheduler = BeepScheduler()
+    var d = [Double?](repeating: nil, count: 8)
+    d[4] = 0.3
+    let off = [String](repeating: "off", count: 8)
+    let phantom = ProximityReading(distances: d, modes: off)
+    let clear = ProximityReading(distances: [Double?](repeating: nil, count: 8), modes: off)
+    let t0 = Date()
+    // A red flash behind every half second, two frames long, for five seconds.
+    for step in 0..<125 {
+      let t = t0.addingTimeInterval(Double(step) * 0.04)
+      let reading = step % 12 < 2 ? phantom : clear
+      XCTAssertNil(scheduler.next(reading: reading, receivedAt: t, now: t, volume: .normal))
+    }
   }
 
   func testAHeldWarningSettlesAndAFlickerDoesNotRestartIt() {
@@ -131,12 +150,14 @@ final class BeepCueTests: XCTestCase {
     let right = ProximityReading(distances: side, modes: off)
     let t1 = t0.addingTimeInterval(10.04)
     XCTAssertNil(scheduler.next(reading: right, receivedAt: t1, now: t1, volume: .normal))
-    // All clear, then a new warning: it sounds at once.
+    // All clear, then a new warning: it sounds once it has held for 0.1 s, not on the pace.
     let clear = ProximityReading(distances: [Double?](repeating: nil, count: 8), modes: off)
     let t2 = t1.addingTimeInterval(0.1)
     XCTAssertNil(scheduler.next(reading: clear, receivedAt: t2, now: t2, volume: .normal))
     let t3 = t2.addingTimeInterval(0.1)
-    XCTAssertNotNil(scheduler.next(reading: right, receivedAt: t3, now: t3, volume: .normal))
+    XCTAssertNil(scheduler.next(reading: right, receivedAt: t3, now: t3, volume: .normal))
+    let t4 = t3.addingTimeInterval(0.1)
+    XCTAssertNotNil(scheduler.next(reading: right, receivedAt: t4, now: t4, volume: .normal))
   }
 
   // MARK: - Engine, rendered offline

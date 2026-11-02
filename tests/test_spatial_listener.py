@@ -116,10 +116,26 @@ def test_a_held_warning_settles_and_a_flicker_does_not_restart_it() -> None:
     msgs += [safety(10.04 + i * 0.04, cues=off, sectors=side) for i in range(1, 25)]
     hop = ss.schedule_take(msgs)[-1]
     assert hop.where.az_deg == 90 and 10.7 < hop.t < 10.9
-    # All clear, then a new warning: it sounds at once.
+    # All clear, then a new warning: it sounds once it has held for 0.1 s, not on the pace.
     msgs.append(safety(11.1, cues=off))
-    msgs.append(safety(11.2, cues=off, sectors=side))
-    assert ss.schedule_take(msgs)[-1].t == pytest.approx(11.2, abs=0.05)
+    msgs += [safety(11.2 + i * 0.04, cues=off, sectors=side) for i in range(6)]
+    assert 11.3 <= ss.schedule_take(msgs)[-1].t <= 11.3 + 2 * ss.STEP_S + 1e-6
+
+
+def test_a_one_frame_phantom_never_beeps_and_a_rising_band_plays_what_has_held() -> None:
+    off = [{"mode": "off"}] * 8
+    behind = [None] * 4 + [0.3] + [None] * 3
+    flashes = [behind if i % 12 < 2 else None for i in range(125)]  # two frames every 0.5 s
+    msgs = [safety(i * 0.04, cues=off, sectors=d) for i, d in enumerate(flashes)]
+    assert not ss.schedule_take(msgs)
+    assert ss.schedule_take(msgs, rise=None)
+    # Yellow for a second, then red: yellow first, red only once red has held for 0.1 s.
+    yellow, red = [1.5] + [None] * 7, [0.3] + [None] * 7
+    msgs = [safety(i * 0.04, cues=off, sectors=yellow if i < 25 else red) for i in range(40)]
+    ev = ss.schedule_take(msgs)
+    assert ev[0].kind == "slow" and ev[0].t == pytest.approx(ss.RISE_S["slow"], abs=0.05)
+    first_stop = next(e for e in ev if e.kind == "stop")
+    assert first_stop.t == pytest.approx(1.0 + ss.RISE_S["stop"], abs=0.05)
 
 
 def test_the_strike_tells_front_from_back_and_the_side_has_no_mirror(monkeypatch) -> None:

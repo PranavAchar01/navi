@@ -1,0 +1,288 @@
+{
+ "label": "REAL RECORDED TAKES, REPLAYED; NOT A HUMAN STUDY",
+ "data/demo-takes/20261102-030143-cues.jsonl": {
+  "none": {
+   "minutes": 0.68,
+   "beeps_per_min": 76.2,
+   "flicker_per_min": 0.0,
+   "rear_share": 0.37,
+   "real_warnings": 1,
+   "real_missed": 0,
+   "onset_median_s": 0.0,
+   "stop_onsets": 4,
+   "stop_beep_median_s": 0.7
+  },
+  "stop 0.05 / fast 0.1 / slow 0.2": {
+   "minutes": 0.68,
+   "beeps_per_min": 76.2,
+   "flicker_per_min": 0.0,
+   "rear_share": 0.33,
+   "real_warnings": 1,
+   "real_missed": 0,
+   "onset_median_s": 0.08,
+   "stop_onsets": 4,
+   "stop_beep_median_s": 0.84
+  },
+  "stop 0.1 / fast 0.2 / slow 0.3": {
+   "minutes": 0.68,
+   "beeps_per_min": 74.8,
+   "flicker_per_min": 0.0,
+   "rear_share": 0.27,
+   "real_warnings": 1,
+   "real_missed": 0,
+   "onset_median_s": 0.12,
+   "stop_onsets": 4,
+   "stop_beep_median_s": 0.54
+  },
+  "phone display (0.15 / 0.3 / 0.5)": {
+   "minutes": 0.68,
+   "beeps_per_min": 74.8,
+   "flicker_per_min": 0.0,
+   "rear_share": 0.27,
+   "real_warnings": 1,
+   "real_missed": 0,
+   "onset_median_s": 0.16,
+   "stop_onsets": 4,
+   "stop_beep_median_s": 0.56
+  },
+  "0.25 / 0.5 / 0.8": {
+   "minutes": 0.68,
+   "beeps_per_min": 74.8,
+   "flicker_per_min": 0.0,
+   "rear_share": 0.35,
+   "real_warnings": 1,
+   "real_missed": 0,
+   "onset_median_s": 0.28,
+   "stop_onsets": 4,
+   "stop_beep_median_s": 0.28
+  }
+ },
+ "bench/results/demo-1102/strong.jsonl": {
+  "none": {
+   "minutes": 1.46,
+   "beeps_per_min": 73.2,
+   "flicker_per_min": 2.1,
+   "rear_share": 0.0,
+   "real_warnings": 7,
+   "real_missed": 0,
+   "onset_median_s": 0.0,
+   "stop_onsets": 57,
+   "stop_beep_median_s": 0.0
+  },
+  "stop 0.05 / fast 0.1 / slow 0.2": {
+   "minutes": 1.46,
+   "beeps_per_min": 69.1,
+   "flicker_per_min": 1.4,
+   "rear_share": 0.0,
+   "real_warnings": 7,
+   "real_missed": 0,
+   "onset_median_s": 0.2,
+   "stop_onsets": 57,
+   "stop_beep_median_s": 0.08
+  },
+  "stop 0.1 / fast 0.2 / slow 0.3": {
+   "minutes": 1.46,
+   "beeps_per_min": 65.0,
+   "flicker_per_min": 0.0,
+   "rear_share": 0.0,
+   "real_warnings": 7,
+   "real_missed": 0,
+   "onset_median_s": 0.32,
+   "stop_onsets": 57,
+   "stop_beep_median_s": 0.18
+  },
+  "phone display (0.15 / 0.3 / 0.5)": {
+   "minutes": 1.46,
+   "beeps_per_min": 60.9,
+   "flicker_per_min": 0.0,
+   "rear_share": 0.0,
+   "real_warnings": 7,
+   "real_missed": 0,
+   "onset_median_s": 0.52,
+   "stop_onsets": 57,
+   "stop_beep_median_s": 0.16
+  },
+  "0.25 / 0.5 / 0.8": {
+   "minutes": 1.46,
+   "beeps_per_min": 56.1,
+   "flicker_per_min": 0.0,
+   "rear_share": 0.0,
+   "real_warnings": 7,
+   "real_missed": 0,
+   "onset_median_s": 0.8,
+   "stop_onsets": 57,
+   "stop_beep_median_s": 0.34
+  }
+ },
+ "bench/results/demo-1102/graded.jsonl": {
+  "none": {
+   "minutes": 1.46,
+   "beeps_per_min": 69.2,
+   "flicker_per_min": 1.4,
+   "rear_share": 0.0,
+   "real_warnings": 5,
+   "real_missed": 0,
+   "onset_median_s": 0.0,
+   "stop_onsets": 53,
+   "stop_beep_median_s": 0.24
+  },
+  "stop 0.05 / fast 0.1 / slow 0.2": {
+   "minutes": 1.46,
+   "beeps_per_min": 64.4,
+   "flicker_per_min": 0.0,
+   "rear_share": 0.0,
+   "real_warnings": 5,
+   "real_missed": 0,
+   "onset_median_s": 0.2,
+   "stop_onsets": 53,
+   "stop_beep_median_s": 0.32
+  },
+  "stop 0.1 / fast 0.2 / slow 0.3": {
+   "minutes": 1.46,
+   "beeps_per_min": 61.0,
+   "flicker_per_min": 0.0,
+   "rear_share": 0.0,
+   "real_warnings": 5,
+   "real_missed": 0,
+   "onset_median_s": 0.32,
+   "stop_onsets": 53,
+   "stop_beep_median_s": 0.38
+  },
+  "phone display (0.15 / 0.3 / 0.5)": {
+   "minutes": 1.46,
+   "beeps_per_min": 61.0,
+   "flicker_per_min": 0.0,
+   "rear_share": 0.0,
+   "real_warnings": 5,
+   "real_missed": 0,
+   "onset_median_s": 0.52,
+   "stop_onsets": 53,
+   "stop_beep_median_s": 0.3
+  },
+  "0.25 / 0.5 / 0.8": {
+   "minutes": 1.46,
+   "beeps_per_min": 57.5,
+   "flicker_per_min": 0.0,
+   "rear_share": 0.0,
+   "real_warnings": 5,
+   "real_missed": 0,
+   "onset_median_s": 0.8,
+   "stop_onsets": 53,
+   "stop_beep_median_s": 0.48
+  }
+ },
+ "bench/results/demo-1102/base.jsonl": {
+  "none": {
+   "minutes": 1.47,
+   "beeps_per_min": 67.5,
+   "flicker_per_min": 0.0,
+   "rear_share": 0.02,
+   "real_warnings": 1,
+   "real_missed": 0,
+   "onset_median_s": 0.0,
+   "stop_onsets": 28,
+   "stop_beep_median_s": 0.48
+  },
+  "stop 0.05 / fast 0.1 / slow 0.2": {
+   "minutes": 1.47,
+   "beeps_per_min": 66.8,
+   "flicker_per_min": 0.0,
+   "rear_share": 0.02,
+   "real_warnings": 1,
+   "real_missed": 0,
+   "onset_median_s": 0.08,
+   "stop_onsets": 28,
+   "stop_beep_median_s": 0.5
+  },
+  "stop 0.1 / fast 0.2 / slow 0.3": {
+   "minutes": 1.47,
+   "beeps_per_min": 66.8,
+   "flicker_per_min": 0.0,
+   "rear_share": 0.02,
+   "real_warnings": 1,
+   "real_missed": 0,
+   "onset_median_s": 0.12,
+   "stop_onsets": 28,
+   "stop_beep_median_s": 0.52
+  },
+  "phone display (0.15 / 0.3 / 0.5)": {
+   "minutes": 1.47,
+   "beeps_per_min": 66.8,
+   "flicker_per_min": 0.0,
+   "rear_share": 0.02,
+   "real_warnings": 1,
+   "real_missed": 0,
+   "onset_median_s": 0.16,
+   "stop_onsets": 28,
+   "stop_beep_median_s": 0.56
+  },
+  "0.25 / 0.5 / 0.8": {
+   "minutes": 1.47,
+   "beeps_per_min": 65.5,
+   "flicker_per_min": 0.0,
+   "rear_share": 0.01,
+   "real_warnings": 1,
+   "real_missed": 0,
+   "onset_median_s": 0.28,
+   "stop_onsets": 28,
+   "stop_beep_median_s": 0.64
+  }
+ },
+ "bench/results/demo-1102/room.jsonl": {
+  "none": {
+   "minutes": 1.47,
+   "beeps_per_min": 66.7,
+   "flicker_per_min": 0.0,
+   "rear_share": 0.0,
+   "real_warnings": 3,
+   "real_missed": 0,
+   "onset_median_s": 0.0,
+   "stop_onsets": 66,
+   "stop_beep_median_s": 0.3
+  },
+  "stop 0.05 / fast 0.1 / slow 0.2": {
+   "minutes": 1.47,
+   "beeps_per_min": 66.1,
+   "flicker_per_min": 0.0,
+   "rear_share": 0.0,
+   "real_warnings": 3,
+   "real_missed": 0,
+   "onset_median_s": 0.2,
+   "stop_onsets": 66,
+   "stop_beep_median_s": 0.5
+  },
+  "stop 0.1 / fast 0.2 / slow 0.3": {
+   "minutes": 1.47,
+   "beeps_per_min": 64.7,
+   "flicker_per_min": 0.0,
+   "rear_share": 0.0,
+   "real_warnings": 3,
+   "real_missed": 0,
+   "onset_median_s": 0.32,
+   "stop_onsets": 66,
+   "stop_beep_median_s": 0.14
+  },
+  "phone display (0.15 / 0.3 / 0.5)": {
+   "minutes": 1.47,
+   "beeps_per_min": 61.3,
+   "flicker_per_min": 0.0,
+   "rear_share": 0.0,
+   "real_warnings": 3,
+   "real_missed": 0,
+   "onset_median_s": 0.52,
+   "stop_onsets": 66,
+   "stop_beep_median_s": 0.16
+  },
+  "0.25 / 0.5 / 0.8": {
+   "minutes": 1.47,
+   "beeps_per_min": 58.6,
+   "flicker_per_min": 0.0,
+   "rear_share": 0.0,
+   "real_warnings": 3,
+   "real_missed": 0,
+   "onset_median_s": 0.8,
+   "stop_onsets": 66,
+   "stop_beep_median_s": 0.6
+  }
+ }
+}
