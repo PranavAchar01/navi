@@ -34,6 +34,7 @@ import numpy as np
 FWD = np.array([0.0, 0.0, 1.0])
 
 CELL_M = 0.05
+DROP_CELL_M = 0.1  # floor-edge cells are coarser: an edge's range wobbles a row's worth
 SECTORS = 8
 CORRIDOR_HALF_M = 0.45  # the path a walking body sweeps, as safety.BODY_HALF_M
 PATH_AHEAD_M = 2.0
@@ -371,6 +372,142 @@ class HazardMemory:
         return out
 
 
+class DropMemory:
+    """Remembered floor edges: where the floor ends in a step down or a stair.
+
+    A drop of 18 cm is below `safety.analyse`'s 25 cm line, and a drop seen from 2 m leaves the
+    bottom of the view at about 1.5 m, the same way a low box does. The floor's height cannot
+    tell it from far floor (a degree of pitch is 9 cm at 5 m), but the depth can: going up a
+    column, floor ranges grow by a steady step per row, and at a floor edge the next row
+    already looks at the lower floor, a jump several steps long. A floor pixel with such a jump
+    above it is a floor edge. Edges are held as 10 cm cells in the world frame, like
+    `HazardMemory`, and a held edge is dropped when the frame sees the floor run smoothly
+    through it. `update` reports the nearest held edge inside the walking path, in metres along
+    it. Add edges only on frames whose pitch is backed by a floor (`add=False` otherwise)."""
+
+    def __init__(
+        self,
+        hfov_deg: float,
+        eye_h: float,
+        keep_s: float = 8.0,
+        min_hits: int = 2,
+        fall_m: float = 0.14,
+        max_range_m: float = 3.5,
+        min_px: int = 6,
+        below_m: float = 0.0,
+        stride: int = 2,
+    ):
+        self.hfov, self.eye_h = hfov_deg, eye_h
+        self.keep_s, self.min_hits = keep_s, min_hits
+        self.fall_m = fall_m
+        self.min_px = min_px
+        self.below_m = below_m
+        self.max_range_m, self.stride = max_range_m, stride
+        self.clear()
+
+    def clear(self) -> None:
+        self.key = np.zeros(0, np.int64)
+        self.pts = np.zeros((0, 2))  # world x, z
+        self.seen_t = np.zeros(0)
+        self.hits = np.zeros(0, np.int32)
+
+    def update(
+        self, t: float, depth: np.ndarray, pitch_deg: float, yaw: float, pos=(0.0, 0.0), add=True
+    ) -> float:
+        s = self.stride
+        d = np.asarray(depth, np.float32)[::s, ::s]
+        hh, ww = d.shape
+        ok = np.isfinite(d) & (d > 0.05)
+        r, f, hgt = level_points(np.where(ok, d, 0), self.hfov, pitch_deg, self.eye_h)
+        fw = (math.sin(yaw), math.cos(yaw))
+        rt = (-math.cos(yaw), math.sin(yaw))
+        px, pz = float(pos[0]), float(pos[1])
+        rng = np.hypot(r, f)
+        # Floor-like: near floor height (loosely, the pitch is a degree or two off) and level
+        # with the two rows below it, so the pitch error cancels in what follows.
+        tol = 0.05 + 0.01 * rng
+        cont = np.ones_like(ok)
+        cont[:-2] = (np.abs(hgt[:-2] - hgt[1:-1]) < tol[:-2]) & (
+            np.abs(hgt[:-2] - hgt[2:]) < tol[:-2]
+        )
+        flat = ok & cont & (np.abs(hgt) < 0.15 + 0.03 * rng) & (rng < self.max_range_m)
+        # Going one row up the image from a floor pixel: on floor the height stays put (whatever
+        # the pitch error), at a floor edge it falls to the lower floor beyond.
+        fall = np.zeros_like(hgt)
+        fall[1:] = hgt[1:] - hgt[:-1]
+        both = np.zeros_like(ok)
+        both[1:] = ok[1:] & ok[:-1]
+        below = np.zeros_like(ok)  # the row above lies below the floor, not just lower than it
+        below[1:] = hgt[:-1] < -(self.below_m + 0.015 * rng[:-1])
+        edge = flat & both & below & (fall > self.fall_m + 0.01 * rng)
+        edge[:2] = False
+        smooth = flat & both & (np.abs(fall) < 0.6 * self.fall_m + 0.01 * rng)
+
+        if len(self.key):
+            dx, dz = self.pts[:, 0] - px, self.pts[:, 1] - pz
+            cr = dx * rt[0] + dz * rt[1]
+            cf = dx * fw[0] + dz * fw[1]
+            cu = -self.eye_h
+            p = math.radians(pitch_deg)
+            zc = math.cos(p) * cf - math.sin(p) * cu
+            yc = -math.sin(p) * cf - math.cos(p) * cu
+            foc = 0.5 * ww / math.tan(math.radians(self.hfov) / 2)
+            with np.errstate(divide="ignore", invalid="ignore"):
+                uu = np.floor(foc * cr / zc + ww / 2).astype(np.int64)
+                vv = np.floor(foc * yc / zc + hh / 2).astype(np.int64)
+            # The cell's pixel is only good to a few rows (scale and pitch error move an edge
+            # 0.2 m, two rows): it is gone only when every row around it is plain floor.
+            win = 4
+            inv = (zc > 0.1) & (uu >= 1) & (uu < ww - 1) & (vv >= win) & (vv < hh - win)
+            idx = np.flatnonzero(inv)
+            u_, v_ = uu[idx], vv[idx]
+            through = np.ones(len(idx), bool)
+            near_edge = np.zeros(len(idx), bool)
+            for dv in range(-win, win + 1):
+                through &= smooth[v_ + dv, u_]
+                near_edge |= edge[v_ + dv, u_]
+            gone = np.zeros(len(self.key), bool)
+            gone[idx[through]] = True
+            self.seen_t[idx[near_edge]] = t
+            keep = ~(gone | (t - self.seen_t > self.keep_s) | (np.hypot(dx, dz) > 4.0))
+            self.key, self.pts = self.key[keep], self.pts[keep]
+            self.seen_t, self.hits = self.seen_t[keep], self.hits[keep]
+
+        if add and edge.sum() >= self.min_px:
+            # The edge is on the floor: its distance ahead from the ray's length and the eye
+            # height alone, so a degree of pitch error does not move it.
+            fe = np.sqrt(
+                np.maximum(f[edge] ** 2 + (hgt[edge] - self.eye_h) ** 2 - self.eye_h**2, 0)
+            )
+            wx = px + r[edge] * rt[0] + fe * fw[0]
+            wz = pz + r[edge] * rt[1] + fe * fw[1]
+            i = np.floor(wx / DROP_CELL_M).astype(np.int64) + (1 << 20)
+            j = np.floor(wz / DROP_CELL_M).astype(np.int64) + (1 << 20)
+            k, first = np.unique((i << 26) | j, return_index=True)
+            wp = np.column_stack([wx[first], wz[first]])
+            at = np.clip(np.searchsorted(self.key, k), 0, max(len(self.key) - 1, 0))
+            have = (self.key[at] == k) if len(self.key) else np.zeros(len(k), bool)
+            self.seen_t[at[have]] = t
+            self.hits[at[have]] += 1
+            new = ~have
+            self.key = np.concatenate([self.key, k[new]])
+            self.pts = np.vstack([self.pts, wp[new]])
+            self.seen_t = np.concatenate([self.seen_t, np.full(int(new.sum()), t)])
+            self.hits = np.concatenate([self.hits, np.ones(int(new.sum()), np.int32)])
+            order = np.argsort(self.key)
+            self.key, self.pts = self.key[order], self.pts[order]
+            self.seen_t, self.hits = self.seen_t[order], self.hits[order]
+
+        sure = self.hits >= self.min_hits
+        if not sure.any():
+            return math.inf
+        dx, dz = self.pts[sure, 0] - px, self.pts[sure, 1] - pz
+        cr = dx * rt[0] + dz * rt[1]
+        cf = dx * fw[0] + dz * fw[1]
+        pm = (np.abs(cr) < CORRIDOR_HALF_M) & (cf > 0) & (cf < PATH_AHEAD_M)
+        return float(cf[pm].min()) if pm.any() else math.inf
+
+
 class FovLoop:
     """The server's side of the memory, one call per frame (shadow mode first, see
     docs/fov-catalogue.md). Pitch from the accelerometer and the floor, yaw and position from
@@ -381,6 +518,7 @@ class FovLoop:
         self.hfov, self.eye_h = hfov_deg, eye_h
         self.fuse = PitchFuse()
         self.mem = HazardMemory(hfov_deg, eye_h, **memory)
+        self.drops = DropMemory(hfov_deg, eye_h)
 
     def step(self, now: float, depth_m, grid, floor: bool, obstacles, accel, heading) -> dict:
         """`depth_m`: scaled depth in metres. `grid`: `Scene.grid` (255 = not an obstacle).
@@ -418,6 +556,7 @@ class FovLoop:
         yaw = heading.yaw if heading.yaw is not None else heading.turn
         pos = (0.0, 0.0) if heading.pos is None else (float(heading.pos[0]), float(heading.pos[2]))
         fc = self.mem.update(now, z, pitch, yaw, pos, mask)
+        drop = self.drops.update(now, z, pitch, yaw, pos, add=lf is not None)
 
         def fin(v):
             return round(v, 2) if math.isfinite(v) else None
@@ -431,5 +570,6 @@ class FovLoop:
             ],
             "path": fin(fc.path_m),
             "cells": fc.cells,
+            "drop": fin(drop),
             "posed": heading.pos is not None,
         }

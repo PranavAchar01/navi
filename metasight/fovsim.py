@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 import mujoco
 import numpy as np
 
-from .fovmem import CORRIDOR_HALF_M, HazardMemory, PitchFuse, level_floor
+from .fovmem import CORRIDOR_HALF_M, DropMemory, HazardMemory, PitchFuse, level_floor
 from .safety import GRID, analyse
 
 EYE_H = 1.6
@@ -52,6 +52,12 @@ class Scene:
     unseen: list[Box] = field(default_factory=list)
     movers: list[tuple[Box, float, float, float, float]] = field(default_factory=list)
     blur_dps: float = math.inf  # head turns faster than this smear the frame to nothing
+    # Floors that end: `slabs` are (x from, x to, top height) raised floors (walkable, drawn, not
+    # hazards), `edges` the x of each step down ahead, `ground_z` the lowest floor. The walker
+    # stands on the slab whose top is 0.
+    slabs: list[tuple[float, float, float]] = field(default_factory=list)
+    edges: list[float] = field(default_factory=list)
+    ground_z: float = 0.0
 
     @property
     def duration(self) -> float:
@@ -180,6 +186,25 @@ SCENES: dict[str, Scene] = {
             movers=[((1.3, 1.6, 0.85, 0.2, 0.2, 0.85), 1.0, 3.0, 0.0, -1.6)],
         ),
         Scene(
+            "drop_step",
+            "The floor ends 2 m ahead in a 0.18 m step down; approached with the head level the "
+            "edge leaves the bottom of the view at about 1.5 m (under the 25 cm drop line).",
+            [],
+            [(0, -1.0, 0, 0, 0, 10), (5.5, 1.3, 0, 0, 0, 10), (7.0, 1.35, 0, 0, 0, 10)],
+            slabs=[(-20.0, 2.0, 0.0)],
+            edges=[2.0],
+            ground_z=-0.18,
+        ),
+        Scene(
+            "stairs_down",
+            "Two steps down at 2.0 and 2.6 m (0.18 m each), head level.",
+            [],
+            [(0, -1.0, 0, 0, 0, 10), (5.5, 1.3, 0, 0, 0, 10), (7.0, 1.35, 0, 0, 0, 10)],
+            slabs=[(-20.0, 2.0, 0.0), (2.0, 2.6, -0.18)],
+            edges=[2.0, 2.6],
+            ground_z=-0.36,
+        ),
+        Scene(
             "glass_pane",
             "A glass door the depth cannot see (a control: nothing to remember).",
             [],
@@ -205,7 +230,12 @@ def _box_xml(b: Box, name: str = "") -> str:
 
 def scene_xml(sc: Scene, w: int, h: int, hfov: float) -> str:
     fovy = 2 * math.degrees(math.atan(math.tan(math.radians(hfov) / 2) * h / w))
-    geoms = ['<geom type="plane" size="20 20 0.1" pos="0 0 0" material="floor"/>']
+    geoms = [f'<geom type="plane" size="20 20 0.1" pos="0 0 {sc.ground_z}" material="floor"/>']
+    for x0, x1, top in sc.slabs:
+        geoms.append(
+            f'<geom type="box" pos="{(x0 + x1) / 2:.4f} 0 {(top + sc.ground_z) / 2:.4f}" '
+            f'size="{(x1 - x0) / 2:.4f} 6 {(top - sc.ground_z) / 2:.4f}" rgba="0.8 0.8 0.78 1"/>'
+        )
     geoms += [_box_xml(b) for b in sc.boxes]
     bodies = "".join(
         f'<body name="mover{i}" mocap="true" pos="{m[0][0]} {m[0][1]} {m[0][2]}">'
@@ -283,6 +313,20 @@ def truth(pts: np.ndarray, x: float, y: float, yaw: float, eye_h: float = EYE_H)
     return sec, path
 
 
+def drop_truth(edges: list[float], x: float, y: float, yaw: float) -> float:
+    """Metres along the walking path to the nearest floor edge ahead (inf: none)."""
+    best = math.inf
+    ys = np.arange(-3.0, 3.0001, 0.05)
+    for ex in edges:
+        d = np.column_stack([np.full(len(ys), ex), ys]) - [x, y]
+        cf = d @ [math.cos(yaw), math.sin(yaw)]
+        cr = d @ [math.sin(yaw), -math.cos(yaw)]
+        m = (np.abs(cr) < CORRIDOR_HALF_M) & (cf > 0) & (cf < REACH_M)
+        if m.any():
+            best = min(best, float(cf[m].min()))
+    return best
+
+
 @dataclass
 class Arms:
     """Which cue sources are scored. `pos`: the memory's position source, "true", "none" (the
@@ -322,6 +366,10 @@ class Score:
     path_missed: int = 0
     front_danger: int = 0
     front_missed: int = 0
+    # Drops (a floor edge ahead in the walking path), scored apart from the hazard counts.
+    drop_danger: int = 0
+    drop_missed: int = 0
+    drop_false: int = 0
 
     def add(self, o: Score) -> None:
         for k in vars(self):
@@ -341,6 +389,11 @@ class Score:
             "false_far_per_min": round(self.false_far / (self.frames / FPS / 60), 1)
             if self.frames
             else None,
+            "drop_miss": r(self.drop_missed, self.drop_danger),
+            "drop_false_per_min": round(self.drop_false / (self.frames / FPS / 60), 1)
+            if self.frames
+            else None,
+            "drop_danger": self.drop_danger,
             "danger": self.danger,
             "frames": self.frames,
         }
@@ -401,6 +454,7 @@ def run(
     arng = [np.random.default_rng([seed, 1]) for _ in arms]
     p_bias = [g.normal(0, a.pitch_bias) for g, a in zip(arng, arms, strict=True)]
     fuses = [PitchFuse(snap=a.snap) for a in arms]
+    dmems = [DropMemory(hfov, eye_h_cfg) for _ in arms]
     scores = [Score() for _ in range(len(arms) + 1)]
     prev_plane, plane_t, hold = None, -math.inf, None
     scale = 1.0  # the server's running depth scale (SafetyLoop._geometry): the floor is the ruler
@@ -459,6 +513,8 @@ def run(
             live[s] = scene.sectors[k]
         true_sec, true_path = truth(all_pts, x, y, yaw)
         cues = [(live, scene.path_m)]
+        drop_true = drop_truth(sc.edges, x, y, yaw)
+        drop_cues = [scene.drop_m]
         for k, (a, mem) in enumerate(zip(arms, mems, strict=True)):
             yaw_err[k] += math.radians(a.yaw_drift_dps) / FPS * arng[k].choice([-1, 1])
             if a.pos == "true":
@@ -477,9 +533,9 @@ def run(
                 mask = np.zeros(z.shape, bool)
             imu = pitch + p_bias[k] + arng[k].normal(0, a.pitch_sd)
             zk = z_m
+            lf = None
             if a.level:
                 guess = imu + (fuses[k].offset or 0.0)
-                lf = None
                 if z.any():
                     eh = eye_h_cfg / scale
                     lf = level_floor(z, hfov, guess, eh, min_span=a.min_span)
@@ -502,6 +558,15 @@ def run(
                 mask,
             )
             lv_k, path_k = live, scene.path_m
+            # The edge memory adds edges only while the pitch is backed by the floor: a fit this
+            # frame, or a looser fit (no span check: a drop leaves only a strip of floor) that
+            # agrees with the pitch in use.
+            backed = lf is not None or not a.level
+            if not backed and z.any():
+                ld = level_floor(z, hfov, guess, eye_h_cfg / scale)
+                backed = ld is not None and abs(ld[0] - imu) < 2.0
+            dm = dmems[k].update(t, zk, imu, yaw + yaw_err[k], pos, add=backed)
+            drop_cues.append(min(scene.drop_m, dm) if a.memory else scene.drop_m)
             if not a.memory:
                 cues.append((lv_k, path_k))
                 continue
@@ -526,6 +591,12 @@ def run(
                     sco.false_far += near > sec[s] + FALSE_TOL_M
                     if trace is not None:
                         trace.append((round(t, 2), ai, s, round(sec[s], 2), true_sec[s]))
+            dc = drop_cues[ai]
+            if drop_true < DANGER_M:
+                sco.drop_danger += 1
+                sco.drop_missed += _miss(drop_true, dc)
+            if dc < DANGER_M and drop_true > dc + FALSE_TOL_M:
+                sco.drop_false += 1
             if true_path < DANGER_M:
                 sco.path_danger += 1
                 sco.path_missed += _miss(true_path, path)

@@ -93,6 +93,7 @@ def main() -> None:
             print(
                 f"  {k:24s} miss {r['miss']}  front {r['front_miss']}  path {r['path_miss']}  "
                 f"false/min {r['false_per_min']} (far {r['false_far_per_min']})  "
+                f"drop miss {r['drop_miss']} false/min {r['drop_false_per_min']}  "
                 f"diff {r.get('miss_diff_ci', '')}"
             )
     print("total")

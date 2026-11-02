@@ -172,3 +172,52 @@ def test_fov_loop_shadow_record():
     head.turn = -math.pi / 2  # turned right: the box is out of view on the left
     out = loop.step(0.3, render(15), grid, True, [], grav, head)
     assert out["hidden"][6] is not None and out["band"][6] == "low"
+
+
+def render_drop(pitch, edge, step=0.18, eye=EYE):
+    """Z-depth of a floor that ends `edge` m ahead in a step down of `step` metres."""
+    f = 0.5 * W / math.tan(math.radians(HFOV) / 2)
+    _, v = np.meshgrid(np.arange(W) - W / 2 + 0.5, np.arange(H) - H / 2 + 0.5)
+    p = math.radians(pitch)
+    down = math.sin(p) + math.cos(p) * v / f
+    ahead = math.cos(p) - math.sin(p) * v / f
+    with np.errstate(divide="ignore", invalid="ignore"):
+        upper = eye / down
+        z = np.where(upper * ahead <= edge, upper, (eye + step) / down)
+    return np.where((down > 1e-6) & (z < 15), z, 0.0).astype(np.float32)
+
+
+def test_drop_memory_holds_an_edge_after_it_leaves_the_view():
+    from metasight.fovmem import DropMemory
+
+    mem = DropMemory(HFOV, EYE)
+    seen = math.inf
+    for i in range(10):  # walking up from 3.5 m to the edge, the head level (10 degrees)
+        x = 0.1 * i
+        seen = mem.update(i / 13, render_drop(10, 3.5 - x), 10.0, 0.0, (0.0, x))
+    assert math.isinf(seen)  # still 2.6 m off: beyond the 2 m the path looks
+    for i in range(10, 22):  # from 1.5 m the view's bottom (46 degrees) no longer holds the edge
+        x = 0.1 * i
+        reported = mem.update(i / 13, render_drop(10, 3.5 - x), 10.0, 0.0, (0.0, x))
+    assert abs(reported - (3.5 - 2.1)) < 0.3
+
+
+def test_drop_memory_stays_quiet_on_plain_floor_and_a_low_box():
+    from metasight.fovmem import DropMemory
+
+    mem = DropMemory(HFOV, EYE)
+    for i in range(10):
+        assert math.isinf(mem.update(i / 13, render(10), 10.0, 0.0, (0.0, 0.0)))
+    for i in range(10):  # the far edge of a 12 cm box is not a drop
+        out = mem.update(i / 13, render(15, box=(1.7, 0.15, 0.12)), 15.0, 0.0, (0.0, 0.0))
+        assert math.isinf(out)
+    assert len(mem.key) == 0
+
+
+def test_drop_memory_does_not_add_without_a_trusted_pitch():
+    from metasight.fovmem import DropMemory
+
+    mem = DropMemory(HFOV, EYE)
+    for i in range(5):
+        out = mem.update(i / 13, render_drop(10, 2.0), 10.0, 0.0, (0.0, 0.0), add=False)
+    assert math.isinf(out) and len(mem.key) == 0
