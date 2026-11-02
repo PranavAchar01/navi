@@ -143,7 +143,7 @@ def main() -> None:
         "--extract", nargs="*", metavar="WALK", help="depth strips (all walks, or those named)"
     )
     ap.add_argument(
-        "--layout", default="eight", choices=["eight", "diag4", "diag4-lin"],
+        "--layout", default="eight", choices=["eight", "diag4", "diag4-lin", "diag4-cp"],
         help="diag4: the built belt, four motors on the diagonals (firmware/belt/belt.ino)",
     )  # fmt: skip
     a = ap.parse_args()
@@ -163,7 +163,7 @@ def main() -> None:
                         float(d[f"{w}/hfov"][0]), scheme, persist,
                     )  # fmt: skip
                     if a.layout != "eight":  # what the four motors play (hapsim.to_motors)
-                        fold = "lin" if a.layout == "diag4-lin" else "max3"
+                        fold = {"diag4-lin": "lin", "diag4-cp": "cp"}.get(a.layout, "max3")
                         inten = np.stack([h.to_motors(r / 255, "diag4", fold) * 255 for r in inten])
                     on = inten >= felt
                     n = transient(on, ts)

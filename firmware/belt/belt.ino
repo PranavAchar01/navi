@@ -21,8 +21,9 @@
 #define BELT_BLE_MTU 185  // the 26-byte packet needs more than the default 23-byte MTU
 
 // Four modules stand in for the eight directions: each sits on a diagonal (front-right, back-right,
-// back-left, front-left) and plays the strongest of its own direction and the two beside it, so
-// "front" buzzes both front motors and "front-right" only the one. Order: cell 1, 3, 5, 7.
+// back-left, front-left). Its own direction plays at full strength and each direction beside it
+// at 1/sqrt(2) (constant power), so "front" buzzes both front motors at 71% and "front-right"
+// only the one; the pair feels as strong as a single motor. Order: cell 1, 3, 5, 7.
 #define MOTORS 4
 static const int PINS[MOTORS] = {26, 14, 13, 4};  // front-right, back-right, back-left, front-left
 static belt_t belt;
@@ -107,8 +108,8 @@ void loop() {
   belt_tick(&belt, now, duty);  // lost link falls through to the tap pattern
   for (int m = 0; m < MOTORS; m++) {
     int c = 2 * m + 1;
-    uint8_t d = max(duty[c], max(duty[c - 1], duty[(c + 1) % BELT_N]));
-    ledcWrite(PINS[m], d);
+    float a = duty[c], l = duty[c - 1], r = duty[(c + 1) % BELT_N];
+    ledcWrite(PINS[m], (uint8_t)min(255.0f, sqrtf(a * a + 0.5f * (l * l + r * r))));
   }
 #ifdef BELT_WIFI
   if (peerPort && now - lastTel >= 20) {

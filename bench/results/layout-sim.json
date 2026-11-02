@@ -69,6 +69,20 @@
   "stop_violations": 0,
   "cost": 33.783529999999985
  },
+ "panned diag4-cp": {
+  "runs": 100,
+  "success": 0.74,
+  "collisions": 1.54,
+  "time_s": 11.018918918918775,
+  "efficiency": 1.0373690377105675,
+  "contact_s": 24.18420000000002,
+  "false_per_min": 0.0,
+  "guide_frames": 0,
+  "stop_frames": 0,
+  "stop_overridden": 0,
+  "stop_violations": 0,
+  "cost": 33.73795999999999
+ },
  "sector diag4 minus sector eight": {
   "cost_diff": 14.155809999999997,
   "ci95": [
@@ -88,6 +102,13 @@
   "ci95": [
    -5.5021765,
    1.136110999999991
+  ]
+ },
+ "panned diag4-cp minus panned diag4": {
+  "cost_diff": -2.1054800000000005,
+  "ci95": [
+   -4.36982275,
+   -0.533014500000005
   ]
  }
 }

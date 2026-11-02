@@ -149,9 +149,11 @@ def test_four_diagonal_motors_fold_the_eight_directions():
     import numpy as np
 
     front = np.array([1.0, 0, 0, 0, 0, 0, 0, 0])
-    assert list(h.to_motors(front, "diag4")) == [1.0, 0, 0, 1.0]  # both front motors
+    # both front motors at 1/sqrt(2): the pair carries the same power as one motor
+    assert np.allclose(h.to_motors(front, "diag4"), [0.5**0.5, 0, 0, 0.5**0.5])
     front_right = np.array([0, 0.5, 0, 0, 0, 0, 0, 0])
-    assert list(h.to_motors(front_right, "diag4")) == [0.5, 0, 0, 0]
+    assert np.allclose(h.to_motors(front_right, "diag4"), [0.5, 0, 0, 0])
+    assert list(h.to_motors(front, "diag4", "max3")) == [1.0, 0, 0, 1.0]
 
 
 def test_walker_on_four_motors_reaches_the_goal_in_a_seeded_room():

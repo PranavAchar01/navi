@@ -62,7 +62,8 @@ class Belt:
     planner: bool = False  # steer by nav.Navigator's waypoint bearing instead of the sim's BFS
     persist: int = 1  # frames a strip must stay near (pan.Persist); 1 = off
     layout: str = "eight"  # eight motors, one per cell | diag4: firmware/belt's four diagonals
-    fold: str = "max3"  # diag4: max3 = max of own cell and both neighbours | lin = own + half each
+    # diag4: cp = constant power (firmware) | max3 = max of own cell and neighbours | lin = linear
+    fold: str = "cp"
 
 
 @dataclass(frozen=True)
@@ -287,16 +288,26 @@ def duty(mode: int, inten: int, t: float, belt: Belt) -> float:
 
 
 # Physical motor bearings (deg, clockwise from front) per layout. diag4 is the built belt: four
-# modules on the diagonals, each playing the strongest of its own cell and the two beside it
-# (firmware/belt/belt.ino), so "front" buzzes both front motors and "front-right" only one.
+# modules on the diagonals; each plays its own cell and 1/sqrt(2) of the two beside it (cp, as in
+# firmware/belt/belt.ino), so "front" buzzes both front motors and "front-right" only one.
 MOTOR_DEG = {"eight": [k * 45.0 for k in range(8)], "diag4": [45.0, 135.0, 225.0, 315.0]}
 
 
-def to_motors(drive: np.ndarray, layout: str, fold: str = "max3") -> np.ndarray:
+def to_motors(drive: np.ndarray, layout: str, fold: str = "cp") -> np.ndarray:
     """Eight cell drives to what the physical motors play. lin is linear panning: a cell between
     two motors gives each half, so the pair sums back to the cell's drive."""
     if layout == "eight":
         return drive
+    if fold == "cp":  # constant power: a cell between two motors gives each 1/sqrt(2)
+        return np.array(
+            [
+                min(
+                    1.0,
+                    math.sqrt(drive[c] ** 2 + 0.5 * (drive[c - 1] ** 2 + drive[(c + 1) % 8] ** 2)),
+                )
+                for c in (1, 3, 5, 7)
+            ]
+        )
     if fold == "lin":
         return np.array(
             [min(1.0, drive[c] + 0.5 * (drive[c - 1] + drive[(c + 1) % 8])) for c in (1, 3, 5, 7)]
@@ -373,8 +384,11 @@ def perceive(window: np.ndarray, belt: Belt, skin: Skin, rng) -> list[tuple[floa
         elif len(run) == 2:
             a, b = float(amps[0]), float(amps[1])
             if belt.layout == "diag4":
-                f = b / (a + b)
-                lv = a + b if belt.fold == "lin" else max(a, b)
+                if belt.fold == "cp":
+                    f, lv = math.atan2(b, a) / (math.pi / 2), math.hypot(a, b)
+                else:
+                    f = b / (a + b)
+                    lv = a + b if belt.fold == "lin" else max(a, b)
             elif p.pan == "linear":
                 f, lv = b / (a + b), a + b
             elif p.pan == "nearest":

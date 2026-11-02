@@ -22,11 +22,12 @@ from metasight import pan
 ROOT = Path(__file__).resolve().parent.parent
 HELD = list(range(1000, 1100))
 ARMS = {
-    f"{scheme} {layout}": dict(scheme=scheme, layout=layout)
+    f"{scheme} {layout}": dict(scheme=scheme, layout=layout, fold="max3")
     for scheme in ("sector", "panned")
     for layout in ("eight", "diag4")
 }
 ARMS["panned diag4-lin"] = dict(scheme="panned", layout="diag4", fold="lin")
+ARMS["panned diag4-cp"] = dict(scheme="panned", layout="diag4", fold="cp")
 
 
 def _one(a):
@@ -60,6 +61,7 @@ def main() -> None:
             )
     pairs = [(f"{s} diag4", f"{s} eight") for s in ("sector", "panned")]
     pairs.append(("panned diag4-lin", "panned diag4"))
+    pairs.append(("panned diag4-cp", "panned diag4"))
     for arm, ref in pairs:
         d, lo, hi = _paired(runs[ref], runs[arm])
         out[f"{arm} minus {ref}"] = {"cost_diff": d, "ci95": [lo, hi]}
