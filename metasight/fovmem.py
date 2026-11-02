@@ -47,6 +47,9 @@ APPROACH_M = 0.1  # a remembered cell cues once the wearer has closed this much 
 STEP_STD = 1.2  # m/s^2: spread of |accel| over the recent window that counts as walking
 CAMERA_SECTORS = (7, 0, 1)  # the sectors the live cue covers (three image columns)
 REAR_SECTORS = (3, 4, 5)
+PRIOR_NEED_FIXED = 3  # frames of free space that clear a prior cell of a fixed object (L29)
+PRIOR_NEED_MOVABLE = 1  # and of a movable one (a chair): one observation
+PRIOR_SKIP = ("door", "whiteboard")  # flush with a wall, or a door that may be open
 LEVEL_BIN_M = 0.10  # height bins for finding flat surfaces
 LEVEL_MIN_PX = 150  # pixels (stride 2) a flat surface needs
 LEVEL_MIN_SPAN = 0.2  # metres it must run away from the camera
@@ -229,6 +232,76 @@ def stepped_floor(hgt: np.ndarray, fwd: np.ndarray, ok: np.ndarray) -> np.ndarra
     return out
 
 
+def prior_cells(
+    objects,
+    xz=None,
+    band: tuple[float, float] = (0.08, 1.75),
+    floor_y: float = 0.0,
+    skip=PRIOR_SKIP,
+    need_fixed: int = PRIOR_NEED_FIXED,
+    need_movable: int = PRIOR_NEED_MOVABLE,
+    min_dim: float = 0.0,
+):
+    """Surface cells of a prior map's hazard boxes (`recon.load_prior(...)["objects"]`) as
+    `(pts (n, 3) world x, z, height, need (n,), group (n,))` in the memory's frame; `group` is
+    the object's index in `objects`. Objects whose longer side is under `min_dim` are left out.
+
+    Each hazard is an oriented box (centre and size [sx, height, sz] in the map frame, y up,
+    yaw about y with the local x axis (cos yaw, 0, sin yaw)); heights are `floor_y`-relative.
+    Its top face and the side walls from `floor_clearance_m` up (an overhang such as a desk
+    top leaves the space under it free) become 5 cm cells at 10 cm height steps, kept inside
+    `band`. `xz`: a 2x3 matrix taking (map x, map z, 1) to the memory's (x, z); None is the
+    identity (the live map is the prior's frame). `need`: frames of free space that clear a
+    cell (movable objects `need_movable`, fixed `need_fixed`)."""
+    m = np.array([[1.0, 0, 0], [0, 1.0, 0]]) if xz is None else np.asarray(xz, float)
+    pts, need, grp = [], [], []
+    for gi, o in enumerate(objects):
+        if not o.get("hazard", True) or o.get("class") in skip:
+            continue
+        if max(o["size"][0], o["size"][2]) < min_dim:
+            continue
+        cx, cy, cz = (float(v) for v in o["center"])
+        sx, sh, sz = (float(v) for v in o["size"])
+        top = cy + sh / 2 - floor_y
+        bottom = max(0.0, cy - sh / 2 - floor_y)
+        lo = min(top - 0.02, bottom + max(0.0, float(o.get("floor_clearance_m") or 0.0)))
+        lo, top = max(lo, band[0]), min(top, band[1])
+        if top <= lo:
+            continue
+        hx, hz = max(sx / 2, 0.01), max(sz / 2, 0.01)
+        c, sn = math.cos(float(o["yaw_rad"])), math.sin(float(o["yaw_rad"]))
+        a = np.arange(-hx, hx + CELL_M / 2, CELL_M)
+        b = np.arange(-hz, hz + CELL_M / 2, CELL_M)
+        aa, bb = np.meshgrid(a, b)
+        edge = (np.abs(aa) > hx - CELL_M) | (np.abs(bb) > hz - CELL_M)
+        # the top face: all of it; below, the rim only, at every 10 cm step down to `lo`
+        levels = [(aa.ravel(), bb.ravel(), top - 0.01)]
+        k0, k1 = math.floor(lo / LEVEL_BIN_M), math.floor((top - 0.01) / LEVEL_BIN_M)
+        for k in range(k0, k1):
+            h = min(max((k + 0.5) * LEVEL_BIN_M, lo), top - 0.01)
+            levels.append((aa[edge], bb[edge], h))
+        for u, v, h in levels:
+            wx, wz = cx + c * u - sn * v, cz + sn * u + c * v
+            pts.append(
+                np.column_stack(
+                    [
+                        m[0, 0] * wx + m[0, 1] * wz + m[0, 2],
+                        m[1, 0] * wx + m[1, 1] * wz + m[1, 2],
+                        np.full(len(wx), h),
+                    ]
+                )
+            )
+            need.append(np.full(len(wx), need_movable if o.get("movable") else need_fixed))
+            grp.append(np.full(len(wx), gi))
+    if not pts:
+        return np.zeros((0, 3)), np.zeros(0, np.int16), np.zeros(0, np.int32)
+    return (
+        np.vstack(pts),
+        np.concatenate(need).astype(np.int16),
+        np.concatenate(grp).astype(np.int32),
+    )
+
+
 @dataclass
 class FovCues:
     hidden: list[float]  # 8 sectors clockwise from ahead: nearest remembered cell out of view
@@ -293,6 +366,8 @@ class HazardMemory:
         self.reach_m = reach_m
         self.max_range_m = max_range_m
         self.stride = stride
+        self.retire_frac, self.retire_min, self.prior_margin = None, 8, 0.0
+        self.confirm_n, self.confirm_frac = None, 0.6
         self.clear()
 
     def clear(self) -> None:
@@ -301,6 +376,13 @@ class HazardMemory:
         self.seen_t = np.zeros(0)
         self.hits = np.zeros(0, np.int32)
         self.seen_pose = np.zeros((0, 4))  # head pitch (deg), yaw (rad), x, z when last seen
+        # Prior cells (`seed`): held without expiry; a cell clears after `need` frames of free
+        # space through it (live cells: 1). `free` counts them, reset when the cell is seen.
+        self.prior = np.zeros(0, bool)
+        self.free = np.zeros(0, np.int16)
+        self.need = np.zeros(0, np.int16)
+        self.grp = np.zeros(0, np.int32)  # prior object (index into `gstat`), -1 for live cells
+        self.gstat = np.zeros((0, 2))  # per prior object: frames' cells seen backed / seen through
 
     @staticmethod
     def _keys(x, z, hgt) -> np.ndarray:
@@ -308,6 +390,56 @@ class HazardMemory:
         j = np.floor(z / CELL_M).astype(np.int64) + (1 << 20)
         k = np.clip(np.floor(hgt / 0.1).astype(np.int64), 0, 31)
         return (i << 26) | (j << 5) | k
+
+    def seed(
+        self,
+        objects,
+        xz=None,
+        floor_y: float = 0.0,
+        *,
+        retire_frac: float | None = None,
+        retire_min: int = 8,
+        confirm_n: int | None = None,
+        confirm_frac: float = 0.6,
+        margin: float = 0.0,
+        **kw,
+    ) -> int:
+        """Start the memory from a prior map: hazard boxes rasterised by `prior_cells` (`objects`
+        as `recon.load_prior(...)["objects"]`, or the whole dict, which also gives `floor_y`;
+        `kw` goes on to `prior_cells`). Prior cells report like remembered ones from the first
+        frame and never expire. A live frame that sees through one clears it: at once for a
+        movable object, after `need_fixed` frames for a fixed one (cells seen backed reset the
+        count). Optional checks on a stale prior. `retire_frac`: an object whose cells were seen
+        through in at least this share of their observations (and `retire_min` of them) is
+        dropped whole. `confirm_n`: an object reports only after `confirm_n` of its cells'
+        observations saw the surface where the map has it, at least `confirm_frac` of all its
+        observations. `margin`: prior cells report this many metres farther than they are.
+        Returns the cells added."""
+        if isinstance(objects, dict):
+            floor_y, objects = float(objects.get("floor_y", floor_y)), objects["objects"]
+        self.retire_frac, self.retire_min, self.prior_margin = retire_frac, retire_min, margin
+        self.confirm_n, self.confirm_frac = confirm_n, confirm_frac
+        pts, need, grp = prior_cells(objects, xz, self.band, floor_y, **kw)
+        k = self._keys(pts[:, 0], pts[:, 1], pts[:, 2])
+        k, first = np.unique(k, return_index=True)
+        pts, need, grp = pts[first], need[first], grp[first] + len(self.gstat)
+        add = ~np.isin(k, self.key)
+        k, pts, need, grp = k[add], pts[add], need[add], grp[add]
+        n = len(k)
+        self.gstat = np.vstack([self.gstat, np.zeros((len(objects), 2))])
+        self.key = np.concatenate([self.key, k])
+        self.pts = np.vstack([self.pts, pts])
+        self.seen_t = np.concatenate([self.seen_t, np.zeros(n)])
+        self.hits = np.concatenate([self.hits, np.full(n, self.min_hits, np.int32)])
+        self.seen_pose = np.vstack([self.seen_pose, np.full((n, 4), np.nan)])
+        self.prior = np.concatenate([self.prior, np.ones(n, bool)])
+        self.free = np.concatenate([self.free, np.zeros(n, np.int16)])
+        self.need = np.concatenate([self.need, need])
+        self.grp = np.concatenate([self.grp, grp])
+        order = np.argsort(self.key)
+        for name in ("key", "pts", "seen_t", "hits", "seen_pose", "prior", "free", "need", "grp"):
+            setattr(self, name, getattr(self, name)[order])
+        return n
 
     def update(
         self,
@@ -333,6 +465,8 @@ class HazardMemory:
 
         # 1. What the frame says about the cells already held.
         cleared = 0
+        fresh = np.isnan(self.seen_pose[:, 0])  # prior cells not seen yet: "last seen" is now
+        self.seen_pose[fresh] = pose
         in_view = np.zeros(len(self.key), bool)
         if len(self.key):
             dx, dz = self.pts[:, 0] - px, self.pts[:, 1] - pz
@@ -355,14 +489,29 @@ class HazardMemory:
             back = known & (np.abs(live - zc[idx]) <= tol)
             self.seen_t[idx[back]] = t
             self.seen_pose[idx[back]] = pose
-            drop = np.zeros(len(self.key), bool)
-            drop[idx[through]] = True
+            self.free[idx[back]] = 0
+            self.free[idx[through]] += 1
+            drop = self.free >= self.need
+            pr = self.prior[idx]
+            if pr.any():  # how well the prior agrees with what the camera sees
+                np.add.at(self.gstat[:, 0], self.grp[idx[back & pr]], 1)
+                np.add.at(self.gstat[:, 1], self.grp[idx[through & pr]], 1)
+                if self.retire_frac is not None:
+                    n_obs = self.gstat.sum(axis=1)
+                    gone = (n_obs >= self.retire_min) & (
+                        self.gstat[:, 1] >= self.retire_frac * n_obs
+                    )
+                    drop |= self.prior & gone[np.maximum(self.grp, 0)]
             cleared = int(drop.sum())
-            old = (t - self.seen_t > self.keep_s) | (np.hypot(dx, dz) > self.reach_m)
+            old = ~self.prior & (
+                (t - self.seen_t > self.keep_s) | (np.hypot(dx, dz) > self.reach_m)
+            )
             keep = ~(drop | old)
             self.key, self.pts = self.key[keep], self.pts[keep]
             self.seen_t, self.hits = self.seen_t[keep], self.hits[keep]
             self.seen_pose = self.seen_pose[keep]
+            self.prior, self.free, self.need = self.prior[keep], self.free[keep], self.need[keep]
+            self.grp = self.grp[keep]
             in_view = in_view[keep]
 
         # 2. New cells from this frame.
@@ -387,17 +536,24 @@ class HazardMemory:
             self.seen_t[pos_in[have]] = t
             self.seen_pose[pos_in[have]] = pose
             self.hits[pos_in[have]] += 1
+            self.free[pos_in[have]] = 0
             add = ~have
             self.key = np.concatenate([self.key, k[add]])
             self.pts = np.vstack([self.pts, wp[add]])
             self.seen_t = np.concatenate([self.seen_t, np.full(add.sum(), t)])
             self.hits = np.concatenate([self.hits, np.ones(add.sum(), np.int32)])
             self.seen_pose = np.vstack([self.seen_pose, np.tile(pose, (int(add.sum()), 1))])
+            self.prior = np.concatenate([self.prior, np.zeros(add.sum(), bool)])
+            self.free = np.concatenate([self.free, np.zeros(add.sum(), np.int16)])
+            self.need = np.concatenate([self.need, np.ones(add.sum(), np.int16)])
+            self.grp = np.concatenate([self.grp, np.full(add.sum(), -1, np.int32)])
             in_view = np.concatenate([in_view, np.ones(add.sum(), bool)])
             order = np.argsort(self.key)
             self.key, self.pts = self.key[order], self.pts[order]
             self.seen_t, self.hits, in_view = self.seen_t[order], self.hits[order], in_view[order]
             self.seen_pose = self.seen_pose[order]
+            self.prior, self.free, self.need = self.prior[order], self.free[order], self.need[order]
+            self.grp = self.grp[order]
 
         # 3. Report what is held and out of view, in the head's frame.
         out = FovCues(
@@ -408,6 +564,11 @@ class HazardMemory:
         out.hidden_close = [math.nan] * SECTORS
         out.hidden_xz = [(math.nan, math.nan)] * SECTORS
         sure = self.hits >= self.min_hits
+        if self.confirm_n is not None and self.prior.any():
+            # a prior object reports only once the camera has seen its surface where the map has it
+            gb, gt = self.gstat[:, 0], self.gstat[:, 1]
+            ok = (gb >= self.confirm_n) & (gb >= self.confirm_frac * (gb + gt))
+            sure &= ~self.prior | ok[np.maximum(self.grp, 0)]
         if self.gate is not None and len(self.key):
             # Report a held cell only when the head's own motion explains why it left the view.
             sp = self.seen_pose
@@ -430,6 +591,9 @@ class HazardMemory:
                 - CELL_M / 2,
                 0.05,
             )
+            # A prior cell is placed by a map that may be a little off: report it `margin` farther.
+            pad = np.where(self.prior, self.prior_margin, 0.0)
+            dist, then, cfp = dist + pad, then + pad, cf + pad
             sec = ((np.degrees(np.arctan2(cr, cf)) + 22.5) % 360 // 45).astype(int)
             for si in range(SECTORS):
                 m = sure & (sec == si)
@@ -444,8 +608,8 @@ class HazardMemory:
                     out.hidden_xz[si] = (float(self.pts[q, 0]), float(self.pts[q, 1]))
             pm = sure & ~in_view & (np.abs(cr) < CORRIDOR_HALF_M) & (cf > 0) & (cf < PATH_AHEAD_M)
             if pm.any():
-                q = int(np.argmin(np.where(pm, cf, np.inf)))
-                out.path_m = float(max(cf[q] - CELL_M / 2, 0.05))
+                q = int(np.argmin(np.where(pm, cfp, np.inf)))
+                out.path_m = float(max(cfp[q] - CELL_M / 2, 0.05))
                 out.path_h = float(self.pts[q, 2])
                 out.path_close = float(then[q] - dist[q])
         return out
@@ -646,10 +810,14 @@ class FovLoop:
     `heading.Heading`, new cells only where the safety grid saw an obstacle and outside person
     boxes (a passer-by must not leave a trail)."""
 
-    def __init__(self, hfov_deg: float, eye_h: float, **memory):
+    def __init__(self, hfov_deg: float, eye_h: float, prior=None, prior_xz=None, **memory):
+        """`prior`: a `recon.load_prior` result (or None) to seed the memory with, in the map
+        frame the heading uses; `prior_xz`: the 2x3 map-to-memory matrix if they differ."""
         self.hfov, self.eye_h = hfov_deg, eye_h
         self.fuse = PitchFuse()
         self.mem = HazardMemory(hfov_deg, eye_h, **memory)
+        if prior is not None:
+            self.mem.seed(prior, prior_xz)
         self.drops = DropMemory(hfov_deg, eye_h)
         self.last_step: float | None = (
             None  # time of the last frame whose accelerometer shows a step

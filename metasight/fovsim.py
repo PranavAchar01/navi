@@ -43,6 +43,8 @@ MISS_TOL_M = 0.3
 FALSE_TOL_M = 0.5
 REACH_M = 2.0
 CAMERA_SECTORS = (7, 0, 1)
+# fovrooms' mesh frame (x, z) to the sim memory's (x, z) = (scene Y, scene X) = (-mesh z, mesh x)
+PRIOR_XZ = np.array([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0]])
 
 Box = tuple[float, float, float, float, float, float]  # centre x, y, z and half sizes, metres
 
@@ -367,6 +369,8 @@ class Arms:
     # L27 cue gate on the remembered cues, letters of "sar": s still mute, a approach gate, r rear
     # mute (fovmem.gate_memory_cues). "" is the ungated memory.
     cue_gate: str = ""
+    # L29: the key of a prior map in `run(priors=...)` that seeds this arm's memory ("" none)
+    prior: str = ""
     approach_m: float = 0.1
     still_min_s: float = 1.0
 
@@ -456,12 +460,15 @@ def run(
     eye_h_cfg: float = EYE_H,
     trace: list | None = None,
     record: list | None = None,
+    priors: dict[str, dict] | None = None,
 ) -> list[Score]:
     """Play one scene once; score the live cue alone (first) and live plus each memory arm.
     `eye_h_cfg` is the eye height the software believes (the glasses profile says 1.22). Each
     false cue is appended to `trace` as (t, arm index, sector, cue, truth) when one is given.
     With `record`, each frame appends a dict: the camera's colour view (540x960), the truth and
-    every cue (sectors, path), for the demo renders."""
+    every cue (sectors, path), for the demo renders. `priors`: prior maps (`recon.load_prior`
+    results, mesh frame of `fovrooms`) by the name an `Arms.prior` uses; they seed that arm's
+    memory (`HazardMemory.seed`) with the scene frame mapped to the memory's by `PRIOR_XZ`."""
     rng = np.random.default_rng(seed)
     w, h = GRID[1], GRID[0]  # portrait, as the glasses stream
     m = mujoco.MjModel.from_xml_string(scene_xml(sc, w, h, hfov))
@@ -492,6 +499,9 @@ def run(
         )
         for a in arms
     ]
+    for a, mem in zip(arms, mems, strict=True):
+        if a.prior:
+            mem.seed(priors[a.prior], PRIOR_XZ, **priors[a.prior].get("kw", {}))
     yaw_err = [0.0] * len(arms)
     dr_pos = [np.zeros(2) for _ in arms]
     # Each arm draws its sensor errors from its own stream, the same for every arm, so arms are

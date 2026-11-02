@@ -1,0 +1,46 @@
+{
+ "all": {
+  "cells": 3000,
+  "median_nn_m_as_is": 0.273,
+  "median_nn_m_best": 0.031,
+  "shift_m": [
+   0.83,
+   -0.47
+  ],
+  "shift_len_m": 0.95,
+  "turn_deg": -11.25
+ },
+ "third1": {
+  "cells": 3000,
+  "median_nn_m_as_is": 0.221,
+  "median_nn_m_best": 0.025,
+  "shift_m": [
+   0.6,
+   -0.4
+  ],
+  "shift_len_m": 0.72,
+  "turn_deg": 3.75
+ },
+ "third2": {
+  "cells": 3000,
+  "median_nn_m_as_is": 0.225,
+  "median_nn_m_best": 0.025,
+  "shift_m": [
+   0.83,
+   -0.5
+  ],
+  "shift_len_m": 0.96,
+  "turn_deg": -11.25
+ },
+ "third3": {
+  "cells": 3000,
+  "median_nn_m_as_is": 0.759,
+  "median_nn_m_best": 0.052,
+  "shift_m": [
+   1.13,
+   -1.0
+  ],
+  "shift_len_m": 1.51,
+  "turn_deg": -12.5
+ }
+}

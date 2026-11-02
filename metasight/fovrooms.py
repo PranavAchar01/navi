@@ -180,10 +180,10 @@ def load_objects(path: Path | str = BEDROOM_OBJECTS) -> dict:
     return json.loads(Path(path).read_text())
 
 
-def bedroom_scenes(path: Path | str = BEDROOM_OBJECTS) -> dict[str, Scene]:
+def bedroom_scenes(path: Path | str | dict = BEDROOM_OBJECTS) -> dict[str, Scene]:
     """Five scripted paths through the reconstructed bedroom (scene frame: X = mesh x, Y = -z).
     Keys are (t, x, y, body heading deg, head yaw deg (+ left), pitch deg below level)."""
-    data = load_objects(path)
+    data = path if isinstance(path, dict) else load_objects(path)
     boxes, _ = scene_boxes(data, open_doors=("door_03",))
     scenes = [
         Scene(

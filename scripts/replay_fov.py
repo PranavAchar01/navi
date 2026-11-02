@@ -84,7 +84,9 @@ def clock(walk: Path, frames: list[dict], mot: np.ndarray) -> tuple[float, float
     return fw.clock_offset(t_img, np.linalg.norm(shift, axis=1) / dt, mot)
 
 
-def replay(walk: Path, cues: Path | None, band_lo: float | None = None) -> None:
+def replay(
+    walk: Path, cues: Path | None, band_lo: float | None = None, prior: Path | None = None
+) -> None:
     import cv2
 
     from metasight.config import Settings
@@ -109,6 +111,16 @@ def replay(walk: Path, cues: Path | None, band_lo: float | None = None) -> None:
             if d.get("type") == "safety":
                 log[d["seq"]] = d
     tag = "" if band_lo is None else f"-lo{band_lo:g}"  # a variant run, kept apart from the base
+    ptree, kept = None, []
+    if prior is not None:  # L29: how well the live cells line up with a prior map's surfaces
+        from scipy.spatial import cKDTree
+
+        from metasight import recon
+        from metasight.fovmem import prior_cells
+
+        doc = recon.load_prior(prior)
+        ptree = cKDTree(prior_cells(doc["objects"], None, (0.08, 1.75), doc["floor_y"])[0])
+        tag += "-prior"
     out = RES / f"fov-walk-replay-{walk.name}{tag}.jsonl"
     accel: list[np.ndarray] = []
     m = 0
@@ -166,7 +178,21 @@ def replay(walk: Path, cues: Path | None, band_lo: float | None = None) -> None:
                     None if not math.isfinite(v) else round(v, 3) for v in fov.last_cues.hidden_h
                 ]
                 row["hyaw"] = round(float(hd.yaw if hd.yaw is not None else hd.turn), 4)
+            if ptree is not None and row.get("hpos") and row["yaw_src"] == "log":
+                mem = fov.mem
+                sel = ~mem.prior & (mem.hits >= mem.min_hits)
+                cells = mem.pts[sel]
+                near = np.hypot(cells[:, 0] - row["hpos"][0], cells[:, 1] - row["hpos"][1]) < 2.0
+                cells = cells[near]
+                if len(cells):
+                    d, _ = ptree.query(cells)
+                    row["al_n"], row["al_med"] = len(cells), round(float(np.median(d)), 3)
+                    row["al_in15"] = round(float(np.mean(d <= 0.15)), 3)
+                    if f["seq"] % 10 == 0:
+                        kept.append(np.column_stack([cells, np.full(len(cells), f["seq"])]))
             fh.write(json.dumps(row) + "\n")
+    if kept:
+        np.save(RES / f"fov-prior-cells-{walk.name}.npy", np.vstack(kept))
     print(f"{walk.name}: {len(frames)} frames, clock corr {corr:.3f} -> {out}")
 
 
@@ -313,16 +339,78 @@ def score_walk(name: str, events: list[dict], yaw_of: dict[int, float]) -> dict:
     return out
 
 
+def align(name: str, prior: Path) -> None:
+    """Offset between the live map and a prior map (L29), from the cells `replay(prior=...)` kept
+    on frames with the map pose: the translation (and the turn about the prior's origin) that
+    puts the live cells nearest to the prior's surfaces, over the whole take and its thirds."""
+    from scipy.spatial import cKDTree
+
+    from metasight import recon
+    from metasight.fovmem import prior_cells
+
+    doc = recon.load_prior(prior)
+    tree = cKDTree(prior_cells(doc["objects"], None, (0.08, 1.75), doc["floor_y"])[0][:, :2])
+    cells = np.load(RES / f"fov-prior-cells-{name}.npy")
+    rng = np.random.default_rng(0)
+
+    def fit(c: np.ndarray) -> dict:
+        c = c[rng.choice(len(c), min(len(c), 3000), replace=False)]
+        base = float(np.median(tree.query(c[:, :2])[0]))
+        best = (base, 0.0, 0.0, 0.0)
+
+        def search(turns, dxs, dzs):
+            nonlocal best
+            for turn in turns:
+                yaw = math.radians(turn)
+                cs, sn = math.cos(yaw), math.sin(yaw)
+                rot = np.column_stack([cs * c[:, 0] - sn * c[:, 1], sn * c[:, 0] + cs * c[:, 1]])
+                for dx in dxs:
+                    for dz in dzs:
+                        d = float(np.median(tree.query(rot + [dx, dz])[0]))
+                        if d < best[0]:
+                            best = (d, dx, dz, turn)
+
+        coarse = np.arange(-1.6, 1.61, 0.1)
+        search(np.arange(-10, 10.1, 5.0), coarse, coarse)
+        _, bx, bz, bt = best
+        search(
+            np.arange(bt - 2.5, bt + 2.6, 1.25),
+            np.arange(bx - 0.1, bx + 0.11, 0.025),
+            np.arange(bz - 0.1, bz + 0.11, 0.025),
+        )
+        return {
+            "cells": len(c),
+            "median_nn_m_as_is": round(base, 3),
+            "median_nn_m_best": round(best[0], 3),
+            "shift_m": [round(best[1], 2), round(best[2], 2)],
+            "shift_len_m": round(math.hypot(best[1], best[2]), 2),
+            "turn_deg": best[3],
+        }
+
+    seqs = np.unique(cells[:, 3])
+    cut = np.quantile(seqs, [1 / 3, 2 / 3])
+    out = {"all": fit(cells)}
+    for i, (lo, hi) in enumerate(zip([-math.inf, *cut], [*cut, math.inf], strict=True)):
+        out[f"third{i + 1}"] = fit(cells[(cells[:, 3] > lo) & (cells[:, 3] <= hi)])
+    (RES / f"fov-prior-align-{name}.json").write_text(json.dumps(out, indent=1))
+    print(json.dumps(out, indent=1))
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("walk", nargs="+")
     ap.add_argument("--cues")
     ap.add_argument("--band-lo", type=float, help="lowest height (m) a cell is held at (L27)")
+    ap.add_argument("--prior", help="objects.json of a prior map: measure how live cells line up")
+    ap.add_argument("--align", action="store_true", help="fit the offset from the --prior cells")
     ap.add_argument("--score", action="store_true")
     ap.add_argument(
         "--yaw-cues", help="cue log with the map yaw; applies to the first walk only (--score)"
     )
     a = ap.parse_args()
+    if a.align:
+        align(Path(a.walk[0]).name, Path(a.prior))
+        return
     if a.score:
         ev = json.loads((RES / "fov-walk-events.json").read_text())
         yaw_of = {}
@@ -345,7 +433,12 @@ def main() -> None:
         return
     slot = take_slot()
     try:
-        replay(Path(a.walk[0]), Path(a.cues) if a.cues else None, a.band_lo)
+        replay(
+            Path(a.walk[0]),
+            Path(a.cues) if a.cues else None,
+            a.band_lo,
+            Path(a.prior) if a.prior else None,
+        )
     finally:
         release(slot)
 

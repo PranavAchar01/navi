@@ -12,6 +12,7 @@ from metasight.fovmem import (
     level_points,
     loose_floor,
     pitch_from_gravity,
+    prior_cells,
 )
 
 HFOV = 44.8
@@ -324,3 +325,109 @@ def test_gate_rear_mute_keeps_front_and_side_only():
     none = [None] * 8
     assert gate_memory_cues(none, none, none, 0.0, mute_still=False)[0] == none
     assert gate_memory_cues([math.inf] * 8, none, none, 0.0, approach=False)[0] == none
+
+
+def _prior_box(cz, x=0.0, sx=0.4, sz=0.4, h=0.9, movable=False, clearance=0.0, **extra):
+    """A prior-map hazard box in map coordinates (x right, z ahead, heights above the floor)."""
+    return {
+        "id": "o",
+        "class": "box",
+        "hazard": True,
+        "movable": movable,
+        "center": np.array([x, h / 2, cz]),
+        "size": [sx, h, sz],
+        "yaw_rad": 0.0,
+        "floor_clearance_m": clearance,
+        **extra,
+    }
+
+
+def test_prior_cells_leave_the_space_under_an_overhang_and_skip_non_hazards():
+    desk = _prior_box(1.0, sx=1.2, sz=0.7, h=0.85, clearance=0.72)
+    pts, need, grp = prior_cells([desk], band=(0.08, 1.75))
+    assert pts[:, 2].min() >= 0.72 and pts[:, 2].max() <= 0.85
+    assert len(pts) == len(need) == len(grp)
+    assert abs(pts[:, 1].min() - 0.65) < 0.06 and abs(pts[:, 1].max() - 1.35) < 0.06
+    skipped = [
+        _prior_box(1.0, hazard=False),
+        {**_prior_box(1.0), "class": "door"},
+        _prior_box(1.0, sx=0.3, sz=0.2),
+    ]
+    assert len(prior_cells(skipped, min_dim=0.4)[0]) == 0
+    # the map-to-memory matrix: map (x, z) -> memory (-z, x)
+    turned = prior_cells([_prior_box(1.0, x=0.5)], xz=np.array([[0.0, -1, 0], [1, 0, 0]]))[0]
+    assert abs(turned[:, 0].mean() + 1.0) < 0.05 and abs(turned[:, 1].mean() - 0.5) < 0.05
+
+
+def test_seeded_prior_reports_a_hidden_hazard_from_the_first_frame():
+    mem = HazardMemory(HFOV, EYE)
+    n = mem.seed([_prior_box(-1.3), _prior_box(2.0, hazard=False)])
+    assert n > 0 and mem.prior.all() and len(set(mem.key)) == len(mem.key)
+    out = mem.update(0.0, render(15), 15.0, 0.0)  # facing +z, the box is behind
+    assert 1.0 < out.hidden[4] < 1.4 and math.isinf(out.hidden[0])
+    # a prior cell does not expire, even after the memory's keep time and a walk away
+    out = mem.update(60.0, np.zeros((H, W), np.float32), 15.0, 0.0, (0.0, -0.5))
+    assert 0.5 < out.hidden[4] < 0.9 and mem.prior.all()
+
+
+def test_prior_cells_clear_after_one_look_when_movable_and_several_when_fixed():
+    free = render(15)  # the room is empty: the camera sees the floor through the prior box
+    for movable, frames in ((True, 1), (False, 3)):
+        mem = HazardMemory(HFOV, EYE)
+        mem.seed([_prior_box(1.6, movable=movable)], need_fixed=3, need_movable=1)
+        n = len(mem.key)
+        cleared = [mem.update(i * 0.1, free, 15.0, 0.0).cleared for i in range(frames)]
+        assert cleared[-1] > 0 and all(c == 0 for c in cleared[:-1]) and len(mem.key) < n
+
+
+def test_prior_cell_seen_where_the_map_has_it_is_kept_and_its_count_resets():
+    mem = HazardMemory(HFOV, EYE)
+    mem.seed([_prior_box(1.6)], need_fixed=3)  # front face at 1.4 m
+    mem.update(0.0, render(15), 15.0, 0.0)  # seen through once: counts 1 on the cells in view
+    assert mem.free.max() == 1
+    for i in range(1, 6):
+        mem.update(i * 0.1, render(15, box=(1.4, 0.2, 0.9)), 15.0, 0.0)
+    front = mem.prior & (mem.pts[:, 1] < 1.46)
+    assert front.sum() > 0 and mem.free[front].max() == 0
+
+
+def test_live_cells_still_clear_at_once_beside_prior_cells():
+    mem = HazardMemory(HFOV, EYE, low_slope=0.0)
+    mem.seed([_prior_box(-1.3)])
+    for i in range(3):
+        mem.update(i * 0.1, render(15, box=(1.5, 0.15, 0.3)), 15.0, 0.0)
+    live = int((~mem.prior).sum())
+    assert live > 0 and mem.need[~mem.prior].max() == 1
+    out = mem.update(0.4, render(15), 15.0, 0.0)  # the box was carried away
+    assert out.cleared > 0 and (~mem.prior).sum() < live and mem.prior.sum() > 0
+
+
+def test_seed_margin_confirm_and_retire():
+    far = _prior_box(-1.3)
+    plain, padded = HazardMemory(HFOV, EYE), HazardMemory(HFOV, EYE)
+    plain.seed([far])
+    padded.seed([far], margin=0.25)
+    a = plain.update(0.0, render(15), 15.0, 0.0).hidden[4]
+    b = padded.update(0.0, render(15), 15.0, 0.0).hidden[4]
+    assert abs((b - a) - 0.25) < 1e-6
+    # unconfirmed: nothing reports until the camera has seen the object where the map has it
+    sure = HazardMemory(HFOV, EYE)
+    sure.seed([_prior_box(1.6), _prior_box(-1.3)], confirm_n=10)
+    seen = render(15, box=(1.4, 0.2, 0.9))
+    assert math.isinf(sure.update(0.0, seen, 15.0, 0.0).hidden[4])
+    sure.update(0.05, seen, 15.0, 0.0)
+    out = sure.update(0.1, render(15), 15.0, math.pi)  # turned round: the seen box is behind
+    assert math.isfinite(out.hidden[4])
+    # retire: a map object the camera keeps seeing through goes whole, cells out of view too
+    gone = HazardMemory(HFOV, EYE)
+    gone.seed([_prior_box(1.6, sx=1.4)], retire_frac=0.3, retire_min=5, need_fixed=99)
+    n = len(gone.key)
+    gone.update(0.0, render(15), 15.0, 0.0)
+    assert len(gone.key) == 0 < n
+
+
+def test_fov_loop_takes_a_prior():
+    from metasight.fovmem import FovLoop
+
+    loop = FovLoop(HFOV, EYE, prior={"floor_y": 0.0, "objects": [_prior_box(1.5)]})
+    assert loop.mem.prior.sum() > 0
