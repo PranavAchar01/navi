@@ -59,6 +59,10 @@ def test_stop_overrides_guide_and_fast_cues_are_never_replaced():
     fast[2] = (MODES["fast"], 220)
     out, shown = pan.with_guide(fast, 90.0)
     assert out[2] == (MODES["fast"], 220) and shown is False
+    # the fast cue is the item being guided to: the guide taps play through it, stop still wins
+    out, shown = pan.with_guide(fast, 90.0, take_fast=True)
+    assert out[2][0] == MODES["guide"] and shown
+    assert pan.with_guide(solid, 90.0, take_fast=True) == (solid, False)
 
 
 def test_persist_filter_drops_a_one_frame_phantom_but_passes_a_real_obstacle():

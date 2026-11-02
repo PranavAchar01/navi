@@ -312,13 +312,14 @@ def guide_cmd(bearing_deg: float) -> list[tuple[int, int]]:
 
 
 def with_guide(
-    cmd: list[tuple[int, int]], bearing_deg: float, override: bool = True
+    cmd: list[tuple[int, int]], bearing_deg: float, override: bool = True, take_fast: bool = False
 ) -> tuple[list[tuple[int, int]], bool]:
     """Overlay the Guide cue on an obstacle command; returns (new command, guide shown).
 
     Stop always overrides Guide: while any motor is solid (something about to be touched) Guide is
     silent everywhere, so the wearer feels one message. Otherwise Guide only takes motors that are
-    off, unknown or on the slow far-field pulse; a fast cue is never replaced.
+    off, unknown or on the slow far-field pulse; a fast cue is replaced only with `take_fast`
+    (the caller knows the fast cue is the item being guided to).
     `override=False` exists for the simulator's control arm only."""
     if override and any(m == MODES["solid"] for m, _ in cmd):
         return list(cmd), False
@@ -328,7 +329,10 @@ def with_guide(
     for i, (gm, gi) in enumerate(g):
         if gm == MODES["off"]:
             continue
-        if not override or out[i][0] in (MODES["off"], MODES["unknown"], MODES["slow"]):
+        free = (MODES["off"], MODES["unknown"], MODES["slow"]) + (
+            (MODES["fast"],) if take_fast else ()
+        )
+        if not override or out[i][0] in free:
             out[i] = (gm, gi)
             shown = True
     return out, shown

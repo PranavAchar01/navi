@@ -71,6 +71,12 @@ class Settings:
     # Side and back sectors from the map. Off, only the three camera sectors can buzz: in a
     # small room the map's walls and furniture sit inside 1 m behind the wearer most of the time.
     map_sides: bool = True
+    # Panned cue ranges (pan.Params): silent beyond cue_off_m, slow pulse down to cue_fast_m, fast
+    # down to cue_solid_m, solid inside. The defaults are the street ones; a bedroom wants shorter.
+    cue_off_m: float = 1.5
+    cue_fast_m: float = 1.6
+    cue_solid_m: float = 0.7
+    found_m: float = 0.8  # the guide says "found" when the item is this close
     braille: str = "off"  # deafblind mode: off | emulator | wrist | belt | audio (docs/braille.md)
     braille_addr: str = ""  # BLE address of the wrist band, for braille = "wrist"
     braille_dot_ms: int = 250  # a cell is on this long (ERM motors need 50-100 ms to spin up)
@@ -143,6 +149,10 @@ class Settings:
             "belt_addr",
             "belt_cues",
             "map_sides",
+            "cue_off_m",
+            "cue_fast_m",
+            "cue_solid_m",
+            "found_m",
             "braille",
             "braille_addr",
             "braille_dot_ms",

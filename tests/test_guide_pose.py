@@ -3,6 +3,7 @@ saved home pin not yet placed, at the home pin once the walk is relocalised onto
 from an ARKit pose up to a minute old or a heading-only one up to 15 s, and never silently."""
 
 import asyncio
+import math
 import queue
 import time
 from types import SimpleNamespace
@@ -31,6 +32,8 @@ def server(pose_age_s: float, pins: list[Pin], ar_age_s: float = float("inf")):
         guide={"pin": pins[0].id, "label": "desk", "until": now + 90.0},
         found_until=0.0,
         _navigator=lambda *_: None,
+        s=SimpleNamespace(found_m=0.8),
+        path_m=math.inf,
     )
     srv._guide_pin = lambda g: Server._guide_pin(srv, g)
     srv.pose_ts = lambda: Server.pose_ts(srv)

@@ -45,7 +45,7 @@ from .modes import implied as implied_activity
 from .motion import FallDetector, Sample, ShakeDetector
 from .notes import Notes, asks_notes, caption, notes_command
 from .onboarding import PATTERNS, Onboarding, pattern_length, wants_setup
-from .pan import GUIDE_ALIGNED_DEG, Persist, plan_pan, scene_targets, with_guide
+from .pan import GUIDE_ALIGNED_DEG, Params, Persist, plan_pan, scene_targets, with_guide
 from .pins import PinStore, confirmed, layer_of
 from .providers import make_language, make_reviewer
 from .providers.finder import LOOKALIKES
@@ -158,6 +158,10 @@ class Server:
         self.talk = Talk(settings.hfov_deg)
         self.persist = Persist(2)  # two frames near before a motor fires
         self.persist_strips = Persist(2)  # the same, on the panned cues' depth strips
+        self.cue_range = Params(
+            off_m=self.s.cue_off_m, fast_m=self.s.cue_fast_m, solid_m=self.s.cue_solid_m
+        )
+        self.path_m = math.inf  # this frame's clear distance straight ahead
         self.activity = Activity()  # guide, find, talk or explore (modes.py)
         self.talk.cues_enabled = self.activity.profile.speaker_cues
         self.voice: VoiceAsk | None = None  # spoken questions through Muse Voice Transcribe
@@ -498,8 +502,9 @@ class Server:
             known = [n in CAMERA_SECTORS or sides for n in SECTORS]
             if self.s.belt_cues == "panned":
                 strips = self.persist_strips(grid_strips(sc.grid))
-                targets = scene_targets(strips, self.s.hfov_deg, merged, known)
-                cmd, flags = plan_pan(targets, known, sc.path_m, res.ttc_s, sc.drop_m)
+                p = self.cue_range
+                targets = scene_targets(strips, self.s.hfov_deg, merged, known, p)
+                cmd, flags = plan_pan(targets, known, sc.path_m, res.ttc_s, sc.drop_m, p)
             else:
                 cmd, flags = plan(merged, known, sc.path_m, res.ttc_s, sc.drop_m)
             # The map's priors may add or raise cues; a cue live depth made is never weakened.
@@ -523,6 +528,7 @@ class Server:
             cmd = self.talk.overlay(cmd, now)
             # The heading is carried between poses, so guidance tolerates an older position.
             guide_fresh = self.memory_ready and self.guide_pose_fresh(now)
+            self.path_m = sc.path_m
             guiding = self._guide(cmd, now, bool(guide_fresh), self.last_obstacles)
             if now < self.found_until:
                 flags |= FLAG_FOUND
@@ -672,12 +678,18 @@ class Server:
         step = None
         if not live and pin is not None and (nv := self._navigator(pin.id, pin)) is not None:
             step = nv.step(self.heading.pos, self.heading.yaw)
-        if dist < 0.8 or (step is not None and step.arrived):
+        # The detector's distance for a chair or table takes in the floor seen between its legs
+        # and reads long; in view and dead ahead, the clear path straight ahead ends at it.
+        reach = min(dist, self.path_m) if live and abs(bearing) < GUIDE_ALIGNED_DEG else dist
+        if reach < self.s.found_m or (step is not None and step.arrived):
             self.guide, self.found_until = None, now + 2.0
             return None
         if step is not None:
             bearing = step.bearing_deg
-        cmd[:] = with_guide(cmd, bearing)[0]
+        # In view and nothing nearer ahead, the fast cue in front is the item itself: let the
+        # guide taps through it. Solid still silences the guide.
+        target_ahead = bool(live) and self.path_m > dist - 0.4
+        cmd[:] = with_guide(cmd, bearing, take_fast=target_ahead)[0]
         aligned = abs(wrap(math.radians(bearing))) <= math.radians(GUIDE_ALIGNED_DEG)
         return {
             "label": g["label"],

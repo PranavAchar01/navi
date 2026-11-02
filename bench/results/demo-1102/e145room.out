@@ -1,0 +1,13 @@
+judge server pid 55865 on :8450, log /var/folders/fp/28_vknr53x943stmdqpbrhl40000gn/T/ms-judge-8450.log, slot .heavy-lock-4
+open http://127.0.0.1:8450/judge.html
+poses: 1632 of 1632 frames
+lap 1 start
+answer: I saw your chair a moment ago, about 2 metres straight ahead. Turn slowly, I'll buzz when you face it.
+lap 1: 1632 frames in 88.0 s
+safety messages with a guide: {'any': 328, 'dist': 84, 'bearing': 84}
+cue latency ms: n=877 p50=109 p95=249 max=2428
+stage depth ms: p50=22.5 p95=37.0
+stage detect ms: p50=22.1 p95=103.2
+stage post ms: p50=0.4 p95=1.6
+stage total ms: p50=48.2 p95=130.5
+answer latency ms (ask sent to answer back): [299]
