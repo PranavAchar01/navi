@@ -47,6 +47,17 @@ def sector_distances_from_depth(
     return out
 
 
+def grid_strips(grid: np.ndarray, n: int = 15) -> list[float]:
+    """Nearest obstacle per vertical strip of a `Scene.grid` (uint8 range in cm / 2, 255 where
+    nothing is), in metres; inf for a strip with no obstacle pixel. The panned cues' input."""
+    out = []
+    for cols in np.array_split(np.arange(grid.shape[1]), n):
+        g = grid[:, cols]
+        near = g[g != 255]
+        out.append(float(near.min()) * 2 / 100 if near.size else math.inf)
+    return out
+
+
 def sector_index(bearing_deg: float, n: int = 8) -> int:
     """Which of n sectors a bearing falls in (0 = ahead, positive = clockwise/right)."""
     width = 360.0 / n

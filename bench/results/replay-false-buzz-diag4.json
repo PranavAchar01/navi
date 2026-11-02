@@ -1,0 +1,302 @@
+{
+ "20261028-114228-iphone sector persist=1 felt>=1": {
+  "minutes": 1.56,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114228-iphone sector persist=1 felt>=26": {
+  "minutes": 1.56,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114228-iphone sector persist=2 felt>=1": {
+  "minutes": 1.56,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114228-iphone sector persist=2 felt>=26": {
+  "minutes": 1.56,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114228-iphone panned persist=1 felt>=1": {
+  "minutes": 1.56,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114228-iphone panned persist=1 felt>=26": {
+  "minutes": 1.56,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114228-iphone panned persist=2 felt>=1": {
+  "minutes": 1.56,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114228-iphone panned persist=2 felt>=26": {
+  "minutes": 1.56,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114228-iphone panned+hold persist=1 felt>=1": {
+  "minutes": 1.56,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114228-iphone panned+hold persist=1 felt>=26": {
+  "minutes": 1.56,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114228-iphone panned+hold persist=2 felt>=1": {
+  "minutes": 1.56,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114228-iphone panned+hold persist=2 felt>=26": {
+  "minutes": 1.56,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114228-iphone panned+track persist=1 felt>=1": {
+  "minutes": 1.56,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114228-iphone panned+track persist=1 felt>=26": {
+  "minutes": 1.56,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114228-iphone panned+track persist=2 felt>=1": {
+  "minutes": 1.56,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114228-iphone panned+track persist=2 felt>=26": {
+  "minutes": 1.56,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114228-iphone panned+track+hold persist=1 felt>=1": {
+  "minutes": 1.56,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114228-iphone panned+track+hold persist=1 felt>=26": {
+  "minutes": 1.56,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114228-iphone panned+track+hold persist=2 felt>=1": {
+  "minutes": 1.56,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114228-iphone panned+track+hold persist=2 felt>=26": {
+  "minutes": 1.56,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114405-iphone sector persist=1 felt>=1": {
+  "minutes": 0.41,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114405-iphone sector persist=1 felt>=26": {
+  "minutes": 0.41,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114405-iphone sector persist=2 felt>=1": {
+  "minutes": 0.41,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114405-iphone sector persist=2 felt>=26": {
+  "minutes": 0.41,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114405-iphone panned persist=1 felt>=1": {
+  "minutes": 0.41,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114405-iphone panned persist=1 felt>=26": {
+  "minutes": 0.41,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114405-iphone panned persist=2 felt>=1": {
+  "minutes": 0.41,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114405-iphone panned persist=2 felt>=26": {
+  "minutes": 0.41,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114405-iphone panned+hold persist=1 felt>=1": {
+  "minutes": 0.41,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114405-iphone panned+hold persist=1 felt>=26": {
+  "minutes": 0.41,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114405-iphone panned+hold persist=2 felt>=1": {
+  "minutes": 0.41,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114405-iphone panned+hold persist=2 felt>=26": {
+  "minutes": 0.41,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114405-iphone panned+track persist=1 felt>=1": {
+  "minutes": 0.41,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114405-iphone panned+track persist=1 felt>=26": {
+  "minutes": 0.41,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114405-iphone panned+track persist=2 felt>=1": {
+  "minutes": 0.41,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114405-iphone panned+track persist=2 felt>=26": {
+  "minutes": 0.41,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114405-iphone panned+track+hold persist=1 felt>=1": {
+  "minutes": 0.41,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114405-iphone panned+track+hold persist=1 felt>=26": {
+  "minutes": 0.41,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114405-iphone panned+track+hold persist=2 felt>=1": {
+  "minutes": 0.41,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-114405-iphone panned+track+hold persist=2 felt>=26": {
+  "minutes": 0.41,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-135040-iphone sector persist=1 felt>=1": {
+  "minutes": 1.24,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-135040-iphone sector persist=1 felt>=26": {
+  "minutes": 1.24,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-135040-iphone sector persist=2 felt>=1": {
+  "minutes": 1.24,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-135040-iphone sector persist=2 felt>=26": {
+  "minutes": 1.24,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-135040-iphone panned persist=1 felt>=1": {
+  "minutes": 1.24,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.499
+ },
+ "20261028-135040-iphone panned persist=1 felt>=26": {
+  "minutes": 1.24,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.499
+ },
+ "20261028-135040-iphone panned persist=2 felt>=1": {
+  "minutes": 1.24,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.499
+ },
+ "20261028-135040-iphone panned persist=2 felt>=26": {
+  "minutes": 1.24,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.499
+ },
+ "20261028-135040-iphone panned+hold persist=1 felt>=1": {
+  "minutes": 1.24,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-135040-iphone panned+hold persist=1 felt>=26": {
+  "minutes": 1.24,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-135040-iphone panned+hold persist=2 felt>=1": {
+  "minutes": 1.24,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-135040-iphone panned+hold persist=2 felt>=26": {
+  "minutes": 1.24,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-135040-iphone panned+track persist=1 felt>=1": {
+  "minutes": 1.24,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-135040-iphone panned+track persist=1 felt>=26": {
+  "minutes": 1.24,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-135040-iphone panned+track persist=2 felt>=1": {
+  "minutes": 1.24,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-135040-iphone panned+track persist=2 felt>=26": {
+  "minutes": 1.24,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-135040-iphone panned+track+hold persist=1 felt>=1": {
+  "minutes": 1.24,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-135040-iphone panned+track+hold persist=1 felt>=26": {
+  "minutes": 1.24,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-135040-iphone panned+track+hold persist=2 felt>=1": {
+  "minutes": 1.24,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ },
+ "20261028-135040-iphone panned+track+hold persist=2 felt>=26": {
+  "minutes": 1.24,
+  "transient_per_min": 0.0,
+  "on_fraction": 0.5
+ }
+}

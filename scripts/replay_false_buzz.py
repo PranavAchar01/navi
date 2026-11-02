@@ -141,6 +141,10 @@ def main() -> None:
     ap.add_argument(
         "--extract", nargs="*", metavar="WALK", help="depth strips (all walks, or those named)"
     )
+    ap.add_argument(
+        "--layout", default="eight", choices=["eight", "diag4"],
+        help="diag4: the built belt, four motors on the diagonals (firmware/belt/belt.ino)",
+    )  # fmt: skip
     a = ap.parse_args()
     if a.extract is not None:
         extract(a.extract)
@@ -157,6 +161,10 @@ def main() -> None:
                         d[f"{w}/strips"], d[f"{w}/path"], d[f"{w}/ttc"],
                         float(d[f"{w}/hfov"][0]), scheme, persist, felt,
                     )  # fmt: skip
+                    if a.layout == "diag4":  # a motor plays the max of its cell and both sides
+                        on = np.stack(
+                            [on[:, [c - 1, c, (c + 1) % 8]].any(1) for c in (1, 3, 5, 7)], 1
+                        )
                     n = transient(on, ts)
                     key = f"{w} {scheme} persist={persist} felt>={felt}"
                     res[key] = {
@@ -169,7 +177,8 @@ def main() -> None:
         tot.setdefault(k.split(" ", 1)[1], []).append(v["transient_per_min"])
     for k, v in tot.items():
         print(f"{k:34s} mean transient/min over {len(v)} walks: {sum(v) / len(v):5.1f}")
-    (ROOT / "bench" / "results" / "replay-false-buzz.json").write_text(json.dumps(res, indent=1))
+    name = "replay-false-buzz.json" if a.layout == "eight" else f"replay-false-buzz-{a.layout}.json"
+    (ROOT / "bench" / "results" / name).write_text(json.dumps(res, indent=1))
 
 
 if __name__ == "__main__":

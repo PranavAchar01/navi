@@ -60,6 +60,11 @@ class Settings:
     # empty to find "metasight-belt")
     belt: str = "emulator"
     belt_addr: str = "127.0.0.1:4210"
+    # Obstacle cues: "panned" (an object's bearing split across the two nearest directions) or
+    # "sector" (one direction per sector). The built belt has four motors, and on four the sector
+    # cues lose the bearing: 58% vs 73% of simulated walks reach the goal
+    # (docs/belt-sim-experiments.md L1, L2).
+    belt_cues: str = "panned"
     braille: str = "off"  # deafblind mode: off | emulator | wrist | belt | audio (docs/braille.md)
     braille_addr: str = ""  # BLE address of the wrist band, for braille = "wrist"
     braille_dot_ms: int = 250  # a cell is on this long (ERM motors need 50-100 ms to spin up)
@@ -129,6 +134,7 @@ class Settings:
             "map_intrinsics",
             "belt",
             "belt_addr",
+            "belt_cues",
             "braille",
             "braille_addr",
             "braille_dot_ms",

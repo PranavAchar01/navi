@@ -32,7 +32,7 @@ from .align import map_resolution
 from .belt import FLAG_FOUND, NAMES, BeltLink, plan
 from .config import ROOT, SESSIONS, Settings, secret
 from .conversation import Talk
-from .geometry import CAMERA_SECTORS, SECTORS, merge_sectors
+from .geometry import CAMERA_SECTORS, SECTORS, grid_strips, merge_sectors
 from .haptics import make_output
 from .heading import Heading, wrap
 from .home import cells as occupied_cells
@@ -45,7 +45,7 @@ from .modes import implied as implied_activity
 from .motion import FallDetector, Sample, ShakeDetector
 from .notes import Notes, asks_notes, caption, notes_command
 from .onboarding import PATTERNS, Onboarding, pattern_length, wants_setup
-from .pan import GUIDE_ALIGNED_DEG, Persist, with_guide
+from .pan import GUIDE_ALIGNED_DEG, Persist, plan_pan, scene_targets, with_guide
 from .pins import PinStore, confirmed, layer_of
 from .providers import make_language, make_reviewer
 from .providers.finder import LOOKALIKES
@@ -157,6 +157,7 @@ class Server:
         self._load_watch(settings)
         self.talk = Talk(settings.hfov_deg)
         self.persist = Persist(2)  # two frames near before a motor fires
+        self.persist_strips = Persist(2)  # the same, on the panned cues' depth strips
         self.activity = Activity()  # guide, find, talk or explore (modes.py)
         self.talk.cues_enabled = self.activity.profile.speaker_cues
         self.voice: VoiceAsk | None = None  # spoken questions through Muse Voice Transcribe
@@ -494,7 +495,12 @@ class Server:
             # Side and back sectors come from the map; trust them only while the pose is fresh.
             map_fresh = self.memory_ready and self.map_pose_ts and now - self.map_pose_ts < 3.0
             known = [n in CAMERA_SECTORS or bool(map_fresh) for n in SECTORS]
-            cmd, flags = plan(merged, known, sc.path_m, res.ttc_s, sc.drop_m)
+            if self.s.belt_cues == "panned":
+                strips = self.persist_strips(grid_strips(sc.grid))
+                targets = scene_targets(strips, self.s.hfov_deg, merged, known)
+                cmd, flags = plan_pan(targets, known, sc.path_m, res.ttc_s, sc.drop_m)
+            else:
+                cmd, flags = plan(merged, known, sc.path_m, res.ttc_s, sc.drop_m)
             # The map's priors may add or raise cues; a cue live depth made is never weakened.
             self._maybe_floor(now)
             pri = self._priors(now, live)

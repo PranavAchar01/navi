@@ -130,3 +130,30 @@ def test_tracker_smooths_bearing_and_coasts_through_a_dropout():
     assert 0.0 < out.bearing_deg < 10.0
     assert tr([]) and tr([])
     assert not tr([])
+
+
+def test_grid_strips_take_the_nearest_obstacle_per_column_band():
+    import numpy as np
+
+    from metasight.geometry import grid_strips
+
+    g = np.full((4, 30), 255, np.uint8)
+    g[2, 0] = 60  # 1.2 m in the leftmost band
+    g[1, 29] = 40  # 0.8 m in the rightmost
+    s = grid_strips(g)
+    assert len(s) == 15 and math.isclose(s[0], 1.2) and math.isclose(s[-1], 0.8)
+    assert all(math.isinf(d) for d in s[1:-1])
+
+
+def test_four_diagonal_motors_fold_the_eight_directions():
+    import numpy as np
+
+    front = np.array([1.0, 0, 0, 0, 0, 0, 0, 0])
+    assert list(h.to_motors(front, "diag4")) == [1.0, 0, 0, 1.0]  # both front motors
+    front_right = np.array([0, 0.5, 0, 0, 0, 0, 0, 0])
+    assert list(h.to_motors(front_right, "diag4")) == [0.5, 0, 0, 0]
+
+
+def test_walker_on_four_motors_reaches_the_goal_in_a_seeded_room():
+    r = h.run(h.make_room(3), h.Belt(layout="diag4", persist=2), seed=0)
+    assert r.success
