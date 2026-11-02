@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#070b18" />
-    <title>meta-sight</title>
+    <title>Navi</title>
     <script>
       if (new URLSearchParams(location.search).get("view") === "judge") location.replace("/judge.html" + location.hash);
       if (new URLSearchParams(location.search).has("capture")) location.replace("/capture.html" + location.search);
@@ -26,7 +26,7 @@
     <div class="world"><canvas id="map3d"></canvas></div>
     <div class="app">
       <header class="topbar glass r">
-        <div class="brand">meta-sight<span class="brand-sub" id="brand-sub">a memory for your home</span></div>
+        <div class="brand">Navi<span class="brand-sub" id="brand-sub">a memory for your home</span></div>
         <div class="seg" id="modes" role="group" aria-label="Map mode">
           <button data-mode="home" aria-pressed="true">Home</button>
           <button data-mode="outside" aria-pressed="false">Outside</button>
@@ -80,6 +80,7 @@
       </main>
 
       <footer class="ask">
+        <div id="navi-host" class="navi-host"></div>
         <div class="answer glass" id="answer" hidden>
           <img id="answer-thumb" alt="" />
           <div>

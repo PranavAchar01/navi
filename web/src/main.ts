@@ -5,6 +5,8 @@ import { MapView } from "./map3d";
 import { setupGlass } from "./glass";
 import { Net } from "./net";
 import { Belt3D } from "./belt3d";
+import { NaviBot } from "./navibot";
+import { close, emoteFor, lineFor, moodOf } from "./navimood";
 import { BeltCells, EdgeArcs, type ScreenPin, cellsFromBelt, cellsFromCues, drawOverlay } from "./overlay";
 import { streamMic } from "./mic";
 import { listen, speak } from "./speech";
@@ -28,6 +30,10 @@ const wide = window.matchMedia("(min-width: 901px)");
 map.setTopDown(wide.matches);
 wide.addEventListener("change", () => map.setTopDown(wide.matches));
 const audio = new AudioCues();
+// Navi, the companion on the ask bar: it reacts to everything below through these few fields.
+const navi = new NaviBot($("navi-host"));
+const naviState = { waitingSince: null as number | null, foundAt: null as number | null, wasFound: false, wasClose: false, lastAct: performance.now(), lastPinCount: -1, lastPinPop: 0, heard: 0 };
+const poke = () => (naviState.lastAct = performance.now());
 const source = new Source(video, net);
 let latest: Safety | null = null;
 let pins: PinJson[] = [];
@@ -83,9 +89,16 @@ net.on("device", (m) => {
 // What the glasses hear, typed into the ask box as it is spoken; the final question is sent by
 // the glasses themselves.
 net.on("transcript", (m) => {
+  naviState.heard = m.final ? 0 : performance.now();
+  poke();
+  if (m.final && m.text.trim()) asked();
   $<HTMLInputElement>("ask-input").value = m.final ? "" : m.text;
 });
+let everUp = false;
 net.onConnection((up) => {
+  if (up && !everUp) navi.say(lineFor("hello"), 5200);
+  else if (!up && chipState.server) navi.say(lineFor("offline"));
+  everUp ||= up;
   chipState.server = up;
   renderChips();
 });
@@ -147,6 +160,16 @@ net.on("safety", (m) => {
   }
   chipState.fps = m.fps;
   if (m.found && target) setGuideTarget(null);
+  if (m.found && !naviState.wasFound) {
+    naviState.foundAt = performance.now();
+    navi.emote(emoteFor("found"));
+    navi.say(lineFor("found", m.guide?.label ?? undefined));
+    poke();
+  }
+  naviState.wasFound = m.found;
+  const near = close(m);
+  if (near && !naviState.wasClose) navi.emote(emoteFor("obstacle"));
+  naviState.wasClose = near;
   fpv.setLiveYaw(m.yaw ?? null);
   belt.update(m);
   audio.update(m);
@@ -210,7 +233,24 @@ function frame(now: number) {
   else drawOverlay(overlay, video.videoWidth, video.videoHeight, syncedFrame(now), false, extra);
   // The belt's own telemetry when one is connected, otherwise what the server would send it.
   const b = chipState.belt;
-  belt3d.set(b ? cellsFromBelt(b) : cellsFromCues(latest, now), bearing ?? null);
+  const cells = b ? cellsFromBelt(b) : cellsFromCues(latest, now);
+  belt3d.set(cells, bearing ?? null);
+  if (naviState.waitingSince !== null && now - naviState.waitingSince > 15_000) naviState.waitingSince = null;
+  navi.set(
+    moodOf({
+      online: chipState.server,
+      listening: stopListening !== null || now - naviState.heard < 2000,
+      waiting: naviState.waitingSince !== null,
+      alert: !$("alert").hidden,
+      ttc: latest?.ttc ?? null,
+      path: latest?.path ?? null,
+      bearing: bearing ?? null,
+      sinceFoundMs: naviState.foundAt === null ? null : now - naviState.foundAt,
+      quietMs: now - naviState.lastAct,
+    }),
+    bearing ?? null,
+    Math.max(0, ...cells.map((c) => c.level)),
+  );
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
@@ -321,6 +361,14 @@ function select(p: PinJson, answer = false) {
 }
 map.onPick = (p) => select(p);
 net.on("pins", (m) => {
+  // A new thing remembered: a little surprise, at most every eight seconds.
+  const n = m.pins.filter((p) => p.kind === "object").length;
+  const t = performance.now();
+  if (naviState.lastPinCount >= 0 && n > naviState.lastPinCount && t - naviState.lastPinPop > 8000) {
+    navi.emote(emoteFor("pin"));
+    naviState.lastPinPop = t;
+  }
+  naviState.lastPinCount = n;
   pins = m.pins;
   map.setPins(pins);
   renderPins();
@@ -342,6 +390,11 @@ function showAnswer(a: Answer) {
       : "";
   $("answer-meta").title = a.language ?? "template";
   speak(a.text);
+  naviState.waitingSince = null;
+  poke();
+  const label = a.pin?.label ?? (a.live ? a.label : null);
+  navi.emote(emoteFor(label ? "answer" : "answer-none"));
+  navi.say(lineFor(label ? "answer" : "answer-none", label ?? undefined));
   if (a.pin) select(a.pin, true);
   else {
     hotId = null;
@@ -358,6 +411,7 @@ $("ask-form").addEventListener("submit", async (ev) => {
   if (!text) return;
   input.value = "";
   net.send({ type: "ask", text });
+  asked();
 });
 let stopListening: (() => void) | null = null;
 // Muse Voice Transcribe on the server: the mic stays open and the model finds each question's end.
@@ -365,7 +419,14 @@ let serverAsr: Promise<boolean> = fetch("/api/state")
   .then((r) => r.json())
   .then((s) => Boolean(s.asr))
   .catch(() => false);
+/** A question went out: Navi thinks until the answer comes back. */
+function asked() {
+  naviState.waitingSince = performance.now();
+  poke();
+  navi.say(lineFor("thinking"), 2500);
+}
 $("btn-mic").addEventListener("click", async () => {
+  poke();
   const btn = $("btn-mic");
   if (stopListening) {
     stopListening();
@@ -377,18 +438,25 @@ $("btn-mic").addEventListener("click", async () => {
     stopListening = await streamMic(net);
     if (stopListening) {
       btn.classList.add("on");
+      navi.say(lineFor("listening"), 2500);
       return;
     }
     serverAsr = Promise.resolve(false);
   }
   stopListening = listen(
-    (t) => net.send({ type: "ask", text: t }),
+    (t) => {
+      net.send({ type: "ask", text: t });
+      asked();
+    },
     () => {
       stopListening = null;
       btn.classList.remove("on");
     },
   );
-  if (stopListening) btn.classList.add("on");
+  if (stopListening) {
+    btn.classList.add("on");
+    navi.say(lineFor("listening"), 2500);
+  }
   else $<HTMLInputElement>("ask-input").focus();
 });
 
@@ -428,6 +496,7 @@ function openAlert(title: string, text: string, ask: boolean) {
   }
 }
 net.on("alert", (m) => {
+  if (m.kind === "fall_prompt" || m.kind === "shake_notice") navi.emote(emoteFor("alert"));
   if (m.kind === "fall_prompt") openAlert("Are you okay?", m.message, true);
   else if (m.kind === "shake_notice") openAlert("Are you okay?", m.message, true);
   else if (m.kind === "fall_escalate") openAlert("No answer", m.message + " Nothing was dialled.", false);

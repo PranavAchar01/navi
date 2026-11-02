@@ -567,11 +567,11 @@ export class Belt3D {
     g.setIndex(idx);
     const shadow = new THREE.Mesh(
       g,
-      new THREE.MeshBasicMaterial({ map: shadowTex(), transparent: true, opacity: 0.4, depthWrite: false }),
+      new THREE.MeshBasicMaterial({ map: shadowTex(), transparent: true, opacity: 0.22, depthWrite: false }),
     );
     const under = new THREE.Mesh(
       new THREE.PlaneGeometry(1, 1),
-      new THREE.MeshBasicMaterial({ map: this.glow, color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false }),
+      new THREE.MeshBasicMaterial({ map: this.glow, color: 0x000000, transparent: true, opacity: 0.2, depthWrite: false }),
     );
     under.rotation.x = -Math.PI / 2;
     under.scale.set(0.12, 0.05, 1);
