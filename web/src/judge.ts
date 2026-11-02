@@ -351,11 +351,11 @@ function drawBelt(s: Safety | null) {
   const w = said;
   const g = s?.guide;
   let text = "";
-  let color = "#fff";
+  let color = "#1d1d1f";
   if (w && w.band > 0) text = w.band === STOP ? "Stop" : distanceText(w.dist);
   else if (g && g.dist !== null) {
     text = distanceText(g.dist);
-    color = "rgb(90,176,255)";
+    color = "#0066cc";
   }
   if (beltNumber.textContent !== text) beltNumber.textContent = text;
   beltNumber.style.color = color;

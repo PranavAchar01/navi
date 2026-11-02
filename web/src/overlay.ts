@@ -273,7 +273,7 @@ function drawHazards(
     const tw = ctx.measureText(text).width + 26;
     const tx = Math.min(ox + w - tw / 2 - 6, Math.max(ox + tw / 2 + 6, ox + l.x * w));
     const ty = Math.max(oy + Math.max(26, 0.09 * h), oy + l.y * h - 14);
-    ctx.fillStyle = `rgba(10,14,30,${(0.62 * l.alpha).toFixed(3)})`;
+    ctx.fillStyle = `rgba(255,255,255,${(0.86 * l.alpha).toFixed(3)})`;
     ctx.beginPath();
     ctx.roundRect(tx - tw / 2, ty - 13, tw, 24, 12);
     ctx.fill();
@@ -284,7 +284,7 @@ function drawHazards(
     ctx.beginPath();
     ctx.arc(tx - tw / 2 + 11, ty - 1, 3.5, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = `rgba(255,255,255,${l.alpha.toFixed(3)})`;
+    ctx.fillStyle = `rgba(29,29,31,${l.alpha.toFixed(3)})`;
     ctx.fillText(text, tx - tw / 2 + 19, ty + 4);
   }
 }
@@ -317,7 +317,7 @@ function drawPins(ctx: CanvasRenderingContext2D, pins: ScreenPin[], ox: number, 
     ctx.beginPath();
     ctx.arc(x, y, rad, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = rgba([235, 255, 255], 0.9);
+    ctx.fillStyle = rgba([255, 255, 255], 0.95);
     ctx.beginPath();
     ctx.arc(x, y, 3.2, 0, Math.PI * 2);
     ctx.fill();
@@ -332,14 +332,14 @@ function drawPins(ctx: CanvasRenderingContext2D, pins: ScreenPin[], ox: number, 
     const text = `${p.label} · ${p.dist.toFixed(1)} m`;
     const tw = ctx.measureText(text).width + 20;
     const ty = y - rad - 16;
-    ctx.fillStyle = "rgba(10,14,30,0.62)";
+    ctx.fillStyle = "rgba(255,255,255,0.86)";
     ctx.beginPath();
     ctx.roundRect(x - tw / 2, ty - 12, tw, 24, 12);
     ctx.fill();
     ctx.strokeStyle = rgba(MEMORY, 0.6);
     ctx.lineWidth = 1;
     ctx.stroke();
-    ctx.fillStyle = "#fff";
+    ctx.fillStyle = "#1d1d1f";
     ctx.fillText(text, x - tw / 2 + 10, ty + 4.5);
   }
 }
@@ -478,7 +478,7 @@ export const MODE_RGB: Record<string, [number, number, number]> = {
   slow: CAUTION,
   fast: DANGER,
   solid: DANGER,
-  lost: [170, 120, 255],
+  lost: [0, 82, 168],
   guide: GUIDE,
   find: GUIDE,
   talk: PERSON,
@@ -503,11 +503,11 @@ export function drawRing(canvas: HTMLCanvasElement, b: Belt | null, s: Safety | 
   const R = c - 24;
   const now = performance.now();
   // Wearer from above: shoulders and head, nose pointing forward.
-  ctx.fillStyle = "rgba(255,255,255,0.10)";
+  ctx.fillStyle = "rgba(0,102,204,0.07)";
   ctx.beginPath();
   ctx.ellipse(c, c, R * 0.62, R * 0.4, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = "rgba(255,255,255,0.22)";
+  ctx.fillStyle = "rgba(0,102,204,0.16)";
   ctx.beginPath();
   ctx.arc(c, c, R * 0.22, 0, Math.PI * 2);
   ctx.fill();
@@ -517,7 +517,7 @@ export function drawRing(canvas: HTMLCanvasElement, b: Belt | null, s: Safety | 
   ctx.lineTo(c + 5, c - R * 0.2);
   ctx.fill();
   // The strap.
-  ctx.strokeStyle = "rgba(255,255,255,0.28)";
+  ctx.strokeStyle = "rgba(0,102,204,0.2)";
   ctx.lineWidth = 7;
   ctx.beginPath();
   ctx.arc(c, c, R, 0, Math.PI * 2);
@@ -539,7 +539,7 @@ export function drawRing(canvas: HTMLCanvasElement, b: Belt | null, s: Safety | 
     ctx.shadowBlur = 0;
     ctx.lineCap = "butt";
   }
-  ctx.fillStyle = "rgba(255,255,255,0.55)";
+  ctx.fillStyle = "#0052a8";
   ctx.font = '600 9px "Atkinson Hyperlegible Mono", ui-monospace, monospace';
   ctx.textAlign = "center";
   ctx.fillText(b?.lost ? "BELT LINK LOST" : b?.found ? "FOUND IT" : "BELT", c, c + R * 0.62);
@@ -567,18 +567,18 @@ export function drawRing(canvas: HTMLCanvasElement, b: Belt | null, s: Safety | 
       ctx.shadowColor = `rgba(${r},${g},${bl},0.9)`;
       ctx.shadowBlur = 14 * duty;
     }
-    const lit = rgb ? `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${(0.35 + 0.65 * duty).toFixed(3)})` : "rgba(40,48,80,0.95)";
+    const lit = rgb ? `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${(0.35 + 0.65 * duty).toFixed(3)})` : "rgba(240,247,255,0.95)";
     ctx.fillStyle = lit;
     ctx.beginPath();
     ctx.arc(x, y, 10, 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
-    ctx.strokeStyle = mode === "unknown" ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.6)";
+    ctx.strokeStyle = mode === "unknown" ? "rgba(0,102,204,0.35)" : rgb ? "rgba(255,255,255,0.9)" : "rgba(0,102,204,0.3)";
     ctx.setLineDash(mode === "unknown" ? [2, 2] : []);
     ctx.lineWidth = 1;
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = "#fff";
+    ctx.fillStyle = rgb && duty > 0 ? "#fff" : "#0052a8";
     ctx.fillText(String(i + 1), x, y + 0.5);
   }
 }

@@ -1,10 +1,10 @@
 /* The judge view: the glasses camera fills the screen, and only what the wearer feels floats over
  * it on glass. Read from across a room: big type, few words. */
 :root {
-  --dim: rgba(255, 255, 255, 0.62);
-  --amber: rgb(255, 190, 70);
-  --green: rgb(110, 220, 140);
-  --lilac: #c9a6ff;
+  --dim: #0052a8;
+  --amber: rgb(245, 165, 36);
+  --green: rgb(18, 167, 118);
+  --lilac: #0066cc;
 }
 * {
   box-sizing: border-box;
@@ -13,22 +13,22 @@ html,
 body.judge {
   margin: 0;
   height: 100%;
-  background: #05070d;
-  color: #fff;
-  font-family: "Atkinson Hyperlegible Next", system-ui, sans-serif;
+  background: #f2f7fd;
+  color: #1d1d1f;
+  font-family: -apple-system, "SF Pro Display", "SF Pro Text", Inter, system-ui, sans-serif;
   overflow: hidden;
 }
 
-/* Liquid glass: the camera shows through, blurred and a little richer, under a thin light rim. */
+/* White liquid glass, as in the Navi video: the camera shows through, blurred, under a bright rim. */
 .glass {
-  background: rgba(16, 20, 30, 0.34);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.55));
   backdrop-filter: blur(22px) saturate(170%);
   -webkit-backdrop-filter: blur(22px) saturate(170%);
-  border: 1px solid rgba(255, 255, 255, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.85);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.95),
     inset 0 0 2.4vh rgba(255, 255, 255, 0.06),
-    0 1.2vh 4vh rgba(0, 0, 0, 0.35);
+    0 1.2vh 4vh rgba(0, 40, 100, 0.22);
 }
 
 /* The camera, cover-fit: the frame box keeps the picture's own aspect and overhangs the screen;
@@ -97,7 +97,7 @@ body.judge {
   font-weight: 700;
   padding: 0.8vh 1.2vw;
   border-radius: 99px;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(0, 82, 168, 0.6);
   transition: all 0.4s;
 }
 .j-steps li::before {
@@ -105,11 +105,11 @@ body.judge {
   opacity: 0.6;
 }
 .j-steps li.done {
-  color: #fff;
+  color: #1d1d1f;
 }
 .j-steps li.now {
-  color: #05070d;
-  background: rgba(255, 255, 255, 0.92);
+  color: #fff;
+  background: #0066cc;
 }
 .j-source {
   margin-left: auto;
@@ -141,7 +141,7 @@ body.judge {
   --mode: #fff;
 }
 .j-activity span {
-  color: #fff;
+  color: #1d1d1f;
   font-weight: 800;
 }
 .j-activity i {
@@ -166,15 +166,15 @@ body.judge {
 @keyframes j-activity-flash {
   0% {
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.32),
+      inset 0 1.5px 0 rgba(255, 255, 255, 0.95),
       0 0 0 0.5vh var(--mode),
-      0 1.2vh 4vh rgba(0, 0, 0, 0.35);
+      0 1.2vh 4vh rgba(0, 40, 100, 0.22);
   }
   100% {
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.32),
+      inset 0 1.5px 0 rgba(255, 255, 255, 0.95),
       0 0 0 0 transparent,
-      0 1.2vh 4vh rgba(0, 0, 0, 0.35);
+      0 1.2vh 4vh rgba(0, 40, 100, 0.22);
   }
 }
 
@@ -210,19 +210,19 @@ body.judge {
   width: 0.9vh;
   height: 0.9vh;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(0, 102, 204, 0.2);
   transition: background 0.3s, box-shadow 0.3s;
 }
 .j-models li b {
   font-weight: 800;
   font-variant-numeric: tabular-nums;
-  color: #fff;
+  color: #1d1d1f;
 }
 .j-models li b:empty {
   display: none;
 }
 .j-models li.on {
-  color: #fff;
+  color: #1d1d1f;
 }
 .j-models li.on i {
   background: var(--green);
@@ -265,7 +265,7 @@ body.judge {
   min-height: 3.4vh;
   margin-top: -1vh;
   text-align: center;
-  font: 800 3vh "Atkinson Hyperlegible Next", system-ui, sans-serif;
+  font: 800 3vh -apple-system, "SF Pro Display", "SF Pro Text", Inter, system-ui, sans-serif;
 }
 
 /* The one transient caption: the question as it is heard, then the answer with its crop and,
@@ -359,7 +359,7 @@ body.judge {
   align-items: center;
   gap: 1.2vw;
   padding-left: 2vw;
-  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  border-left: 1px solid rgba(0, 102, 204, 0.18);
 }
 .j-caption.touch .j-braille {
   display: flex;
@@ -373,21 +373,21 @@ body.judge {
 }
 .j-cell i {
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(0, 102, 204, 0.12);
   transition:
     background 0.06s,
     box-shadow 0.06s;
 }
 .j-cell i.on {
   background: var(--lilac);
-  box-shadow: 0 0 1.6vh rgba(201, 166, 255, 0.9);
+  box-shadow: 0 0 1.6vh rgba(0, 102, 204, 0.6);
 }
 .j-words {
   max-width: 20vw;
   font-size: 2.6vh;
   font-weight: 700;
   line-height: 1.35;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(0, 82, 168, 0.6);
 }
 .j-words small {
   display: block;
@@ -397,6 +397,6 @@ body.judge {
   color: var(--lilac);
 }
 .j-words b {
-  color: #fff;
+  color: #1d1d1f;
   font-weight: 800;
 }

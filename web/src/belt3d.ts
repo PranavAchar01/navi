@@ -32,7 +32,7 @@ const PCB = 0.0016;
 const MOD_Y = 0.003; // modules ride a little above the strap's middle; cables run under them
 const MOD_SCALE = 1.6; // modules drawn larger than life so the parts read at HUD size
 const PAD = 0.0018; // hook-and-loop under the shield
-const GUIDE: [number, number, number] = [90, 176, 255];
+const GUIDE: [number, number, number] = [18, 167, 118];
 const CAPTION: Record<Layout, string> = {
   4: "4 motors · the belt as built",
   8: "8 motors",
@@ -61,14 +61,16 @@ const sOf = (deg: number) => (deg / 360) * L;
 // Webbing never lies dead straight: a slow wave in and out and a slight sag.
 const lie = (s: number) => 0.0011 * Math.sin(s * 23 + 0.7) + 0.0005 * Math.sin(s * 57 + 2.1);
 const sag = (s: number) => 0.0009 * Math.sin(s * 9.5 + 0.3);
-/** Out of the strap's inner face, towards the body and the view. */
-const normal = (s: number) => new THREE.Vector3(-Math.sin(s / RC), 0, Math.cos(s / RC));
+// The belt is seen from outside, as it sits round a waist: the middle bows toward the view and
+// the ends wrap away behind, with the boards on the face that looks at you.
+/** Out of the strap's outer face, towards the view. */
+const normal = (s: number) => new THREE.Vector3(Math.sin(s / RC), 0, Math.cos(s / RC));
 /** Along the strap, left to right on screen. */
-const along = (s: number) => new THREE.Vector3(Math.cos(s / RC), 0, Math.sin(s / RC));
+const along = (s: number) => new THREE.Vector3(Math.cos(s / RC), 0, -Math.sin(s / RC));
 const point = (s: number, out: number, y: number) => {
   const f = s / RC;
   const o = out + lie(s);
-  return new THREE.Vector3(RC * Math.sin(f) - Math.sin(f) * o, y + sag(s), RC * (1 - Math.cos(f)) + Math.cos(f) * o);
+  return new THREE.Vector3(RC * Math.sin(f) + Math.sin(f) * o, y + sag(s), -RC * (1 - Math.cos(f)) + Math.cos(f) * o);
 };
 
 /** A length of strap from s0 to s1: a flat section with round edges, the inner face split into
@@ -401,13 +403,13 @@ export class Belt3D {
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     this.scene.environmentIntensity = 0.6;
-    // A soft key from the upper left, as through a window, and a cool rim from behind that
+    // A soft key from the upper left, as through a window, and a white rim from behind that
     // catches the webbing's edge.
     const key = new THREE.DirectionalLight(0xfff6ec, 1.6);
     key.position.set(-0.5, 0.9, 0.8);
-    const rim = new THREE.DirectionalLight(0xbcd2ff, 0.7);
+    const rim = new THREE.DirectionalLight(0xffffff, 0.7);
     rim.position.set(0.3, 0.6, -1);
-    this.scene.add(key, rim, new THREE.HemisphereLight(0xffffff, 0x3a4050, 0.6), this.layoutGroup, this.staticGroup);
+    this.scene.add(key, rim, new THREE.HemisphereLight(0xffffff, 0xcfe2f7, 0.6), this.layoutGroup, this.staticGroup);
     this.ready = this.load();
     this.setLayout(this.layout);
     new ResizeObserver(() => this.resize()).observe(host);
@@ -571,7 +573,7 @@ export class Belt3D {
     );
     const under = new THREE.Mesh(
       new THREE.PlaneGeometry(1, 1),
-      new THREE.MeshBasicMaterial({ map: this.glow, color: 0x000000, transparent: true, opacity: 0.2, depthWrite: false }),
+      new THREE.MeshBasicMaterial({ map: this.glow, color: 0x002864, transparent: true, opacity: 0.2, depthWrite: false }),
     );
     under.rotation.x = -Math.PI / 2;
     under.scale.set(0.12, 0.05, 1);
@@ -843,7 +845,7 @@ export class Belt3D {
       this.guideMesh = new THREE.Mesh(
         g,
         new THREE.MeshStandardMaterial({
-          color: 0x10223a,
+          color: 0x0b3d2c,
           emissive: new THREE.Color(`rgb(${GUIDE.join(",")})`),
           emissiveIntensity: 1.6,
         }),
@@ -869,7 +871,8 @@ export class Belt3D {
     const f = reach / RC;
     const tanV = Math.tan((this.camera.fov * Math.PI) / 360);
     const tanH = tanV * this.camera.aspect;
-    this.distTarget = Math.max((RC * Math.sin(f)) / tanH + RC * (1 - Math.cos(f)), 0.05 / tanV);
+    // The ends wrap away from the view; frame the full width with a little air either side.
+    this.distTarget = Math.max((1.08 * RC * Math.sin(f)) / tanH, 0.05 / tanV);
     if (!this.dist) this.dist = this.distTarget;
   }
 

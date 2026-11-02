@@ -116,14 +116,14 @@ export class NaviBot {
     const svg = el("svg", { viewBox: "-50 -48 100 112", "aria-hidden": "true" });
     const defs = el("defs", {}, svg);
     const g = el("radialGradient", { id: "navi-glass", cx: "32%", cy: "22%", r: "85%" }, defs);
-    el("stop", { offset: "0", "stop-color": "rgb(255 255 255 / 0.72)" }, g);
-    el("stop", { offset: "0.45", "stop-color": "rgb(150 205 255 / 0.34)" }, g);
-    el("stop", { offset: "1", "stop-color": "rgb(30 52 120 / 0.62)" }, g);
+    el("stop", { offset: "0", "stop-color": "rgb(255 255 255 / 0.92)" }, g);
+    el("stop", { offset: "0.45", "stop-color": "rgb(230 241 255 / 0.7)" }, g);
+    el("stop", { offset: "1", "stop-color": "rgb(0 102 204 / 0.55)" }, g);
     const rim = el("linearGradient", { id: "navi-rim", x1: "0", y1: "0", x2: "0", y2: "1" }, defs);
     el("stop", { offset: "0", "stop-color": "rgb(255 255 255 / 0.9)" }, rim);
     el("stop", { offset: "1", "stop-color": "rgb(255 255 255 / 0.2)" }, rim);
     // A soft shadow where the tip touches down.
-    el("ellipse", { cx: 0, cy: 60, rx: 14, ry: 3, fill: "rgb(0 0 0 / 0.35)", class: "navi-shadow" }, svg);
+    el("ellipse", { cx: 0, cy: 60, rx: 14, ry: 3, fill: "rgb(0 40 100 / 0.22)", class: "navi-shadow" }, svg);
     this.body = el("g", {}, svg);
     el(
       "path",
@@ -139,12 +139,12 @@ export class NaviBot {
     el("ellipse", { cx: -15, cy: -23, rx: 12, ry: 5.5, fill: "rgb(255 255 255 / 0.55)", transform: "rotate(-32 -15 -23)" }, this.body);
     const face = el("g", {}, this.body);
     this.cheeks = [-1, 1].map((s) => el("ellipse", { cx: s * 18, cy: 8, rx: 6, ry: 3.4 }, face));
-    this.eyes = [-1, 1].map(() => el("path", { fill: "#0b1533" }, face));
+    this.eyes = [-1, 1].map(() => el("path", { fill: "#1d1d1f" }, face));
     this.arcs = [-1, 1].map(() =>
-      el("path", { fill: "none", stroke: "#0b1533", "stroke-width": 3.4, "stroke-linecap": "round" }, face),
+      el("path", { fill: "none", stroke: "#1d1d1f", "stroke-width": 3.4, "stroke-linecap": "round" }, face),
     );
     this.glints = [-1, 1].map(() => el("circle", { r: 1.9, fill: "#fff" }, face));
-    this.mouth = el("path", { fill: "none", stroke: "#0b1533", "stroke-width": 2.4, "stroke-linecap": "round" }, face);
+    this.mouth = el("path", { fill: "none", stroke: "#1d1d1f", "stroke-width": 2.4, "stroke-linecap": "round" }, face);
     wrap.appendChild(svg);
     this.bubble = document.createElement("div");
     this.bubble.className = "navi-bubble glass r";

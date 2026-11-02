@@ -100,15 +100,15 @@ function label(text: string, strong: boolean): THREE.Sprite {
   c.width = w;
   c.height = 48;
   ctx.font = font;
-  ctx.fillStyle = strong ? `rgb(${MEMORY.join(",")})` : "rgba(14,20,44,0.72)";
+  ctx.fillStyle = strong ? `rgb(${MEMORY.join(",")})` : "rgba(255,255,255,0.88)";
   ctx.beginPath();
   ctx.roundRect(0, 4, w, 40, 10);
   ctx.fill();
   if (!strong) {
-    ctx.strokeStyle = "rgba(255,255,255,0.35)";
+    ctx.strokeStyle = "rgba(0,102,204,0.25)";
     ctx.stroke();
   }
-  ctx.fillStyle = strong ? "#04262a" : "rgba(255,255,255,0.88)";
+  ctx.fillStyle = strong ? "#ffffff" : "#1d1d1f";
   ctx.textBaseline = "middle";
   ctx.fillText(text, 14, 25);
   const tex = new THREE.CanvasTexture(c);
@@ -130,7 +130,7 @@ export class MapView {
   private size = new Uint8Array(CAP); // disc size per point, 0.5 cm steps; 0 = the default
   private geo = new THREE.BufferGeometry();
   private count = 0;
-  // The walked trail: a thin white line that fades with age.
+  // The walked trail: a thin Muse-blue line that fades with age.
   private trail = new THREE.Line(
     new THREE.BufferGeometry(),
     new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false }),
@@ -270,7 +270,7 @@ export class MapView {
     this.scene.add(pts);
     this.points = pts;
 
-    this.grid = new THREE.GridHelper(40, 40, 0xffffff, 0xffffff);
+    this.grid = new THREE.GridHelper(40, 40, 0x0066cc, 0x0066cc);
     const gm = this.grid.material as THREE.LineBasicMaterial;
     gm.depthWrite = false;
     gm.transparent = true;
@@ -280,7 +280,7 @@ export class MapView {
     this.trail.frustumCulled = false;
     this.scene.add(this.trail);
 
-    // You: a soft white puck with a short heading cone, brightest at the puck.
+    // You: a soft ink puck with a short heading cone, brightest at the puck.
     const puck = glowSprite(hex(YOU), 0.36, 0.95);
     puck.renderOrder = 9;
     this.rig.add(puck);
@@ -293,7 +293,7 @@ export class MapView {
     }
     const coneGeo = new THREE.BufferGeometry();
     coneGeo.setAttribute("position", new THREE.Float32BufferAttribute(fan, 3));
-    coneGeo.setAttribute("color", new THREE.Float32BufferAttribute(fanA.flatMap((a) => [1, 1, 1, a]), 4));
+    coneGeo.setAttribute("color", new THREE.Float32BufferAttribute(fanA.flatMap((a) => [0, 0.4, 0.8, a]), 4));
     coneGeo.setIndex(Array.from({ length: 12 }, (_, i) => [0, i + 2, i + 1]).flat());
     const cone = new THREE.Mesh(
       coneGeo,
@@ -696,7 +696,7 @@ export class MapView {
     points.forEach((p, i) => {
       arr.set(p.slice(0, 3), i * 3);
       // Oldest first: the newest stretch is brightest.
-      col.set([1, 1, 1, 0.7 * Math.pow((i + 1) / points.length, 1.6)], i * 4);
+      col.set([0, 0.4, 0.8, 0.8 * Math.pow((i + 1) / points.length, 1.6)], i * 4);
     });
     this.trail.geometry.setAttribute("position", new THREE.BufferAttribute(arr, 3));
     this.trail.geometry.setAttribute("color", new THREE.BufferAttribute(col, 4));
