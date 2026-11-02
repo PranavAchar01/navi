@@ -1,0 +1,79 @@
+{
+ "3d panned diag4-cp": {
+  "runs": 100,
+  "success": 0.95,
+  "collisions": 1.06,
+  "time_s": 2.059578947368422,
+  "efficiency": 1.2444846425363008,
+  "contact_s": 4.9643999999999675,
+  "false_per_min": 0.0,
+  "guide_frames": 0,
+  "stop_frames": 0,
+  "stop_overridden": 0,
+  "stop_violations": 0,
+  "cost": 9.562879999999996
+ },
+ "3d panned eight": {
+  "runs": 100,
+  "success": 0.95,
+  "collisions": 1.3,
+  "time_s": 2.2134736842105274,
+  "efficiency": 1.241207444141567,
+  "contact_s": 4.973999999999969,
+  "false_per_min": 0.0,
+  "guide_frames": 0,
+  "stop_frames": 0,
+  "stop_overridden": 0,
+  "stop_violations": 0,
+  "cost": 10.530189999999997
+ },
+ "3d sector diag4": {
+  "runs": 100,
+  "success": 0.95,
+  "collisions": 1.0,
+  "time_s": 1.9922105263157903,
+  "efficiency": 1.254579915191965,
+  "contact_s": 4.981399999999967,
+  "false_per_min": 0.0,
+  "guide_frames": 0,
+  "stop_frames": 0,
+  "stop_overridden": 0,
+  "stop_violations": 0,
+  "cost": 9.319679999999996
+ },
+ "2d panned diag4-cp": {
+  "runs": 100,
+  "success": 0.95,
+  "collisions": 1.44,
+  "time_s": 2.27263157894737,
+  "efficiency": 1.2192803556805605,
+  "contact_s": 4.925399999999968,
+  "false_per_min": 0.0,
+  "guide_frames": 0,
+  "stop_frames": 0,
+  "stop_overridden": 0,
+  "stop_violations": 0,
+  "cost": 11.092999999999996
+ },
+ "3d panned diag4-cp minus 2d panned diag4-cp": {
+  "cost_diff": -1.5301199999999997,
+  "ci95": [
+   -2.0899117499999997,
+   -0.9697675000000001
+  ]
+ },
+ "3d panned diag4-cp minus 3d panned eight": {
+  "cost_diff": -0.9673100000000001,
+  "ci95": [
+   -1.4869835,
+   -0.4513335000000001
+  ]
+ },
+ "3d sector diag4 minus 3d panned diag4-cp": {
+  "cost_diff": -0.24319999999999997,
+  "ci95": [
+   -0.7224987499999999,
+   0.1971935
+  ]
+ }
+}

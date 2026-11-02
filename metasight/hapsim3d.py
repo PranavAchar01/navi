@@ -74,8 +74,8 @@ class Sensor3D:
     """`hapsim.run(..., sensor=Sensor3D(room))`: depth rendered at 25 fps, the live geometry on it.
     `noise` is the per-frame scale error of monocular depth (log sd) plus 1% pixel noise."""
 
-    def __init__(self, room: h.Room, noise: float = 0.04):
-        self.m = mujoco.MjModel.from_xml_string(room_xml(room))
+    def __init__(self, room: h.Room, noise: float = 0.04, xml: str | None = None):
+        self.m = mujoco.MjModel.from_xml_string(xml or room_xml(room))
         self.d = mujoco.MjData(self.m)
         self.r = mujoco.Renderer(self.m, GRID[1], GRID[0])
         self.r.enable_depth_rendering()
@@ -88,7 +88,7 @@ class Sensor3D:
         mujoco.mj_forward(self.m, self.d)
         self.r.update_scene(self.d, camera="eye")
         z = self.r.render().astype(np.float32)
-        z[z > 15.0] = 0.0  # nothing there (far plane): no data, as on the phone
+        z[~(z <= 15.0)] = 0.0  # nothing there (far plane, NaN): no data, as on the phone
         return z
 
     def __call__(self, room: h.Room, x, y, heading, rng) -> tuple[list[float], list[float]]:
@@ -101,3 +101,111 @@ class Sensor3D:
 
     def close(self) -> None:
         self.r.close()
+
+
+# ------------------------------------------------------------------ the scanned bedroom
+# The scan is in the home frame (y up, floor at y = 0). The sim plane is x right, y = -z, so the
+# mesh goes into MuJoCo as (x, -z, y) and both get the same offset to keep coordinates positive.
+CELL = 0.1
+
+
+def scan_rooms(ply: str, n_pairs: int = 20, seed: int = 0) -> tuple[list[h.Room], str]:
+    """Rooms (one per start and goal pair) and the MJCF for a scanned mesh. Floor plan from the
+    mesh: a 10 cm cell with surface at 1.9 to 2.6 m is structure (walls, tall wardrobes: the walker
+    knows them, like the walls of a generated room), one with surface from 0.3 to 1.8 m only is
+    furniture (the belt has to find it), one with neither and no floor seen is outside the scan.
+    Clutter under 0.3 m is drawn, so the camera sees it, but the walker does not collide with it."""
+    import trimesh
+
+    m = trimesh.load(ply, process=False)
+    v = np.asarray(m.vertices)
+    sim = np.column_stack([v[:, 0], -v[:, 2], v[:, 1]])
+    off = -sim[:, :2].min(0) + 0.3
+    sim[:, :2] += off
+    p, _ = trimesh.sample.sample_surface(
+        trimesh.Trimesh(sim, m.faces, process=False), 400_000, seed=0
+    )
+    size = tuple(float(s) for s in sim[:, :2].max(0) + 0.3)
+    nx, ny = int(size[0] / CELL), int(size[1] / CELL)
+
+    def count(sel):
+        c = np.zeros((nx, ny), int)
+        q = p[sel]
+        np.add.at(
+            c,
+            (
+                np.clip((q[:, 0] / CELL).astype(int), 0, nx - 1),
+                np.clip((q[:, 1] / CELL).astype(int), 0, ny - 1),
+            ),
+            1,
+        )
+        return c
+
+    tall = count((p[:, 2] > 1.9) & (p[:, 2] < 2.6)) > 4  # below the ceiling (about 3 m)
+    low = (count((p[:, 2] > 0.3) & (p[:, 2] < 1.8)) > 8) & ~tall
+    floor = count(p[:, 2] < 0.08) > 3
+    walls = tall | (~floor & ~low)
+    rects = _runs(walls) + _runs(low)
+    n_walls = len(_runs(walls))
+    rects_a = np.array(rects, float)
+    free = np.argwhere(floor & ~walls & ~low)
+    rng = np.random.default_rng(seed)
+    rooms: list[h.Room] = []
+    for _ in range(5000):
+        if len(rooms) >= n_pairs:
+            break
+        a, b = free[rng.integers(len(free), size=2)]
+        s, g = (a + 0.5) * CELL, (b + 0.5) * CELL
+        if math.dist(s, g) < 1.5:
+            continue
+        hd = float(rng.uniform(-math.pi, math.pi))
+        room = h.Room(rects_a, n_walls, (s[0], s[1], hd), (g[0], g[1]), size, 50_000 + len(rooms))
+        if (
+            _clear_of(rects_a, s)
+            and _clear_of(rects_a, g)
+            and h.route(room, True, 0.27)
+            and h.route(room, False)
+        ):
+            rooms.append(room)
+    return rooms, _scan_xml(sim, m.faces)
+
+
+def _runs(mask: np.ndarray) -> list[tuple[float, float, float, float]]:
+    """Cells merged into rectangles along x, so the ray cast has hundreds, not thousands."""
+    out = []
+    for j in range(mask.shape[1]):
+        i = 0
+        while i < mask.shape[0]:
+            if mask[i, j]:
+                k = i
+                while k < mask.shape[0] and mask[k, j]:
+                    k += 1
+                out.append((i * CELL, j * CELL, k * CELL, (j + 1) * CELL))
+                i = k
+            else:
+                i += 1
+    return out
+
+
+def _clear_of(rects: np.ndarray, pt, r: float = h.BODY_R + 0.05) -> bool:
+    x, y = pt
+    return not np.any(
+        (rects[:, 0] - r < x)
+        & (x < rects[:, 2] + r)
+        & (rects[:, 1] - r < y)
+        & (y < rects[:, 3] + r)
+    )
+
+
+def _scan_xml(verts: np.ndarray, faces: np.ndarray) -> str:
+    vs = " ".join(f"{x:.4f}" for x in verts.ravel())
+    fs = " ".join(str(int(i)) for i in faces.ravel())
+    fovy = 2 * math.degrees(math.atan(math.tan(math.radians(h.HFOV) / 2) * GRID[1] / GRID[0]))
+    return (
+        f'<mujoco><visual><global offwidth="{GRID[0]}" offheight="{GRID[1]}"/>'
+        '<map znear="0.02" zfar="20"/></visual>'
+        f'<asset><mesh name="scan" vertex="{vs}" face="{fs}" inertia="shell"/></asset><worldbody>'
+        '<geom type="plane" size="30 30 0.1" pos="0 0 -0.01"/>'
+        '<geom type="mesh" mesh="scan" contype="0" conaffinity="0"/>'
+        f'<camera name="eye" pos="0 0 {EYE_H}" fovy="{fovy:.4f}"/></worldbody></mujoco>'
+    )
