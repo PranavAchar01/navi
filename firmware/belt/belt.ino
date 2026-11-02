@@ -20,7 +20,11 @@
 #define BELT_BLE_NAME "metasight-belt"
 #define BELT_BLE_MTU 185  // the 26-byte packet needs more than the default 23-byte MTU
 
-static const int PINS[BELT_N] = {13, 14, 27, 26, 25, 33, 32, 23};  // front, then clockwise
+// Four modules stand in for the eight directions: each sits on a diagonal (front-right, back-right,
+// back-left, front-left) and plays the strongest of its own direction and the two beside it, so
+// "front" buzzes both front motors and "front-right" only the one. Order: cell 1, 3, 5, 7.
+#define MOTORS 4
+static const int PINS[MOTORS] = {26, 14, 13, 4};  // front-right, back-right, back-left, front-left
 static belt_t belt;
 
 // BLE writes arrive on the Bluetooth task; the latest one waits here for loop().
@@ -69,7 +73,7 @@ static uint32_t lastTel = 0;
 #endif
 
 void setup() {
-  for (int i = 0; i < BELT_N; i++) ledcAttach(PINS[i], 2000, 8);
+  for (int i = 0; i < MOTORS; i++) ledcAttach(PINS[i], 2000, 8);
   belt_init(&belt);
   startBle();
 #ifdef BELT_WIFI
@@ -101,7 +105,11 @@ void loop() {
 #endif
   uint8_t duty[BELT_N];
   belt_tick(&belt, now, duty);  // lost link falls through to the tap pattern
-  for (int i = 0; i < BELT_N; i++) ledcWrite(PINS[i], duty[i]);
+  for (int m = 0; m < MOTORS; m++) {
+    int c = 2 * m + 1;
+    uint8_t d = max(duty[c], max(duty[c - 1], duty[(c + 1) % BELT_N]));
+    ledcWrite(PINS[m], d);
+  }
 #ifdef BELT_WIFI
   if (peerPort && now - lastTel >= 20) {
     uint8_t tel[BELT_TEL_LEN];

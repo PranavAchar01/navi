@@ -61,6 +61,7 @@ class Belt:
     hold: bool = False  # bearing hysteresis on the panned cue (pan.Hold)
     planner: bool = False  # steer by nav.Navigator's waypoint bearing instead of the sim's BFS
     persist: int = 1  # frames a strip must stay near (pan.Persist); 1 = off
+    layout: str = "eight"  # eight motors, one per cell | diag4: firmware/belt's four diagonals
 
 
 @dataclass(frozen=True)
@@ -284,6 +285,19 @@ def duty(mode: int, inten: int, t: float, belt: Belt) -> float:
     return inten / 255 if on else 0.0
 
 
+# Physical motor bearings (deg, clockwise from front) per layout. diag4 is the built belt: four
+# modules on the diagonals, each playing the strongest of its own cell and the two beside it
+# (firmware/belt/belt.ino), so "front" buzzes both front motors and "front-right" only one.
+MOTOR_DEG = {"eight": [k * 45.0 for k in range(8)], "diag4": [45.0, 135.0, 225.0, 315.0]}
+
+
+def to_motors(drive: np.ndarray, layout: str) -> np.ndarray:
+    """Eight cell drives to what the physical motors play."""
+    if layout == "eight":
+        return drive
+    return np.array([max(drive[c - 1], drive[c], drive[(c + 1) % 8]) for c in (1, 3, 5, 7)])
+
+
 # ------------------------------------------------------------------ walker
 @dataclass
 class Result:
@@ -321,15 +335,20 @@ def wrap_deg(a: float) -> float:
 def perceive(window: np.ndarray, belt: Belt, skin: Skin, rng) -> list[tuple[float, float]]:
     """From the last 800 ms of felt amplitude per motor (rows = time) to the (bearing deg,
     distance m) pairs the walker believes. Runs of adjacent active motors are one object, its
-    bearing the amplitude-weighted position (inverting the pan law for two motors)."""
+    bearing the amplitude-weighted position (inverting the pan law for two motors). On diag4 the
+    walker knows the code: two neighbours together mean the direction between them, at the
+    strength of the stronger one (the firmware takes the max, it does not pan)."""
     p = belt.mapping
-    peak = window.max(axis=0) * rng.lognormal(0, skin.jnd / 0.95 / math.sqrt(2), 8)
+    deg = MOTOR_DEG[belt.layout]
+    n = len(deg)
+    gap = 360.0 / n
+    peak = window.max(axis=0) * rng.lognormal(0, skin.jnd / 0.95 / math.sqrt(2), n)
     on_frac = (window > skin.floor).mean(axis=0)
     active = peak > skin.floor
     if not active.any():
         return []
-    first = next((k for k in range(8) if not active[k]), None)
-    order = list(range(8)) if first is None else [(first + 1 + k) % 8 for k in range(8)]
+    first = next((k for k in range(n) if not active[k]), None)
+    order = list(range(n)) if first is None else [(first + 1 + k) % n for k in range(n)]
     runs: list[list[int]] = []
     cur: list[int] = []
     for m in order:
@@ -344,22 +363,24 @@ def perceive(window: np.ndarray, belt: Belt, skin: Skin, rng) -> list[tuple[floa
     for run in runs:
         amps = peak[run]
         if len(run) == 1:
-            ang, lv = run[0] * 45.0, float(amps[0])
+            ang, lv = deg[run[0]], float(amps[0])
         elif len(run) == 2:
             a, b = float(amps[0]), float(amps[1])
-            if p.pan == "linear":
+            if belt.layout == "diag4":
+                f, lv = b / (a + b), max(a, b)
+            elif p.pan == "linear":
                 f, lv = b / (a + b), a + b
             elif p.pan == "nearest":
                 f, lv = (0.0 if a >= b else 1.0), max(a, b)
             else:
                 f, lv = math.atan2(b, a) / (math.pi / 2), math.hypot(a, b)
-            ang, lv = run[0] * 45.0 + f * 45.0, min(lv, 1.0)
+            ang, lv = deg[run[0]] + f * gap, min(lv, 1.0)
         else:  # a wide object, or two merged: centre of mass about the strongest motor
             k = int(np.argmax(amps))
             lo, hi = max(0, k - 1), min(len(run), k + 2)
             w = amps[lo:hi]
-            offs = (np.arange(lo, hi) - k) * 45.0
-            ang, lv = run[k] * 45.0 + float((w * offs).sum() / w.sum()), float(w.max())
+            offs = (np.arange(lo, hi) - k) * gap
+            ang, lv = deg[run[k]] + float((w * offs).sum() / w.sum()), float(w.max())
         ang = wrap_deg(ang + rng.normal(0, skin.loc_sd_deg))
         seen.append((ang, _invert(lv, float(on_frac[run].max()), p)))
     return seen
@@ -416,7 +437,8 @@ def run(
     x, y, heading = room.start
     wps = waypoints(room)
     shortest = path_length(route(room, True))
-    felt = _Felt()
+    nm = len(MOTOR_DEG[belt.layout])
+    felt = _Felt(np.zeros(nm), np.zeros(nm))
     pending: deque[tuple[float, list]] = deque()
     live: list[tuple[int, int]] = [(0, 0)] * 8
     t, wi, dist, coll, contact_t = 0.0, 0, 0.0, 0, 0.0
@@ -477,6 +499,7 @@ def run(
         while pending and pending[0][0] <= t:
             live = pending.popleft()[1]
         drive = np.array([0.0 if m == MODES["guide"] else duty(m, i, t, belt) for m, i in live])
+        drive = to_motors(drive, belt.layout)
         felt.amp += (drive - felt.amp) * k_rise
         felt.adapt += np.where(felt.amp > skin.floor, DT / skin.adapt_s, -2 * DT / skin.adapt_s)
         felt.adapt = np.clip(felt.adapt, 0, 1)
