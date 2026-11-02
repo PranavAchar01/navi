@@ -236,3 +236,39 @@ def test_memory_still_stores_a_box_on_a_plain_floor_seen_from_the_same_view():
     for i in range(6):
         c = mem.update(i / 13, render(10, box=(1.8, 0.3, 0.3)), 10.0, 0.0, (0.0, 0.0))
     assert c.cells > 0
+
+
+def _obj(oid, cls, c, size, yaw=0.0, clr=0.0, hazard=True):
+    return {
+        "id": oid,
+        "class": cls,
+        "hazard": hazard,
+        "floor_clearance_m": clr,
+        "obb": {"center": c, "size": size, "yaw_rad": yaw},
+    }
+
+
+def test_objects_json_builds_geoms():
+    from metasight import fovrooms
+
+    data = {
+        "floor_y": 0.1,
+        "ceiling_height_m": 2.8,
+        "objects": [
+            _obj("desk_a", "desk", [1.0, 0.5, -1.0], [1.0, 0.8, 0.6], clr=0.6),
+            _obj("box_b", "floor clutter", [0.0, 0.2, 0.0], [0.4, 0.2, 0.1], yaw=0.5),
+            _obj("laptop_c", "laptop", [1.0, 0.7, -1.0], [0.3, 0.02, 0.2], hazard=False),
+            _obj("door_d", "door", [0.5, 1.2, -2.5], [0.8, 2.1, 0.05]),
+        ],
+    }
+    boxes, by_id = fovrooms.scene_boxes(data, open_doors=("door_d",))
+    assert set(by_id) == {"desk_a", "box_b"}  # the laptop is no hazard, the door a wall gap
+    desk = by_id["desk_a"]
+    assert len(desk) == 1 + 4  # slab plus four legs
+    slab = desk[0]
+    assert math.isclose(slab[0], 1.0) and math.isclose(slab[1], 1.0)  # Y = -z
+    assert math.isclose(slab[2] + slab[5], 0.8, abs_tol=1e-6)  # top 0.9 minus floor 0.1
+    assert slab[2] - slab[5] >= 0.55  # underside at the clearance
+    assert len(by_id["box_b"]) > 1  # a turned footprint is cut into strips
+    rest = boxes[len(desk) + len(by_id["box_b"]) :]
+    assert len([b for b in rest if b[1] > 2.0]) == 2  # back wall split by the open door

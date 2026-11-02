@@ -19,6 +19,7 @@ from pathlib import Path
 
 import numpy as np
 
+from metasight import fovrooms
 from metasight import fovsim as F
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -31,9 +32,16 @@ ARMS = {
 }
 
 
+def _scene(name: str, objects: str | None = None) -> F.Scene:
+    """A synthetic scene, or one of the reconstructed bedroom's (built again in each worker)."""
+    if name in F.SCENES:
+        return F.SCENES[name]
+    return fovrooms.bedroom_scenes(objects or fovrooms.BEDROOM_OBJECTS)[name]
+
+
 def _one(a):
-    name, seed, hfov, eye_cfg = a
-    sc = F.SCENES[name]
+    name, seed, hfov, eye_cfg, objects = a
+    sc = _scene(name, objects)
     scores = F.run(sc, list(ARMS.values()), seed=seed, hfov=hfov, eye_h_cfg=eye_cfg)
     return name, seed, [asdict(s) for s in scores]
 
@@ -50,10 +58,21 @@ def main() -> None:
     ap.add_argument("--hfov", type=float, default=F.HFOV)
     ap.add_argument("--eye-cfg", type=float, default=F.EYE_H, help="eye height the code believes")
     ap.add_argument("--scenes", nargs="*", default=list(F.SCENES))
+    ap.add_argument(
+        "--bedroom",
+        nargs="?",
+        const=str(fovrooms.BEDROOM_OBJECTS),
+        default=None,
+        metavar="OBJECTS_JSON",
+        help="score the reconstructed bedroom scenes (fovrooms) (`--scenes` then picks among them)",
+    )
     ap.add_argument("--out", default=str(ROOT / "bench" / "results" / "fov-sim.json"))
     a = ap.parse_args()
+    if a.bedroom:
+        every = list(fovrooms.bedroom_scenes(a.bedroom))
+        a.scenes = [n for n in a.scenes if n in every] or every
     jobs = [
-        (n, s, a.hfov, a.eye_cfg)
+        (n, s, a.hfov, a.eye_cfg, a.bedroom)
         for n in a.scenes
         for s in range(a.first_seed, a.first_seed + a.seeds)
     ]
@@ -84,7 +103,7 @@ def main() -> None:
         for k in ARMS:
             arm = np.array([miss(s) for s in per_seed[k]])
             agg[k]["miss_diff_ci"] = _ci(arm - base, rng)
-        out["scenes"][sc] = {"note": F.SCENES[sc].note, "arms": agg}
+        out["scenes"][sc] = {"note": _scene(sc, a.bedroom).note, "arms": agg}
     out["total"] = {k: v.rates() for k, v in total.items()}
     Path(a.out).write_text(json.dumps(out, indent=1))
     for sc, v in out["scenes"].items():

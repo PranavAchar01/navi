@@ -1,0 +1,290 @@
+{
+ "hfov": 44.8,
+ "eye_cfg": 1.6,
+ "seeds": 20,
+ "scenes": {
+  "bedroom_desk_lookup": {
+   "note": "Bedroom: walk west down the gap between the bed and the desk looking down at the desk edge and the chair at its end, then look up and step in.",
+   "arms": {
+    "live": {
+     "miss": 0.731,
+     "front_miss": 0.329,
+     "path_miss": 0.685,
+     "false_per_min": 0.0,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 32.5,
+     "drop_danger": 0,
+     "danger": 9691,
+     "frames": 1320
+    },
+    "memory, L14": {
+     "miss": 0.454,
+     "front_miss": 0.022,
+     "path_miss": 0.129,
+     "false_per_min": 0.0,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 32.5,
+     "drop_danger": 0,
+     "danger": 9691,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.315,
+      -0.237
+     ]
+    },
+    "memory": {
+     "miss": 0.454,
+     "front_miss": 0.022,
+     "path_miss": 0.129,
+     "false_per_min": 0.0,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 32.5,
+     "drop_danger": 0,
+     "danger": 9691,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.314,
+      -0.238
+     ]
+    }
+   }
+  },
+  "bedroom_turn_back": {
+   "note": "Bedroom: stand at the desk, turn the head 90 degrees away toward the south end of the room, then back toward the desk and step in.",
+   "arms": {
+    "live": {
+     "miss": 0.685,
+     "front_miss": 0.158,
+     "path_miss": 0.32,
+     "false_per_min": 11.8,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 252.9,
+     "drop_danger": 0,
+     "danger": 10517,
+     "frames": 1320
+    },
+    "memory, L14": {
+     "miss": 0.502,
+     "front_miss": 0.072,
+     "path_miss": 0.197,
+     "false_per_min": 11.8,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 252.9,
+     "drop_danger": 0,
+     "danger": 10517,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.196,
+      -0.171
+     ]
+    },
+    "memory": {
+     "miss": 0.667,
+     "front_miss": 0.143,
+     "path_miss": 0.269,
+     "false_per_min": 11.8,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 252.9,
+     "drop_danger": 0,
+     "danger": 10517,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.031,
+      -0.008
+     ]
+    }
+   }
+  },
+  "bedroom_bed_corner": {
+   "note": "Bedroom: walk north along the bed's west side with the head turned 60 degrees toward the bed, past its corner and on toward the far desk.",
+   "arms": {
+    "live": {
+     "miss": 0.869,
+     "front_miss": 0.648,
+     "path_miss": 0.968,
+     "false_per_min": 4.9,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 22.2,
+     "drop_danger": 0,
+     "danger": 10816,
+     "frames": 1440
+    },
+    "memory, L14": {
+     "miss": 0.469,
+     "front_miss": 0.091,
+     "path_miss": 0.144,
+     "false_per_min": 10.8,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 22.2,
+     "drop_danger": 0,
+     "danger": 10816,
+     "frames": 1440,
+     "miss_diff_ci": [
+      -0.436,
+      -0.363
+     ]
+    },
+    "memory": {
+     "miss": 0.475,
+     "front_miss": 0.099,
+     "path_miss": 0.147,
+     "false_per_min": 5.4,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 22.2,
+     "drop_danger": 0,
+     "danger": 10816,
+     "frames": 1440,
+     "miss_diff_ci": [
+      -0.433,
+      -0.357
+     ]
+    }
+   }
+  },
+  "bedroom_doorway": {
+   "note": "Bedroom: walk to the back doorway past the floor clutter and the foot of the bed, looking 40 degrees to the right, then ahead at the gap.",
+   "arms": {
+    "live": {
+     "miss": 0.861,
+     "front_miss": 0.601,
+     "path_miss": 0.772,
+     "false_per_min": 0.7,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 8122,
+     "frames": 1180
+    },
+    "memory, L14": {
+     "miss": 0.576,
+     "front_miss": 0.212,
+     "path_miss": 0.091,
+     "false_per_min": 25.1,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 8122,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.294,
+      -0.274
+     ]
+    },
+    "memory": {
+     "miss": 0.577,
+     "front_miss": 0.214,
+     "path_miss": 0.091,
+     "false_per_min": 24.5,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
+     "danger": 8122,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.291,
+      -0.273
+     ]
+    }
+   }
+  },
+  "bedroom_low_table": {
+   "note": "Bedroom: walk north toward the low desk against the back wall with the head level; its slab drops under the frame.",
+   "arms": {
+    "live": {
+     "miss": 0.935,
+     "front_miss": 0.827,
+     "path_miss": 0.969,
+     "false_per_min": 9.5,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 156.6,
+     "drop_danger": 0,
+     "danger": 9506,
+     "frames": 1320
+    },
+    "memory, L14": {
+     "miss": 0.658,
+     "front_miss": 0.132,
+     "path_miss": 0.36,
+     "false_per_min": 41.4,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 156.6,
+     "drop_danger": 0,
+     "danger": 9506,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.3,
+      -0.254
+     ]
+    },
+    "memory": {
+     "miss": 0.921,
+     "front_miss": 0.802,
+     "path_miss": 0.931,
+     "false_per_min": 9.5,
+     "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 156.6,
+     "drop_danger": 0,
+     "danger": 9506,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.043,
+      0.0
+     ]
+    }
+   }
+  }
+ },
+ "total": {
+  "live": {
+   "miss": 0.813,
+   "front_miss": 0.502,
+   "path_miss": 0.746,
+   "false_per_min": 5.5,
+   "false_far_per_min": 0.0,
+   "drop_miss": null,
+   "drop_false_per_min": 93.5,
+   "drop_danger": 0,
+   "danger": 48652,
+   "frames": 6580
+  },
+  "memory, L14": {
+   "miss": 0.528,
+   "front_miss": 0.099,
+   "path_miss": 0.185,
+   "false_per_min": 17.5,
+   "false_far_per_min": 0.0,
+   "drop_miss": null,
+   "drop_false_per_min": 93.5,
+   "drop_danger": 0,
+   "danger": 48652,
+   "frames": 6580
+  },
+  "memory": {
+   "miss": 0.616,
+   "front_miss": 0.247,
+   "path_miss": 0.315,
+   "false_per_min": 9.8,
+   "false_far_per_min": 0.0,
+   "drop_miss": null,
+   "drop_false_per_min": 93.5,
+   "drop_danger": 0,
+   "danger": 48652,
+   "frames": 6580
+  }
+ }
+}
