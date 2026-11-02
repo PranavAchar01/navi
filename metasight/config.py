@@ -57,7 +57,7 @@ class Settings:
     map_intrinsics: bool = False  # tell MapAnything the lens (hfov_deg) instead of letting it guess
     # emulator: spawn firmware/emulator/belt-emu; udp: a real belt on Wi-Fi; app: the phone app
     # relays over Bluetooth; ble: this machine writes over Bluetooth (belt_addr = BLE address,
-    # empty to find "metasight-belt")
+    # empty to find "metasight-belt"); serial: the USB cable (belt_addr = /dev/cu.usbserial-...)
     belt: str = "emulator"
     belt_addr: str = "127.0.0.1:4210"
     # Obstacle cues: "panned" (an object's bearing split across the two nearest directions) or

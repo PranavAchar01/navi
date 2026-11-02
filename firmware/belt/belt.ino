@@ -1,7 +1,9 @@
 // meta-sight haptic belt, ESP32 38-pin DevKitC on the OSOYOO shield (docs/BUY-plug-and-play.md).
 // Takes the 26-byte command packet from belt_core.h over Bluetooth LE (the phone app relays it)
 // and, when a secrets.h exists next to this file, also over Wi-Fi UDP 4210 (the server direct).
-// Both feed the same belt_core: 8 vibration modules on LEDC PWM, and the 250 ms lost-link taps.
+// The same packet also works over the USB cable (115200 baud), with telemetry back on it while
+// the cable is talking (desk tests and the sim driving the real motors).
+// All feed the same belt_core: 8 vibration modules on LEDC PWM, and the 250 ms lost-link taps.
 #include <BLEDevice.h>
 #include <BLEServer.h>
 #include <BLEUtils.h>
@@ -66,6 +68,29 @@ static void startBle() {
   adv->start();
 }
 
+// USB serial: packets are found by their 'M' 'S' header; telemetry goes back while one arrived
+// in the last second.
+static uint8_t serBuf[BELT_CMD_LEN];
+static int serLen = 0;
+static uint32_t serLast = 0, serTel = 0;
+
+static void pollSerial(uint32_t now) {
+  while (Serial.available()) {
+    uint8_t c = Serial.read();
+    if ((serLen == 0 && c != 'M') || (serLen == 1 && c != 'S')) {
+      serLen = c == 'M';
+      if (serLen) serBuf[0] = c;
+      continue;
+    }
+    serBuf[serLen++] = c;
+    if (serLen == BELT_CMD_LEN) {
+      belt_rx(&belt, serBuf, BELT_CMD_LEN, now);  // drops a misaligned or stale one
+      serLast = now;
+      serLen = 0;
+    }
+  }
+}
+
 #ifdef BELT_WIFI
 static WiFiUDP udp;
 static IPAddress peer;
@@ -74,6 +99,7 @@ static uint32_t lastTel = 0;
 #endif
 
 void setup() {
+  Serial.begin(115200);
   for (int i = 0; i < MOTORS; i++) ledcAttach(PINS[i], 2000, 8);
   belt_init(&belt);
   startBle();
@@ -94,6 +120,7 @@ void loop() {
     portEXIT_CRITICAL(&rxMux);
     belt_rx(&belt, buf, BELT_CMD_LEN, now);
   }
+  pollSerial(now);
 #ifdef BELT_WIFI
   while (udp.parsePacket() > 0) {
     uint8_t buf[64];
@@ -110,6 +137,12 @@ void loop() {
     int c = 2 * m + 1;
     float a = duty[c], l = duty[c - 1], r = duty[(c + 1) % BELT_N];
     ledcWrite(PINS[m], (uint8_t)min(255.0f, sqrtf(a * a + 0.5f * (l * l + r * r))));
+  }
+  if (serLast && now - serLast < 1000 && now - serTel >= 20) {
+    uint8_t tel[BELT_TEL_LEN];
+    belt_telemetry(&belt, now, duty, tel);
+    Serial.write(tel, sizeof tel);
+    serTel = now;
   }
 #ifdef BELT_WIFI
   if (peerPort && now - lastTel >= 20) {

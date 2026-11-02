@@ -454,9 +454,11 @@ def run(
     max_s: float = 90.0,
     phantom_rate: float = 0.0,
     sensor=None,
+    on_cmd=None,
 ) -> Result:
     """One walk. `sensor(room, x, y, heading, rng)` replaces the 2D ray cast (hapsim3d renders
-    depth instead); it returns (strips, sectors) like `sense`."""
+    depth instead); it returns (strips, sectors) like `sense`. `on_cmd(t, cmd, flags)` sees each
+    belt command as it is made (scripts/run_hil.py replays them to the real belt)."""
     rng = np.random.default_rng(seed * 7919 + room.seed)
     x, y, heading = room.start
     wps = waypoints(room)
@@ -519,6 +521,8 @@ def run(
                 ):
                     fb += 1
             prev_on = on
+            if on_cmd is not None:
+                on_cmd(t, cmd, 0)
             pending.append((t + belt.latency_s, cmd))
         while pending and pending[0][0] <= t:
             live = pending.popleft()[1]

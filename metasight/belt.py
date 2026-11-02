@@ -101,10 +101,12 @@ class _Proto(asyncio.DatagramProtocol):
 
 
 class BeltLink:
-    """kind: emulator and udp talk to the belt over UDP; ble writes to it over Bluetooth with
-    bleak (desk testing; `addr` is a BLE address or empty to find "metasight-belt"); app hands
-    each packet to the phone app, which relays it over Bluetooth. ble and app get no telemetry
-    back, so the state shown is the command, not the motors' measured duty."""
+    """kind: emulator and udp talk to the belt over UDP; serial over the USB cable (`addr` is
+    the port, e.g. /dev/cu.usbserial-0001), with telemetry back like UDP; ble writes to it over
+    Bluetooth with bleak (desk testing; `addr` is a BLE address or empty to find
+    "metasight-belt"); app hands each packet to the phone app, which relays it over Bluetooth.
+    ble and app get no telemetry back, so the state shown is the command, not the motors'
+    measured duty."""
 
     def __init__(
         self,
@@ -122,6 +124,8 @@ class BeltLink:
         self.ble_client = None
         self.proc: subprocess.Popen | None = None
         self.transport: asyncio.DatagramTransport | None = None
+        self.ser = None  # serial.Serial when kind == "serial"
+        self.ser_buf = b""
         self.seq = 0
         self.arrived: dict[int, float] = {}  # belt seq -> when its camera frame reached the server
         self.lat: deque[float] = deque(maxlen=60)
@@ -134,6 +138,12 @@ class BeltLink:
         return self.kind in ("emulator", "udp")
 
     async def start(self) -> None:
+        if self.kind == "serial":
+            import serial  # pyserial: only the cable needs it
+
+            self.ser = serial.Serial(self.ble_addr, 115200, timeout=0)
+            asyncio.get_running_loop().add_reader(self.ser.fileno(), self._serial_read)
+            return
         if not self._udp:
             return
         if self.kind == "emulator":
@@ -144,7 +154,18 @@ class BeltLink:
             lambda: _Proto(self._telemetry), local_addr=("127.0.0.1", 0)
         )
 
+    def _serial_read(self) -> None:
+        """Telemetry frames out of the byte stream: 22 bytes from each 'MT' header."""
+        self.ser_buf += self.ser.read(4096)
+        while (i := self.ser_buf.find(b"MT")) >= 0 and len(self.ser_buf) - i >= 22:
+            self._telemetry(self.ser_buf[i : i + 22])
+            self.ser_buf = self.ser_buf[i + 22 :]
+        self.ser_buf = self.ser_buf[-64:]
+
     def stop(self) -> None:
+        if self.ser is not None:
+            asyncio.get_running_loop().remove_reader(self.ser.fileno())
+            self.ser.close()
         if self.ble_client is not None:
             asyncio.ensure_future(self.ble_client.disconnect())
         if self.transport:
@@ -162,13 +183,15 @@ class BeltLink:
         pkt = packet(cmd, flags, self.seq, int(time.monotonic() * 1000))
         if self.transport:
             self.transport.sendto(pkt, self.addr)
+        elif self.ser is not None:
+            self.ser.write(pkt)
         elif self.kind == "ble":
             if not self.ble_busy:  # a slow write drops frames rather than queueing them
                 self.ble_busy = True
                 asyncio.ensure_future(self._ble_write(pkt))
         elif self.kind == "app" and self.relay:
             self.relay({"type": "beltcmd", "pkt": base64.b64encode(pkt).decode()})
-        if not self._udp:
+        if not self._udp and self.kind != "serial":
             self._command_state(flags)
 
     async def _ble_write(self, pkt: bytes) -> None:
@@ -227,7 +250,9 @@ class BeltLink:
         self.on_state(
             {
                 "type": "belt",
-                "device": "ESP32 emulator" if self.kind == "emulator" else "ESP32",
+                "device": {"emulator": "ESP32 emulator", "serial": "ESP32 (USB)"}.get(
+                    self.kind, "ESP32"
+                ),
                 "lost": bool(lost),
                 "drop": bool(flags & FLAG_DROP),
                 "found": bool(flags & FLAG_FOUND),

@@ -137,3 +137,33 @@ def test_app_kind_relays_each_packet_and_reports_the_command():
     assert relayed[0]["type"] == "beltcmd"
     assert len(base64.b64decode(relayed[0]["pkt"])) == 26
     assert states[0]["modes"][0] == "solid" and states[0]["lost"] is False
+
+
+def test_serial_kind_writes_packets_and_reads_telemetry_from_the_stream():
+    import asyncio
+    import os
+    import tty
+
+    from metasight.belt import BeltLink, packet
+
+    board, host = os.openpty()  # a pty stands in for the USB cable
+    tty.setraw(board)
+    states: list[dict] = []
+
+    async def go():
+        link = BeltLink("serial", os.ttyname(host), states.append)
+        await link.start()
+        cmd = [(MODES["solid"], 200)] + [(MODES["off"], 0)] * 7
+        link.send(cmd, 0, time.monotonic())
+        await asyncio.sleep(0.05)
+        got = os.read(board, 64)
+        tel = b"MT" + struct.pack("<BBHII", 0, 0, 1, 0, 12) + bytes([200] + [0] * 7)
+        os.write(board, b"\x00junk" + tel)  # a stray byte before the frame
+        await asyncio.sleep(0.1)
+        link.stop()
+        return got, packet(cmd, 0, 1, 0)
+
+    got, want = asyncio.run(go())
+    assert got[:6] == want[:6] and got[10:] == want[10:]  # all but the timestamp
+    assert states and states[-1]["device"] == "ESP32 (USB)"
+    assert states[-1]["duty"][0] == 200 and states[-1]["age_ms"] == 12
