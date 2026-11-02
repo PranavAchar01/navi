@@ -109,6 +109,10 @@ def observe(instances, ntri, s, starts, frames, cams_by, verts, tris) -> dict[st
     return out
 
 
+def as_obb(o: dict) -> dict:
+    return {"obb": {"center": o["pos"], "size": o["size"], "yaw_rad": o.get("yaw_rad", 0.0)}}
+
+
 def footprint_dist(c: np.ndarray, o: dict) -> float:
     """Horizontal distance from a point to an object's oriented footprint (0 inside)."""
     b = o["obb"]
@@ -162,32 +166,65 @@ def flat(a, b) -> float:
 
 
 def where(walks, visible, baseline) -> dict:
-    t1 = anyh = base = n = nb = 0
+    """Each walk asks for every object it saw. Answers come from the earlier walks only.
+
+    twin: the tracks' latest positions (top-1 = the most recently seen of that class family).
+    scan_once: the same tracks frozen at their first sighting, i.e. a map scanned once and
+    never updated. home: the old static home/objects.json (COCO labels), which was built from
+    every walk, the asked one included, so it is an upper bound for a static map.
+    Rates are over the objects whose instance an earlier walk had seen ("known"); objects no
+    earlier walk saw cannot be answered by any map.
+    """
+    c = {"asked": 0, "known": 0, "twin_top1": 0, "twin_any": 0, "scan_once_any": 0}
+    c |= {"twin_top1_extent": 0, "point_top1_err_m": [], "extent_top1_err_m": []}
+    cc = {"known_coco": 0, "twin_any_coco": 0, "home_any_coco": 0}
     per = []
     for i in range(1, len(walks)):
         tracks = twin.build_tracks(walks[:i], visible)
         w, _, obs = walks[i]
         h = 0
         for o in obs:
+            c["asked"] += 1
+            earlier = {sg["instance"] for t in tracks for sg in t["sightings"]}
+            if o["instance"] not in earlier:
+                continue
+            c["known"] += 1
+            r = twin.reach(o)
             ans = twin.where_is(tracks, o["class"])
-            n += 1
-            r = twin.reach(o) if o["size"] else HIT_M
-            if ans and flat(ans[0]["pos"], o["pos"]) < r:
-                t1 += 1
-                h += 1
-            anyh += any(flat(a["pos"], o["pos"]) < r for a in ans)
             fam = twin.family(o["class"])
-            bl = [b for b in baseline if twin.family(COCO.get(b["label"], "")) == fam]
-            if any(twin.family(COCO[k]) == fam for k in COCO):
-                nb += 1
-                base += any(flat(b["pos"], o["pos"]) < r for b in bl)
+            frozen = [t for t in tracks if twin.family(t["class"]) == fam]
+            top1 = bool(ans) and flat(ans[0]["pos"], o["pos"]) < r
+            hit = any(flat(a["pos"], o["pos"]) < r for a in ans)
+            c["twin_top1"] += top1
+            if ans:
+                # Guidance target as a point (the old pins) vs as the last box (pose + extent):
+                # how far the true object is from what the wearer is walked to.
+                ext = footprint_dist(np.asarray(o["pos"], float), as_obb(ans[0]["last"]))
+                c["point_top1_err_m"].append(flat(ans[0]["pos"], o["pos"]))
+                c["extent_top1_err_m"].append(ext)
+                c["twin_top1_extent"] += ext < HIT_M
+            c["twin_any"] += hit
+            c["scan_once_any"] += any(flat(t["sightings"][0]["pos"], o["pos"]) < r for t in frozen)
+            h += top1
+            if any(twin.family(v) == fam for v in COCO.values()):
+                bl = [b for b in baseline if twin.family(COCO.get(b["label"], "")) == fam]
+                cc["known_coco"] += 1
+                cc["twin_any_coco"] += hit
+                cc["home_any_coco"] += any(flat(b["pos"], o["pos"]) < r for b in bl)
         per.append({"walk": w, "asked": len(obs), "top1_hits": h})
+    k, kc = max(c["known"], 1), max(cc["known_coco"], 1)
     return {
-        "asked": n,
-        "twin_top1": round(t1 / max(n, 1), 3),
-        "twin_any": round(anyh / max(n, 1), 3),
-        "asked_coco_classes": nb,
-        "baseline_any": round(base / max(nb, 1), 3),
+        "asked": c["asked"],
+        "known": c["known"],
+        "twin_top1": round(c["twin_top1"] / k, 3),
+        "twin_top1_extent_within_0.5m": round(c["twin_top1_extent"] / k, 3),
+        "top1_median_err_m_point": round(float(np.median(c["point_top1_err_m"] or [0])), 3),
+        "top1_median_err_m_extent": round(float(np.median(c["extent_top1_err_m"] or [0])), 3),
+        "twin_any": round(c["twin_any"] / k, 3),
+        "scan_once_any": round(c["scan_once_any"] / k, 3),
+        "known_coco": cc["known_coco"],
+        "twin_any_coco": round(cc["twin_any_coco"] / kc, 3),
+        "home_any_coco": round(cc["home_any_coco"] / kc, 3),
         "per_walk": per,
     }
 
