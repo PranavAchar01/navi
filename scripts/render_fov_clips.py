@@ -24,7 +24,7 @@ from metasight import fovsim as F
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "data" / "demo-takes" / "fov"
 ARM = F.Arms(low_slope=0.02, mask=True, people=True)
-ARM_KEY = "memory"  # REC in run_fov.py
+ARM_KEYS = ("memory, low slope 0.02", "memory")  # REC, by its old and its current name
 TITLES = {
     "desk_lookup": "Looks up from the desk: the edge drops out of view",
     "shelf_head": "Shelf at head height: above the frame on the approach",
@@ -71,7 +71,7 @@ def clip(name: str, stats: dict) -> Path:
     rec: list[dict] = []
     F.run(sc, [ARM], seed=0, record=rec)
     live = stats["arms"]["live"]["miss"]
-    mem = stats["arms"][ARM_KEY]["miss"]
+    mem = next(stats["arms"][k] for k in ARM_KEYS if k in stats["arms"])["miss"]
     caption = f"missed hazards under 1 m: live {live:.2f}  ->  with memory {mem:.2f}   (20 seeds)"
     tmp = OUT / f".{name}"
     tmp.mkdir(parents=True, exist_ok=True)
