@@ -64,6 +64,7 @@ class Belt:
     layout: str = "eight"  # eight motors, one per cell | diag4: firmware/belt's four diagonals
     # diag4: cp = constant power (firmware) | max3 = max of own cell and neighbours | lin = linear
     fold: str = "cp"
+    hfov: float = HFOV  # the camera the strips come from (simwalk: the glasses, 44.8)
 
 
 @dataclass(frozen=True)
@@ -260,7 +261,7 @@ def _obstacle_cmd(belt: Belt, strips, sectors, ttc, hold=None) -> list[tuple[int
         path = min(strips[n // 2 - 1 : n // 2 + 2])
         cmd, _ = plan(merged, [True] * 8, path, ttc, inf)
         return cmd
-    targets = pan.scene_targets(strips, HFOV, sectors, [True] * 8, belt.mapping)
+    targets = pan.scene_targets(strips, belt.hfov, sectors, [True] * 8, belt.mapping)
     path = min(strips[STRIPS // 2 - 1 : STRIPS // 2 + 2])
     cmd, _ = pan.plan_pan(targets, [True] * 8, path, ttc, inf, belt.mapping, hold)
     return cmd
@@ -455,10 +456,13 @@ def run(
     phantom_rate: float = 0.0,
     sensor=None,
     on_cmd=None,
+    on_step=None,
 ) -> Result:
     """One walk. `sensor(room, x, y, heading, rng)` replaces the 2D ray cast (hapsim3d renders
     depth instead); it returns (strips, sectors) like `sense`. `on_cmd(t, cmd, flags)` sees each
-    belt command as it is made (scripts/run_hil.py replays them to the real belt)."""
+    belt command as it is made (scripts/run_hil.py replays them to the real belt). `on_step(t, x, y,
+    heading, live command, felt motor amplitudes, collisions)` sees every physics step (the
+    simwalk renders)."""
     rng = np.random.default_rng(seed * 7919 + room.seed)
     x, y, heading = room.start
     wps = waypoints(room)
@@ -516,7 +520,7 @@ def run(
                     on[m]
                     and not prev_on[m]
                     and not _real_near(
-                        truth, m, belt.mapping.off_m if belt.scheme == "panned" else 2.0
+                        truth, m, belt.mapping.off_m if belt.scheme == "panned" else 2.0, belt.hfov
                     )
                 ):
                     fb += 1
@@ -574,6 +578,8 @@ def run(
         dist += math.dist((x, y), (nx, ny))
         x, y = nx, ny
         t += DT
+        if on_step is not None:
+            on_step(t, x, y, heading, live, felt.hist[-1], coll)
         if n % 10 == 0:
             clear = min(clear, _clearance(room.rects, x, y))
         extra = (gframes, sframes, sover, sviol)
@@ -589,9 +595,9 @@ def run(
     )
 
 
-def _real_near(truth, m: int, off_m: float) -> bool:
+def _real_near(truth, m: int, off_m: float, hfov: float = HFOV) -> bool:
     strips, sectors = truth
-    bear = pan.strip_bearings(STRIPS, HFOV)
+    bear = pan.strip_bearings(STRIPS, hfov)
     centre = pan.wrap(m * 45.0)
     if sectors[m] < off_m:
         return True
