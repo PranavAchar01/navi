@@ -492,6 +492,8 @@ def draw_frame(doc, k, base: Image.Image, cam: Cam, states, rings, belt, memo=No
     clear = fr.get("min_clear", m["min_clear_m"])
     if done:
         clock_s = f"{m['time_s']:.1f} s" if m["success"] else f"{m['time_s']:.0f} s, no goal"
+        if not m["success"] and fr["sit"] > 0:  # at the seat, but the contacts void it
+            clock_s = f"{m['time_s']:.1f} s, voided"
     else:
         clock_s = f"{walked:.1f} s"
     rows = [

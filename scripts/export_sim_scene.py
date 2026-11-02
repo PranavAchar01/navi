@@ -19,6 +19,7 @@ import argparse
 import json
 import math
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -72,12 +73,17 @@ def frames(sc: S.Scenario, tr: S.Trace) -> list[dict]:
         t = k / FPS
         i = min(int(np.searchsorted(ts, t)), len(st) - 1)
         s = st[i]
+        # pose between the two sim steps around t (the sim steps at 50 Hz, video is 30)
+        p = st[max(i - 1, 0)]
+        u = 0.0 if i == 0 or ts[i] <= ts[i - 1] else float((t - ts[i - 1]) / (ts[i] - ts[i - 1]))
+        u = min(max(u, 0.0), 1.0)
+        dh = (s[3] - p[3] + math.pi) % (2 * math.pi) - math.pi
         out.append(
             {
                 "t": round(t, 4),
-                "x": round(s[1], 4),
-                "y": round(s[2], 4),
-                "heading": round(s[3], 4),
+                "x": round(p[1] + (s[1] - p[1]) * u, 4),
+                "y": round(p[2] + (s[2] - p[2]) * u, 4),
+                "heading": round(p[3] + dh * u, 4),
                 "pitch_deg": round(sc.pitch_at(t), 2),
                 "sit": 0.0,
                 "felt": [round(float(v), 3) for v in s[4]],
@@ -210,17 +216,70 @@ def scene_file(sc: S.Scenario, tr: S.Trace, layout: str, seed: int) -> dict:
     }
 
 
+def door_walk(arm: str, layout: str, seed: int) -> tuple[S.Scenario, S.Trace]:
+    """walk03, the whole errand: in at the open door, down the aisle past the pulled-out chair to
+    the window end, then back to find that chair and sit. Two walks, the second starting where the
+    first stopped, joined into one trace (time, contacts and false onsets run on; the clearance
+    is the lower of the two)."""
+    base = S.scenario("avoid_chair")
+    door = next(f for f in flush_parts(base) if f["cls"] == "door" and f["open"])
+    chair = base.world.obj("chair").obb
+    kw = E.ARMS[arm][2]
+    out = replace(
+        base,
+        name="door_chair",
+        title="From the door: past the pulled-out chair, then sit",
+        start=(door["centre"][0], door["centre"][1] - 0.35, -math.pi / 2),
+        goal=(1.9, 1.0),  # the window end of the aisle, clear of the walls for the turn back
+    )
+    t1 = S.walk(out, E.belt_for(arm, layout), seed=seed, **kw)
+    if not t1.result.success:  # never got past the chair: the errand ends there
+        return out, t1
+    _, x, y, hd = t1.steps[-1][:4]
+    back = replace(
+        base,
+        start=(x, y, hd),
+        goal=(chair[0] + chair[3] + 0.3, chair[1]),
+        target="chair",
+        hazard=None,
+        guide=True,
+        sit=True,
+    )
+    t2 = S.walk(back, E.belt_for(arm, layout), seed=seed + 1, **kw)
+    t0, c0, m0, f0 = t1.steps[-1][0], t1.steps[-1][6], t1.steps[-1][7], t1.steps[-1][8]
+    steps = list(t1.steps) + [
+        (t + t0, a, b, h_, felt, live, c + c0, min(m, m0), f + f0)
+        for t, a, b, h_, felt, live, c, m, f in t2.steps
+    ]
+    r1, r2 = t1.result, t2.result
+    res = replace(
+        r2,
+        success=r1.success and r2.success,
+        time_s=r1.time_s + r2.time_s,
+        path_m=r1.path_m + r2.path_m,
+        shortest_m=r1.shortest_m + r2.shortest_m,
+        collisions=r1.collisions + r2.collisions,
+        contact_s=r1.contact_s + r2.contact_s,
+        min_clear_m=min(r1.min_clear_m, r2.min_clear_m),
+    )
+    tr = S.Trace(steps, res, t1.false_onsets + t2.false_onsets, t1.flicker + t2.flicker)
+    return replace(back, name=out.name, title=out.title, start=out.start), tr
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("scenario", choices=S.SCENARIOS)
+    ap.add_argument("scenario", choices=(*S.SCENARIOS, "door_chair"))
     ap.add_argument("--layout", default="eight", choices=("eight", "diag4"))
     ap.add_argument("--seed", type=int, default=1000)
     ap.add_argument("--arm", default="I5", choices=E.ARMS, help="walker iteration (run_sim_walk)")
     ap.add_argument("--max-s", type=float, help="keep only the first seconds of a long walk")
     ap.add_argument("--out", type=Path, required=True)
     a = ap.parse_args()
-    sc = S.scenario(a.scenario)
-    tr = S.walk(sc, E.belt_for(a.arm, a.layout), seed=a.seed, **E.ARMS[a.arm][2])
+    if a.scenario == "door_chair":
+        sc, tr = door_walk(a.arm, a.layout, a.seed)
+    else:
+        sc = S.scenario(a.scenario)
+        tr = S.walk(sc, E.belt_for(a.arm, a.layout), seed=a.seed, **E.ARMS[a.arm][2])
     doc = scene_file(sc, tr, a.layout, a.seed)
     if a.max_s and len(doc["frames"]) > a.max_s * FPS:  # a walk that ran to the time limit
         doc["frames"] = doc["frames"][: int(a.max_s * FPS)]

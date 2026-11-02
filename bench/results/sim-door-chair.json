@@ -1,0 +1,26 @@
+{
+ "I1-eight": {
+  "clean": 0,
+  "reached": 21,
+  "contacts": 3.73,
+  "time": 7.65
+ },
+ "I1-diag4": {
+  "clean": 0,
+  "reached": 28,
+  "contacts": 4.37,
+  "time": 7.61
+ },
+ "I5-eight": {
+  "clean": 0,
+  "reached": 30,
+  "contacts": 3.87,
+  "time": 6.7
+ },
+ "I5-diag4": {
+  "clean": 0,
+  "reached": 30,
+  "contacts": 3.1,
+  "time": 6.41
+ }
+}

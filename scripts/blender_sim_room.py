@@ -6,8 +6,10 @@ and belt. Reads the scene file from scripts/export_sim_scene.py.
         --scene data/demo-takes/sim/scenes/avoid_chair-eight-1001.json \
         --still 60 --out data/demo-takes/sim/preview/hero_base.png
 
-`--frames DIR` renders every frame to DIR/%05d.png instead. Either way the camera is written
-next to the output as cam.json (world-to-pixel matrix) for the overlay pass.
+`--frames DIR` renders every frame to DIR/%05d.png instead (`--first`/`--last` for a strip,
+`--view walker` for a close camera on the walker, `--blend` to keep the posed file). Either
+way the camera is written next to the output as cam.json (world-to-pixel matrix) for the
+overlay pass.
 
 Look references: his footage (white walls, light grey laminate, beige upholstered bed, black
 standing desk with an orange mat, white folding table under the whiteboard, black mesh chair).
@@ -26,7 +28,11 @@ from pathlib import Path
 
 import bmesh
 import bpy
-from mathutils import Euler, Matrix, Vector
+from mathutils import Euler, Matrix, Quaternion, Vector
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import sim_motion  # noqa: E402  (sits beside this script)
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "data" / "assets" / "sim-hifi"
@@ -690,6 +696,7 @@ def build_office_chair(o, M):
             if b and not b.inputs["Base Color"].is_linked:
                 b.inputs["Base Color"].default_value = (0.045, 0.047, 0.052, 1.0)
                 b.inputs["Roughness"].default_value = 0.42
+    return root, face
 
 
 def build_nightstand(o, M):
@@ -770,8 +777,10 @@ def support_z(sc, o):
 
 
 def build_furniture(sc, M, bounds):
+    """Builds the furniture; returns {chair name: (root empty, seat-facing angle)}."""
     x0, x1, y0, y1 = bounds
     k = 0
+    chairs = {}
     for o in sc["objects"]:
         lab, name = o["label"], o["name"]
         if lab == "bed":
@@ -781,7 +790,7 @@ def build_furniture(sc, M, bounds):
         elif lab == "desk":
             build_folding_table(o, M)
         elif lab == "chair":
-            build_office_chair(o, M)
+            chairs[name] = build_office_chair(o, M)
         elif lab == "nightstand":
             build_nightstand(o, M)
         elif lab == "object" and name.startswith("desk_"):
@@ -810,6 +819,7 @@ def build_furniture(sc, M, bounds):
         me.materials.append(M["rug"])
         so = rug.modifiers.new("thick", "SOLIDIFY")
         so.thickness = 0.012
+    return chairs
 
 
 # ---------------------------------------------------------------- the walker
@@ -820,7 +830,6 @@ class Walker:
     blindfold, glasses and the belt with one lit pod per motor."""
 
     HEIGHT = 1.75
-    STRIDE_M = 1.25  # metres covered by one walk cycle
 
     def __init__(self, motor_deg, M):
         before = set(bpy.data.objects)
@@ -850,6 +859,7 @@ class Walker:
         self.arm.animation_data_create()
         self.arm.animation_data.action = self.walk
         self.props(motor_deg, M)
+        self.rig()
 
     def restyle(self):
         cols = {
@@ -998,58 +1008,285 @@ class Walker:
             p.use_smooth = True
         return o
 
-    def pose(self, fr, dist_m, frame_no):
-        """Place the walker for one video frame, keyframed so a whole clip renders in one go."""
-        sit = fr["sit"]
-        yaw = fr["heading"] - (math.pi / 2 if self.front < 0 else -math.pi / 2)
-        self.root.location = (fr["x"], fr["y"], 0.0)
-        self.root.rotation_euler = (0, 0, yaw)
-        self.root.keyframe_insert("location", frame=frame_no)
-        self.root.keyframe_insert("rotation_euler", frame=frame_no)
-        ad = self.arm.animation_data
-        if sit > 0 and self.sit is not None:
-            ad.action = self.sit
-            t = min(1.0, sit) * 60.0  # the sitting-down part of the cycle
-        elif not fr["walking"] and self.idle is not None:
-            ad.action = self.idle
-            t = frame_no % 100
-        else:
-            ad.action = self.walk
-            t = (dist_m / self.STRIDE_M * 25.0) % 25.0
+    # walk clip: the left foot is furthest forward at clip frame 5, which is where the
+    # planner lands it (sim_motion.SWING[1]); the clip runs 25 frames a cycle
+    WALK_LAND_FRAME = 5.0
+    SIT_END_FRAME = 18.0  # the sit clip is seated from here on
+    UPPER_SWING = 0.7  # blindfolded: a smaller arm swing than the clip's
+
+    def rig(self):
+        """Rest joints in armature space, the clips' curves, and the seated pelvis height."""
+        self.arm.animation_data.action = None
+        self.mesh.modifiers["smooth"].show_viewport = False  # posing only; renders keep it
+        bones = self.arm.data.bones
+        self.rest = {b.name: b.head_local.copy() for b in bones}
+        self.rest_rot = {b.name: b.matrix_local.to_3x3() for b in bones}
+        w2a = self.arm.matrix_world.inverted().to_3x3()
+        self.up = (w2a @ Vector((0, 0, 1))).normalized()
+        self.fwd = (w2a @ Vector((0, self.front, 0))).normalized()
+        self.left = self.up.cross(self.fwd).normalized()
+        self.legs = {}
+        for s in ("L", "R"):
+            h, k, f = (self.rest[n + s] for n in ("UpperLeg.", "LowerLeg.", "Foot."))
+            self.legs[s] = ((k - h).length, (f - k).length)
+        self.track = {}
+        self.curves = {}
+        for act in (self.walk, self.idle, self.sit):
+            self.curves[act.name] = _curves(act)
+        # seated pelvis: how far the bottom of the body sits below the Hips joint
+        self.root.location = (0, 0, 0)
+        self.root.rotation_euler = (0, 0, 0)
+        self._set_basis(self._blend({self.sit.name: (1.0, self.SIT_END_FRAME)}))
+        bpy.context.view_layer.update()
+        hips = self.arm.matrix_world @ self.arm.pose.bones["Hips"].head
+        dg = bpy.context.evaluated_depsgraph_get()
+        ev = self.mesh.evaluated_get(dg)
+        me = ev.to_mesh()
+        mw = ev.matrix_world
+        zs = [
+            (mw @ v.co).z
+            for v in me.vertices
+            if math.hypot((mw @ v.co).x - hips.x, (mw @ v.co).y - hips.y) < 0.12
+        ]
+        ev.to_mesh_clear()
+        self.seat_drop = hips.z - min(zs)  # metres from the Hips joint to the seat contact
+        self.sit_hips_z = hips.z
+
+    def _blend(self, parts):
+        """Bone (loc, quat, scale) from several clips: {action name: (weight, clip time)}."""
+        acc = {}
+        bones = set().union(*(self.curves[n] for n in parts))
+        none = {"location": [None] * 3, "rotation_quaternion": [None] * 4, "scale": [None] * 3}
+        for name, (wt, t) in parts.items():
+            if wt <= 1e-4:
+                continue
+            for bone in bones:  # a bone a clip leaves alone sits at rest in that clip
+                chans = self.curves[name].get(bone, none)
+                loc = Vector([fc.evaluate(t) if fc else 0.0 for fc in chans["location"]])
+                rq = zip(chans["rotation_quaternion"], (1, 0, 0, 0), strict=True)
+                q = Quaternion([fc.evaluate(t) if fc else d for fc, d in rq])
+                sc = Vector([fc.evaluate(t) if fc else 1.0 for fc in chans["scale"]])
+                if bone not in acc:
+                    acc[bone] = [Vector(), Vector((0, 0, 0, 0)), Vector(), 0.0, q]
+                a = acc[bone]
+                if a[4].dot(q) < 0:
+                    q = -q
+                a[0] += loc * wt
+                a[1] += Vector(q) * wt
+                a[2] += sc * wt
+                a[3] += wt
+        out = {}
+        for bone, (loc, q, sc, wt, _) in acc.items():
+            out[bone] = (loc / wt, Quaternion(q / wt).normalized(), sc / wt)
+        return out
+
+    def _set_basis(self, pose):
         for pb in self.arm.pose.bones:
             pb.matrix_basis = Matrix.Identity(4)
-        _apply_action(self.arm, ad.action, t)
-        for pb in self.arm.pose.bones:
+            if pb.name in pose:
+                loc, q, sc = pose[pb.name]
+                pb.matrix_basis = Matrix.LocRotScale(loc, q, sc)
+
+    def _turn_bone(self, name, rot, about=None):
+        """Rotate a posed bone by `rot` (armature space) about its head (or `about`)."""
+        pb = self.arm.pose.bones[name]
+        c = pb.head.copy() if about is None else about
+        spin = Matrix.Translation(c) @ rot.to_matrix().to_4x4() @ Matrix.Translation(-c)
+        pb.matrix = spin @ pb.matrix
+        bpy.context.view_layer.update()
+
+    def _aim(self, name, child, want, weight):
+        """Swing a limb segment toward the direction `want` (armature space)."""
+        if weight <= 1e-3:
+            return
+        pb = self.arm.pose.bones[name]
+        seg = self.arm.pose.bones[child].head - pb.head
+        q = seg.rotation_difference(want)
+        self._turn_bone(name, Quaternion().slerp(q, min(1.0, weight)))
+
+    @staticmethod
+    def _frame(a, b):
+        e1 = a.normalized()
+        e2 = (b - e1 * b.dot(e1)).normalized()
+        return Matrix((e1, e2, e1.cross(e2))).transposed()
+
+    def _place(self, name, head, rot3):
+        pb = self.arm.pose.bones[name]
+        pb.matrix = Matrix.Translation(head) @ (rot3 @ self.rest_rot[name]).to_4x4()
+        bpy.context.view_layer.update()
+
+    def _leg(self, s, target, foot_yaw):
+        """Two-bone leg onto an ankle target (armature space), knee toward the foot's front."""
+        a, b = self.legs[s]
+        pbs = self.arm.pose.bones
+        h = pbs["UpperLeg." + s].head.copy()
+        d = target - h
+        dist = min(d.length, (a + b) * 0.999)
+        u = d.normalized()
+        pole = Quaternion(self.up, foot_yaw) @ self.fwd
+        v = (pole - u * pole.dot(u)).normalized()
+        ca = max(-1.0, min(1.0, (a * a + dist * dist - b * b) / (2 * a * dist)))
+        knee = h + (u * ca + v * math.sqrt(1 - ca * ca)) * a
+        ankle = h + u * dist
+        rh, rk, rf = (self.rest[n + s] for n in ("UpperLeg.", "LowerLeg.", "Foot."))
+        r1 = self._frame(knee - h, pole) @ self._frame(rk - rh, self.fwd).transposed()
+        self._place("UpperLeg." + s, h, r1)
+        r2 = self._frame(ankle - knee, pole) @ self._frame(rf - rk, self.fwd).transposed()
+        self._place("LowerLeg." + s, pbs["LowerLeg." + s].head.copy(), r2)
+        self._place("Foot." + s, ankle, Quaternion(self.up, foot_yaw).to_matrix())
+
+    def pose(self, m, fr, frame_no, seat_top=None):
+        """Place the walker for one video frame from the planned motion `m`
+        (sim_motion.Pose), keyframed so a whole clip renders in one go."""
+        yaw_off = math.atan2(self.front, 0.0)  # the rig faces along self.front * y at rest
+        self.root.location = (m.x, m.y, 0.0)
+        self.root.rotation_euler = (0, 0, m.yaw - yaw_off)
+        bpy.context.view_layer.update()
+        walk_t = (25.0 * (m.phase - sim_motion.SWING[1]) + self.WALK_LAND_FRAME) % 25.0
+        ww, wi, wsit = m.w["walk"], m.w["idle"], m.w["sit"]
+        parts = {
+            self.walk.name: (ww * self.UPPER_SWING, walk_t),
+            self.idle.name: (wi + ww * (1 - self.UPPER_SWING), frame_no % 100),
+            self.sit.name: (wsit, m.sit_t * self.SIT_END_FRAME),
+        }
+        self._set_basis(self._blend(parts))
+        bpy.context.view_layer.update()
+        pbs = self.arm.pose.bones
+        a2w = self.arm.matrix_world
+        w2a = a2w.inverted()
+        k_arm = (w2a.to_3x3() @ Vector((0, 0, 1))).length  # armature units per metre
+        # pelvis height: onto the seat while sitting, and low enough that both feet reach
+        lift = 0.0
+        if seat_top is not None and wsit > 0:
+            hips_z = (a2w @ pbs["Hips"].head).z
+            want = seat_top + self.seat_drop + 0.005
+            lift = (want - hips_z) * min(1.0, m.sit_t * 1.0) if m.sit_t > 0 else 0.0
+        drop = 0.0
+        for s, f in zip(("L", "R"), m.feet, strict=True):
+            a, b = self.legs[s]
+            h = a2w @ pbs["UpperLeg." + s].head + Vector((0, 0, lift))
+            t = Vector((f[0], f[1], f[2]))
+            reach = 0.97 * (a + b) / k_arm
+            dxy = math.hypot(h.x - t.x, h.y - t.y)
+            if dxy < reach:
+                need = (h.z - t.z) - math.sqrt(reach * reach - dxy * dxy)
+                drop = max(drop, need)
+        shift = lift - drop
+        if abs(shift) > 1e-5:
+            body = pbs["Body"]
+            body.matrix = Matrix.Translation(self.up * shift * k_arm) @ body.matrix
+            bpy.context.view_layer.update()
+        # stumble: lean back and throw the hands out
+        if m.stumble > 0:
+            back = Quaternion(self.left, -math.radians(14) * m.stumble)
+            self._turn_bone("Torso", back)
+        # head turns toward the cue
+        if abs(m.head_yaw) > 1e-3:
+            self._turn_bone("Neck", Quaternion(self.up, m.head_yaw * 0.4))
+            self._turn_bone("Head", Quaternion(self.up, m.head_yaw * 0.6))
+        # blindfolded: right hand out ahead, low
+        reach_w = 0.85 * (ww + wi) * (1 - wsit)
+        ahead = (self.fwd * 0.38 - self.up * 0.92 - self.left * 0.06).normalized()
+        self._aim("UpperArm.R", "LowerArm.R", ahead, reach_w)
+        fore = (self.fwd * 0.88 - self.up * 0.3 + self.left * 0.2).normalized()
+        self._aim("LowerArm.R", "Palm.R", fore, reach_w)
+        if m.stumble > 0:
+            for s, side in (("L", 1), ("R", -1)):
+                out = (self.fwd * 0.7 + self.left * side * 0.5 - self.up * 0.2).normalized()
+                self._aim("UpperArm." + s, "LowerArm." + s, out, m.stumble)
+        # legs onto the planned feet
+        for s, f in zip(("L", "R"), m.feet, strict=True):
+            t = w2a @ Vector((f[0], f[1], f[2]))
+            self._leg(s, t, f[3] - m.yaw)
+        rec = self.track.setdefault
+        rec(("root", "location"), []).append((frame_no, tuple(self.root.location)))
+        rec(("root", "rotation_euler"), []).append((frame_no, tuple(self.root.rotation_euler)))
+        for pb in pbs:
             for path in ("location", "rotation_quaternion", "scale"):
-                pb.keyframe_insert(path, frame=frame_no)
+                rec((pb.name, path), []).append((frame_no, tuple(getattr(pb, path))))
         for k, p in enumerate(self.pods):
             v = fr["felt"][k] if k < len(fr["felt"]) else 0.0
             p.color = (v, 0, 0, 1)
             p.keyframe_insert("color", frame=frame_no)
 
 
-def _apply_action(arm, action, t):
-    """Evaluate `action` at time `t` onto the pose bones (Blender 4.4+ layered actions)."""
+def finish_walker(walker):
+    """Bake the recorded root and bone poses (see Walker.pose)."""
+    root = {(None, p): v for (b, p), v in walker.track.items() if b == "root"}
+    bones = {(b, p): v for (b, p), v in walker.track.items() if b != "root"}
+    walker.root.animation_data_clear()
+    walker.arm.animation_data_clear()
+    bake(walker.root, "walker_root", root)
+    bake(walker.arm, "walker_pose", bones)
+    walker.mesh.modifiers["smooth"].show_viewport = True
+
+
+def seat_of(sc, chairs):
+    """(cx, cy, face, seat top z) of the scene's target chair, or None."""
+    tgt = sc.get("target")
+    o = next((o for o in sc["objects"] if o["name"] == tgt and o["label"] == "chair"), None)
+    if o is None or tgt not in chairs:
+        return None
+    cx, cy = o["obb"][0], o["obb"][1]
+    _, face = chairs[tgt]
+    bpy.context.view_layer.update()
+    dg = bpy.context.evaluated_depsgraph_get()
+    hit, loc, *_ = bpy.context.scene.ray_cast(dg, Vector((cx, cy, 1.5)), Vector((0, 0, -1)))
+    top = loc.z if hit and loc.z < 0.7 else 0.47
+    return cx, cy, face, top
+
+
+def swivel(chair_root, cx, cy, turns):
+    """Keyframe the chair turning about its column: one angle per video frame."""
+    m0 = chair_root.matrix_world.copy()
+    c = Matrix.Translation((cx, cy, 0.0))
+    for k, a in enumerate(turns):
+        chair_root.matrix_world = c @ Matrix.Rotation(a, 4, "Z") @ c.inverted() @ m0
+        chair_root.keyframe_insert("location", frame=k + 1)
+        chair_root.keyframe_insert("rotation_euler", frame=k + 1)
+
+
+def bake(obj, name, chans):
+    """Write recorded values {(bone or None, path): [(frame, values)]} as one linear action."""
+    act = bpy.data.actions.new(name)
+    obj.animation_data_create()
+    obj.animation_data.action = act
+    for (bone, path), rows in chans.items():
+        dp = path if bone is None else f'pose.bones["{bone}"].{path}'
+        for i in range(len(rows[0][1])):
+            fc = act.fcurve_ensure_for_datablock(obj, dp, index=i)
+            fc.keyframe_points.add(len(rows))
+            fc.keyframe_points.foreach_set("co", [c for f, v in rows for c in (f, v[i])])
+            fc.keyframe_points.foreach_set("interpolation", [1] * len(rows))  # LINEAR
+            fc.update()
+
+
+def _curves(action):
+    """{bone: {location: [fc]*3, rotation_quaternion: [fc]*4, scale: [fc]*3}} of a clip."""
     slot = action.slots[0] if hasattr(action, "slots") and action.slots else None
-    curves = []
+    fcs = []
     if slot is not None and action.layers:
         for layer in action.layers:
             for strip in layer.strips:
                 cb = strip.channelbag(slot)
                 if cb is not None:
-                    curves += list(cb.fcurves)
+                    fcs += list(cb.fcurves)
     else:
-        curves = list(action.fcurves)
-    for fc in curves:
+        fcs = list(action.fcurves)
+    out = {}
+    for fc in fcs:
         dp = fc.data_path
         if not dp.startswith("pose.bones["):
             continue
         bone = dp.split('"')[1]
         prop = dp.rsplit(".", 1)[1]
-        pb = arm.pose.bones.get(bone)
-        if pb is None:
+        if prop not in ("location", "rotation_quaternion", "scale"):
             continue
-        getattr(pb, prop)[fc.array_index] = fc.evaluate(t)
+        ch = out.setdefault(
+            bone, {"location": [None] * 3, "rotation_quaternion": [None] * 4, "scale": [None] * 3}
+        )
+        ch[prop][fc.array_index] = fc
+    return out
 
 
 # ---------------------------------------------------------------- camera, light, render
@@ -1198,25 +1435,28 @@ def main():
     bounds = room_bounds(sc["walls"])
     cut = ("S", "E")
     build_room(sc, M, cut)
-    build_furniture(sc, M, bounds)
+    chairs = build_furniture(sc, M, bounds)
     walker = Walker(sc["motor_deg"], M)
     frames = sc["frames"]
-    dist = 0.0
-    for k, fr in enumerate(frames):
-        if k:
-            dist += math.hypot(fr["x"] - frames[k - 1]["x"], fr["y"] - frames[k - 1]["y"])
-        fr["_dist"] = dist
+    seat = seat_of(sc, chairs)
+    rects = [
+        (o["obb"][0], o["obb"][1], o["obb"][3], o["obb"][4], o["obb"][6]) for o in sc["objects"]
+    ]
+    plan = sim_motion.plan(frames, sc["motor_deg"], seat=seat and seat[:3], rects=rects)
+    if seat is not None and any(abs(m.chair_turn) > 1e-4 for m in plan):
+        swivel(chairs[sc["target"]][0], seat[0], seat[1], [m.chair_turn for m in plan])
     setup_light(bounds)
     focus = None
-    if a.get("view") == "walker" and a["still"] is not None:
-        f = frames[int(a["still"])]
+    if a.get("view") == "walker":
+        f = frames[int(a["still"] if a["still"] is not None else a.get("first", 0))]
         focus = (f["x"], f["y"])
     cam = setup_camera(bounds, focus=focus)
     setup_render(int(a["samples"]), int(a["scale"]))
     scn = bpy.context.scene
     if a["still"] is not None:
         k = int(a["still"])
-        walker.pose(frames[k], frames[k]["_dist"], 1)
+        walker.pose(plan[k], frames[k], 1, seat and seat[3])
+        finish_walker(walker)
         scn.frame_set(1)
         out = Path(a["out"])
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -1229,10 +1469,14 @@ def main():
     d = Path(a["frames"])
     d.mkdir(parents=True, exist_ok=True)
     for k, fr in enumerate(frames):
-        walker.pose(fr, fr["_dist"], k + 1)
-    scn.frame_start, scn.frame_end = 1, len(frames)
+        walker.pose(plan[k], fr, k + 1, seat and seat[3])
+    finish_walker(walker)
+    scn.frame_start = int(a.get("first", 0)) + 1  # --first/--last: a strip, 0-based frames
+    scn.frame_end = int(a.get("last", len(frames) - 1)) + 1
     scn.render.filepath = str(d / "#####")
     write_cam(cam, d / "cam.json")
+    if a.get("blend"):
+        bpy.ops.wm.save_as_mainfile(filepath=a["blend"])
     bpy.ops.render.render(animation=True)
 
 
