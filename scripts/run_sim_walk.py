@@ -35,12 +35,18 @@ ARMS: dict[str, tuple[str | None, dict, dict, str]] = {
     "I3": ("I1", {"hold": True}, {"map_sides": True}, "bearing hold on the panned cue"),
     "I4": ("I1", {"persist": 2}, {"map_sides": True}, "strips must hold 2 frames"),
     "I5": ("I1", {"planner": True}, {"map_sides": True}, "guide routed by the app's navigator"),
+    "I6": (
+        "I5",
+        {"planner": True, "mapping": pan.with_params(pan.DEFAULT, k_targets=2, sep_deg=45.0)},
+        {"map_sides": True},
+        "cue the two nearest objects at least 45 degrees apart, not just the nearest",
+    ),
 }
 
 
 def belt_for(arm: str, layout: str) -> h.Belt:
-    fields = ARMS[arm][1]
-    return h.Belt(layout=layout, hfov=S.HFOV, mapping=pan.DEFAULT, **fields)
+    fields = {"mapping": pan.DEFAULT, **ARMS[arm][1]}
+    return h.Belt(layout=layout, hfov=S.HFOV, **fields)
 
 
 def _one(job) -> dict:
