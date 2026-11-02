@@ -42,8 +42,8 @@ LOW_SLOPE = 0.02  # metres of extra height a low cell needs per metre of range
 MIN_SPAN = 0.8  # metres of floor a pitch fit needs (L16)
 LOOSE_DEG = 1.0  # a no-span fit backs the pitch when it agrees this closely (L24)
 LOOSE_H = 0.10  # and its camera height is within this share of eye height
-STILL_S = 1.0  # no step for this long is "still" (L27 gate)
-APPROACH_M = 0.1  # a remembered cell cues once the wearer has closed this much on it (L27 gate)
+STILL_S = 1.0  # no step for this long is "still" (L28 gate)
+APPROACH_M = 0.1  # a remembered cell cues once the wearer has closed this much on it (L28 gate)
 STEP_STD = 1.2  # m/s^2: spread of |accel| over the recent window that counts as walking
 CAMERA_SECTORS = (7, 0, 1)  # the sectors the live cue covers (three image columns)
 REAR_SECTORS = (3, 4, 5)
@@ -602,7 +602,7 @@ def gate_memory_cues(
     still_min_s: float = STILL_S,
     min_close_m: float = APPROACH_M,
 ):
-    """The cue gate for remembered cells (L27), a pure function of one `FovLoop.step` result.
+    """The cue gate for remembered cells (L28), a pure function of one `FovLoop.step` result.
 
     `hidden`, `band`, `close`: the step's `hidden`, `band` and `close` (8 sectors, None or inf
     where no cell). `still_s`: seconds since the wearer's last step (None = unknown, never mute).
