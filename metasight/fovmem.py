@@ -40,6 +40,8 @@ CORRIDOR_HALF_M = 0.45  # the path a walking body sweeps, as safety.BODY_HALF_M
 PATH_AHEAD_M = 2.0
 LOW_SLOPE = 0.02  # metres of extra height a low cell needs per metre of range
 MIN_SPAN = 0.8  # metres of floor a pitch fit needs (L16)
+LOOSE_DEG = 1.0  # a no-span fit backs the pitch when it agrees this closely (L24)
+LOOSE_H = 0.10  # and its camera height is within this share of eye height
 LEVEL_BIN_M = 0.10  # height bins for finding flat surfaces
 LEVEL_MIN_PX = 150  # pixels (stride 2) a flat surface needs
 LEVEL_MIN_SPAN = 0.2  # metres it must run away from the camera
@@ -176,6 +178,22 @@ def level_floor(
     return p, H
 
 
+def loose_floor(
+    depth: np.ndarray, hfov_deg: float, guess_deg: float, eye_h: float, pitch_deg: float
+) -> bool:
+    """Is the pitch in use backed by a floor on a frame where `level_floor` (with its span) found
+    none? A cramped room rarely shows 0.8 m of floor, so L16's gate cut the memory's cells there
+    (L22). A fit with no span check stands in when it agrees with the pitch in use within
+    `LOOSE_DEG` and puts the camera within `LOOSE_H` of its height: a strip of floor under a wall
+    tilts the fit or the height, and that is what the span check was for (fovsim shelf_head)."""
+    fit = level_floor(depth, hfov_deg, guess_deg, eye_h)
+    return (
+        fit is not None
+        and abs(fit[0] - pitch_deg) < LOOSE_DEG
+        and abs(fit[1] / eye_h - 1) < LOOSE_H
+    )
+
+
 def stepped_floor(hgt: np.ndarray, fwd: np.ndarray, ok: np.ndarray) -> np.ndarray:
     """Pixels on the slab the wearer stands on, when it ends in a drop.
 
@@ -192,6 +210,8 @@ def stepped_floor(hgt: np.ndarray, fwd: np.ndarray, ok: np.ndarray) -> np.ndarra
         return out
     h0 = float(np.median(hgt[-LEVEL_FEET_ROWS:][feet]))
     near = sel & (np.abs(hgt - h0) < LEVEL_FEET_TOL_M)
+    if not near.any():
+        return out
     b = np.floor((hgt + 0.8) / LEVEL_BIN_M).astype(np.int64)
     far = float(np.percentile(fwd[near], 95))
     for k in np.unique(b[sel]):
@@ -587,7 +607,8 @@ class FovLoop:
                 mask[int(y0 * h) : int(math.ceil(y1 * h)), int(x0 * w) : int(math.ceil(x1 * w))] = (
                     False
                 )
-        if lf is None:  # no floor to back the pitch: clear what the frame sees through, add nothing
+        backed = lf is not None or (z.any() and loose_floor(z, self.hfov, guess, self.eye_h, pitch))
+        if not backed:  # no floor to back the pitch: clear what the frame sees through, add nothing
             mask = np.zeros((h, w), bool)
         yaw = heading.yaw if heading.yaw is not None else heading.turn
         pos = (0.0, 0.0) if heading.pos is None else (float(heading.pos[0]), float(heading.pos[2]))

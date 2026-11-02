@@ -23,9 +23,10 @@ from metasight import fovrooms
 from metasight import fovsim as F
 
 ROOT = Path(__file__).resolve().parent.parent
-# The recommended memory: L14's mask and slope, plus L16's floor checks on the pitch.
+# The recommended memory: L14's mask and slope, plus L16's floor checks on the pitch and L24's
+# looser backing for cramped rooms.
 L14 = dict(low_slope=0.02, mask=True, people=True)
-REC = dict(**L14, trust="level", min_span=0.8)
+REC = dict(**L14, trust="level", min_span=0.8, loose=True)
 ARMS = {
     "memory, L14": F.Arms(**L14),
     "memory": F.Arms(**REC),

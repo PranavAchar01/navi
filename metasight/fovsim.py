@@ -22,7 +22,14 @@ from dataclasses import dataclass, field
 import mujoco
 import numpy as np
 
-from .fovmem import CORRIDOR_HALF_M, DropMemory, HazardMemory, PitchFuse, level_floor
+from .fovmem import (
+    CORRIDOR_HALF_M,
+    DropMemory,
+    HazardMemory,
+    PitchFuse,
+    level_floor,
+    loose_floor,
+)
 from .safety import GRID, analyse
 
 EYE_H = 1.6
@@ -351,6 +358,8 @@ class Arms:
     trust: str | None = None
     max_range_m: float = 2.5  # new cells only from points nearer than this
     min_span: float | None = None  # level_floor: the floor seen must run this far (m)
+    # trust "level" also on a frame with no fit of its own when a no-span fit agrees (L24)
+    loose: bool = False
 
 
 @dataclass
@@ -546,7 +555,10 @@ def run(
                     zk = z * float(np.clip(eye_h_cfg / lf[1], 0.8, 1.25))
                 imu = fuses[k].update(imu, n) if a.fuse else imu
                 if a.trust == "level" and lf is None:
-                    mask = np.zeros(z.shape, bool)
+                    if not (
+                        a.loose and z.any() and loose_floor(z, hfov, guess, eye_h_cfg / scale, imu)
+                    ):
+                        mask = np.zeros(z.shape, bool)
             elif a.fuse:
                 imu = fuses[k].update(imu, plane[0] if plane is not None else None)
             fc = mem.update(

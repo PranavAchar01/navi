@@ -12,6 +12,9 @@
      "path_miss": 0.063,
      "false_per_min": 13.6,
      "false_far_per_min": 7.7,
+     "drop_miss": null,
+     "drop_false_per_min": 13.0,
+     "drop_danger": 0,
      "danger": 3307,
      "frames": 1320
     },
@@ -21,6 +24,9 @@
      "path_miss": 0.006,
      "false_per_min": 13.6,
      "false_far_per_min": 7.7,
+     "drop_miss": null,
+     "drop_false_per_min": 13.0,
+     "drop_danger": 0,
      "danger": 3307,
      "frames": 1320,
      "miss_diff_ci": [
@@ -34,6 +40,9 @@
      "path_miss": 0.006,
      "false_per_min": 13.6,
      "false_far_per_min": 7.7,
+     "drop_miss": null,
+     "drop_false_per_min": 13.0,
+     "drop_danger": 0,
      "danger": 3307,
      "frames": 1320,
      "miss_diff_ci": [
@@ -52,6 +61,9 @@
      "path_miss": 0.983,
      "false_per_min": 50.2,
      "false_far_per_min": 15.2,
+     "drop_miss": null,
+     "drop_false_per_min": 32.4,
+     "drop_danger": 0,
      "danger": 1087,
      "frames": 1180
     },
@@ -61,6 +73,9 @@
      "path_miss": 0.0,
      "false_per_min": 193.7,
      "false_far_per_min": 15.2,
+     "drop_miss": null,
+     "drop_false_per_min": 32.4,
+     "drop_danger": 0,
      "danger": 1087,
      "frames": 1180,
      "miss_diff_ci": [
@@ -69,16 +84,19 @@
      ]
     },
     "memory": {
-     "miss": 0.049,
-     "front_miss": 0.049,
+     "miss": 0.041,
+     "front_miss": 0.041,
      "path_miss": 0.0,
-     "false_per_min": 53.5,
+     "false_per_min": 54.2,
      "false_far_per_min": 15.2,
+     "drop_miss": null,
+     "drop_false_per_min": 32.4,
+     "drop_danger": 0,
      "danger": 1087,
      "frames": 1180,
      "miss_diff_ci": [
-      -0.886,
-      -0.761
+      -0.891,
+      -0.772
      ]
     }
    }
@@ -92,6 +110,9 @@
      "path_miss": 0.91,
      "false_per_min": 1.8,
      "false_far_per_min": 1.2,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
      "danger": 1823,
      "frames": 1320
     },
@@ -101,6 +122,9 @@
      "path_miss": 0.0,
      "false_per_min": 5.9,
      "false_far_per_min": 1.2,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
      "danger": 1823,
      "frames": 1320,
      "miss_diff_ci": [
@@ -114,6 +138,9 @@
      "path_miss": 0.0,
      "false_per_min": 5.9,
      "false_far_per_min": 1.2,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
      "danger": 1823,
      "frames": 1320,
      "miss_diff_ci": [
@@ -132,6 +159,9 @@
      "path_miss": 0.569,
      "false_per_min": 25.1,
      "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
      "danger": 2318,
      "frames": 1180
     },
@@ -141,6 +171,9 @@
      "path_miss": 0.0,
      "false_per_min": 82.0,
      "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
      "danger": 2318,
      "frames": 1180,
      "miss_diff_ci": [
@@ -154,6 +187,9 @@
      "path_miss": 0.0,
      "false_per_min": 81.3,
      "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
      "danger": 2318,
      "frames": 1180,
      "miss_diff_ci": [
@@ -172,6 +208,9 @@
      "path_miss": 0.155,
      "false_per_min": 14.5,
      "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
      "danger": 2077,
      "frames": 1180
     },
@@ -181,6 +220,9 @@
      "path_miss": 0.0,
      "false_per_min": 100.5,
      "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
      "danger": 2077,
      "frames": 1180,
      "miss_diff_ci": [
@@ -194,6 +236,9 @@
      "path_miss": 0.0,
      "false_per_min": 100.5,
      "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
      "danger": 2077,
      "frames": 1180,
      "miss_diff_ci": [
@@ -212,6 +257,9 @@
      "path_miss": 0.391,
      "false_per_min": 0.0,
      "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
      "danger": 4141,
      "frames": 1320
     },
@@ -221,6 +269,9 @@
      "path_miss": 0.001,
      "false_per_min": 4.7,
      "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
      "danger": 4141,
      "frames": 1320,
      "miss_diff_ci": [
@@ -234,6 +285,9 @@
      "path_miss": 0.001,
      "false_per_min": 4.7,
      "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
      "danger": 4141,
      "frames": 1320,
      "miss_diff_ci": [
@@ -252,6 +306,9 @@
      "path_miss": 0.366,
      "false_per_min": 3.0,
      "false_far_per_min": 3.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
      "danger": 3014,
      "frames": 1040
     },
@@ -261,6 +318,9 @@
      "path_miss": 0.005,
      "false_per_min": 4.5,
      "false_far_per_min": 3.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
      "danger": 3014,
      "frames": 1040,
      "miss_diff_ci": [
@@ -274,6 +334,9 @@
      "path_miss": 0.005,
      "false_per_min": 4.5,
      "false_far_per_min": 3.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
      "danger": 3014,
      "frames": 1040,
      "miss_diff_ci": [
@@ -292,6 +355,9 @@
      "path_miss": 0.002,
      "false_per_min": 10.5,
      "false_far_per_min": 9.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
      "danger": 813,
      "frames": 1040
     },
@@ -301,6 +367,9 @@
      "path_miss": 0.002,
      "false_per_min": 10.5,
      "false_far_per_min": 9.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
      "danger": 813,
      "frames": 1040,
      "miss_diff_ci": [
@@ -314,8 +383,109 @@
      "path_miss": 0.002,
      "false_per_min": 10.5,
      "false_far_per_min": 9.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
      "danger": 813,
      "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    }
+   }
+  },
+  "drop_step": {
+   "note": "The floor ends 2 m ahead in a 0.18 m step down; approached with the head level the edge leaves the bottom of the view at about 1.5 m (under the 25 cm drop line).",
+   "arms": {
+    "live": {
+     "miss": null,
+     "front_miss": null,
+     "path_miss": null,
+     "false_per_min": 0.8,
+     "false_far_per_min": 0.8,
+     "drop_miss": 1.0,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 602,
+     "danger": 0,
+     "frames": 1840
+    },
+    "memory, L14": {
+     "miss": null,
+     "front_miss": null,
+     "path_miss": null,
+     "false_per_min": 31.8,
+     "false_far_per_min": 31.8,
+     "drop_miss": 0.203,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 602,
+     "danger": 0,
+     "frames": 1840,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "memory": {
+     "miss": null,
+     "front_miss": null,
+     "path_miss": null,
+     "false_per_min": 20.3,
+     "false_far_per_min": 20.3,
+     "drop_miss": 0.203,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 602,
+     "danger": 0,
+     "frames": 1840,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    }
+   }
+  },
+  "stairs_down": {
+   "note": "Two steps down at 2.0 and 2.6 m (0.18 m each), head level.",
+   "arms": {
+    "live": {
+     "miss": null,
+     "front_miss": null,
+     "path_miss": null,
+     "false_per_min": 0.8,
+     "false_far_per_min": 0.8,
+     "drop_miss": 1.0,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 602,
+     "danger": 0,
+     "frames": 1840
+    },
+    "memory, L14": {
+     "miss": null,
+     "front_miss": null,
+     "path_miss": null,
+     "false_per_min": 142.9,
+     "false_far_per_min": 142.9,
+     "drop_miss": 0.101,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 602,
+     "danger": 0,
+     "frames": 1840,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "memory": {
+     "miss": null,
+     "front_miss": null,
+     "path_miss": null,
+     "false_per_min": 49.6,
+     "false_far_per_min": 49.6,
+     "drop_miss": 0.151,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 602,
+     "danger": 0,
+     "frames": 1840,
      "miss_diff_ci": [
       0.0,
       0.0
@@ -332,6 +502,9 @@
      "path_miss": 1.0,
      "false_per_min": 0.0,
      "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
      "danger": 1424,
      "frames": 1040
     },
@@ -341,6 +514,9 @@
      "path_miss": 1.0,
      "false_per_min": 0.0,
      "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
      "danger": 1424,
      "frames": 1040,
      "miss_diff_ci": [
@@ -354,6 +530,9 @@
      "path_miss": 1.0,
      "false_per_min": 0.0,
      "false_far_per_min": 0.0,
+     "drop_miss": null,
+     "drop_false_per_min": 0.0,
+     "drop_danger": 0,
      "danger": 1424,
      "frames": 1040,
      "miss_diff_ci": [
@@ -369,28 +548,37 @@
    "miss": 0.541,
    "front_miss": 0.462,
    "path_miss": 0.46,
-   "false_per_min": 13.2,
-   "false_far_per_min": 4.0,
+   "false_per_min": 10.0,
+   "false_far_per_min": 3.2,
+   "drop_miss": 1.0,
+   "drop_false_per_min": 3.9,
+   "drop_danger": 1204,
    "danger": 20004,
-   "frames": 10620
+   "frames": 14300
   },
   "memory, L14": {
    "miss": 0.108,
    "front_miss": 0.108,
    "path_miss": 0.078,
-   "false_per_min": 46.3,
-   "false_far_per_min": 4.0,
+   "false_per_min": 56.8,
+   "false_far_per_min": 25.4,
+   "drop_miss": 0.152,
+   "drop_false_per_min": 3.9,
+   "drop_danger": 1204,
    "danger": 20004,
-   "frames": 10620
+   "frames": 14300
   },
   "memory": {
-   "miss": 0.111,
+   "miss": 0.11,
    "front_miss": 0.111,
    "path_miss": 0.078,
-   "false_per_min": 30.6,
-   "false_far_per_min": 4.0,
+   "false_per_min": 31.8,
+   "false_far_per_min": 11.9,
+   "drop_miss": 0.177,
+   "drop_false_per_min": 3.9,
+   "drop_danger": 1204,
    "danger": 20004,
-   "frames": 10620
+   "frames": 14300
   }
  }
 }

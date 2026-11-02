@@ -9,6 +9,7 @@ from metasight.fovmem import (
     floor_pitch,
     level_floor,
     level_points,
+    loose_floor,
     pitch_from_gravity,
 )
 
@@ -272,3 +273,11 @@ def test_objects_json_builds_geoms():
     assert len(by_id["box_b"]) > 1  # a turned footprint is cut into strips
     rest = boxes[len(desk) + len(by_id["box_b"]) :]
     assert len([b for b in rest if b[1] > 2.0]) == 2  # back wall split by the open door
+
+
+def test_loose_floor_backs_a_pitch_that_agrees_and_not_one_that_does_not():
+    z = render(20.0)
+    assert loose_floor(z, HFOV, 20.5, EYE, 20.2)
+    assert not loose_floor(z, HFOV, 20.5, EYE, 23.0)  # the pitch in use is 3 degrees off
+    assert not loose_floor(z, HFOV, 20.5, EYE * 1.3, 20.2)  # camera height 30% off
+    assert not loose_floor(np.zeros_like(z), HFOV, 20.0, EYE, 20.0)  # no depth, no floor

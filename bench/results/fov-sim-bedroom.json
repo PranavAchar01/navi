@@ -84,9 +84,9 @@
      ]
     },
     "memory": {
-     "miss": 0.667,
-     "front_miss": 0.143,
-     "path_miss": 0.269,
+     "miss": 0.541,
+     "front_miss": 0.103,
+     "path_miss": 0.199,
      "false_per_min": 11.8,
      "false_far_per_min": 0.0,
      "drop_miss": null,
@@ -95,8 +95,8 @@
      "danger": 10517,
      "frames": 1320,
      "miss_diff_ci": [
-      -0.031,
-      -0.008
+      -0.163,
+      -0.127
      ]
     }
    }
@@ -134,7 +134,7 @@
     },
     "memory": {
      "miss": 0.475,
-     "front_miss": 0.099,
+     "front_miss": 0.098,
      "path_miss": 0.147,
      "false_per_min": 5.4,
      "false_far_per_min": 0.0,
@@ -231,10 +231,10 @@
      ]
     },
     "memory": {
-     "miss": 0.921,
-     "front_miss": 0.802,
-     "path_miss": 0.931,
-     "false_per_min": 9.5,
+     "miss": 0.866,
+     "front_miss": 0.671,
+     "path_miss": 0.772,
+     "false_per_min": 17.1,
      "false_far_per_min": 0.0,
      "drop_miss": null,
      "drop_false_per_min": 156.6,
@@ -242,8 +242,8 @@
      "danger": 9506,
      "frames": 1320,
      "miss_diff_ci": [
-      -0.043,
-      0.0
+      -0.109,
+      -0.034
      ]
     }
    }
@@ -275,10 +275,10 @@
    "frames": 6580
   },
   "memory": {
-   "miss": 0.616,
-   "front_miss": 0.247,
-   "path_miss": 0.315,
-   "false_per_min": 9.8,
+   "miss": 0.578,
+   "front_miss": 0.213,
+   "path_miss": 0.269,
+   "false_per_min": 11.4,
    "false_far_per_min": 0.0,
    "drop_miss": null,
    "drop_false_per_min": 93.5,
