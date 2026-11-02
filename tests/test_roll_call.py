@@ -1,3 +1,5 @@
+import json
+
 import numpy as np
 import pytest
 
@@ -160,3 +162,16 @@ def test_belt_taps_follow_the_names_and_yield_to_a_solid_cue():
     held = [(MODES["slow"], 255) if m == 2 else c for m, c in enumerate(off)]
     assert taps.overlay(held, 200.06) == held  # a motor a proximity cue holds stays its own
     assert taps.overlay(off, 201.0) == off and taps.due == []
+
+
+def test_room_name_and_twin_come_from_the_home_folder(tmp_path):
+    from pathlib import Path
+
+    assert rc.room_name(Path("data/rooms/bedroom/home")) == "bedroom"
+    assert rc.room_name(Path("data/home")) == "home"
+    home = tmp_path / "rooms" / "bedroom" / "home"
+    home.mkdir(parents=True)
+    assert rc.twin_objects(home) == []
+    chair = {"label": "chair", "pos": [0, 0.5, -1], "views": 50, "conf": 0.7}
+    (home / "objects.json").write_text(json.dumps([chair]))
+    assert [i.label for i in rc.pick([], to, twin=rc.twin_objects(home))] == ["chair"]

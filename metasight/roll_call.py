@@ -15,8 +15,10 @@ a stereo track for the video.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 
@@ -288,3 +290,19 @@ class BeltTaps:
                 if mode != MODES["off"] and out[motor][0] == MODES["off"]:
                     out[motor] = (mode, amp)
         return out
+
+
+def room_name(home: Path) -> str:
+    """The room a home folder is for: data/rooms/bedroom/home is the bedroom."""
+    return (
+        home.parent.name
+        if home.name == "home" and home.parent.parent.name == "rooms"
+        else home.name
+    )
+
+
+def twin_objects(home: Path) -> list[dict]:
+    """The room twin's objects saved with a fixed home. They share the home map's frame (the
+    fixed home is built with the same transform as the twin), so heading.to reads them as is."""
+    f = home / "objects.json"
+    return json.loads(f.read_text()) if f.is_file() else []
