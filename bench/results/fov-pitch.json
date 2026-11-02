@@ -1,0 +1,44 @@
+{
+  "label": "SIMULATED USER MODEL, NOT A HUMAN STUDY (L25: pitch fuse variants, nothing kept)",
+  "pitch_error_seeds_0_3": {
+    "frames_over_3deg_share": 0.145,
+    "runs_10plus_frames": 2,
+    "runs": 64,
+    "per_scene_over_3deg_pct": {
+      "desk_lookup": 12.1, "shelf_head": 24.2, "low_box": 5.7, "chair_legs": 5.5,
+      "doorway_turn": 5.1, "turn_back": 5.7, "fast_turn_blur": 8.7, "side_entry": 4.8,
+      "drop_step": 31.2, "stairs_down": 18.5, "glass_pane": 4.8,
+      "bedroom_desk_lookup": 12.1, "bedroom_turn_back": 39.0, "bedroom_bed_corner": 17.0,
+      "bedroom_doorway": 5.1, "bedroom_low_table": 16.3
+    },
+    "floor_fit_share_pct": {"bedroom_low_table": 0.0, "bedroom_turn_back": 2.3, "desk_lookup": 33.7}
+  },
+  "oracle_bedroom_seeds_0_5": {
+    "REC": {"miss": 0.582, "path": 0.252, "false_per_min": 7.5},
+    "true_pitch_same_gate": {"miss": 0.568, "path": 0.209, "false_per_min": 12.6},
+    "true_pitch_no_gate": {"miss": 0.545, "path": 0.179, "false_per_min": 8.7},
+    "L14": {"miss": 0.544, "path": 0.18, "false_per_min": 19.4}
+  },
+  "held_out_seeds_20_39": {
+    "synthetic": {
+      "live": {"miss": 0.541, "path": 0.46, "false": 10.0, "far": 3.2},
+      "L14": {"miss": 0.108, "path": 0.078, "false": 56.8, "far": 25.4},
+      "REC_current": {"miss": 0.11, "path": 0.078, "false": 31.8, "far": 11.9},
+      "first_fit_confirm": {"miss": 0.11, "path": 0.078, "false": 34.1, "far": 11.9},
+      "weak_offset_only": {"miss": 0.108, "path": 0.078, "false": 36.4, "far": 11.9},
+      "weak_snap_1deg": {"miss": 0.108, "path": 0.078, "false": 36.7, "far": 11.9},
+      "weak_snap_2deg": {"miss": 0.108, "path": 0.078, "false": 37.1, "far": 11.9},
+      "weak_snap_3deg": {"miss": 0.108, "path": 0.078, "false": 38.7, "far": 11.9}
+    },
+    "bedroom": {
+      "live": {"miss": 0.813, "path": 0.746, "false": 5.5, "far": 0.0},
+      "L14": {"miss": 0.528, "path": 0.185, "false": 17.5, "far": 0.0},
+      "REC_current": {"miss": 0.578, "path": 0.269, "false": 11.4, "far": 0.0},
+      "first_fit_confirm": {"miss": 0.579, "path": 0.272, "false": 12.7, "far": 0.0},
+      "weak_offset_only": {"miss": 0.57, "path": 0.251, "false": 11.7, "far": 0.0},
+      "weak_snap_1deg": {"miss": 0.57, "path": 0.257, "false": 11.7, "far": 0.0},
+      "weak_snap_2deg": {"miss": 0.568, "path": 0.253, "false": 11.9, "far": 0.0},
+      "weak_snap_3deg": {"miss": 0.565, "path": 0.245, "false": 11.9, "far": 0.0}
+    }
+  }
+}
