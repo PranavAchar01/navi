@@ -25,7 +25,7 @@ from functools import cache
 from pathlib import Path
 
 import numpy as np
-from scipy.signal import fftconvolve, lfilter
+from scipy.signal import fftconvolve, lfilter, resample_poly
 
 SAMPLE_RATE = 44_100  # the KEMAR set's rate
 STEP_S = 0.04  # the phone's beat loop runs every 40 ms; the renderer decides on the same grid
@@ -39,7 +39,7 @@ BEACON_NEAR = (ARRIVE_M, 0.45)
 BEACON_GAIN = 0.5
 BEACON_HZ = 523.25  # C5; the aligned figure adds the G above
 TICK_RANGE_M = 2.0  # hazards are silent at 2 m or more, as on the phone
-# A warning that holds (same sector, no stronger band) settles to one beep a second after 3 s:
+# A warning that holds (no stronger band, any direction) settles to one beep a second after 3 s:
 # the belt still holds it, and a stop beep five times a second for half a minute at a desk
 # is the constant noise the wearer turns off.
 SETTLE_AFTER_S = 3.0
@@ -160,25 +160,27 @@ def repeat_period(period: float, held_s: float) -> float:
 
 
 class Repeats:
-    """BeepScheduler's memory of the warning it is beeping. A warning keeps its place while
-    the same sector stays warned; the server's band flickers between fast and stop at a desk,
-    so only a new sector or a band worse than any yet in this warning sounds at once.
-    Everything else waits out the band's interval, eased once the warning has held."""
+    """BeepScheduler's memory of the warning it is beeping, from the first beep until all is
+    clear. At a desk the server's band flickers between fast and stop, and on the move the
+    nearest sector hops as the head turns; restarting on each of those beeped five times a
+    second. So only the first beep and a band worse than any yet sound at once; everything
+    else, a new direction included, waits out the band's interval (each beep still comes
+    from where the warning is now), eased once the warning has held."""
 
     RANK = {"slow": 1, "fast": 2, "stop": 3}
 
     def __init__(self) -> None:
-        self.sector: int | None = None
+        self.held = False
         self.since = self.last = -math.inf
         self.top = 0
 
     def clear(self) -> None:
-        self.sector = None
+        self.held = False
 
-    def due(self, t: float, sector: int, kind: str, period: float) -> bool:
+    def due(self, t: float, kind: str, period: float) -> bool:
         r = self.RANK[kind]
-        if sector != self.sector:
-            self.sector, self.since, self.top = sector, t, r
+        if not self.held:
+            self.held, self.since, self.top = True, t, r
         elif r > self.top:
             self.top = r
         elif t - self.last < repeat_period(period, t - self.since):
@@ -357,7 +359,7 @@ def schedule(
         if b is None:
             repeats.clear()
             continue
-        if repeats.due(float(t), i, b, tick_period(d.ground_m)):
+        if repeats.due(float(t), b, tick_period(d.ground_m)):
             events.append(Event(float(t), b, d))
     return events
 
@@ -402,15 +404,21 @@ def take_warning(msg: dict) -> tuple[int, float | None, str] | None:
     return best[1] if best else None
 
 
-def schedule_take(msgs: list[dict], beacon: bool = True, ticks: bool = True) -> list[Event]:
+def schedule_take(
+    msgs: list[dict],
+    beacon: bool = True,
+    ticks: bool = True,
+    start: float | None = None,
+    end: float | None = None,
+) -> list[Event]:
     """What the phone plays over a recorded take (judge replay or live jsonl), from its
     safety messages alone: the guide beacon at the guide's bearing and distance, the arrival
     notes when "found" turns on, and the hazard beep from the most urgent sector. Times are
-    seconds from the first message."""
+    seconds from start (wall clock; default the first message), up to end."""
     safety = [m for m in msgs if m.get("type") == "safety"]
     if not safety:
         return []
-    t0 = min(m["wall"] for m in msgs)
+    t0 = min(m["wall"] for m in msgs) if start is None else start
     walls = np.array([m["wall"] - t0 for m in safety])
     events: list[Event] = []
     next_beacon = -math.inf
@@ -444,20 +452,28 @@ def schedule_take(msgs: list[dict], beacon: bool = True, ticks: bool = True) -> 
         i, dist, b = w
         # A cue raised by the server without a distance beats at its band's own pace.
         dist_m = dist if dist is not None and band(dist) == b else BAND_PACE_M[b]
-        if not repeats.due(float(t), i, b, tick_period(dist_m)):
+        if not repeats.due(float(t), b, tick_period(dist_m)):
             continue
         az = ((i * 45 + 180) % 360) - 180
         events.append(Event(float(t), b, Direction(float(az), 0.0, dist_m, dist_m)))
-    return events
+    stop = math.inf if end is None else end - t0
+    return [e for e in events if 0 <= e.t <= stop]
 
 
 def render_take(
-    msgs: list[dict], method: str = "hrtf", beacon: bool = True, ticks: bool = True
+    msgs: list[dict],
+    method: str = "hrtf",
+    beacon: bool = True,
+    ticks: bool = True,
+    start: float | None = None,
+    end: float | None = None,
 ) -> np.ndarray:
-    """(n, 2) float32 stereo of what the phone plays over a recorded take, t = 0 at its first
-    message, so it lines up with a clip cut from the same take."""
-    events = schedule_take(msgs, beacon, ticks)
-    total = max(m["wall"] for m in msgs) - min(m["wall"] for m in msgs) + 1.0
+    """(n, 2) float32 stereo of what the phone plays over a recorded take, t = 0 at start
+    (default its first message), so it lines up with a clip cut from the same take. With an
+    end it is exactly end - start long."""
+    events = schedule_take(msgs, beacon, ticks, start, end)
+    t0 = min(m["wall"] for m in msgs) if start is None else start
+    total = (max(m["wall"] for m in msgs) + 1.0 if end is None else end) - t0
     return mix(events, total, method)
 
 
@@ -511,10 +527,14 @@ def render(
     return mix(shifted, float(times[-1] - times[0]), method)
 
 
-def write_wav(path: Path | str, samples: np.ndarray) -> None:
+def write_wav(path: Path | str, samples: np.ndarray, rate: int = SAMPLE_RATE) -> None:
+    """16-bit stereo; a rate other than 44.1 kHz resamples (48 kHz for video)."""
+    if rate != SAMPLE_RATE:
+        g = math.gcd(rate, SAMPLE_RATE)
+        samples = resample_poly(samples, rate // g, SAMPLE_RATE // g, axis=0)
     pcm = (np.clip(samples, -1, 1) * 32767).astype("<i2")
     with wave.open(str(path), "wb") as w:
         w.setnchannels(2)
         w.setsampwidth(2)
-        w.setframerate(SAMPLE_RATE)
+        w.setframerate(rate)
         w.writeframes(pcm.tobytes())

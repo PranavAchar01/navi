@@ -125,12 +125,18 @@ final class BeepCueTests: XCTestCase {
     let settled = beeps.filter { $0 >= 3.2 }
     XCTAssertGreaterThanOrEqual(beeps.filter { $0 < 3 }.count, 8)
     XCTAssertLessThanOrEqual(settled.count, 7)
-    // A new sector sounds at once, at full pace again.
+    // The head turns and the warning hops right: it keeps the settled pace.
     var side = [Double?](repeating: nil, count: 8)
     side[2] = 0.3
+    let right = ProximityReading(distances: side, modes: off)
     let t1 = t0.addingTimeInterval(10.04)
-    XCTAssertNotNil(
-      scheduler.next(reading: ProximityReading(distances: side, modes: off), receivedAt: t1, now: t1, volume: .normal))
+    XCTAssertNil(scheduler.next(reading: right, receivedAt: t1, now: t1, volume: .normal))
+    // All clear, then a new warning: it sounds at once.
+    let clear = ProximityReading(distances: [Double?](repeating: nil, count: 8), modes: off)
+    let t2 = t1.addingTimeInterval(0.1)
+    XCTAssertNil(scheduler.next(reading: clear, receivedAt: t2, now: t2, volume: .normal))
+    let t3 = t2.addingTimeInterval(0.1)
+    XCTAssertNotNil(scheduler.next(reading: right, receivedAt: t3, now: t3, volume: .normal))
   }
 
   // MARK: - Engine, rendered offline

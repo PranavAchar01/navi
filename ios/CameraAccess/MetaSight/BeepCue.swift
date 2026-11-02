@@ -137,8 +137,9 @@ struct BeepScheduler: Sendable {
   static let settleAfter: TimeInterval = 3
   static let settledInterval: TimeInterval = 1
 
-  /// The warning being beeped: its sector, when it began, and the worst band it has reached.
-  private var held: (sector: Int, since: Date, top: ProximityBand)?
+  /// The warning being beeped, from its first beep until all is clear: when it began and the
+  /// worst band it has reached.
+  private var held: (since: Date, top: ProximityBand)?
   private var lastAt: Date?
 
   init() {}
@@ -152,12 +153,13 @@ struct BeepScheduler: Sendable {
       held = nil
       return nil
     }
-    // A new sector, or a band worse than any yet in this warning, sounds at once (the
-    // server's band flickers between fast and stop); a repeat waits out its interval.
-    if held?.sector != warning.sector {
-      held = (warning.sector, now, warning.band)
+    // The first beep, or a band worse than any yet in this warning, sounds at once. The
+    // server's band flickers between fast and stop and the sector hops as the head turns, so
+    // anything else, a new direction included, waits out the interval (spatial_sound.Repeats).
+    if held == nil {
+      held = (now, warning.band)
     } else if let h = held, warning.band > h.top {
-      held = (h.sector, h.since, warning.band)
+      held = (h.since, warning.band)
     } else if let h = held, let l = lastAt {
       var interval = BeepCue.interval(for: warning)
       if now.timeIntervalSince(h.since) >= Self.settleAfter {

@@ -108,7 +108,15 @@ def test_a_held_warning_settles_and_a_flicker_does_not_restart_it() -> None:
     t = [e.t for e in ss.schedule_take(msgs)]
     assert len([x for x in t if x < 3]) >= 8
     assert len([x for x in t if x >= 3.2]) <= 7
+    # The head turns: the warning hops to the right and keeps the settled pace from there.
     side = [None, None, 0.3] + [None] * 5
     msgs.append(safety(10.04, cues=off, sectors=side))
     last = ss.schedule_take(msgs)[-1]
-    assert last.where.az_deg == 90 and last.t == pytest.approx(10.04, abs=0.05)
+    assert last.t < 10.0
+    msgs += [safety(10.04 + i * 0.04, cues=off, sectors=side) for i in range(1, 25)]
+    hop = ss.schedule_take(msgs)[-1]
+    assert hop.where.az_deg == 90 and 10.7 < hop.t < 10.9
+    # All clear, then a new warning: it sounds at once.
+    msgs.append(safety(11.1, cues=off))
+    msgs.append(safety(11.2, cues=off, sectors=side))
+    assert ss.schedule_take(msgs)[-1].t == pytest.approx(11.2, abs=0.05)
