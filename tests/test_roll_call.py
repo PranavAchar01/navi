@@ -141,3 +141,22 @@ def test_room_names_say_what_the_thing_is():
     ]
     assert [i.label for i in rc.pick([], to, twin=twin, room="Bedroom")] == ["desk"]
     assert {i.label for i in rc.pick([], to, twin=twin, room="living room")} == {"tv", "couch"}
+
+
+def test_belt_taps_follow_the_names_and_yield_to_a_solid_cue():
+    from metasight.belt import MODES
+
+    off = [(MODES["off"], 0)] * 8
+    taps = rc.BeltTaps()
+    taps.start({"items": [{"start": 0, "bearing": 90.0}, {"start": 28, "bearing": -90.0}]}, 100.0)
+    right = taps.overlay(off, 100.05)
+    assert [m for m, (mode, _) in enumerate(right) if mode] == [2]  # motor 2 is the right
+    assert taps.overlay(off, 100.5) == off  # between names
+    left = taps.overlay(off, 102.05)  # 28 characters at 14 per second
+    assert [m for m, (mode, _) in enumerate(left) if mode] == [6]
+    solid = [(MODES["solid"], 255)] + off[1:]
+    taps.start({"items": [{"start": 0, "bearing": 90.0}]}, 200.0)
+    assert taps.overlay(solid, 200.05) == solid
+    held = [(MODES["slow"], 255) if m == 2 else c for m, c in enumerate(off)]
+    assert taps.overlay(held, 200.06) == held  # a motor a proximity cue holds stays its own
+    assert taps.overlay(off, 201.0) == off and taps.due == []

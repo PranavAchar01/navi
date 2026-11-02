@@ -21,6 +21,8 @@ from dataclasses import dataclass
 import numpy as np
 
 from . import spatial_sound as ss
+from .belt import MODES
+from .belt_modes import talk_cmd
 
 MIN_SEEN = 20  # sightings before a pin is trusted enough to name
 FURNITURE_MIN_SEEN = 10  # furniture stays put, so fewer sightings will do
@@ -258,3 +260,31 @@ def taps(msg: dict, chars_per_s: float = SPEECH_CHARS_PER_S) -> list[tuple[float
     the name sits in the text. The phone plucks on the real word timing; the belt is on the Mac
     and only has this estimate."""
     return [(it["start"] / chars_per_s, it["bearing"]) for it in msg["items"]]
+
+
+TAP_S = 0.12  # one short tap per name
+TAP_LEVEL = 200
+
+
+class BeltTaps:
+    """The roll call's taps on the belt, laid over each frame's command like the Talk cue: a
+    tap only takes a motor nothing else holds, and none plays while any cue is solid (walking
+    into something outranks naming the room)."""
+
+    def __init__(self) -> None:
+        self.due: list[tuple[float, float]] = []  # (wall time, bearing)
+
+    def start(self, msg: dict, now: float) -> None:
+        self.due = [(now + t, b) for t, b in taps(msg)]
+
+    def overlay(self, cmd: list[tuple[int, int]], now: float) -> list[tuple[int, int]]:
+        self.due = [d for d in self.due if now < d[0] + TAP_S]
+        live = [b for t, b in self.due if t <= now]
+        if not live or any(mode == MODES["solid"] for mode, _ in cmd):
+            return cmd
+        out = list(cmd)
+        for bearing in live:
+            for motor, (mode, amp) in enumerate(talk_cmd(bearing, TAP_LEVEL)):
+                if mode != MODES["off"] and out[motor][0] == MODES["off"]:
+                    out[motor] = (mode, amp)
+        return out
