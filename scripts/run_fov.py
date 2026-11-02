@@ -22,11 +22,12 @@ import numpy as np
 from metasight import fovsim as F
 
 ROOT = Path(__file__).resolve().parent.parent
-REC = dict(low_slope=0.02, mask=True, people=True)  # the recommended memory (L14)
+# The recommended memory: L14's mask and slope, plus L16's floor checks on the pitch.
+L14 = dict(low_slope=0.02, mask=True, people=True)
+REC = dict(**L14, trust="level", min_span=0.8)
 ARMS = {
+    "memory, L14": F.Arms(**L14),
     "memory": F.Arms(**REC),
-    "memory, gate hip+pitch": F.Arms(**REC, gate="hip_pitch"),
-    "memory, gate moved": F.Arms(**REC, gate="moved"),
 }
 
 
@@ -45,12 +46,17 @@ def _ci(diff: np.ndarray, rng) -> list[float]:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--seeds", type=int, default=20)
+    ap.add_argument("--first-seed", type=int, default=0, help="20 for the held-out set")
     ap.add_argument("--hfov", type=float, default=F.HFOV)
     ap.add_argument("--eye-cfg", type=float, default=F.EYE_H, help="eye height the code believes")
     ap.add_argument("--scenes", nargs="*", default=list(F.SCENES))
     ap.add_argument("--out", default=str(ROOT / "bench" / "results" / "fov-sim.json"))
     a = ap.parse_args()
-    jobs = [(n, s, a.hfov, a.eye_cfg) for n in a.scenes for s in range(a.seeds)]
+    jobs = [
+        (n, s, a.hfov, a.eye_cfg)
+        for n in a.scenes
+        for s in range(a.first_seed, a.first_seed + a.seeds)
+    ]
     with ProcessPoolExecutor(max_workers=6) as ex:
         res = list(ex.map(_one, jobs))
     names = ["live", *ARMS]

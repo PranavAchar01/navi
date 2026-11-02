@@ -38,6 +38,7 @@ SECTORS = 8
 CORRIDOR_HALF_M = 0.45  # the path a walking body sweeps, as safety.BODY_HALF_M
 PATH_AHEAD_M = 2.0
 LOW_SLOPE = 0.02  # metres of extra height a low cell needs per metre of range
+MIN_SPAN = 0.8  # metres of floor a pitch fit needs (L16)
 
 
 def pitch_from_gravity(acc) -> float:
@@ -127,7 +128,12 @@ def level_points(depth: np.ndarray, hfov_deg: float, pitch_deg: float, eye_h: fl
 
 
 def level_floor(
-    depth: np.ndarray, hfov_deg: float, pitch_deg: float, eye_h: float, iters: int = 3
+    depth: np.ndarray,
+    hfov_deg: float,
+    pitch_deg: float,
+    eye_h: float,
+    iters: int = 3,
+    min_span: float | None = None,
 ) -> tuple[float, float] | None:
     """The floor's pitch and the camera's height over it, refined from a pitch guess.
 
@@ -136,7 +142,10 @@ def level_floor(
     again. A box or a desk edge at the bottom of the view stays out of the fit because it stands
     above the band, which safety's own fit (a plane through the lowest points) does not promise:
     in fovsim low_box it read 21 to 27 degrees for a second with the head at 15. Returns None when
-    fewer than 40 pixels look like floor, or the fit wanders more than 12 degrees off the guess."""
+    fewer than 40 pixels look like floor, or the fit wanders more than 12 degrees off the guess.
+    With `min_span`, the floor pixels in the last band must run at least that far (5th to 95th
+    percentile of forward distance): a strip of floor under a wall leaves the pitch free to tilt
+    into the wall (fovsim shelf_head read 13 to 30 degrees with the head at 5 to 18)."""
     h, w = depth.shape
     f = 0.5 * w / math.tan(math.radians(hfov_deg) / 2)
     v = np.arange(h)[:, None] - h / 2 + 0.5
@@ -152,6 +161,8 @@ def level_floor(
         (a, b), *_ = np.linalg.lstsq(A, np.ones(len(A)), rcond=None)
         p = math.degrees(math.atan2(a, b))
         H = 1.0 / math.hypot(a, b)
+    if min_span is not None and np.subtract(*np.percentile(fwd[m], [95, 5])) < min_span:
+        return None
     if abs(p - pitch_deg) > 12.0:
         return None
     return p, H
@@ -381,7 +392,7 @@ class FovLoop:
         h, w = z.shape
         imu = pitch_from_gravity(np.mean(accel, axis=0)) if len(accel) else None
         guess = imu + (self.fuse.offset or 0.0) if imu is not None else 30.0
-        lf = level_floor(z, self.hfov, guess, self.eye_h) if z.any() else None
+        lf = level_floor(z, self.hfov, guess, self.eye_h, min_span=MIN_SPAN) if z.any() else None
         normal = None
         if lf is not None:
             p = math.radians(lf[0])
@@ -402,6 +413,8 @@ class FovLoop:
                 mask[int(y0 * h) : int(math.ceil(y1 * h)), int(x0 * w) : int(math.ceil(x1 * w))] = (
                     False
                 )
+        if lf is None:  # no floor to back the pitch: clear what the frame sees through, add nothing
+            mask = np.zeros((h, w), bool)
         yaw = heading.yaw if heading.yaw is not None else heading.turn
         pos = (0.0, 0.0) if heading.pos is None else (float(heading.pos[0]), float(heading.pos[2]))
         fc = self.mem.update(now, z, pitch, yaw, pos, mask)

@@ -302,6 +302,11 @@ class Arms:
     level: bool = True  # fovmem.level_floor from the pitch guess, not safety's floor plane
     people: bool = False  # a person detector's box is kept out of the memory (people move)
     gate: str | None = None  # HazardMemory report gate: None, "hip_pitch" or "moved"
+    # Add new cells only on frames where the pitch is backed by a floor: None (always),
+    # "level" (level_floor fit this frame) or "mask" (safety found its floor plane).
+    trust: str | None = None
+    max_range_m: float = 2.5  # new cells only from points nearer than this
+    min_span: float | None = None  # level_floor: the floor seen must run this far (m)
 
 
 @dataclass
@@ -379,6 +384,7 @@ def run(
             min_hits=a.min_hits,
             low_slope=a.low_slope,
             gate=a.gate,
+            max_range_m=a.max_range_m,
         )
         for a in arms
     ]
@@ -461,17 +467,24 @@ def run(
             mask = (scene.grid < 255) if (a.mask and scene.floor) else None
             if a.people and person is not None:
                 mask = ~person if mask is None else mask & ~person
+            if a.trust == "mask" and not (a.mask and scene.floor):
+                mask = np.zeros(z.shape, bool)
             imu = pitch + p_bias[k] + arng[k].normal(0, a.pitch_sd)
             zk = z_m
             if a.level:
                 guess = imu + (fuses[k].offset or 0.0)
-                lf = level_floor(z, hfov, guess, eye_h_cfg / scale) if z.any() else None
+                lf = None
+                if z.any():
+                    eh = eye_h_cfg / scale
+                    lf = level_floor(z, hfov, guess, eh, min_span=a.min_span)
                 n = None
                 if lf is not None:
                     p_r = math.radians(lf[0])
                     n = np.array([0.0, -math.cos(p_r), -math.sin(p_r)])
                     zk = z * float(np.clip(eye_h_cfg / lf[1], 0.8, 1.25))
                 imu = fuses[k].update(imu, n) if a.fuse else imu
+                if a.trust == "level" and lf is None:
+                    mask = np.zeros(z.shape, bool)
             elif a.fuse:
                 imu = fuses[k].update(imu, plane[0] if plane is not None else None)
             fc = mem.update(

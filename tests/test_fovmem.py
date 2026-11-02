@@ -62,6 +62,13 @@ def test_level_floor_ignores_a_box_and_recovers_from_a_bad_guess():
     assert abs(level_floor(z * 1.1, HFOV, 15, EYE)[1] - 1.1 * EYE) < 0.03
 
 
+def test_level_floor_refuses_a_short_strip_of_floor():
+    # Head near level, wall 2.4 m ahead: the floor shows only from about 1.9 m to the wall.
+    assert level_floor(render(5, wall=2.4), HFOV, 5, EYE, min_span=0.8) is None
+    p, _ = level_floor(render(30, wall=2.4), HFOV, 30, EYE, min_span=0.8)
+    assert abs(p - 30) < 0.5
+
+
 def test_level_floor_none_without_floor():
     assert level_floor(render(-20, wall=1.0), HFOV, -20, EYE) is None
 

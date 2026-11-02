@@ -1,0 +1,714 @@
+{
+ "hfov": 44.8,
+ "eye_cfg": 1.6,
+ "seeds": 20,
+ "scenes": {
+  "desk_lookup": {
+   "note": "His example: the desk edge is seen while looking down, then he looks up at the monitor and steps in; the edge is under the frame at hip height.",
+   "arms": {
+    "live": {
+     "miss": 0.133,
+     "front_miss": 0.078,
+     "path_miss": 0.063,
+     "false_per_min": 13.6,
+     "danger": 3307,
+     "frames": 1320
+    },
+    "memory": {
+     "miss": 0.052,
+     "front_miss": 0.002,
+     "path_miss": 0.006,
+     "false_per_min": 13.6,
+     "danger": 3307,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.123,
+      -0.048
+     ]
+    },
+    "memory, trust level": {
+     "miss": 0.052,
+     "front_miss": 0.002,
+     "path_miss": 0.006,
+     "false_per_min": 13.6,
+     "danger": 3307,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.124,
+      -0.049
+     ]
+    },
+    "memory, trust + span 0.8": {
+     "miss": 0.052,
+     "front_miss": 0.002,
+     "path_miss": 0.006,
+     "false_per_min": 13.6,
+     "danger": 3307,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.124,
+      -0.048
+     ]
+    },
+    "memory, trust + span 0.6": {
+     "miss": 0.052,
+     "front_miss": 0.002,
+     "path_miss": 0.006,
+     "false_per_min": 13.6,
+     "danger": 3307,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.122,
+      -0.048
+     ]
+    },
+    "memory, trust + span 0.8 + h 0.15": {
+     "miss": 0.052,
+     "front_miss": 0.002,
+     "path_miss": 0.006,
+     "false_per_min": 13.6,
+     "danger": 3307,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.124,
+      -0.049
+     ]
+    }
+   }
+  },
+  "shelf_head": {
+   "note": "A shelf at head height seen from across the room; walking up to it the wearer looks at the floor, and the shelf is above the top of the frame.",
+   "arms": {
+    "live": {
+     "miss": 0.878,
+     "front_miss": 0.878,
+     "path_miss": 0.983,
+     "false_per_min": 50.2,
+     "danger": 1087,
+     "frames": 1180
+    },
+    "memory": {
+     "miss": 0.0,
+     "front_miss": 0.0,
+     "path_miss": 0.0,
+     "false_per_min": 193.7,
+     "danger": 1087,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.908,
+      -0.839
+     ]
+    },
+    "memory, trust level": {
+     "miss": 0.0,
+     "front_miss": 0.0,
+     "path_miss": 0.0,
+     "false_per_min": 169.2,
+     "danger": 1087,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.909,
+      -0.84
+     ]
+    },
+    "memory, trust + span 0.8": {
+     "miss": 0.049,
+     "front_miss": 0.049,
+     "path_miss": 0.0,
+     "false_per_min": 53.5,
+     "danger": 1087,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.887,
+      -0.756
+     ]
+    },
+    "memory, trust + span 0.6": {
+     "miss": 0.018,
+     "front_miss": 0.018,
+     "path_miss": 0.0,
+     "false_per_min": 123.6,
+     "danger": 1087,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.895,
+      -0.82
+     ]
+    },
+    "memory, trust + span 0.8 + h 0.15": {
+     "miss": 0.051,
+     "front_miss": 0.051,
+     "path_miss": 0.0,
+     "false_per_min": 51.6,
+     "danger": 1087,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.887,
+      -0.755
+     ]
+    }
+   }
+  },
+  "low_box": {
+   "note": "A shoebox on the floor ahead, seen from 2 m; walking up with the head level it drops under the bottom edge at about 1.2 m.",
+   "arms": {
+    "live": {
+     "miss": 0.957,
+     "front_miss": 0.957,
+     "path_miss": 0.91,
+     "false_per_min": 1.8,
+     "danger": 1823,
+     "frames": 1320
+    },
+    "memory": {
+     "miss": 0.029,
+     "front_miss": 0.029,
+     "path_miss": 0.0,
+     "false_per_min": 5.9,
+     "danger": 1823,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.939,
+      -0.912
+     ]
+    },
+    "memory, trust level": {
+     "miss": 0.029,
+     "front_miss": 0.029,
+     "path_miss": 0.0,
+     "false_per_min": 5.9,
+     "danger": 1823,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.939,
+      -0.911
+     ]
+    },
+    "memory, trust + span 0.8": {
+     "miss": 0.029,
+     "front_miss": 0.029,
+     "path_miss": 0.0,
+     "false_per_min": 5.9,
+     "danger": 1823,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.938,
+      -0.911
+     ]
+    },
+    "memory, trust + span 0.6": {
+     "miss": 0.029,
+     "front_miss": 0.029,
+     "path_miss": 0.0,
+     "false_per_min": 5.9,
+     "danger": 1823,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.939,
+      -0.911
+     ]
+    },
+    "memory, trust + span 0.8 + h 0.15": {
+     "miss": 0.029,
+     "front_miss": 0.029,
+     "path_miss": 0.0,
+     "false_per_min": 5.9,
+     "danger": 1823,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.939,
+      -0.911
+     ]
+    }
+   }
+  },
+  "chair_legs": {
+   "note": "A chair on thin legs, seat at 0.45 m: approached looking down, then the head comes up to look for the table beyond it.",
+   "arms": {
+    "live": {
+     "miss": 0.748,
+     "front_miss": 0.748,
+     "path_miss": 0.569,
+     "false_per_min": 25.1,
+     "danger": 2318,
+     "frames": 1180
+    },
+    "memory": {
+     "miss": 0.019,
+     "front_miss": 0.019,
+     "path_miss": 0.0,
+     "false_per_min": 82.0,
+     "danger": 2318,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.751,
+      -0.702
+     ]
+    },
+    "memory, trust level": {
+     "miss": 0.019,
+     "front_miss": 0.019,
+     "path_miss": 0.0,
+     "false_per_min": 82.0,
+     "danger": 2318,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.751,
+      -0.702
+     ]
+    },
+    "memory, trust + span 0.8": {
+     "miss": 0.019,
+     "front_miss": 0.019,
+     "path_miss": 0.0,
+     "false_per_min": 81.3,
+     "danger": 2318,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.751,
+      -0.702
+     ]
+    },
+    "memory, trust + span 0.6": {
+     "miss": 0.019,
+     "front_miss": 0.019,
+     "path_miss": 0.0,
+     "false_per_min": 81.3,
+     "danger": 2318,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.75,
+      -0.702
+     ]
+    },
+    "memory, trust + span 0.8 + h 0.15": {
+     "miss": 0.019,
+     "front_miss": 0.019,
+     "path_miss": 0.0,
+     "false_per_min": 81.3,
+     "danger": 2318,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.75,
+      -0.701
+     ]
+    }
+   }
+  },
+  "doorway_turn": {
+   "note": "Walking through a 0.8 m doorway while looking 70 degrees to the right (someone called): the jambs left the view a step before the shoulders pass them.",
+   "arms": {
+    "live": {
+     "miss": 0.567,
+     "front_miss": 0.191,
+     "path_miss": 0.155,
+     "false_per_min": 14.5,
+     "danger": 2077,
+     "frames": 1180
+    },
+    "memory": {
+     "miss": 0.001,
+     "front_miss": 0.0,
+     "path_miss": 0.0,
+     "false_per_min": 100.5,
+     "danger": 2077,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.573,
+      -0.558
+     ]
+    },
+    "memory, trust level": {
+     "miss": 0.001,
+     "front_miss": 0.0,
+     "path_miss": 0.0,
+     "false_per_min": 100.5,
+     "danger": 2077,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.573,
+      -0.558
+     ]
+    },
+    "memory, trust + span 0.8": {
+     "miss": 0.001,
+     "front_miss": 0.0,
+     "path_miss": 0.0,
+     "false_per_min": 100.5,
+     "danger": 2077,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.574,
+      -0.558
+     ]
+    },
+    "memory, trust + span 0.6": {
+     "miss": 0.001,
+     "front_miss": 0.0,
+     "path_miss": 0.0,
+     "false_per_min": 100.5,
+     "danger": 2077,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.573,
+      -0.558
+     ]
+    },
+    "memory, trust + span 0.8 + h 0.15": {
+     "miss": 0.001,
+     "front_miss": 0.0,
+     "path_miss": 0.0,
+     "false_per_min": 100.5,
+     "danger": 2077,
+     "frames": 1180,
+     "miss_diff_ci": [
+      -0.573,
+      -0.558
+     ]
+    }
+   }
+  },
+  "turn_back": {
+   "note": "Standing at a table, turning the head away 90 degrees to talk, then turning the body back toward the table and stepping in: the edge is at the side, then ahead.",
+   "arms": {
+    "live": {
+     "miss": 0.535,
+     "front_miss": 0.279,
+     "path_miss": 0.391,
+     "false_per_min": 0.0,
+     "danger": 4141,
+     "frames": 1320
+    },
+    "memory": {
+     "miss": 0.03,
+     "front_miss": 0.013,
+     "path_miss": 0.001,
+     "false_per_min": 4.7,
+     "danger": 4141,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.528,
+      -0.481
+     ]
+    },
+    "memory, trust level": {
+     "miss": 0.03,
+     "front_miss": 0.013,
+     "path_miss": 0.001,
+     "false_per_min": 4.7,
+     "danger": 4141,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.526,
+      -0.481
+     ]
+    },
+    "memory, trust + span 0.8": {
+     "miss": 0.03,
+     "front_miss": 0.013,
+     "path_miss": 0.001,
+     "false_per_min": 4.7,
+     "danger": 4141,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.528,
+      -0.482
+     ]
+    },
+    "memory, trust + span 0.6": {
+     "miss": 0.03,
+     "front_miss": 0.013,
+     "path_miss": 0.001,
+     "false_per_min": 4.7,
+     "danger": 4141,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.529,
+      -0.483
+     ]
+    },
+    "memory, trust + span 0.8 + h 0.15": {
+     "miss": 0.03,
+     "front_miss": 0.013,
+     "path_miss": 0.001,
+     "false_per_min": 4.7,
+     "danger": 4141,
+     "frames": 1320,
+     "miss_diff_ci": [
+      -0.527,
+      -0.481
+     ]
+    }
+   }
+  },
+  "fast_turn_blur": {
+   "note": "A fast head sweep (about 200 deg/s) across a table at hip height: the frames in the sweep are smeared and read as nothing.",
+   "arms": {
+    "live": {
+     "miss": 0.374,
+     "front_miss": 0.302,
+     "path_miss": 0.366,
+     "false_per_min": 3.0,
+     "danger": 3014,
+     "frames": 1040
+    },
+    "memory": {
+     "miss": 0.111,
+     "front_miss": 0.104,
+     "path_miss": 0.005,
+     "false_per_min": 4.5,
+     "danger": 3014,
+     "frames": 1040,
+     "miss_diff_ci": [
+      -0.274,
+      -0.253
+     ]
+    },
+    "memory, trust level": {
+     "miss": 0.111,
+     "front_miss": 0.104,
+     "path_miss": 0.005,
+     "false_per_min": 4.5,
+     "danger": 3014,
+     "frames": 1040,
+     "miss_diff_ci": [
+      -0.273,
+      -0.253
+     ]
+    },
+    "memory, trust + span 0.8": {
+     "miss": 0.111,
+     "front_miss": 0.104,
+     "path_miss": 0.005,
+     "false_per_min": 4.5,
+     "danger": 3014,
+     "frames": 1040,
+     "miss_diff_ci": [
+      -0.274,
+      -0.253
+     ]
+    },
+    "memory, trust + span 0.6": {
+     "miss": 0.111,
+     "front_miss": 0.104,
+     "path_miss": 0.005,
+     "false_per_min": 4.5,
+     "danger": 3014,
+     "frames": 1040,
+     "miss_diff_ci": [
+      -0.274,
+      -0.253
+     ]
+    },
+    "memory, trust + span 0.8 + h 0.15": {
+     "miss": 0.111,
+     "front_miss": 0.104,
+     "path_miss": 0.005,
+     "false_per_min": 4.5,
+     "danger": 3014,
+     "frames": 1040,
+     "miss_diff_ci": [
+      -0.274,
+      -0.253
+     ]
+    }
+   }
+  },
+  "side_entry": {
+   "note": "Someone steps into the path from the side, inside 1 m: they were never in the view before, so memory cannot help (a control).",
+   "arms": {
+    "live": {
+     "miss": 0.014,
+     "front_miss": 0.014,
+     "path_miss": 0.002,
+     "false_per_min": 10.5,
+     "danger": 813,
+     "frames": 1040
+    },
+    "memory": {
+     "miss": 0.014,
+     "front_miss": 0.014,
+     "path_miss": 0.002,
+     "false_per_min": 10.5,
+     "danger": 813,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "memory, trust level": {
+     "miss": 0.014,
+     "front_miss": 0.014,
+     "path_miss": 0.002,
+     "false_per_min": 10.5,
+     "danger": 813,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "memory, trust + span 0.8": {
+     "miss": 0.014,
+     "front_miss": 0.014,
+     "path_miss": 0.002,
+     "false_per_min": 10.5,
+     "danger": 813,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "memory, trust + span 0.6": {
+     "miss": 0.014,
+     "front_miss": 0.014,
+     "path_miss": 0.002,
+     "false_per_min": 10.5,
+     "danger": 813,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "memory, trust + span 0.8 + h 0.15": {
+     "miss": 0.014,
+     "front_miss": 0.014,
+     "path_miss": 0.002,
+     "false_per_min": 10.5,
+     "danger": 813,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    }
+   }
+  },
+  "glass_pane": {
+   "note": "A glass door the depth cannot see (a control: nothing to remember).",
+   "arms": {
+    "live": {
+     "miss": 0.996,
+     "front_miss": 0.996,
+     "path_miss": 1.0,
+     "false_per_min": 0.0,
+     "danger": 1424,
+     "frames": 1040
+    },
+    "memory": {
+     "miss": 0.996,
+     "front_miss": 0.996,
+     "path_miss": 1.0,
+     "false_per_min": 0.0,
+     "danger": 1424,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "memory, trust level": {
+     "miss": 0.996,
+     "front_miss": 0.996,
+     "path_miss": 1.0,
+     "false_per_min": 0.0,
+     "danger": 1424,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "memory, trust + span 0.8": {
+     "miss": 0.996,
+     "front_miss": 0.996,
+     "path_miss": 1.0,
+     "false_per_min": 0.0,
+     "danger": 1424,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "memory, trust + span 0.6": {
+     "miss": 0.996,
+     "front_miss": 0.996,
+     "path_miss": 1.0,
+     "false_per_min": 0.0,
+     "danger": 1424,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    },
+    "memory, trust + span 0.8 + h 0.15": {
+     "miss": 0.996,
+     "front_miss": 0.996,
+     "path_miss": 1.0,
+     "false_per_min": 0.0,
+     "danger": 1424,
+     "frames": 1040,
+     "miss_diff_ci": [
+      0.0,
+      0.0
+     ]
+    }
+   }
+  }
+ },
+ "total": {
+  "live": {
+   "miss": 0.541,
+   "front_miss": 0.462,
+   "path_miss": 0.46,
+   "false_per_min": 13.2,
+   "danger": 20004,
+   "frames": 10620
+  },
+  "memory": {
+   "miss": 0.108,
+   "front_miss": 0.108,
+   "path_miss": 0.078,
+   "false_per_min": 46.3,
+   "danger": 20004,
+   "frames": 10620
+  },
+  "memory, trust level": {
+   "miss": 0.108,
+   "front_miss": 0.108,
+   "path_miss": 0.078,
+   "false_per_min": 43.6,
+   "danger": 20004,
+   "frames": 10620
+  },
+  "memory, trust + span 0.8": {
+   "miss": 0.111,
+   "front_miss": 0.111,
+   "path_miss": 0.078,
+   "false_per_min": 30.6,
+   "danger": 20004,
+   "frames": 10620
+  },
+  "memory, trust + span 0.6": {
+   "miss": 0.109,
+   "front_miss": 0.109,
+   "path_miss": 0.078,
+   "false_per_min": 38.4,
+   "danger": 20004,
+   "frames": 10620
+  },
+  "memory, trust + span 0.8 + h 0.15": {
+   "miss": 0.111,
+   "front_miss": 0.112,
+   "path_miss": 0.078,
+   "false_per_min": 30.4,
+   "danger": 20004,
+   "frames": 10620
+  }
+ }
+}
