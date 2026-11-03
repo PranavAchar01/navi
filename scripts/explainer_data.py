@@ -324,10 +324,10 @@ def sim() -> dict:
     }
 
 
-def belt_dark() -> None:
+def belt_keyed(name: str = "belt", back: tuple[int, int, int] = (7, 9, 12)) -> None:
     """The belt3d replay (light studio background) cut to the film's stretch of the log and laid
-    on the film's dark background: alpha from each pixel's distance to the studio colour, so
-    the soft floor shadow fades out and the belt keeps its own colours."""
+    on the film's background (dark, or the glass card's white): alpha from each pixel's distance
+    to the studio colour, so the soft floor shadow fades out and the belt keeps its own colours."""
     src = ROOT / "data/demo-takes/cut/belt3d/replay.mp4"
     off = json.loads((src.parent / "replay.json").read_text())["offset"]
     w, h = 1920, 672
@@ -373,12 +373,12 @@ def belt_dark() -> None:
             "14",
             "-pix_fmt",
             "yuv420p",
-            str(OUT / "media/belt.mp4"),
+            str(OUT / f"media/{name}.mp4"),
         ],
         stdin=subprocess.PIPE,
     )
     studio = np.array([246, 245, 248], np.float32)
-    dark = np.array([12, 9, 7], np.float32)
+    dark = np.array(back[::-1], np.float32)
     while True:
         buf = rd.stdout.read(w * h * 3)
         if len(buf) < w * h * 3:
@@ -416,7 +416,10 @@ def main() -> None:
         to_js()
         return
     if "--belt" in sys.argv:
-        belt_dark()
+        belt_keyed()
+        return
+    if "--belt-light" in sys.argv:
+        belt_keyed("belt-light", (250, 252, 254))
         return
     if "--sim" in sys.argv:
         (OUT / "data/sim.json").write_text(json.dumps(sim(), separators=(",", ":")))
