@@ -40,3 +40,20 @@ def test_cueing_the_second_object_keeps_the_walker_off_the_uncued_side():
     two = S.walk(sc, R.belt_for("I6", "eight"), seed=2001, record=False, **R.ARMS["I6"][2])
     assert one.metrics()["collisions"] > 0
     assert two.metrics()["collisions"] == 0 and two.metrics()["success"]
+
+
+def test_memory_holds_obstacles_not_the_floor_the_camera_sees():
+    # chair_legs looks 30 degrees down; unmasked, the floor became cells 5 cm from the wearer
+    import numpy as np
+
+    sc = S.scenario("chair_legs")
+    sensor = S.GlassesSensor(sc, map_sides=False, memory=True)
+    rng = np.random.default_rng(0)
+    room = sc.room(0)
+    try:
+        for k in range(60):
+            sensor(room, 1.0 + 0.015 * k, 1.6 + 0.01 * k, 0.4, rng)
+    finally:
+        sensor.close()
+    behind = sensor.last["sectors"][3:6]  # rear half: nothing real within a metre
+    assert min(behind) > 0.5

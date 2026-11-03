@@ -27,7 +27,7 @@ import numpy as np
 
 from . import fovrooms, fovsim
 from . import hapsim as h
-from .fovmem import HazardMemory
+from .fovmem import HazardMemory, level_floor, loose_floor
 from .geometry import grid_strips
 from .safety import GRID, analyse
 
@@ -425,7 +425,7 @@ class GlassesSensor:
         self.opt = eye_option()
         self.noise = noise
         self.map_sides = map_sides
-        self.mem = HazardMemory(HFOV, EYE_H) if memory else None
+        self.mem = HazardMemory(HFOV, EYE_H, low_slope=0.02) if memory else None
         self.prev = None
         self.t = 0.0
         self.last: dict = {}
@@ -446,11 +446,21 @@ class GlassesSensor:
         else:
             sectors = [math.inf] * 8
         if self.mem is not None:
-            fc = self.mem.update(self.t, z, pitch, heading, (y, x), None)
+            fc = self.mem.update(self.t, z, pitch, heading, (y, x), self._mask(z, scene, pitch))
             sectors = [min(a, b) for a, b in zip(sectors, fc.hidden, strict=True)]
         self.last = {"strips": strips, "sectors": sectors, "pitch": pitch}
         self.t += h.SENSE_DT
         return strips, sectors
+
+    def _mask(self, z: np.ndarray, scene, pitch: float) -> np.ndarray:
+        """The memory's recommended settings (`run_fov.REC`): only pixels the floor geometry calls
+        obstacles may become cells, and none when no floor backs the pitch in use."""
+        mask = scene.grid < 255 if scene.floor else None
+        if level_floor(z, HFOV, pitch, EYE_H, min_span=0.8) is None and not (
+            z.any() and loose_floor(z, HFOV, pitch, EYE_H, pitch)
+        ):
+            mask = np.zeros(z.shape, bool)
+        return mask
 
     def close(self) -> None:
         self.r.close()
