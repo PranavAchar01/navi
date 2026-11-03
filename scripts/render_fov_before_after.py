@@ -118,7 +118,7 @@ def stage_comp(scene: Path, frames: Path) -> None:
 
 
 def caption(img: Image.Image, x: int, text: str, col) -> None:
-    ImageDraw.Draw(img).text((x, 650), text, font=ImageFont.truetype(FONT, 30), fill=col)
+    ImageDraw.Draw(img).text((x, 634), text, font=ImageFont.truetype(FONT, 30), fill=col)
 
 
 def stack(name: str, title: str, comps: list[Path], notes: list[str], out: Path, note: str) -> None:
@@ -135,7 +135,7 @@ def stack(name: str, title: str, comps: list[Path], notes: list[str], out: Path,
             img.paste(fr, (j * PANEL[0], 90))
             caption(img, 24 + j * PANEL[0], notes[j], ARMS[j][2])
         d = ImageDraw.Draw(img)
-        d.text((24, 692), LABEL + (f"   {note}" if note else ""), font=font_s, fill=(210, 210, 210))
+        d.text((24, 678), LABEL + (f"   {note}" if note else ""), font=font_s, fill=(210, 210, 210))
         img.save(tmp / f"{k:05d}.png")
     out.parent.mkdir(parents=True, exist_ok=True)
     run(
