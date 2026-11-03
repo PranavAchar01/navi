@@ -296,6 +296,12 @@ def main() -> None:
         default=[],
         help="a [safety] key for this run, e.g. map_sides=false",
     )
+    ap.add_argument(
+        "--watch",
+        action="append",
+        default=[],
+        help="an extra word for the open-vocabulary segmenter (with --set segment=true)",
+    )
     ap.add_argument("--record", type=Path, help="write every safety and answer message here")
     ap.add_argument(
         "--hazards", action="store_true", help="keep the hazard outlines in --record (for the HUD)"
@@ -313,9 +319,12 @@ def main() -> None:
     # on 4210, and a second server sending there would drive it) and the answer also played as
     # Braille cell events, for the judge view's touch panel.
     config = home / "judge.toml"
+    profile = (ROOT / "metasight.glasses.toml").read_text()
+    extra = "".join(f"  {json.dumps(w)},\n" for w in a.watch)
+    profile = profile.replace("[memory]\nwatchlist = [\n", "[memory]\nwatchlist = [\n" + extra, 1)
     config.write_text(
         judge_config(
-            (ROOT / "metasight.glasses.toml").read_text(),
+            profile,
             {
                 "belt": '"emulator"',
                 "belt_addr": f'"127.0.0.1:{a.belt_port}"',
