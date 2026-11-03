@@ -1,5 +1,6 @@
 // The 3D belt on its own, for the demo video: replays a take's logged belt messages in real
-// time (?mode=replay) or runs the 4/8/16 layout tour (?mode=tour). Playback starts when the
+// time (?mode=replay), runs the 4/8/16 layout tour (?mode=tour), or turns the 8-motor belt round
+// while each motor buzzes in turn (?mode=orbit). Playback starts when the
 // recorder calls window.__go(), which returns the wall-clock start in ms.
 import { Belt3D } from "./belt3d";
 import { cellsFromBelt } from "./overlay";
@@ -18,6 +19,10 @@ const mode = new URLSearchParams(location.search).get("mode") ?? "replay";
 const belt = new Belt3D(document.getElementById("belt") as HTMLElement);
 const { cues } = (await (await fetch("/_cut/belt-cues.json")).json()) as { cues: Cue[] };
 window.__done = false;
+if (mode === "orbit") {
+  belt.zoom = 1.3;
+  belt.yaw = -0.45;
+}
 const IDLE: Belt = {
   type: "belt",
   device: "replay",
@@ -57,7 +62,17 @@ function replay(start: number) {
 
 window.__go = async () => {
   const start = performance.now();
-  if (mode === "tour") {
+  if (mode === "orbit") {
+    const len = 8000;
+    const turn = () => {
+      const u = Math.min(1, (performance.now() - start) / len);
+      belt.yaw = -0.45 + 0.9 * (0.5 - 0.5 * Math.cos(Math.PI * u));
+      if (u < 1) requestAnimationFrame(turn);
+    };
+    turn();
+    sweep(start);
+    setTimeout(() => (window.__done = true), len);
+  } else if (mode === "tour") {
     belt.tour(3500);
     sweep(start);
     setTimeout(() => (window.__done = true), 4 * 3500);

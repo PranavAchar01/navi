@@ -368,6 +368,10 @@ export class Belt3D {
   layout: Layout = 8;
   /** How brightly a running can glows; the sim render turns it up to read at card size. */
   canGlow = 0.22;
+  /** Camera yaw in radians, set by the video page to turn the belt round; null keeps the sway. */
+  yaw: number | null = null;
+  /** Pulls the camera back (above 1) so a turning belt stays in frame. */
+  zoom = 1;
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(26, 1, 0.01, 10);
@@ -923,8 +927,8 @@ export class Belt3D {
 
   private frame(ms: number) {
     if (!this.visible || document.hidden) return;
-    this.dist += (this.distTarget - this.dist) * 0.08;
-    const sway = Math.sin(ms / 5200) * 0.035;
+    this.dist += (this.distTarget * this.zoom - this.dist) * 0.08;
+    const sway = this.yaw ?? Math.sin(ms / 5200) * 0.035;
     this.pitch += ((this.layout === 4 ? 0.3 : 0.5) - this.pitch) * 0.08;
     const pitch = this.pitch;
     const look = new THREE.Vector3(0, -0.004, 0.01);
