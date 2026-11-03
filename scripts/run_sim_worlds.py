@@ -9,11 +9,13 @@ for I0 and I6. Each replay is checked against `bench/results/sim-walk.json` (con
 before it is written to data/demo-takes/sim/worlds/scenes/{arm}-{scenario}-{layout}-{seed}.json
 for scripts/blender_sim_tile.py.
 
-    PYTHONPATH=. nice -n 19 taskpolicy -b .venv/bin/python scripts/run_sim_worlds.py
+    PYTHONPATH=. nice -n 19 taskpolicy -b .venv/bin/python scripts/run_sim_worlds.py \
+        [--runs eight:1005,diag4:1000 ...]   # other ledger seeds, for the canvas reel's copies
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import multiprocessing as mp
 import sys
@@ -38,22 +40,25 @@ def ledger() -> dict:
 
 
 def one(job) -> str:
-    arm, name, layout = job
+    arm, name, layout, seed = job
     sc = S.scenario(name)
-    tr = S.walk(sc, E.belt_for(arm, layout), seed=SEED, **E.ARMS[arm][2])
-    doc = X.scene_file(sc, tr, layout, SEED)
+    tr = S.walk(sc, E.belt_for(arm, layout), seed=seed, **E.ARMS[arm][2])
+    doc = X.scene_file(sc, tr, layout, seed)
     doc["arm"] = arm
-    row = ledger()[(arm, name, layout, SEED)]
+    row = ledger()[(arm, name, layout, seed)]
     clean = bool(row["success"] and row["collisions"] == 0)
     assert doc["metrics"]["collisions"] == row["collisions"], (job, doc["metrics"], row)
     assert doc["metrics"]["success"] == clean, (job, doc["metrics"], row)
     SCENES.mkdir(parents=True, exist_ok=True)
-    (SCENES / f"{arm}-{name}-{layout}-{SEED}.json").write_text(json.dumps(doc))
-    return f"{arm} {name} {layout} contacts {row['collisions']} clean {clean}"
+    (SCENES / f"{arm}-{name}-{layout}-{seed}.json").write_text(json.dumps(doc))
+    return f"{arm} {name} {layout} {seed} contacts {row['collisions']} clean {clean}"
 
 
 def main() -> None:
-    jobs = [(a, n, lay) for a in ARMS for n in S.SCENARIOS for lay in E.LAYOUTS]
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--runs", nargs="*", default=[f"{lay}:{SEED}" for lay in E.LAYOUTS])
+    runs = [(r.split(":")[0], int(r.split(":")[1])) for r in ap.parse_args().runs]
+    jobs = [(a, n, lay, sd) for a in ARMS for n in S.SCENARIOS for lay, sd in runs]
     with mp.get_context("spawn").Pool(8) as p:  # a forked MuJoCo GL context hangs on macOS
         for line in p.map(one, jobs):
             print(line)
