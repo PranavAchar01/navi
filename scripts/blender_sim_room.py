@@ -724,6 +724,18 @@ def build_tower_fan(o, M):
     cyl("fan_foot", cx, cy, 0.0, 0.03, 0.15, M["black"])
 
 
+def build_shelf(o, M):
+    """The head-height shelf of the field-of-view catalogue: a board at its true height (the sim
+    has nothing under it, so neither does the render), with a few books on it."""
+    cx, cy, cz, hx, hy, hz, yaw = o["obb"]
+    box("shelf_board", (cx, cy, cz), (hx, hy, max(hz, 0.015)), M["wood_dark"], yaw=yaw, bevel=0.004)
+    top = cz + max(hz, 0.015)
+    for k, (dy, h, col) in enumerate(
+        ((-0.32, 0.11, "cloth_red"), (-0.25, 0.12, "cloth_grey"), (0.18, 0.1, "board"))
+    ):
+        box(f"shelf_book{k}", (cx, cy + dy, top + h), (hx * 0.7, 0.025, h), M[col], yaw=yaw)
+
+
 def build_clutter(o, M, k):
     cx, cy, cz, hx, hy, hz, yaw = o["obb"]
     hz = max(hz, 0.03)
@@ -798,6 +810,8 @@ def build_furniture(sc, M, bounds):
             build_tower_fan(o, M)
         elif lab == "laptop":
             build_laptop(o, M, z_on=support_z(sc, o))
+        elif lab == "shelf":
+            build_shelf(o, M)
         else:
             build_clutter(o, M, k)
             k += 1

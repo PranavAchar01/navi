@@ -6,7 +6,8 @@ SIMULATED USER MODEL, NOT A HUMAN STUDY.
 
     blender -b --factory-startup --python scripts/blender_sim_tile.py -- \
         --grid data/demo-takes/sim/grid --tile eight-1000 --out data/demo-takes/sim/tiles \
-        [--arms I0,I3,I5,I6 --cap 330 --step 2 --scale 20 --samples 4 --first 0 --last N]
+        [--arms I0,I3,I5,I6 --cap 330 --step 2 --scale 20 --samples 4 --first 0 --last N
+         --res 576x400]
 """
 
 from __future__ import annotations
@@ -53,7 +54,11 @@ def render_arm(a: dict, arm: str):
         walker.pose(plan[k], frames[k], k + 1, seat and seat[3])
     R.finish_walker(walker)
     R.setup_light(bounds)
-    R.setup_camera(bounds)
+    if "res" in a:  # a tile of its own shape, e.g. 576x400: the room fills more of it
+        R.W, R.H = (int(v) for v in a["res"].split("x"))
+        rs = bpy.context.scene.render
+        rs.resolution_x, rs.resolution_y = R.W, R.H  # the camera fit reads the aspect
+    cam = R.setup_camera(bounds)
     R.setup_render(int(a.get("samples", 4)), int(a.get("scale", 20)))
     scn = bpy.context.scene
     scn.render.image_settings.file_format = "JPEG"
@@ -64,6 +69,7 @@ def render_arm(a: dict, arm: str):
     scn.frame_start, scn.frame_end, scn.frame_step = first + 1, last + 1, step
     d = Path(a["out"]) / a["tile"] / arm
     d.mkdir(parents=True, exist_ok=True)
+    R.write_cam(cam, d / "cam.json")  # world -> pixel, for the overlay pass
     scn.render.filepath = str(d / "#####")
     bpy.ops.render.render(animation=True)
 
