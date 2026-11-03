@@ -32,7 +32,6 @@ FONT = "/System/Library/Fonts/SFNS.ttf"
 GREEN = (64, 255, 115)
 RED = (255, 41, 31)
 FLASH = 24  # frames a red flash takes to fade
-STATUS = {"I0": "I0", "I3": "I1", "I5": "I2", "I6": "I3"}
 
 
 def smooth(x: float) -> float:
@@ -189,7 +188,7 @@ class Reel:
             clean += 1 if info["clean"] and g >= info["end"] else 0
         n = len(self.tiles)
         draw.rectangle((0, H - 60, W, H), fill=(14, 15, 18, 255))
-        arm = STATUS[ph["arm"]]
+        arm = ph["arm"]
         draw.text((28, H - 47), f"{arm}", font=self.f_big, fill=(255, 255, 255, 255))
         draw.text((100, H - 42), ph["caption"], font=self.f_small, fill=(214, 214, 210, 255))
         right = f"seated without touching anything {clean}/{n}    contacts {contacts}"
