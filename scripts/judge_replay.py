@@ -154,7 +154,8 @@ async def play(a, url: str) -> None:
             if isinstance(m, str):
                 d = json.loads(m)
                 if rec and d["type"] in ("safety", "answer", "belt"):
-                    d.pop("hazards", None)
+                    if not a.hazards:
+                        d.pop("hazards", None)
                     rec.write(json.dumps({"wall": time.time(), **d}) + "\n")
                 if d["type"] == "status" and d.get("memory") == "ready":
                     ready.set()
@@ -296,6 +297,9 @@ def main() -> None:
         help="a [safety] key for this run, e.g. map_sides=false",
     )
     ap.add_argument("--record", type=Path, help="write every safety and answer message here")
+    ap.add_argument(
+        "--hazards", action="store_true", help="keep the hazard outlines in --record (for the HUD)"
+    )
     a = ap.parse_args()
     url = f"ws://127.0.0.1:{a.port}/ws"
     if a.no_server:

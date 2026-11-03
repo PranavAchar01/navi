@@ -1,7 +1,7 @@
 // The 3D belt on its own, for the demo video: replays a take's logged belt messages in real
-// time (?mode=replay), runs the 4/8/16 layout tour (?mode=tour), or turns the 8-motor belt round
-// while each motor buzzes in turn (?mode=orbit). Playback starts when the
-// recorder calls window.__go(), which returns the wall-clock start in ms.
+// time (?mode=replay; ?take=ID reads _cut/belt-cues-ID.json), runs the 4/8/16 layout tour
+// (?mode=tour), or turns the 8-motor belt round while each motor buzzes in turn (?mode=orbit).
+// Playback starts when the recorder calls window.__go(), which returns the wall-clock start in ms.
 import { Belt3D } from "./belt3d";
 import { cellsFromBelt } from "./overlay";
 import type { Belt } from "./types";
@@ -15,9 +15,12 @@ declare global {
   }
 }
 
-const mode = new URLSearchParams(location.search).get("mode") ?? "replay";
+const params = new URLSearchParams(location.search);
+const mode = params.get("mode") ?? "replay";
 const belt = new Belt3D(document.getElementById("belt") as HTMLElement);
-const { cues } = (await (await fetch("/_cut/belt-cues.json")).json()) as { cues: Cue[] };
+const take = params.get("take")?.replace(/[^\w-]/g, "");
+const cueFile = take ? `/_cut/belt-cues-${take}.json` : "/_cut/belt-cues.json";
+const { cues } = (await (await fetch(cueFile)).json()) as { cues: Cue[] };
 window.__done = false;
 if (mode === "orbit") {
   belt.zoom = 1.3;
