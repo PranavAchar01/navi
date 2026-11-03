@@ -40,13 +40,14 @@ LEDGER = ROOT / "bench" / "results" / "sim-walk.json"
 W, H = 1920, 1080
 FONT = "/System/Library/Fonts/SFNS.ttf"
 MONO = "/System/Library/Fonts/SFNSMono.ttf"
-INK = (236, 240, 245)
-DIM = (140, 152, 168)
-FAINT = (70, 80, 96)
-CYAN = (96, 210, 255)
-AMBER = (255, 160, 70)
-GREEN = (70, 226, 130)
-RED = (255, 80, 64)
+# the light palette of the rest of the cut: dark text on white panels
+INK = (17, 17, 19)
+DIM = (110, 110, 118)
+FAINT = (196, 196, 204)
+CYAN = (10, 132, 255)
+AMBER = (230, 120, 20)
+GREEN = (36, 160, 70)
+RED = (255, 69, 58)
 LABEL = "SIMULATED USER MODEL, NOT A HUMAN STUDY"
 ARMS = ("I0", "I1", "I2", "I3", "I4", "I5", "I6")
 WORLDS = [w for row in P.GRID for w in row]
@@ -59,12 +60,12 @@ SHORT = {
     "chair_legs": "W6 thin legs",
 }
 WCOL = {
-    "avoid_chair": (255, 120, 90),
-    "find_chair": (255, 196, 70),
-    "desk_lookup": (120, 220, 140),
-    "shelf_head": (110, 170, 255),
-    "low_box": (210, 130, 255),
-    "chair_legs": (80, 220, 220),
+    "avoid_chair": (230, 90, 60),
+    "find_chair": (225, 150, 0),
+    "desk_lookup": (40, 160, 80),
+    "shelf_head": (50, 110, 230),
+    "low_box": (150, 80, 220),
+    "chair_legs": (0, 150, 160),
 }
 ROLE = {
     "I0": "the glasses as configured: only what the camera sees right now",
@@ -207,13 +208,13 @@ class Reel:
 
     def card(self, box, alpha=200):
         x0, y0, x1, y1 = (int(v) for v in box)
-        layer = Image.new("RGBA", (x1 - x0, y1 - y0), (7, 9, 13, alpha))
+        layer = Image.new("RGBA", (x1 - x0, y1 - y0), (255, 255, 255, min(255, int(alpha * 1.1))))
         self.img.paste(layer, (x0, y0), layer)
 
     def chip(self, d, x, y, text, col, a=1.0):
         tw = d.textlength(text, font=self.f["chip"])
         d.rounded_rectangle((x, y, x + tw + 16, y + 24), 6, fill=(*col, int(235 * a)))
-        d.text((x + 8, y + 3), text, font=self.f["chip"], fill=(10, 12, 16, int(255 * a)))
+        d.text((x + 8, y + 3), text, font=self.f["chip"], fill=(255, 255, 255, int(255 * a)))
 
     def phase(self, f: int) -> str:
         if f < P.UPDATES[0]:
@@ -245,8 +246,8 @@ class Reel:
     def header(self, d, f):
         self.card((16, 14, 960, 142), 228)
         tw = d.textlength(LABEL, font=self.f["tag"])
-        d.rounded_rectangle((32, 26, 32 + tw + 28, 58), 8, fill=(240, 241, 244))
-        d.text((46, 31), LABEL, font=self.f["tag"], fill=(12, 14, 18))
+        d.rounded_rectangle((32, 26, 32 + tw + 28, 58), 8, fill=INK)
+        d.text((46, 31), LABEL, font=self.f["tag"], fill=(255, 255, 255))
         d.text((32 + tw + 48, 18), "How the walker was trained", font=self.f["title"], fill=INK)
         sub = (
             "360 simulated walks across 6 worlds (2 belt layouts × 30 tuning seeds)."
@@ -506,7 +507,7 @@ class Reel:
         font = self.f["sub"]
         tw = d.textlength(msg, font=font)
         x, y = 760, H - 64
-        layer = Image.new("RGBA", (int(tw + 36), 42), (7, 9, 13, int(220 * a)))
+        layer = Image.new("RGBA", (int(tw + 36), 42), (255, 255, 255, int(235 * a)))
         self.img.paste(layer, (x - 18, y - 10), layer)
         d.text((x, y), msg, font=font, fill=(*INK, int(255 * a)))
 

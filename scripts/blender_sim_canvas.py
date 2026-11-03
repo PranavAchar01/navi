@@ -28,11 +28,12 @@ import blender_sim_room as R  # noqa: E402
 import sim_canvas_plan as P  # noqa: E402
 import sim_motion  # noqa: E402
 
-CYAN = (0.25, 0.8, 1.0)
+CYAN = (0.0, 0.23, 1.0)  # the cut's accent blue, (10, 132, 255) in sRGB
+INK = (0.006, 0.006, 0.007)
 RED = (1.0, 0.16, 0.1)
 AMBER = (1.0, 0.5, 0.12)
 MONO = "/System/Library/Fonts/SFNSMono.ttf"
-BG = (0.006, 0.008, 0.013)  # what the camera sees past the fog
+BG = (1.5, 1.5, 1.58)  # what the camera sees past the fog: the cut's light page
 EL_WIDE = 44.0  # the wide shot's elevation: low enough to see the rooms run off into the fog
 WIDE_D = (60.0, 110.0)  # camera distance at the first frame and when the pull-back ends
 
@@ -310,16 +311,17 @@ def ground(mats):
     wsum.inputs[1].default_value = 0.22
     L(minor, wsum.inputs[0])
     L(major, wsum.inputs[2])
-    em = N("ShaderNodeEmission")
-    em.inputs["Color"].default_value = (0.12, 0.45, 0.62, 1)
-    L(wsum.outputs[0], em.inputs["Strength"])
+    # light paper with grey-blue lines, like the rest of the cut
+    mix = N("ShaderNodeMix")
+    mix.data_type = "RGBA"
+    mix.clamp_factor = True
+    L(wsum.outputs[0], mix.inputs["Factor"])
+    mix.inputs["A"].default_value = (0.9, 0.9, 0.94, 1)
+    mix.inputs["B"].default_value = (0.25, 0.36, 0.5, 1)
     base = N("ShaderNodeBsdfDiffuse")
-    base.inputs["Color"].default_value = (0.012, 0.016, 0.024, 1)
-    add = N("ShaderNodeAddShader")
-    L(base.outputs[0], add.inputs[0])
-    L(em.outputs[0], add.inputs[1])
+    L(mix.outputs["Result"], base.inputs["Color"])
     out = N("ShaderNodeOutputMaterial")
-    L(add.outputs[0], out.inputs["Surface"])
+    L(base.outputs[0], out.inputs["Surface"])
     me.materials.append(m)
     mats["grid"] = m
 
@@ -547,8 +549,8 @@ def build(a: dict):
         "hit": emit_mat("hit", RED, 4.0),
         "goal": emit_mat("goal", (0.3, 1.0, 0.55), 3.0),
         "bracket": emit_mat("bracket", CYAN, 2.5),
-        "tag": emit_mat("tag", (0.9, 0.95, 1.0), 3.0),
-        "sub": emit_mat("sub", CYAN, 1.4),
+        "tag": emit_mat("tag", INK, 1.0, base=INK),
+        "sub": emit_mat("sub", CYAN, 0.6, base=CYAN),
         "pin_I0": emit_mat("pin_I0", AMBER, 0.5, base=AMBER),
         "pin_I6": emit_mat("pin_I6", CYAN, 0.5, base=CYAN),
         "hit_tile": emit_mat("hit_tile", RED, 6.0, base=RED),
