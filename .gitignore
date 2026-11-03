@@ -29,3 +29,4 @@ showcase/demo/draft/
 showcase/demo/footage/
 *.mov
 /yolo26n.mlpackage
+web/public/_cut/

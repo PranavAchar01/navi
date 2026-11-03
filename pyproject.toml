@@ -30,7 +30,7 @@ addopts = "-q"
 
 [tool.ruff]
 line-length = 100
-extend-exclude = ["third_party", "bench", "web", ".venv", "showcase/rec"]
+extend-exclude = ["third_party", "bench", "web", ".venv", "showcase/rec", ".claude"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
