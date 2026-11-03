@@ -77,6 +77,51 @@ def test_fixed_home_keeps_views_and_stores_pins_in_its_frame(tmp_path, monkeypat
     assert back.pins[0]["label"] == "keys" and np.allclose(back.pins[0]["pos"], [1, 1, 1])
 
 
+def test_a_scan_of_the_next_room_keeps_the_first_rooms_views_and_occupancy(tmp_path, monkeypatch):
+    """Three rooms scanned one after another: the hallway scan solves with the one bedroom view
+    that looks like the hallway, and the bedroom's other views and cells come along through the
+    fit, so a later walk that starts in the bedroom still finds the house."""
+    monkeypatch.setenv("METASIGHT_HOME", str(tmp_path))
+
+    def view(ts, x):
+        pose = np.eye(4)
+        pose[0, 3] = x
+        return homemod.HomeView(
+            ts, b"old%d" % ts, np.full((4, 5, 3), x, np.float16), np.ones((4, 5), bool), pose
+        )
+
+    bedroom = [view(1.0, 0.0), view(2.0, 1.0), view(3.0, 2.0)]
+    occ = homemod.cells(np.array([[0.05, 0.5, 0.05], [2.05, 0.5, 0.05]]))
+    homemod.save(homemod.Home([], bedroom, occ, 1, 1.0), tmp_path)
+    e = engine()
+    e.home = homemod.load(tmp_path)
+    tf = (1.0, EYE, np.array([0.0, 0.0, 10.0]))  # the old frame sits 10 m along z in this one
+    e._set_home_tf(tf)
+
+    def pred(x, z):
+        pose = np.eye(4)
+        pose[0, 3], pose[2, 3] = x, z
+        return {
+            "pose": pose,
+            "pts": np.zeros((40, 50, 3), np.float32),
+            "mask": np.ones((40, 50), bool),
+        }
+
+    every = [pred(2.0, 10.0), pred(3.0, 14.0), pred(3.0, 17.0)]  # bedroom view, then hall
+    bgrs = [np.zeros((8, 8, 3), np.uint8)] * 2
+    hall = np.array([[3.05, 0.5, 15.05]])
+    e._persist_home([0] * 8, every, bgrs, [2], [5.0, 6.0], np.eye(4), hall, True)
+    back = homemod.load(tmp_path)
+    assert {v.jpg for v in back.views} >= {b"old1", b"old2", b"old3"}
+    moved = {round(float(v.pose[2, 3]), 3) for v in back.views if v.jpg in (b"old1", b"old2")}
+    assert moved == {10.0}  # carried into the new frame
+    carried = next(v for v in back.views if v.jpg == b"old2")
+    assert np.allclose(carried.pts[..., 2], 11.0, atol=0.01)  # its points: 1 m, plus 10
+    assert back.walks == 2 and len(back.views) == 5
+    have = {tuple(k) for k in back.occ.tolist()}
+    assert {(0, 5, 100), (20, 5, 100), (30, 5, 150)} <= have  # both rooms in one grid
+
+
 def test_load_missing(tmp_path):
     assert homemod.load(tmp_path / "none") is None
 

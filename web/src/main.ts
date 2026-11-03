@@ -378,6 +378,11 @@ setInterval(renderPins, 20_000);
 
 // ---------------------------------------------------------------- asking
 function showAnswer(a: Answer) {
+  if (a.cue) {
+    // A route cue on the way ("Door ahead."): spoken, and the guide target stays.
+    speak(a.text);
+    return;
+  }
   $("answer").hidden = false;
   $("answer-text").textContent = a.text;
   const thumb = $<HTMLImageElement>("answer-thumb");
@@ -449,9 +454,10 @@ $("btn-mic").addEventListener("click", async () => {
       net.send({ type: "ask", text: t });
       asked();
     },
-    () => {
+    (failed) => {
       stopListening = null;
       btn.classList.remove("on");
+      if (failed) $<HTMLInputElement>("ask-input").focus(); // nothing heard: type it instead
     },
   );
   if (stopListening) {

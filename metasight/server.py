@@ -98,6 +98,8 @@ ROOM_VIEW_HZ = 5.0  # frames placed in the fixed room by PnP, for the room overl
 ROOM_VIEW_MIN_INLIERS = 220
 ROOM_PRIOR_AGE_S = 0.3  # an older room pose has turned with the head too far to vouch for a box
 FLOOR_EVERY_S = 2.0  # the floor plan for routes and priors is rebuilt from the map this often
+DOOR_SAY_M = 1.5  # "door ahead" when the route reaches a doorway or hallway this near...
+DOOR_REARM_M = 3.0  # ...and again only after the route ahead has opened up past this
 RETIE_M = 0.3  # the pose jumping this far in one frame is a re-tie: the priors sit out a second
 # ARKit's camera is the landscape sensor (x along its long side, y up, z back). Frames go out
 # turned upright, so the image's right is ARKit's +y and its down is ARKit's +x.
@@ -132,6 +134,11 @@ def beside_in_frame(
         if other not in (label, "person") and layer_of(other, "object") != "carried"
     ]
     return min(fixed)[2] if fixed else None
+
+
+def door_message() -> dict:
+    """Spoken by the glasses on the way: a route cue, so the screen keeps its guide target."""
+    return {"type": "answer", "label": None, "text": "Door ahead.", "pin": None, "cue": True}
 
 
 def found_message(label: str) -> dict:
@@ -210,6 +217,10 @@ class Server:
         # reflex. Rebuilt in a thread from the map points as they arrive.
         self.map_cells: list[np.ndarray] = []
         self.floor: nav.FloorPlan | None = None
+        # The saved house carried into this walk's frame (other rooms the walk has not seen
+        # yet). Routes plan over it too; the reflex priors stay on what this walk saw.
+        self.home_cells = np.empty((0, 3), np.int32)
+        self.route_floor: nav.FloorPlan | None = None
         self.floor_at, self.floor_dirty, self.floor_job = 0.0, False, False
         self.route: nav.Navigator | None = None
         self.route_key: tuple | None = None
@@ -381,6 +392,9 @@ class Server:
         elif t == "map_replace":
             await self.hub.map_replace(ev["n"], ev["points"], ev["colors"], ev.get("sizes", b""))
             self.map_cells = [self._cells(ev["points"])]
+            if "home_cells" in ev or ev["n"] == 0:
+                cells = np.frombuffer(ev.get("home_cells", b""), np.int32)
+                self.home_cells = cells.reshape(-1, 3)
             self.floor_dirty = True
             if ev["n"] == 0:
                 self.trail = []
@@ -727,6 +741,7 @@ class Server:
             return None
         if step is not None:
             bearing = step.bearing_deg
+            self._door_ahead(g, step.narrow_m)
         # In view and nothing nearer ahead, the fast cue in front is the item itself: let the
         # guide taps through it. Solid still silences the guide.
         target_ahead = bool(live) and self.path_m > dist - 0.4
@@ -744,6 +759,16 @@ class Server:
             "route": None if step is None else _finite(step.route_m),
             "narrow": None if step is None else _finite(step.narrow_m),
         }
+
+    def _door_ahead(self, g: dict, narrow_m: float) -> None:
+        """Say "door ahead" once as the route closes in on a doorway or a hallway's mouth. A
+        hallway is narrow all along, so it is said at the mouth and not again until the route
+        ahead opens up."""
+        if narrow_m < DOOR_SAY_M and g.get("door_armed", True):
+            g["door_armed"] = False
+            self.loop.create_task(self.hub.json(door_message(), False))
+        elif narrow_m > DOOR_REARM_M:
+            g["door_armed"] = True
 
     def _lost_close(self, g: dict, now: float) -> bool:
         """The item has been out of view for half a second to two (one missed detection is not
@@ -820,23 +845,29 @@ class Server:
             return
         self.map_cells = [np.unique(np.concatenate(keys), axis=0)]
         self.floor_at, self.floor_job = now, True
+        walk, home = self.map_cells[0], self.home_cells
+
+        def build() -> tuple[nav.FloorPlan, nav.FloorPlan | None]:
+            whole = np.unique(np.concatenate([walk, home]), axis=0) if len(home) else None
+            return nav.floor_plan(walk), None if whole is None else nav.floor_plan(whole)
 
         def done(f) -> None:
             self.floor_job = False
-            self.floor = f.result()
+            self.floor, self.route_floor = f.result()
 
-        self.loop.run_in_executor(None, nav.floor_plan, self.map_cells[0]).add_done_callback(done)
+        self.loop.run_in_executor(None, build).add_done_callback(done)
 
     def _navigator(self, key: str, pin) -> nav.Navigator | None:
         """The route to a pin on the current floor plan. A new plan or pin routes again in a
         thread (one Dijkstra, tens of ms); the old route serves until it lands."""
-        want = (key, tuple(np.round(pin.pos, 2)), id(self.floor))
+        plan = self.route_floor or self.floor
+        want = (key, tuple(np.round(pin.pos, 2)), id(plan))
         route = self.route
         if route is not None and not np.allclose(route.goal, pin.pos, atol=0.05):
             route = None  # a route to somewhere else
-        if self.floor is None or want == self.route_key:
+        if plan is None or want == self.route_key:
             return route
-        floor, self.route_key = self.floor, want
+        floor, self.route_key = plan, want
 
         def solve() -> nav.Navigator | None:
             nv = nav.Navigator(floor)

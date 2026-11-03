@@ -18,7 +18,7 @@ from .config import ROOT
 
 OCC_M = 0.10  # occupancy grid cell
 HOME_VIEWS = 8  # saved views a solve may carry in with the walk's own bank
-SAVED_VIEWS = 24  # views kept on disk
+SAVED_VIEWS = 36  # views kept on disk: a dozen a room for a three-room floor
 
 
 def home_dir() -> Path:
@@ -113,6 +113,21 @@ def save(home: Home, path: Path | None = None) -> None:
     }
     (d / "home.tmp.json").write_text(json.dumps(meta))
     os.replace(d / "home.tmp.json", d / "home.json")
+
+
+def carry(views: list[HomeView], tf) -> list[HomeView]:
+    """Saved views moved into a new frame by tf = (scale, rotation, translation), the fit that
+    placed a walk in the house. A scan of the hallway solves only the views that look like the
+    hallway; the bedroom's views come along through tf, so the next walk that starts in the
+    bedroom still finds the house."""
+    s_, r_, t_ = tf
+    out = []
+    for v in views:
+        pts = (s_ * v.pts.astype(np.float32).reshape(-1, 3) @ r_.T + t_).reshape(v.pts.shape)
+        pose = np.eye(4)
+        pose[:3, :3], pose[:3, 3] = r_ @ v.pose[:3, :3], s_ * r_ @ v.pose[:3, 3] + t_
+        out.append(HomeView(v.ts, v.jpg, pts.astype(np.float16), v.mask, pose))
+    return out
 
 
 def thin(poses: list[np.ndarray], keep: int) -> list[int]:

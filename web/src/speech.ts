@@ -14,22 +14,37 @@ interface Recognition {
   interimResults: boolean;
   onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
   onend: (() => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((e: { error: string }) => void) | null;
   start(): void;
   stop(): void;
 }
 
-/** One utterance from the microphone (iOS Safari and Chrome expose it as webkitSpeechRecognition). */
-export function listen(onText: (t: string) => void, onEnd: () => void): (() => void) | null {
+/** One utterance from the microphone (iOS Safari and Chrome expose it as webkitSpeechRecognition).
+ * `onEnd(failed)`: failed when nothing was heard or the browser refused (an http page that is
+ * not localhost gets "not-allowed"), so the caller can offer the text box instead. */
+export function listen(onText: (t: string) => void, onEnd: (failed: boolean) => void): (() => void) | null {
   const Ctor = (window as unknown as { webkitSpeechRecognition?: new () => Recognition })
     .webkitSpeechRecognition;
   if (!Ctor) return null;
   const r = new Ctor();
   r.lang = "en-US";
   r.interimResults = false;
-  r.onresult = (e) => onText(e.results[0][0].transcript);
-  r.onend = onEnd;
-  r.onerror = onEnd;
-  r.start();
+  let heard = false;
+  let ended = false;
+  const end = (failed: boolean) => {
+    if (!ended) onEnd(failed);
+    ended = true;
+  };
+  r.onresult = (e) => {
+    heard = true;
+    onText(e.results[0][0].transcript);
+  };
+  r.onend = () => end(!heard);
+  r.onerror = () => end(true);
+  try {
+    r.start();
+  } catch {
+    return null;
+  }
   return () => r.stop();
 }

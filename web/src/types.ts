@@ -72,6 +72,8 @@ export interface Answer {
   /** True when the camera sees it right now and the answer comes from that, not from memory. */
   live?: boolean;
   ms?: number; // ask received to answer sent, on the server
+  /** A spoken cue on a guided route, like "Door ahead."; not an answer to a question. */
+  cue?: boolean;
 }
 export interface Alert {
   type: "alert";

@@ -51,7 +51,8 @@ NARROW_SIDE_M = 0.6  # blocked on both sides within this: a doorway or tight gap
 LOOKAHEAD_M = 1.5
 SIGHT_M = 0.4  # a shortcut toward the lookahead point keeps this clear where the route does
 ARRIVE_M = 0.7
-SNAP_M = 1.2  # a goal on a table, or a pose drifted into a wall, moves to free floor this near
+SNAP_M = 1.5  # a goal on a table or a bed (a king is 1.9 m wide), or a pose drifted into a
+# wall, moves to free floor this near
 REACH_M = 3.0  # map obstacles the priors look at
 HORIZON_S = 2.5
 BODY_R_M = 0.2

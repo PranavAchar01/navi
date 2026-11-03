@@ -9,6 +9,9 @@
 language = "meta"
 finder = "hybrid"
 offline = "glimmer"  # Muse Glimmer answers when the API is unreachable
+# Spoken questions: the browser's own speech recognition (the HUD's mic button). Muse Voice
+# Transcribe ("meta") is refused on billing (log, 2026-11-02), so the server side is off.
+asr = "off"
 
 [safety]
 segment = false

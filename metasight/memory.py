@@ -1182,6 +1182,8 @@ class MemoryEngine:
                 "points": pts.tobytes(),
                 "colors": cols.tobytes(),
                 "sizes": sizes.tobytes(),
+                # the saved house in this frame, for routes into rooms this walk has not seen
+                "home_cells": self._home_occ.astype(np.int32).tobytes(),
             },
             {"type": "trail_replace", "points": trail},
             {"type": "pins", "pins": self._pins_out()},
@@ -1628,9 +1630,15 @@ class MemoryEngine:
             return
         sl = (slice(None, None, STRIDE), slice(None, None, STRIDE))
         poses = [g @ pr["pose"] for pr in every]
-        keep = homemod.thin(poses, homemod.SAVED_VIEWS)
-        views = []
-        for i in keep:
+        # Saved views this solve did not use (other rooms) are carried across, not dropped.
+        rest = []
+        if self.home is not None and self._home_tf is not None:
+            used = set(pick)
+            unused = [v for i, v in enumerate(self.home.views) if i not in used]
+            rest = homemod.carry(unused, self._home_tf)
+        keep = homemod.thin(poses + [v.pose for v in rest], homemod.SAVED_VIEWS)
+        views = [rest[i - len(every)] for i in keep if i >= len(every)]
+        for i in (i for i in keep if i < len(every)):
             pr = every[i]
             if i < len(pick):
                 v = self.home.views[pick[i]]

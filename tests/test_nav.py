@@ -179,3 +179,111 @@ def test_with_need_seen_only_what_live_depth_saw_this_walk_is_cued():
     cmd = [(0, 0)] * 8
     nav.apply(cmd, seen, [9.0] * 8, hidden=False)
     assert cmd[0][0] in (MODES["fast"], MODES["solid"])  # the contact ahead, from the map alone
+
+
+# Upstairs: the entertainment room (z 0 to 4), a 1 m hallway (x 4 to 5, z 4 to 8) and the
+# bedroom (x 4 to 9, z 8 to 12), with 0.8 m doors at x 4.1 to 4.9 at both ends of the hallway
+# and a king bed (1.8 m wide) against the bedroom's far wall.
+UPSTAIRS = [
+    (0.0, -0.1, 5.1, 0.0, 2.5),
+    (-0.1, -0.1, 0.0, 4.05, 2.5),
+    (5.0, -0.1, 5.1, 8.05, 2.5),
+    (-0.1, 3.95, 4.1, 4.05, 2.5),
+    (4.9, 3.95, 5.1, 4.05, 2.5),
+    (3.9, 3.95, 4.0, 12.05, 2.5),
+    (3.9, 7.95, 4.1, 8.05, 2.5),
+    (4.9, 7.95, 9.1, 8.05, 2.5),
+    (9.0, 7.95, 9.1, 12.05, 2.5),
+    (3.9, 11.95, 9.1, 12.05, 2.5),
+]
+BED = (6.8, 10.0, 8.6, 11.95, 0.6)
+BED_PIN = [7.7, 0.5, 11.0]
+
+
+def _walk(n, pos, yaw, steps=900):
+    """Follow the guidance bearing at 5 cm a step. The positions and each step's guidance."""
+    pos, trace = np.array(pos, float), []
+    for _ in range(steps):
+        g = n.step(pos, yaw)
+        assert g is not None
+        trace.append((pos.copy(), g))
+        if g.arrived:
+            break
+        yaw -= math.radians(g.bearing_deg)
+        pos += 0.05 * np.array([math.sin(yaw), 0, math.cos(yaw)])
+    return trace
+
+
+def test_route_from_the_entertainment_room_through_the_hallway_to_the_bed():
+    n = nav.Navigator(nav.plan_from_rects([*UPSTAIRS, BED], -0.5, -0.5, 9.5, 12.5))
+    assert n.set_goal(BED_PIN, "bed")  # the pin is 1.2 m inside the bed: snapped to its side
+    trace = _walk(n, [1.0, 1.6, 1.0], 0.0)
+    assert trace[-1][1].arrived
+    at = [p for p, _ in trace]
+    for door_z in (4.0, 8.0):  # through both doors, near their middle
+        xs = [p[0] for p in at if abs(p[2] - door_z) < 0.1]
+        assert xs and all(4.2 < x < 4.8 for x in xs)
+    assert at[-1][2] > 9.5 and at[-1][0] < 6.8  # beside the bed, not in it
+    assert 11.0 < trace[0][1].route_m < 15.0
+
+
+def test_door_ahead_is_said_once_at_the_hallway_mouth_then_rearms(monkeypatch):
+    from types import SimpleNamespace
+
+    from metasight.server import DOOR_SAY_M, Server
+
+    said = []
+    srv = SimpleNamespace(
+        loop=SimpleNamespace(create_task=lambda c: c.close()),
+        hub=SimpleNamespace(json=lambda msg, replay: said.append(msg) or _noop()),
+    )
+    n = nav.Navigator(nav.plan_from_rects([*UPSTAIRS, BED], -0.5, -0.5, 9.5, 12.5))
+    n.set_goal(BED_PIN, "bed")
+    g: dict = {}
+    first = None
+    for p, step in _walk(n, [1.0, 1.6, 1.0], 0.0):
+        before = len(said)
+        Server._door_ahead(srv, g, step.narrow_m)
+        if len(said) > before and first is None:
+            first = p
+    assert said and said[0]["text"] == "Door ahead." and said[0]["cue"]
+    assert first is not None and 4.0 - DOOR_SAY_M - 0.2 < first[2] < 4.0  # before the door
+    assert len(said) <= 2  # the hallway is narrow all along: not a cue every step
+    before = len(said)
+    Server._door_ahead(srv, g, math.inf)  # open floor again: the next door is said
+    Server._door_ahead(srv, g, 1.0)
+    assert len(said) == before + 1
+
+
+async def _noop():
+    return None
+
+
+def _scan(rects, x0, z0, x1, z1):
+    """The occupancy cell keys a scan of this box would leave: floor everywhere, wall and
+    furniture columns up to their tops (home.py: 10 cm cells, y up, floor at y = 0)."""
+    p = nav.plan_from_rects(rects, x0, z0, x1, z1)
+    keys = []
+    for i, j in np.ndindex(p.blocked.shape):
+        keys.append((i + p.i0, 0, j + p.j0))
+        if p.blocked[i, j]:
+            keys += [(i + p.i0, y, j + p.j0) for y in range(2, int(p.top[i, j] / nav.CELL))]
+    return np.array(keys, np.int32)
+
+
+def test_scans_of_each_room_merge_into_one_floor_plan_that_routes_between_them():
+    rects = [*UPSTAIRS, BED]
+    # Three scans that overlap by a metre: each room with the hallway's near end in view.
+    scans = [
+        _scan(rects, -0.1, -0.1, 5.1, 5.0),
+        _scan(rects, 3.9, 3.0, 5.1, 9.0),
+        _scan(rects, 3.9, 7.0, 9.1, 12.1),
+    ]
+    alone = nav.Navigator(nav.floor_plan(scans[0]))
+    assert not alone.set_goal(BED_PIN, "bed")  # the first scan alone has no bedroom
+    merged = nav.floor_plan(np.unique(np.concatenate(scans), axis=0))
+    n = nav.Navigator(merged)
+    assert n.set_goal(BED_PIN, "bed")
+    trace = _walk(n, [1.0, 1.6, 1.0], 0.0)
+    assert trace[-1][1].arrived
+    assert min(step.narrow_m for _, step in trace) < 0.2  # the doors and hallway are flagged
