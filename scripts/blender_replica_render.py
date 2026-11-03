@@ -133,7 +133,7 @@ def catmull(pts, u):
     )
 
 
-def tour_path(sc, cam, seconds=12.0, fps=24):
+def tour_path(sc, cam, seconds=4.5, fps=24):
     """Door to desk to bed, then rising to straight down; lens 22 throughout. The ceiling is
     invisible to camera rays once the camera is above it."""
     n = round(seconds * fps)
@@ -206,6 +206,14 @@ def main():
         sc.camera = bpy.data.objects["cam_eye"]
         sc.camera.data.dof.use_dof = False
         (tour_path if args.shot == "tour" else fly_path)(sc, sc.camera)
+        if args.shot == "tour":  # a cheap pass: few samples, OIDN does the rest
+            cy = sc.cycles
+            cy.use_adaptive_sampling, cy.adaptive_threshold, cy.adaptive_min_samples = True, 0.05, 4
+            cy.use_denoising, cy.denoiser = True, "OPENIMAGEDENOISE"
+            cy.max_bounces, cy.diffuse_bounces, cy.glossy_bounces = 5, 3, 3
+            cy.transmission_bounces = 4
+            sc.render.use_persistent_data = True
+            sc.render.resolution_x, sc.render.resolution_y = 1280, 720
         # the same noise pattern every frame: the denoiser sees steady input, so no shimmer
         sc.cycles.use_animated_seed = False
         sc.cycles.seed = 7
