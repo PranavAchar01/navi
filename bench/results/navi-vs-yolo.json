@@ -1,0 +1,2048 @@
+{
+ "when": "2026-11-03 01:47",
+ "data": {
+  "walk": "20261102-030055-glasses",
+  "video": "data/demo-takes/take1-glasses.mp4",
+  "labels": "bench/labels/take1-glasses-path.json",
+  "labelled": 89,
+  "scored": 72,
+  "unsure_dropped": 17,
+  "rule": "near = an obstacle surface he would walk into within about 1.3 m (two steps) going straight ahead, in the middle of the view; clear = open floor ahead past about 1.3 m; unsure = cannot tell by eye (distance near 1.3 m, or the obstacle only at the edge of the path). 1.3 m is the glasses profile's cue_off_m, past which the belt is silent."
+ },
+ "methods": {
+  "navi": "a front belt motor on (slow/fast/solid) in the replay of the take through metasight.server, glasses profile: Depth Anything V2 metric depth, floor fit, walking-path range, 3-frame median and 0.25 s hold (scripts/judge_replay.py)",
+  "yolo_size": "YOLO26n boxes only, conf >= 0.35; range from box size and a typical class size under 1.3 m, inside the 0.45 m half path",
+  "yolo_any": "YOLO26n boxes only, conf >= 0.35; any box over the middle of the view reaching its lower half (no distance: an upper bound for boxes)"
+ },
+ "recall": {
+  "navi": {
+   "recall_all": {
+    "hit": 67,
+    "n": 68,
+    "rate": 0.985
+   },
+   "recall_desk/table": {
+    "hit": 51,
+    "n": 51,
+    "rate": 1.0
+   },
+   "recall_chair/bed": {
+    "hit": 9,
+    "n": 9,
+    "rate": 1.0
+   },
+   "recall_wall/door": {
+    "hit": 7,
+    "n": 8,
+    "rate": 0.875
+   },
+   "warned_on_clear": {
+    "hit": 3,
+    "n": 4
+   }
+  },
+  "coreml_384_size": {
+   "recall_all": {
+    "hit": 57,
+    "n": 68,
+    "rate": 0.838
+   },
+   "recall_desk/table": {
+    "hit": 48,
+    "n": 51,
+    "rate": 0.941
+   },
+   "recall_chair/bed": {
+    "hit": 9,
+    "n": 9,
+    "rate": 1.0
+   },
+   "recall_wall/door": {
+    "hit": 0,
+    "n": 8,
+    "rate": 0.0
+   },
+   "warned_on_clear": {
+    "hit": 2,
+    "n": 4
+   }
+  },
+  "coreml_384_any": {
+   "recall_all": {
+    "hit": 59,
+    "n": 68,
+    "rate": 0.868
+   },
+   "recall_desk/table": {
+    "hit": 49,
+    "n": 51,
+    "rate": 0.961
+   },
+   "recall_chair/bed": {
+    "hit": 9,
+    "n": 9,
+    "rate": 1.0
+   },
+   "recall_wall/door": {
+    "hit": 1,
+    "n": 8,
+    "rate": 0.125
+   },
+   "warned_on_clear": {
+    "hit": 2,
+    "n": 4
+   }
+  },
+  "pt_640_mps_size": {
+   "recall_all": {
+    "hit": 61,
+    "n": 68,
+    "rate": 0.897
+   },
+   "recall_desk/table": {
+    "hit": 50,
+    "n": 51,
+    "rate": 0.98
+   },
+   "recall_chair/bed": {
+    "hit": 9,
+    "n": 9,
+    "rate": 1.0
+   },
+   "recall_wall/door": {
+    "hit": 2,
+    "n": 8,
+    "rate": 0.25
+   },
+   "warned_on_clear": {
+    "hit": 2,
+    "n": 4
+   }
+  },
+  "pt_640_mps_any": {
+   "recall_all": {
+    "hit": 61,
+    "n": 68,
+    "rate": 0.897
+   },
+   "recall_desk/table": {
+    "hit": 49,
+    "n": 51,
+    "rate": 0.961
+   },
+   "recall_chair/bed": {
+    "hit": 9,
+    "n": 9,
+    "rate": 1.0
+   },
+   "recall_wall/door": {
+    "hit": 3,
+    "n": 8,
+    "rate": 0.375
+   },
+   "warned_on_clear": {
+    "hit": 2,
+    "n": 4
+   }
+  }
+ },
+ "navi_cue_on_share_all_replayed_frames": {
+  "on": 1465,
+  "n": 1517,
+  "rate": 0.966
+ },
+ "latency_ms": {
+  "navi_stages_from_replay": {
+   "depth": {
+    "n": 1517,
+    "p50": 21.4,
+    "p95": 29.1
+   },
+   "detect": {
+    "n": 1517,
+    "p50": 6.5,
+    "p95": 23.0
+   },
+   "total": {
+    "n": 1517,
+    "p50": 29.8,
+    "p95": 49.2
+   }
+  },
+  "yolo_coreml_384_predict": {
+   "n": 408,
+   "p50": 6.0,
+   "p95": 6.8
+  },
+  "yolo_pt_640_mps_predict": {
+   "n": 408,
+   "p50": 27.8,
+   "p95": 33.6
+  }
+ },
+ "frames": [
+  {
+   "i": 0,
+   "seq": 0,
+   "file": "1793617256125-0.jpg",
+   "t": 0.0,
+   "label": "near",
+   "kind": "wall with a coat on a hook",
+   "group": "wall/door",
+   "navi": false,
+   "navi_front_m": 1.6,
+   "navi_path_m": 1.62,
+   "coreml_384_size": false,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "person"
+   ],
+   "pt_640_mps_size": false,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "tv"
+   ]
+  },
+  {
+   "i": 1,
+   "seq": 24,
+   "file": "1793617257132-24.jpg",
+   "t": 1.01,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 1.2,
+   "navi_path_m": 0.92,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "laptop"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 4,
+   "seq": 77,
+   "file": "1793617260140-77.jpg",
+   "t": 4.01,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 0.94,
+   "navi_path_m": 0.91,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 5,
+   "seq": 100,
+   "file": "1793617261138-100.jpg",
+   "t": 5.01,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 1.15,
+   "navi_path_m": 1.09,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "keyboard",
+    "laptop",
+    "mouse",
+    "tv"
+   ]
+  },
+  {
+   "i": 7,
+   "seq": 147,
+   "file": "1793617263144-147.jpg",
+   "t": 7.02,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 0.97,
+   "navi_path_m": 0.94,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 8,
+   "seq": 167,
+   "file": "1793617264128-167.jpg",
+   "t": 8.0,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 1.03,
+   "navi_path_m": 0.64,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 9,
+   "seq": 191,
+   "file": "1793617265132-191.jpg",
+   "t": 9.01,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 0.72,
+   "navi_path_m": 0.62,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 10,
+   "seq": 215,
+   "file": "1793617266135-215.jpg",
+   "t": 10.01,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 0.67,
+   "navi_path_m": 0.6,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "laptop"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "laptop"
+   ]
+  },
+  {
+   "i": 11,
+   "seq": 237,
+   "file": "1793617267150-237.jpg",
+   "t": 11.02,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 0.71,
+   "navi_path_m": 0.7,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 12,
+   "seq": 257,
+   "file": "1793617268131-257.jpg",
+   "t": 12.01,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 0.9,
+   "navi_path_m": 0.77,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 13,
+   "seq": 275,
+   "file": "1793617269099-275.jpg",
+   "t": 12.97,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 0.92,
+   "navi_path_m": 0.88,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "laptop",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 14,
+   "seq": 292,
+   "file": "1793617270139-292.jpg",
+   "t": 14.01,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 0.84,
+   "navi_path_m": 0.77,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 15,
+   "seq": 308,
+   "file": "1793617271122-308.jpg",
+   "t": 15.0,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 0.64,
+   "navi_path_m": 0.63,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "laptop",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 16,
+   "seq": 329,
+   "file": "1793617272144-329.jpg",
+   "t": 16.02,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 0.81,
+   "navi_path_m": 0.74,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 17,
+   "seq": 347,
+   "file": "1793617273100-347.jpg",
+   "t": 16.97,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 1.14,
+   "navi_path_m": 1.07,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "cell phone",
+    "keyboard",
+    "laptop",
+    "person"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "cell phone",
+    "laptop",
+    "mouse",
+    "person"
+   ]
+  },
+  {
+   "i": 18,
+   "seq": 366,
+   "file": "1793617274135-366.jpg",
+   "t": 18.01,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 1.32,
+   "navi_path_m": 0.93,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "laptop"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "laptop",
+    "mouse"
+   ]
+  },
+  {
+   "i": 19,
+   "seq": 384,
+   "file": "1793617275089-384.jpg",
+   "t": 18.96,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 0.84,
+   "navi_path_m": 0.82,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "laptop",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 20,
+   "seq": 405,
+   "file": "1793617276132-405.jpg",
+   "t": 20.01,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 1.2,
+   "navi_path_m": 0.46,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "laptop",
+    "person",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "laptop",
+    "person",
+    "tv"
+   ]
+  },
+  {
+   "i": 21,
+   "seq": 425,
+   "file": "1793617277141-425.jpg",
+   "t": 21.02,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 1.12,
+   "navi_path_m": 1.01,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "laptop",
+    "person"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "laptop",
+    "mouse",
+    "person"
+   ]
+  },
+  {
+   "i": 22,
+   "seq": 442,
+   "file": "1793617278112-442.jpg",
+   "t": 21.99,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 1.07,
+   "navi_path_m": 0.98,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "laptop",
+    "person",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "keyboard",
+    "laptop",
+    "person",
+    "tv"
+   ]
+  },
+  {
+   "i": 23,
+   "seq": 464,
+   "file": "1793617279134-464.jpg",
+   "t": 23.01,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 1.19,
+   "navi_path_m": 0.94,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "laptop",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "cell phone",
+    "laptop",
+    "mouse",
+    "tv"
+   ]
+  },
+  {
+   "i": 24,
+   "seq": 482,
+   "file": "1793617280118-482.jpg",
+   "t": 23.99,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 1.19,
+   "navi_path_m": 0.93,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "keyboard",
+    "laptop",
+    "person",
+    "tv"
+   ]
+  },
+  {
+   "i": 25,
+   "seq": 499,
+   "file": "1793617281127-499.jpg",
+   "t": 25.0,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 1.01,
+   "navi_path_m": 0.49,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 26,
+   "seq": 513,
+   "file": "1793617282132-513.jpg",
+   "t": 26.01,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 0.92,
+   "navi_path_m": 0.8,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 27,
+   "seq": 530,
+   "file": "1793617283143-530.jpg",
+   "t": 27.02,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 1.27,
+   "navi_path_m": 1.0,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 28,
+   "seq": 549,
+   "file": "1793617284085-549.jpg",
+   "t": 27.96,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 1.15,
+   "navi_path_m": 1.08,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "keyboard",
+    "laptop",
+    "mouse",
+    "tv"
+   ]
+  },
+  {
+   "i": 29,
+   "seq": 573,
+   "file": "1793617285143-573.jpg",
+   "t": 29.02,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 1.39,
+   "navi_path_m": 1.33,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 30,
+   "seq": 597,
+   "file": "1793617286138-597.jpg",
+   "t": 30.01,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 0.81,
+   "navi_path_m": 0.52,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "laptop",
+    "person"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "keyboard",
+    "laptop",
+    "person"
+   ]
+  },
+  {
+   "i": 31,
+   "seq": 619,
+   "file": "1793617287138-619.jpg",
+   "t": 31.01,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 0.88,
+   "navi_path_m": 0.53,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "cup",
+    "keyboard",
+    "laptop",
+    "person",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "keyboard",
+    "laptop",
+    "person",
+    "tv"
+   ]
+  },
+  {
+   "i": 32,
+   "seq": 632,
+   "file": "1793617288129-632.jpg",
+   "t": 32.0,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 1.3,
+   "navi_path_m": 1.27,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "keyboard",
+    "tv"
+   ]
+  },
+  {
+   "i": 33,
+   "seq": 651,
+   "file": "1793617289136-651.jpg",
+   "t": 33.01,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 0.91,
+   "navi_path_m": 0.76,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": false,
+   "pt_640_mps_boxes": [
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 34,
+   "seq": 673,
+   "file": "1793617290134-673.jpg",
+   "t": 34.01,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 0.68,
+   "navi_path_m": 0.55,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "mouse",
+    "person"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "keyboard",
+    "mouse",
+    "person",
+    "tv"
+   ]
+  },
+  {
+   "i": 35,
+   "seq": 692,
+   "file": "1793617291134-692.jpg",
+   "t": 35.01,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 0.81,
+   "navi_path_m": 0.68,
+   "coreml_384_size": false,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "person",
+    "wine glass"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "cup",
+    "keyboard",
+    "person"
+   ]
+  },
+  {
+   "i": 36,
+   "seq": 713,
+   "file": "1793617292139-713.jpg",
+   "t": 36.01,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 0.7,
+   "navi_path_m": 0.61,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "laptop",
+    "mouse",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "keyboard",
+    "laptop",
+    "mouse",
+    "person",
+    "tv"
+   ]
+  },
+  {
+   "i": 37,
+   "seq": 729,
+   "file": "1793617293139-729.jpg",
+   "t": 37.01,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 1.34,
+   "navi_path_m": 1.07,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "laptop",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "cell phone",
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 38,
+   "seq": 744,
+   "file": "1793617294099-744.jpg",
+   "t": 37.97,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 0.92,
+   "navi_path_m": 0.76,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "cell phone",
+    "laptop",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "cell phone",
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 39,
+   "seq": 756,
+   "file": "1793617295139-756.jpg",
+   "t": 39.01,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 0.98,
+   "navi_path_m": 0.79,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "cell phone",
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 40,
+   "seq": 769,
+   "file": "1793617296144-769.jpg",
+   "t": 40.02,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 1.06,
+   "navi_path_m": 0.79,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "cell phone",
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 41,
+   "seq": 776,
+   "file": "1793617297096-776.jpg",
+   "t": 40.97,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 0.99,
+   "navi_path_m": 0.84,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "cell phone",
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 42,
+   "seq": 792,
+   "file": "1793617298135-792.jpg",
+   "t": 42.01,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 0.69,
+   "navi_path_m": 0.63,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "laptop",
+    "person"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "cell phone",
+    "laptop"
+   ]
+  },
+  {
+   "i": 43,
+   "seq": 807,
+   "file": "1793617299134-807.jpg",
+   "t": 43.01,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 1.15,
+   "navi_path_m": 1.07,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "laptop",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "laptop",
+    "person",
+    "tv"
+   ]
+  },
+  {
+   "i": 44,
+   "seq": 819,
+   "file": "1793617300092-819.jpg",
+   "t": 43.97,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 1.07,
+   "navi_path_m": 0.97,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "cell phone",
+    "keyboard",
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 45,
+   "seq": 833,
+   "file": "1793617301134-833.jpg",
+   "t": 45.01,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 0.93,
+   "navi_path_m": 0.66,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "laptop",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "cell phone",
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 46,
+   "seq": 846,
+   "file": "1793617302134-846.jpg",
+   "t": 46.01,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 0.9,
+   "navi_path_m": 0.6,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "laptop",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 47,
+   "seq": 857,
+   "file": "1793617303098-857.jpg",
+   "t": 46.97,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 0.86,
+   "navi_path_m": 0.72,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "laptop",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 48,
+   "seq": 870,
+   "file": "1793617304146-870.jpg",
+   "t": 48.02,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 0.87,
+   "navi_path_m": 0.6,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "laptop"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 52,
+   "seq": 927,
+   "file": "1793617308132-927.jpg",
+   "t": 52.01,
+   "label": "near",
+   "kind": "office chair",
+   "group": "chair/bed",
+   "navi": true,
+   "navi_front_m": 1.06,
+   "navi_path_m": 1.02,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "bed",
+    "chair"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "chair"
+   ]
+  },
+  {
+   "i": 53,
+   "seq": 949,
+   "file": "1793617309136-949.jpg",
+   "t": 53.01,
+   "label": "near",
+   "kind": "office chair",
+   "group": "chair/bed",
+   "navi": true,
+   "navi_front_m": 0.75,
+   "navi_path_m": 0.72,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "chair"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "chair"
+   ]
+  },
+  {
+   "i": 57,
+   "seq": 1030,
+   "file": "1793617313128-1030.jpg",
+   "t": 57.0,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 1.03,
+   "navi_path_m": 0.99,
+   "coreml_384_size": false,
+   "coreml_384_any": false,
+   "coreml_384_boxes": [],
+   "pt_640_mps_size": false,
+   "pt_640_mps_any": false,
+   "pt_640_mps_boxes": []
+  },
+  {
+   "i": 58,
+   "seq": 1050,
+   "file": "1793617314129-1050.jpg",
+   "t": 58.0,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 0.84,
+   "navi_path_m": 0.82,
+   "coreml_384_size": false,
+   "coreml_384_any": false,
+   "coreml_384_boxes": [],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "bed"
+   ]
+  },
+  {
+   "i": 60,
+   "seq": 1097,
+   "file": "1793617316132-1097.jpg",
+   "t": 60.01,
+   "label": "near",
+   "kind": "wall",
+   "group": "wall/door",
+   "navi": true,
+   "navi_front_m": 0.96,
+   "navi_path_m": 0.81,
+   "coreml_384_size": false,
+   "coreml_384_any": false,
+   "coreml_384_boxes": [],
+   "pt_640_mps_size": false,
+   "pt_640_mps_any": false,
+   "pt_640_mps_boxes": []
+  },
+  {
+   "i": 61,
+   "seq": 1121,
+   "file": "1793617317139-1121.jpg",
+   "t": 61.01,
+   "label": "near",
+   "kind": "door",
+   "group": "wall/door",
+   "navi": true,
+   "navi_front_m": 1.01,
+   "navi_path_m": 0.91,
+   "coreml_384_size": false,
+   "coreml_384_any": false,
+   "coreml_384_boxes": [],
+   "pt_640_mps_size": false,
+   "pt_640_mps_any": false,
+   "pt_640_mps_boxes": []
+  },
+  {
+   "i": 62,
+   "seq": 1145,
+   "file": "1793617318130-1145.jpg",
+   "t": 62.01,
+   "label": "near",
+   "kind": "door",
+   "group": "wall/door",
+   "navi": true,
+   "navi_front_m": 0.62,
+   "navi_path_m": 0.6,
+   "coreml_384_size": false,
+   "coreml_384_any": false,
+   "coreml_384_boxes": [],
+   "pt_640_mps_size": false,
+   "pt_640_mps_any": false,
+   "pt_640_mps_boxes": []
+  },
+  {
+   "i": 63,
+   "seq": 1165,
+   "file": "1793617319128-1165.jpg",
+   "t": 63.0,
+   "label": "near",
+   "kind": "door",
+   "group": "wall/door",
+   "navi": true,
+   "navi_front_m": 0.41,
+   "navi_path_m": 0.42,
+   "coreml_384_size": false,
+   "coreml_384_any": false,
+   "coreml_384_boxes": [],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "apple",
+    "laptop"
+   ]
+  },
+  {
+   "i": 64,
+   "seq": 1183,
+   "file": "1793617320056-1183.jpg",
+   "t": 63.93,
+   "label": "near",
+   "kind": "door",
+   "group": "wall/door",
+   "navi": true,
+   "navi_front_m": 0.75,
+   "navi_path_m": 0.42,
+   "coreml_384_size": false,
+   "coreml_384_any": false,
+   "coreml_384_boxes": [],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "sink"
+   ]
+  },
+  {
+   "i": 65,
+   "seq": 1201,
+   "file": "1793617321134-1201.jpg",
+   "t": 65.01,
+   "label": "clear",
+   "kind": null,
+   "group": null,
+   "navi": true,
+   "navi_front_m": 1.42,
+   "navi_path_m": 1.42,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "bed",
+    "chair"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "bed"
+   ]
+  },
+  {
+   "i": 66,
+   "seq": 1219,
+   "file": "1793617322123-1219.jpg",
+   "t": 66.0,
+   "label": "clear",
+   "kind": null,
+   "group": null,
+   "navi": true,
+   "navi_front_m": 1.32,
+   "navi_path_m": 0.58,
+   "coreml_384_size": false,
+   "coreml_384_any": false,
+   "coreml_384_boxes": [
+    "keyboard",
+    "tv"
+   ],
+   "pt_640_mps_size": false,
+   "pt_640_mps_any": false,
+   "pt_640_mps_boxes": [
+    "keyboard",
+    "tv"
+   ]
+  },
+  {
+   "i": 68,
+   "seq": 1252,
+   "file": "1793617324135-1252.jpg",
+   "t": 68.01,
+   "label": "near",
+   "kind": "wall",
+   "group": "wall/door",
+   "navi": true,
+   "navi_front_m": 0.92,
+   "navi_path_m": 0.93,
+   "coreml_384_size": false,
+   "coreml_384_any": false,
+   "coreml_384_boxes": [],
+   "pt_640_mps_size": false,
+   "pt_640_mps_any": false,
+   "pt_640_mps_boxes": []
+  },
+  {
+   "i": 69,
+   "seq": 1275,
+   "file": "1793617325090-1275.jpg",
+   "t": 68.96,
+   "label": "near",
+   "kind": "bed",
+   "group": "chair/bed",
+   "navi": true,
+   "navi_front_m": 1.35,
+   "navi_path_m": 0.71,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "bed"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "bed"
+   ]
+  },
+  {
+   "i": 70,
+   "seq": 1292,
+   "file": "1793617326098-1292.jpg",
+   "t": 69.97,
+   "label": "near",
+   "kind": "office chair",
+   "group": "chair/bed",
+   "navi": true,
+   "navi_front_m": 1.96,
+   "navi_path_m": 1.78,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "bed",
+    "chair",
+    "refrigerator"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "bed",
+    "chair"
+   ]
+  },
+  {
+   "i": 71,
+   "seq": 1306,
+   "file": "1793617327097-1306.jpg",
+   "t": 70.97,
+   "label": "near",
+   "kind": "office chair",
+   "group": "chair/bed",
+   "navi": true,
+   "navi_front_m": 1.58,
+   "navi_path_m": 1.47,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "bed",
+    "chair"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "bed",
+    "chair"
+   ]
+  },
+  {
+   "i": 72,
+   "seq": 1323,
+   "file": "1793617328171-1323.jpg",
+   "t": 72.05,
+   "label": "near",
+   "kind": "office chair",
+   "group": "chair/bed",
+   "navi": true,
+   "navi_front_m": 1.04,
+   "navi_path_m": 1.01,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "chair"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "chair"
+   ]
+  },
+  {
+   "i": 73,
+   "seq": 1343,
+   "file": "1793617329094-1343.jpg",
+   "t": 72.97,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 1.01,
+   "navi_path_m": 0.94,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "laptop"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 75,
+   "seq": 1389,
+   "file": "1793617331124-1389.jpg",
+   "t": 75.0,
+   "label": "clear",
+   "kind": null,
+   "group": null,
+   "navi": true,
+   "navi_front_m": 2.06,
+   "navi_path_m": 0.56,
+   "coreml_384_size": true,
+   "coreml_384_any": false,
+   "coreml_384_boxes": [
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": false,
+   "pt_640_mps_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 76,
+   "seq": 1413,
+   "file": "1793617332125-1413.jpg",
+   "t": 76.0,
+   "label": "clear",
+   "kind": null,
+   "group": null,
+   "navi": false,
+   "navi_front_m": 1.49,
+   "navi_path_m": 1.45,
+   "coreml_384_size": false,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "tv"
+   ],
+   "pt_640_mps_size": false,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "keyboard",
+    "tv"
+   ]
+  },
+  {
+   "i": 78,
+   "seq": 1453,
+   "file": "1793617334130-1453.jpg",
+   "t": 78.01,
+   "label": "near",
+   "kind": "wall",
+   "group": "wall/door",
+   "navi": true,
+   "navi_front_m": 0.92,
+   "navi_path_m": 0.89,
+   "coreml_384_size": false,
+   "coreml_384_any": false,
+   "coreml_384_boxes": [],
+   "pt_640_mps_size": false,
+   "pt_640_mps_any": false,
+   "pt_640_mps_boxes": []
+  },
+  {
+   "i": 79,
+   "seq": 1475,
+   "file": "1793617335136-1475.jpg",
+   "t": 79.01,
+   "label": "near",
+   "kind": "bed",
+   "group": "chair/bed",
+   "navi": true,
+   "navi_front_m": 1.64,
+   "navi_path_m": 1.07,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "bed",
+    "chair"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "bed",
+    "chair"
+   ]
+  },
+  {
+   "i": 81,
+   "seq": 1509,
+   "file": "1793617337101-1509.jpg",
+   "t": 80.98,
+   "label": "near",
+   "kind": "office chair",
+   "group": "chair/bed",
+   "navi": true,
+   "navi_front_m": 1.38,
+   "navi_path_m": 1.25,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "bed",
+    "chair",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "chair"
+   ]
+  },
+  {
+   "i": 82,
+   "seq": 1529,
+   "file": "1793617338124-1529.jpg",
+   "t": 82.0,
+   "label": "near",
+   "kind": "office chair",
+   "group": "chair/bed",
+   "navi": true,
+   "navi_front_m": 0.79,
+   "navi_path_m": 0.74,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "chair"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "chair"
+   ]
+  },
+  {
+   "i": 84,
+   "seq": 1564,
+   "file": "1793617340084-1564.jpg",
+   "t": 83.96,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 1.11,
+   "navi_path_m": 0.47,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "laptop"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "keyboard",
+    "laptop",
+    "tv"
+   ]
+  },
+  {
+   "i": 87,
+   "seq": 1618,
+   "file": "1793617343127-1618.jpg",
+   "t": 87.0,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 1.1,
+   "navi_path_m": 1.03,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "cell phone",
+    "keyboard",
+    "laptop"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "cell phone",
+    "laptop"
+   ]
+  },
+  {
+   "i": 88,
+   "seq": 1631,
+   "file": "1793617344138-1631.jpg",
+   "t": 88.01,
+   "label": "near",
+   "kind": "desk or table",
+   "group": "desk/table",
+   "navi": true,
+   "navi_front_m": 1.0,
+   "navi_path_m": 0.91,
+   "coreml_384_size": true,
+   "coreml_384_any": true,
+   "coreml_384_boxes": [
+    "keyboard",
+    "laptop",
+    "person",
+    "tv"
+   ],
+   "pt_640_mps_size": true,
+   "pt_640_mps_any": true,
+   "pt_640_mps_boxes": [
+    "cell phone",
+    "laptop",
+    "person"
+   ]
+  }
+ ],
+ "summary": [
+  {
+   "metric": "recall, all",
+   "navi": {
+    "hit": 67,
+    "n": 68,
+    "rate": 0.985
+   },
+   "yolo": {
+    "hit": 57,
+    "n": 68,
+    "rate": 0.838
+   },
+   "yolo_640": {
+    "hit": 61,
+    "n": 68,
+    "rate": 0.897
+   },
+   "n": 68,
+   "method": "share of frames labelled near where the method warned; yolo = yolo_size on Navi's own detector (Core ML, 384 px), yolo_640 = stock yolo26n.pt at 640 px",
+   "caveats": "one labeller, by eye, on one 88 s take in one small bedroom; distance judged from the picture, not measured; neighbouring frames are alike (51 desk frames are mostly him standing or sitting at the same desk)"
+  },
+  {
+   "metric": "recall, wall/door",
+   "navi": {
+    "hit": 7,
+    "n": 8,
+    "rate": 0.875
+   },
+   "yolo": {
+    "hit": 0,
+    "n": 8,
+    "rate": 0.0
+   },
+   "yolo_640": {
+    "hit": 2,
+    "n": 8,
+    "rate": 0.25
+   },
+   "n": 8,
+   "method": "share of frames labelled near where the method warned; yolo = yolo_size on Navi's own detector (Core ML, 384 px), yolo_640 = stock yolo26n.pt at 640 px",
+   "caveats": "one labeller, by eye, on one 88 s take in one small bedroom; distance judged from the picture, not measured; neighbouring frames are alike (51 desk frames are mostly him standing or sitting at the same desk)"
+  },
+  {
+   "metric": "recall, chair/bed",
+   "navi": {
+    "hit": 9,
+    "n": 9,
+    "rate": 1.0
+   },
+   "yolo": {
+    "hit": 9,
+    "n": 9,
+    "rate": 1.0
+   },
+   "yolo_640": {
+    "hit": 9,
+    "n": 9,
+    "rate": 1.0
+   },
+   "n": 9,
+   "method": "share of frames labelled near where the method warned; yolo = yolo_size on Navi's own detector (Core ML, 384 px), yolo_640 = stock yolo26n.pt at 640 px",
+   "caveats": "one labeller, by eye, on one 88 s take in one small bedroom; distance judged from the picture, not measured; neighbouring frames are alike (51 desk frames are mostly him standing or sitting at the same desk)"
+  },
+  {
+   "metric": "recall, desk/table",
+   "navi": {
+    "hit": 51,
+    "n": 51,
+    "rate": 1.0
+   },
+   "yolo": {
+    "hit": 48,
+    "n": 51,
+    "rate": 0.941
+   },
+   "yolo_640": {
+    "hit": 50,
+    "n": 51,
+    "rate": 0.98
+   },
+   "n": 51,
+   "method": "share of frames labelled near where the method warned; yolo = yolo_size on Navi's own detector (Core ML, 384 px), yolo_640 = stock yolo26n.pt at 640 px",
+   "caveats": "one labeller, by eye, on one 88 s take in one small bedroom; distance judged from the picture, not measured; neighbouring frames are alike (51 desk frames are mostly him standing or sitting at the same desk)"
+  },
+  {
+   "metric": "compute per frame, ms",
+   "navi": {
+    "n": 1517,
+    "p50": 29.8,
+    "p95": 49.2
+   },
+   "navi_buzz_stage": {
+    "n": 1517,
+    "p50": 21.4,
+    "p95": 29.1
+   },
+   "yolo": {
+    "n": 408,
+    "p50": 6.0,
+    "p95": 6.8
+   },
+   "yolo_640": {
+    "n": 408,
+    "p50": 27.8,
+    "p95": 33.6
+   },
+   "n": {
+    "navi": 1517,
+    "yolo": 408
+   },
+   "method": "Navi: the server's own stage timers on every replayed frame (depth = depth net + floor fit, the stage the buzz waits on; total adds the label detector). YOLO: wall time of predict() on every 4th frame of the take",
+   "caveats": "both ran at background priority (nice 19, taskpolicy -b) on the Mac mini while other agents' jobs were running; compute only, no camera, network or motor time (frame-to-cue on the same replay was p50 55 ms, p95 97 ms, n = 1517)"
+  }
+ ],
+ "not_measured": {
+  "false_alarms_per_minute": "only 4 of 89 labelled frames had a clear path past 1.3 m: too few to rate. Navi's front motors were on in 3 of them and YOLO warned on 2. Over all 1517 replayed frames Navi's front motors were on 97% of the time, so in this room its recall comes with near-constant buzzing; a fair false-alarm number needs a walk with open floor and a depth sensor for truth",
+  "time_to_first_warning": "the take has no contact moments (he stops short of every object) and no measured distance to time an approach against"
+ }
+}

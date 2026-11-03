@@ -1,0 +1,169 @@
+Loading /Users/pranav/helloworld/meta-sight/yolo26n.mlpackage for CoreML inference...
+{
+ "recall": {
+  "navi": {
+   "recall_all": {
+    "hit": 67,
+    "n": 68,
+    "rate": 0.985
+   },
+   "recall_desk/table": {
+    "hit": 51,
+    "n": 51,
+    "rate": 1.0
+   },
+   "recall_chair/bed": {
+    "hit": 9,
+    "n": 9,
+    "rate": 1.0
+   },
+   "recall_wall/door": {
+    "hit": 7,
+    "n": 8,
+    "rate": 0.875
+   },
+   "warned_on_clear": {
+    "hit": 3,
+    "n": 4
+   }
+  },
+  "coreml_384_size": {
+   "recall_all": {
+    "hit": 57,
+    "n": 68,
+    "rate": 0.838
+   },
+   "recall_desk/table": {
+    "hit": 48,
+    "n": 51,
+    "rate": 0.941
+   },
+   "recall_chair/bed": {
+    "hit": 9,
+    "n": 9,
+    "rate": 1.0
+   },
+   "recall_wall/door": {
+    "hit": 0,
+    "n": 8,
+    "rate": 0.0
+   },
+   "warned_on_clear": {
+    "hit": 2,
+    "n": 4
+   }
+  },
+  "coreml_384_any": {
+   "recall_all": {
+    "hit": 59,
+    "n": 68,
+    "rate": 0.868
+   },
+   "recall_desk/table": {
+    "hit": 49,
+    "n": 51,
+    "rate": 0.961
+   },
+   "recall_chair/bed": {
+    "hit": 9,
+    "n": 9,
+    "rate": 1.0
+   },
+   "recall_wall/door": {
+    "hit": 1,
+    "n": 8,
+    "rate": 0.125
+   },
+   "warned_on_clear": {
+    "hit": 2,
+    "n": 4
+   }
+  },
+  "pt_640_mps_size": {
+   "recall_all": {
+    "hit": 61,
+    "n": 68,
+    "rate": 0.897
+   },
+   "recall_desk/table": {
+    "hit": 50,
+    "n": 51,
+    "rate": 0.98
+   },
+   "recall_chair/bed": {
+    "hit": 9,
+    "n": 9,
+    "rate": 1.0
+   },
+   "recall_wall/door": {
+    "hit": 2,
+    "n": 8,
+    "rate": 0.25
+   },
+   "warned_on_clear": {
+    "hit": 2,
+    "n": 4
+   }
+  },
+  "pt_640_mps_any": {
+   "recall_all": {
+    "hit": 61,
+    "n": 68,
+    "rate": 0.897
+   },
+   "recall_desk/table": {
+    "hit": 49,
+    "n": 51,
+    "rate": 0.961
+   },
+   "recall_chair/bed": {
+    "hit": 9,
+    "n": 9,
+    "rate": 1.0
+   },
+   "recall_wall/door": {
+    "hit": 3,
+    "n": 8,
+    "rate": 0.375
+   },
+   "warned_on_clear": {
+    "hit": 2,
+    "n": 4
+   }
+  }
+ },
+ "latency_ms": {
+  "navi_stages_from_replay": {
+   "depth": {
+    "n": 1517,
+    "p50": 21.4,
+    "p95": 29.1
+   },
+   "detect": {
+    "n": 1517,
+    "p50": 6.5,
+    "p95": 23.0
+   },
+   "total": {
+    "n": 1517,
+    "p50": 29.8,
+    "p95": 49.2
+   }
+  },
+  "yolo_coreml_384_predict": {
+   "n": 408,
+   "p50": 6.0,
+   "p95": 6.8
+  },
+  "yolo_pt_640_mps_predict": {
+   "n": 408,
+   "p50": 27.8,
+   "p95": 33.6
+  }
+ },
+ "navi_cue_on_share_all_replayed_frames": {
+  "on": 1465,
+  "n": 1517,
+  "rate": 0.966
+ }
+}
