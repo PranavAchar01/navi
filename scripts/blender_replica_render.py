@@ -133,7 +133,7 @@ def catmull(pts, u):
     )
 
 
-def tour_path(sc, cam, seconds=12.0, fps=30):
+def tour_path(sc, cam, seconds=12.0, fps=24):
     """Door to desk to bed, then rising to straight down; lens 22 throughout. The ceiling is
     invisible to camera rays once the camera is above it."""
     n = round(seconds * fps)
@@ -177,6 +177,7 @@ def main():
     ap.add_argument("--scale", type=float, default=1.0)
     # Metal can stall in Session::wait while other renders hold the GPU; CPU always finishes
     ap.add_argument("--cpu", action="store_true")
+    ap.add_argument("--part", help="tour/fly: I/N renders every Nth frame from I (parallel)")
     ap.add_argument("--frames", help="fly only: comma list of frames to render as a test")
     args = ap.parse_args(sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else [])
     sc = bpy.data.scenes["replica"]
@@ -210,9 +211,15 @@ def main():
         sc.cycles.seed = 7
         (TAKES / "fly").mkdir(parents=True, exist_ok=True)
         frames = [int(f) for f in args.frames.split(",")] if args.frames else None
+        if args.part:
+            i, n = map(int, args.part.split("/"))
+            frames = frames or list(range(sc.frame_start + i, sc.frame_end + 1, n))
+            skip = True
+        else:
+            skip = not frames
         for f in frames or range(sc.frame_start, sc.frame_end + 1):
             out = TAKES / "fly" / (f"t{f:04d}.png" if args.shot == "tour" else f"{f:04d}.png")
-            if out.exists() and not frames:
+            if out.exists() and skip:
                 continue
             sc.frame_set(f)
             sc.render.filepath = str(out)
