@@ -9,7 +9,8 @@ and belt. Reads the scene file from scripts/export_sim_scene.py.
 `--frames DIR` renders every frame to DIR/%05d.png instead (`--first`/`--last` for a strip,
 `--view walker` for a close camera on the walker, `--blend` to keep the posed file). Either
 way the camera is written next to the output as cam.json (world-to-pixel matrix) for the
-overlay pass.
+overlay pass. `--track OUT.json` only solves the walk and writes the posed walker (root and
+bone channels per frame), the chair swivel and the felt levels, for scripts/blender_sim_grid.py.
 
 Look references: his footage (white walls, light grey laminate, beige upholstered bed, black
 standing desk with an orange mat, white folding table under the whiteboard, black mesh chair).
@@ -835,11 +836,11 @@ class Walker:
         before = set(bpy.data.objects)
         bpy.ops.import_scene.gltf(filepath=str(ASSETS / "human" / "HMnuH5geEG.glb"))
         new = [o for o in bpy.data.objects if o not in before]
-        for o in new:
-            if o.name.startswith("Icosphere"):
-                bpy.data.objects.remove(o)
-        self.arm = next(o for o in bpy.data.objects if o.type == "ARMATURE")
-        self.mesh = next(o for o in bpy.data.objects if o.type == "MESH" and o.parent == self.arm)
+        for o in [o for o in new if o.name.startswith("Icosphere")]:
+            new.remove(o)
+            bpy.data.objects.remove(o)
+        self.arm = next(o for o in new if o.type == "ARMATURE")  # this import's, not another's
+        self.mesh = next(o for o in new if o.type == "MESH" and o.parent == self.arm)
         for o in list(self.arm.users_collection):
             o.objects.unlink(self.arm)
         COLL.objects.link(self.arm)
@@ -936,7 +937,7 @@ class Walker:
         g = box(
             "glasses", (hh.x, gy, eye_z + 0.012), (hx * 0.92, 0.008, 0.02), M["black"], bevel=0.006
         )
-        for s in (-1, 1):
+        temples = [
             box(
                 "temple",
                 (hh.x + s * hx * 0.95, cy, eye_z + 0.02),
@@ -944,6 +945,8 @@ class Walker:
                 M["black"],
                 bevel=0,
             )
+            for s in (-1, 1)
+        ]
         cam = box(
             "glasses_cam",
             (hh.x + hx * 0.75, gy + self.front * 0.008, eye_z + 0.02),
@@ -951,7 +954,7 @@ class Walker:
             M["metal"],
             bevel=0.002,
         )
-        for o in [g, cam] + [o for o in bpy.data.objects if o.name.startswith("temple")]:
+        for o in [g, cam, *temples]:
             self._attach(o, "Head")
         # belt at the navel
         bh, bt = self._bone_world("Abdomen")
@@ -1184,12 +1187,21 @@ class Walker:
         if abs(m.head_yaw) > 1e-3:
             self._turn_bone("Neck", Quaternion(self.up, m.head_yaw * 0.4))
             self._turn_bone("Head", Quaternion(self.up, m.head_yaw * 0.6))
-        # blindfolded: right hand out ahead, low
+        # blindfolded: right hand ahead at the waist, elbow bent
         reach_w = 0.85 * (ww + wi) * (1 - wsit)
-        ahead = (self.fwd * 0.38 - self.up * 0.92 - self.left * 0.06).normalized()
+        ahead = (self.fwd * 0.26 - self.up * 0.95 - self.left * 0.1).normalized()
         self._aim("UpperArm.R", "LowerArm.R", ahead, reach_w)
-        fore = (self.fwd * 0.88 - self.up * 0.3 + self.left * 0.2).normalized()
+        fore = (self.fwd * 0.92 - self.up * 0.22 + self.left * 0.16).normalized()
         self._aim("LowerArm.R", "Palm.R", fore, reach_w)
+        # the other arm low and a little forward, guarding, swinging against the left leg
+        # (the left foot is mid-swing at phase 0.21, so the left hand is furthest back then)
+        swing = -math.cos(2 * math.pi * (m.phase - 0.21)) * ww
+        down = (self.fwd * (0.1 + 0.42 * swing) - self.up * 0.95 + self.left * 0.12).normalized()
+        self._aim("UpperArm.L", "LowerArm.L", down, reach_w)
+        guard = (
+            self.fwd * (0.55 + 0.4 * swing) - self.up * (0.75 - 0.2 * swing) - self.left * 0.12
+        ).normalized()
+        self._aim("LowerArm.L", "Palm.L", guard, reach_w)
         if m.stumble > 0:
             for s, side in (("L", 1), ("R", -1)):
                 out = (self.fwd * 0.7 + self.left * side * 0.5 - self.up * 0.2).normalized()
@@ -1445,6 +1457,23 @@ def main():
     plan = sim_motion.plan(frames, sc["motor_deg"], seat=seat and seat[:3], rects=rects)
     if seat is not None and any(abs(m.chair_turn) > 1e-4 for m in plan):
         swivel(chairs[sc["target"]][0], seat[0], seat[1], [m.chair_turn for m in plan])
+    if a.get("track"):
+        for k, fr in enumerate(frames):
+            walker.pose(plan[k], fr, k + 1, seat and seat[3])
+        chans = {
+            f"{b}|{p}": [[round(c, 5) for c in v] for _, v in rows]
+            for (b, p), rows in walker.track.items()
+        }
+        out = {
+            "frames": len(frames),
+            "chans": chans,
+            "chair_turn": [round(m.chair_turn, 5) for m in plan],
+            "felt": [[round(v, 3) for v in fr["felt"]] for fr in frames],
+            "collisions": [fr["collisions"] for fr in frames],
+            "sit": [fr["sit"] for fr in frames],
+        }
+        Path(a["track"]).write_text(json.dumps(out, separators=(",", ":")))
+        return
     setup_light(bounds)
     focus = None
     if a.get("view") == "walker":
@@ -1480,4 +1509,5 @@ def main():
     bpy.ops.render.render(animation=True)
 
 
-main()
+if __name__ == "__main__":
+    main()

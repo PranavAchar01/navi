@@ -527,24 +527,31 @@ def draw_frame(doc, k, base: Image.Image, cam: Cam, states, rings, belt, memo=No
     out = Image.alpha_composite(out, ov).resize(base.size, Image.LANCZOS)
 
     if belt is not None:  # the 3D belt in a card, top right, with the cells from above
-        bw = 600
-        bh = int(belt.height * bw / belt.width)
-        rs = min(max(bh, 150), 190)
-        card = Image.new("RGBA", (rs + bw + 24, max(bh, rs) + 44), (245, 245, 247, 236))
-        card.paste(belt.convert("RGB").resize((bw, bh), Image.LANCZOS), (rs + 16, 36))
-        ring = direction_ring(felt8(fr), doc["layout"] != "eight", rs)
-        card.alpha_composite(ring, (8, 36 + (max(bh, rs) - rs) // 2))
-        cd = ImageDraw.Draw(card)
-        cd.text(
-            (16, 10),
-            "what the walker feels  ·  from above, front up  ·  belt from behind",
-            font=ImageFont.truetype(FONT, 14),
-            fill=(60, 64, 72),
-        )
-        mask = Image.new("L", card.size, 0)
-        ImageDraw.Draw(mask).rounded_rectangle((0, 0, *card.size), radius=14, fill=255)
-        out.paste(card, (out.width - card.width - 24, 24), mask)
+        card = belt_card(belt, felt8(fr), doc["layout"] != "eight")
+        out.alpha_composite(card, (out.width - card.width - 24, 24))
     return out.convert("RGB")
+
+
+def belt_card(belt: Image.Image, levels: list[float], four: bool) -> Image.Image:
+    """The belt panel: the 3D belt screenshot beside the cells seen from above, on a card."""
+    bw = 600
+    bh = int(belt.height * bw / belt.width)
+    rs = min(max(bh, 150), 190)
+    card = Image.new("RGBA", (rs + bw + 24, max(bh, rs) + 44), (245, 245, 247, 236))
+    card.paste(belt.convert("RGB").resize((bw, bh), Image.LANCZOS), (rs + 16, 36))
+    ring = direction_ring(levels, four, rs)
+    card.alpha_composite(ring, (8, 36 + (max(bh, rs) - rs) // 2))
+    cd = ImageDraw.Draw(card)
+    cd.text(
+        (16, 10),
+        "what the walker feels  ·  from above, front up  ·  belt from behind",
+        font=ImageFont.truetype(FONT, 14),
+        fill=(60, 64, 72),
+    )
+    mask = Image.new("L", card.size, 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, *card.size), radius=14, fill=255)
+    card.putalpha(Image.fromarray(np.minimum(np.asarray(card.getchannel("A")), np.asarray(mask))))
+    return card
 
 
 def crop_belt(img: Image.Image) -> Image.Image:

@@ -71,7 +71,8 @@ def frames(sc: S.Scenario, tr: S.Trace) -> list[dict]:
     n = int(ts[-1] * FPS) + 1
     for k in range(n):
         t = k / FPS
-        i = min(int(np.searchsorted(ts, t)), len(st) - 1)
+        # the last frame takes the final step, so a bump in the walk's last steps still counts
+        i = len(st) - 1 if k == n - 1 else min(int(np.searchsorted(ts, t)), len(st) - 1)
         s = st[i]
         # pose between the two sim steps around t (the sim steps at 50 Hz, video is 30)
         p = st[max(i - 1, 0)]
