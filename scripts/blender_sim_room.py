@@ -1196,10 +1196,10 @@ class Walker:
         # the other arm low and a little forward, guarding, swinging against the left leg
         # (the left foot is mid-swing at phase 0.21, so the left hand is furthest back then)
         swing = -math.cos(2 * math.pi * (m.phase - 0.21)) * ww
-        down = (self.fwd * (0.1 + 0.42 * swing) - self.up * 0.95 + self.left * 0.12).normalized()
+        down = (self.fwd * (0.12 + 0.32 * swing) - self.up * 0.95 + self.left * 0.12).normalized()
         self._aim("UpperArm.L", "LowerArm.L", down, reach_w)
         guard = (
-            self.fwd * (0.55 + 0.4 * swing) - self.up * (0.75 - 0.2 * swing) - self.left * 0.12
+            self.fwd * (0.6 + 0.3 * swing) - self.up * (0.75 - 0.2 * swing) - self.left * 0.12
         ).normalized()
         self._aim("LowerArm.L", "Palm.L", guard, reach_w)
         if m.stumble > 0:
