@@ -70,3 +70,66 @@ def test_plan_and_nudges_never_name_an_invented_item():
     for res in (plan(lang, pins(), "get ready to leave", 1000.0), nudges(lang, pins(), 1000.0)):
         assert [i["object"] for i in res["items"]] == ["chair"]
         assert res["invented"] == ["wallet", "person"] and res["usd"] > 0
+
+
+def tidy_pins():
+    s = PinStore()
+    s.pins[1] = Pin(1, "door", "object", [0, 0, 0], ts=900, first_ts=100, seen=9, score=0.9)
+    s.pins[2] = Pin(2, "door", "object", [1.0, 0, 0], ts=950, first_ts=200, seen=3, score=0.8)
+    s.pins[3] = Pin(3, "keys", "object", [3, 0, 3], ts=990, first_ts=990, seen=1, score=0.3)
+    s.pins[4] = Pin(4, "desk", "object", [5, 0, 5], ts=990, first_ts=10, seen=20, score=0.9)
+    return s
+
+
+def test_tidy_checks_proposals_before_they_count():
+    from metasight.review import apply_tidy, tidy, tidy_candidates
+
+    s = tidy_pins()
+    cands = tidy_candidates(s, radius=0.5)
+    assert [c["kind"] for c in cands] == ["duplicate?", "ghost?"]
+    reply = "\n".join(
+        [
+            '{"ids": [1, 2], "action": "merge", "why": "one door seen twice"}',
+            '{"ids": [3], "action": "drop", "why": "a ghost"}',
+            '{"ids": [4], "action": "drop", "why": "not a candidate"}',
+            '{"ids": [1], "action": "drop", "why": "well seen, may not be dropped"}',
+        ]
+    )
+    res = tidy(Fake(reply), s)
+    assert [i["ids"] for i in res["items"]] == [[1, 2], [3]]
+    assert len(res["rejected"]) == 2
+    assert apply_tidy(s, res) == {"merged": 1, "dropped": 1}
+    assert sorted(s.pins) == [1, 4] and s.pins[1].seen == 12
+    assert s.pins[1].pos[0] == 0.25  # weighted by sightings
+
+
+def test_training_review_is_graded_against_the_lab_rule():
+    from metasight.sim_review import review
+
+    summ = {"all": dict.fromkeys(
+        ("success", "collisions", "min_clear_m", "time_to_goal_s", "flicker_per_min", "cost"), 1.0
+    )}  # fmt: skip
+    sim = {
+        "arms": {
+            "I0": {"hypothesis": "base", "base": None, "summary": summ},
+            "I1": {"hypothesis": "a", "base": "I0", "summary": summ,
+                   "paired_cost_vs_base": [-2.0, -3.0, -1.0]},
+            "I2": {"hypothesis": "b", "base": "I0", "summary": summ,
+                   "paired_cost_vs_base": [0.1, -0.5, 0.7]},
+        }
+    }  # fmt: skip
+    reply = "\n".join(
+        [
+            '{"arm": "I1", "verdict": "keep", "why": "-2.0 with interval [-3.0, -1.0]"}',
+            '{"arm": "I2", "verdict": "keep", "why": "cost fell by 7.5"}',
+            '{"arm": "I9", "verdict": "keep", "why": "no such arm"}',
+            '{"next": "try I1 with I2"}',
+        ]
+    )
+    r = review(Fake(reply), sim)
+    assert r["agree"] == "1/2"
+    by = {a["arm"]: a for a in r["arms"]}
+    assert set(by) == {"I1", "I2"}
+    assert by["I2"]["rule"] == "unclear" and by["I2"]["unsupported"] == [7.5]
+    assert by["I1"]["unsupported"] == []
+    assert r["next"] == "try I1 with I2"

@@ -6,6 +6,10 @@ Input is the change log the pins already keep (`Tools.what_changed_since`: moved
 objects, with what they were near). Output, per change: does it matter, is it something to walk
 into, and one short sentence the wearer could be told. Nothing is called when nothing changed.
 
+It also tidies the map (`tidy`): pins the geometric merge leaves apart but that look like one
+object seen twice, or a weak one-off sighting next to a look-alike, go to the model, and only
+checked proposals are applied (`apply_tidy`).
+
 The same model also makes plans ("get ready to leave" -> keys, then the door) and nudges (a
 thing not seen for a long time). Both only ever name things in the memory bank: `grounded`
 drops anything else before it reaches the wearer.
@@ -14,6 +18,7 @@ drops anything else before it reaches the wearer.
 from __future__ import annotations
 
 import json
+import math
 import re
 import time
 
@@ -161,3 +166,101 @@ class MapReview:
     def in_the_way(self) -> set[str]:
         """Labels the last review called a new thing to walk into: for the reflex's priors."""
         return {i["object"] for i in (self.last or {}).get("items", []) if i["in_the_way"]}
+
+
+TIDY_SYSTEM = (
+    "You tidy a blind person's home map. Each candidate is a group of pins a camera made; drift "
+    "and misreads leave duplicates (one object pinned twice) and ghosts (a weak single sighting "
+    "of something that is not there, often a look-alike next to it). For each candidate reply "
+    'with one JSON object per line, nothing else: {"ids": [int], "action": "merge"|"drop"|'
+    '"keep", "why": str}. merge: the pins are one object. drop: only for a single weak pin that '
+    "is a ghost. keep: anything you are unsure about. why: one short sentence."
+)
+DUP_REACH_M = 2.0  # same label further apart than the merge radius, but close enough to be one
+GHOST_SCORE = 0.5  # a pin seen once below this score is a ghost candidate
+
+
+def tidy_candidates(pins, radius: float) -> list[dict]:
+    """Groups the geometric merge leaves alone but a reader might not: same-label pins between
+    `radius` and DUP_REACH_M apart, and weak single sightings."""
+    obj = [p for p in pins.pins.values() if p.kind == "object" and p.label != "person"]
+
+    def card(p) -> dict:
+        return {
+            "id": p.id,
+            "label": p.label,
+            "seen": p.seen,
+            "score": round(p.score, 2),
+            "near": p.near[:4],
+            "pos": [round(v, 2) for v in p.pos],
+        }
+
+    out, used = [], set()
+    for i, a in enumerate(obj):
+        group = [a] + [
+            b
+            for b in obj[i + 1 :]
+            if b.label == a.label and radius < math.dist(a.pos, b.pos) <= DUP_REACH_M
+        ]
+        if len(group) > 1 and not used & {p.id for p in group}:
+            used |= {p.id for p in group}
+            out.append({"kind": "duplicate?", "pins": [card(p) for p in group]})
+    for p in obj:
+        if p.id not in used and p.seen == 1 and p.score < GHOST_SCORE:
+            out.append({"kind": "ghost?", "pins": [card(p)]})
+    return out
+
+
+def tidy(lang, pins, radius: float = 0.5) -> dict:
+    """Ask the deep model which candidate groups are one object or a ghost. Proposals are
+    checked: ids must come from one candidate, `drop` only a single weak pin, `merge` only
+    pins of one label. Nothing is changed here; `apply_tidy` does that."""
+    t0 = time.perf_counter()
+    cands = tidy_candidates(pins, radius)
+    res: dict = {"type": "map_tidy", "candidates": len(cands), "items": [], "rejected": []}
+    if not cands:
+        res["ms"] = 0
+        return res
+    raw = lang.complete(TIDY_SYSTEM, json.dumps(cands), max_tokens=200 + 70 * len(cands))
+    groups = [{c["id"] for c in g["pins"]} for g in cands]
+    for m in re.finditer(r"\{[^{}]*\}", raw):
+        try:
+            d = json.loads(m.group(0))
+        except json.JSONDecodeError:
+            continue
+        ids = {int(x) for x in d.get("ids", []) if isinstance(x, int | float)}
+        act = d.get("action")
+        ok = bool(ids) and any(ids <= g for g in groups) and act in ("merge", "drop", "keep")
+        if ok and act == "drop":
+            ok = len(ids) == 1 and all(
+                pins.pins[i].seen == 1 and pins.pins[i].score < GHOST_SCORE for i in ids
+            )
+        if ok and act == "merge":
+            ok = len(ids) > 1 and len({pins.pins[i].label for i in ids}) == 1
+        (res["items"] if ok else res["rejected"]).append(
+            {"ids": sorted(ids), "action": act, "why": str(d.get("why") or "")}
+        )
+    res |= {"raw": raw, "model": lang.name, "ms": round(1000 * (time.perf_counter() - t0))}
+    if (usd := _usd(lang)) is not None:
+        res["usd"] = usd
+    return res
+
+
+def apply_tidy(pins, res: dict) -> dict:
+    """Carry out checked proposals: fold merged pins into the most seen one, remove ghosts."""
+    merged = dropped = 0
+    for it in res["items"]:
+        ids = [i for i in it["ids"] if i in pins.pins]
+        if it["action"] == "drop" and len(ids) == 1:
+            del pins.pins[ids[0]]
+            dropped += 1
+        elif it["action"] == "merge" and len(ids) > 1:
+            group = sorted((pins.pins[i] for i in ids), key=lambda p: -p.seen)
+            host, n = group[0], sum(p.seen for p in group)
+            host.pos = [sum(p.pos[k] * p.seen for p in group) / n for k in range(len(host.pos))]
+            host.seen, host.ts = n, max(p.ts for p in group)
+            host.first_ts = min(p.first_ts for p in group)
+            for p in group[1:]:
+                del pins.pins[p.id]
+            merged += len(group) - 1
+    return {"merged": merged, "dropped": dropped}

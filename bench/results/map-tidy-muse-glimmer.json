@@ -1,0 +1,405 @@
+{
+ "type": "map_tidy",
+ "candidates": 50,
+ "items": [
+  {
+   "ids": [
+    3,
+    4,
+    7,
+    9,
+    33
+   ],
+   "action": "keep",
+   "why": "Pins are spread far apart with different nearby objects, likely distinct desks."
+  },
+  {
+   "ids": [
+    5,
+    23,
+    30,
+    55
+   ],
+   "action": "keep",
+   "why": "Positions and contexts differ too much for a single door."
+  },
+  {
+   "ids": [
+    6,
+    29
+   ],
+   "action": "keep",
+   "why": "Laptop pins are far apart with different nearby cues, likely separate sightings."
+  },
+  {
+   "ids": [
+    13,
+    17
+   ],
+   "action": "keep",
+   "why": "Mirrors are in different locations with different neighbors."
+  },
+  {
+   "ids": [
+    19,
+    58,
+    73
+   ],
+   "action": "keep",
+   "why": "Windows are spatially separated and have different nearby objects."
+  },
+  {
+   "ids": [
+    24,
+    54
+   ],
+   "action": "keep",
+   "why": "Wall pins are in different places with different contexts."
+  },
+  {
+   "ids": [
+    31,
+    56
+   ],
+   "action": "keep",
+   "why": "Backpack pins are far apart and have different nearby cues."
+  },
+  {
+   "ids": [
+    32,
+    35,
+    38
+   ],
+   "action": "keep",
+   "why": "Handbag pins are spread out with varying neighbors."
+  },
+  {
+   "ids": [
+    34,
+    36,
+    59,
+    104
+   ],
+   "action": "keep",
+   "why": "Clothes pins are in distinct locations with different nearby objects."
+  },
+  {
+   "ids": [
+    37,
+    43,
+    62
+   ],
+   "action": "keep",
+   "why": "Bag pins are spatially separated and have different contexts."
+  },
+  {
+   "ids": [
+    41,
+    47
+   ],
+   "action": "keep",
+   "why": "Pillow pins are far apart with different nearby objects."
+  },
+  {
+   "ids": [
+    51,
+    52
+   ],
+   "action": "keep",
+   "why": "Mini fridge pins are in different areas with different neighbors."
+  },
+  {
+   "ids": [
+    64,
+    77,
+    78
+   ],
+   "action": "keep",
+   "why": "Mirror pins are separated in space and context."
+  },
+  {
+   "ids": [
+    66,
+    81
+   ],
+   "action": "keep",
+   "why": "Desks are far apart with different nearby objects."
+  },
+  {
+   "ids": [
+    69,
+    126
+   ],
+   "action": "keep",
+   "why": "Windows are in different locations with different cues."
+  },
+  {
+   "ids": [
+    75,
+    101
+   ],
+   "action": "keep",
+   "why": "Chairs are spatially distinct with different contexts."
+  },
+  {
+   "ids": [
+    79,
+    89
+   ],
+   "action": "keep",
+   "why": "TV pins are close but nearby objects differ, keep separate."
+  },
+  {
+   "ids": [
+    80,
+    110
+   ],
+   "action": "keep",
+   "why": "Windows are far apart with no overlapping context."
+  },
+  {
+   "ids": [
+    82,
+    106
+   ],
+   "action": "keep",
+   "why": "Trash cans are in different areas with different nearby objects."
+  },
+  {
+   "ids": [
+    83,
+    116
+   ],
+   "action": "keep",
+   "why": "Shelves are spatially separated with different contexts."
+  },
+  {
+   "ids": [
+    87,
+    91
+   ],
+   "action": "merge",
+   "why": "Doors are very close in position and share similar context."
+  },
+  {
+   "ids": [
+    90,
+    96
+   ],
+   "action": "keep",
+   "why": "Doors are far apart with different nearby cues."
+  },
+  {
+   "ids": [
+    98,
+    121
+   ],
+   "action": "keep",
+   "why": "Cabinets are in different locations with no overlap."
+  },
+  {
+   "ids": [
+    115,
+    123
+   ],
+   "action": "keep",
+   "why": "Clothes pins are spatially separated with different contexts."
+  },
+  {
+   "ids": [
+    117,
+    122
+   ],
+   "action": "keep",
+   "why": "Wall pins are far apart with different nearby objects."
+  },
+  {
+   "ids": [
+    22
+   ],
+   "action": "drop",
+   "why": "Single weak door sighting with low score and no corroboration."
+  },
+  {
+   "ids": [
+    25
+   ],
+   "action": "drop",
+   "why": "Isolated low confidence door with no nearby cues."
+  },
+  {
+   "ids": [
+    28
+   ],
+   "action": "drop",
+   "why": "Weak single box detection with low score."
+  },
+  {
+   "ids": [
+    44
+   ],
+   "action": "drop",
+   "why": "Single low confidence curtain with no supporting pins."
+  },
+  {
+   "ids": [
+    45
+   ],
+   "action": "drop",
+   "why": "Weak handbag sighting with low score and no neighbors."
+  },
+  {
+   "ids": [
+    48
+   ],
+   "action": "drop",
+   "why": "Isolated low confidence door with no context."
+  },
+  {
+   "ids": [
+    50
+   ],
+   "action": "drop",
+   "why": "Single mirror detection with low score and no corroboration."
+  },
+  {
+   "ids": [
+    53
+   ],
+   "action": "drop",
+   "why": "Weak window sighting with low confidence."
+  },
+  {
+   "ids": [
+    60
+   ],
+   "action": "drop",
+   "why": "Low confidence wall detection with no supporting pins."
+  },
+  {
+   "ids": [
+    63
+   ],
+   "action": "drop",
+   "why": "Single toy detection with very low score."
+  },
+  {
+   "ids": [
+    97
+   ],
+   "action": "drop",
+   "why": "Weak bag sighting with low score and no corroboration."
+  },
+  {
+   "ids": [
+    99
+   ],
+   "action": "drop",
+   "why": "Isolated mini fridge detection with low confidence."
+  },
+  {
+   "ids": [
+    100
+   ],
+   "action": "drop",
+   "why": "Single wall detection with low score."
+  },
+  {
+   "ids": [
+    102
+   ],
+   "action": "drop",
+   "why": "Weak book sighting with low confidence."
+  },
+  {
+   "ids": [
+    105
+   ],
+   "action": "drop",
+   "why": "Single rug detection with low score."
+  },
+  {
+   "ids": [
+    111
+   ],
+   "action": "drop",
+   "why": "Isolated potted plant with low confidence."
+  },
+  {
+   "ids": [
+    112
+   ],
+   "action": "drop",
+   "why": "Weak window sighting with low score."
+  },
+  {
+   "ids": [
+    113
+   ],
+   "action": "drop",
+   "why": "Single table detection with low confidence."
+  },
+  {
+   "ids": [
+    119
+   ],
+   "action": "drop",
+   "why": "Weak window sighting with low score."
+  },
+  {
+   "ids": [
+    120
+   ],
+   "action": "drop",
+   "why": "Single curtain detection with low confidence."
+  },
+  {
+   "ids": [
+    124
+   ],
+   "action": "drop",
+   "why": "Isolated mirror with low score."
+  },
+  {
+   "ids": [
+    125
+   ],
+   "action": "drop",
+   "why": "Single potted plant with low confidence."
+  },
+  {
+   "ids": [
+    127
+   ],
+   "action": "drop",
+   "why": "Weak mini fridge sighting with low score."
+  },
+  {
+   "ids": [
+    129
+   ],
+   "action": "drop",
+   "why": "Single cabinet detection with low confidence."
+  },
+  {
+   "ids": [
+    132
+   ],
+   "action": "drop",
+   "why": "Weak laptop sighting with low score."
+  }
+ ],
+ "rejected": [],
+ "raw": "{\"ids\": [3, 4, 7, 9, 33], \"action\": \"keep\", \"why\": \"Pins are spread far apart with different nearby objects, likely distinct desks.\"}\n{\"ids\": [5, 23, 30, 55], \"action\": \"keep\", \"why\": \"Positions and contexts differ too much for a single door.\"}\n{\"ids\": [6, 29], \"action\": \"keep\", \"why\": \"Laptop pins are far apart with different nearby cues, likely separate sightings.\"}\n{\"ids\": [13, 17], \"action\": \"keep\", \"why\": \"Mirrors are in different locations with different neighbors.\"}\n{\"ids\": [19, 58, 73], \"action\": \"keep\", \"why\": \"Windows are spatially separated and have different nearby objects.\"}\n{\"ids\": [24, 54], \"action\": \"keep\", \"why\": \"Wall pins are in different places with different contexts.\"}\n{\"ids\": [31, 56], \"action\": \"keep\", \"why\": \"Backpack pins are far apart and have different nearby cues.\"}\n{\"ids\": [32, 35, 38], \"action\": \"keep\", \"why\": \"Handbag pins are spread out with varying neighbors.\"}\n{\"ids\": [34, 36, 59, 104], \"action\": \"keep\", \"why\": \"Clothes pins are in distinct locations with different nearby objects.\"}\n{\"ids\": [37, 43, 62], \"action\": \"keep\", \"why\": \"Bag pins are spatially separated and have different contexts.\"}\n{\"ids\": [41, 47], \"action\": \"keep\", \"why\": \"Pillow pins are far apart with different nearby objects.\"}\n{\"ids\": [51, 52], \"action\": \"keep\", \"why\": \"Mini fridge pins are in different areas with different neighbors.\"}\n{\"ids\": [64, 77, 78], \"action\": \"keep\", \"why\": \"Mirror pins are separated in space and context.\"}\n{\"ids\": [66, 81], \"action\": \"keep\", \"why\": \"Desks are far apart with different nearby objects.\"}\n{\"ids\": [69, 126], \"action\": \"keep\", \"why\": \"Windows are in different locations with different cues.\"}\n{\"ids\": [75, 101], \"action\": \"keep\", \"why\": \"Chairs are spatially distinct with different contexts.\"}\n{\"ids\": [79, 89], \"action\": \"keep\", \"why\": \"TV pins are close but nearby objects differ, keep separate.\"}\n{\"ids\": [80, 110], \"action\": \"keep\", \"why\": \"Windows are far apart with no overlapping context.\"}\n{\"ids\": [82, 106], \"action\": \"keep\", \"why\": \"Trash cans are in different areas with different nearby objects.\"}\n{\"ids\": [83, 116], \"action\": \"keep\", \"why\": \"Shelves are spatially separated with different contexts.\"}\n{\"ids\": [87, 91], \"action\": \"merge\", \"why\": \"Doors are very close in position and share similar context.\"}\n{\"ids\": [90, 96], \"action\": \"keep\", \"why\": \"Doors are far apart with different nearby cues.\"}\n{\"ids\": [98, 121], \"action\": \"keep\", \"why\": \"Cabinets are in different locations with no overlap.\"}\n{\"ids\": [115, 123], \"action\": \"keep\", \"why\": \"Clothes pins are spatially separated with different contexts.\"}\n{\"ids\": [117, 122], \"action\": \"keep\", \"why\": \"Wall pins are far apart with different nearby objects.\"}\n{\"ids\": [22], \"action\": \"drop\", \"why\": \"Single weak door sighting with low score and no corroboration.\"}\n{\"ids\": [25], \"action\": \"drop\", \"why\": \"Isolated low confidence door with no nearby cues.\"}\n{\"ids\": [28], \"action\": \"drop\", \"why\": \"Weak single box detection with low score.\"}\n{\"ids\": [44], \"action\": \"drop\", \"why\": \"Single low confidence curtain with no supporting pins.\"}\n{\"ids\": [45], \"action\": \"drop\", \"why\": \"Weak handbag sighting with low score and no neighbors.\"}\n{\"ids\": [48], \"action\": \"drop\", \"why\": \"Isolated low confidence door with no context.\"}\n{\"ids\": [50], \"action\": \"drop\", \"why\": \"Single mirror detection with low score and no corroboration.\"}\n{\"ids\": [53], \"action\": \"drop\", \"why\": \"Weak window sighting with low confidence.\"}\n{\"ids\": [60], \"action\": \"drop\", \"why\": \"Low confidence wall detection with no supporting pins.\"}\n{\"ids\": [63], \"action\": \"drop\", \"why\": \"Single toy detection with very low score.\"}\n{\"ids\": [97], \"action\": \"drop\", \"why\": \"Weak bag sighting with low score and no corroboration.\"}\n{\"ids\": [99], \"action\": \"drop\", \"why\": \"Isolated mini fridge detection with low confidence.\"}\n{\"ids\": [100], \"action\": \"drop\", \"why\": \"Single wall detection with low score.\"}\n{\"ids\": [102], \"action\": \"drop\", \"why\": \"Weak book sighting with low confidence.\"}\n{\"ids\": [105], \"action\": \"drop\", \"why\": \"Single rug detection with low score.\"}\n{\"ids\": [111], \"action\": \"drop\", \"why\": \"Isolated potted plant with low confidence.\"}\n{\"ids\": [112], \"action\": \"drop\", \"why\": \"Weak window sighting with low score.\"}\n{\"ids\": [113], \"action\": \"drop\", \"why\": \"Single table detection with low confidence.\"}\n{\"ids\": [119], \"action\": \"drop\", \"why\": \"Weak window sighting with low score.\"}\n{\"ids\": [120], \"action\": \"drop\", \"why\": \"Single curtain detection with low confidence.\"}\n{\"ids\": [124], \"action\": \"drop\", \"why\": \"Isolated mirror with low score.\"}\n{\"ids\": [125], \"action\": \"drop\", \"why\": \"Single potted plant with low confidence.\"}\n{\"ids\": [127], \"action\": \"drop\", \"why\": \"Weak mini fridge sighting with low score.\"}\n{\"ids\": [129], \"action\": \"drop\", \"why\": \"Single cabinet detection with low confidence.\"}\n{\"ids\": [132], \"action\": \"drop\", \"why\": \"Weak laptop sighting with low score.\"}",
+ "model": "muse-glimmer",
+ "ms": 108775,
+ "at": "2026-11-04 15:39:08 PST",
+ "source": "data/home/home.json",
+ "pins": 132,
+ "wonder_refused": "Error code: 402 - Billing verification failed. Billing Issue. To use this API key, your team needs to resolve a billing issue first. To resolve this issue, go h",
+ "applied_on_copy": {
+  "merged": 1,
+  "dropped": 25
+ },
+ "pins_after": 106
+}

@@ -1,0 +1,66 @@
+{
+ "model": "muse-glimmer",
+ "ms": 37516,
+ "arms": [
+  {
+   "arm": "I1",
+   "verdict": "drop",
+   "why": "Adding map sides and back sectors raises cost versus I0 with paired mean +2.37 and 95% interval [0.19, 4.76] entirely above zero.",
+   "watch": "check for increased cognitive load from extra sectors.",
+   "rule": "drop",
+   "agrees": true,
+   "unsupported": []
+  },
+  {
+   "arm": "I2",
+   "verdict": "unclear",
+   "why": "Adding field-of-view memory versus I1 shows paired mean -0.03 with 95% interval [-1.31, 1.23] straddling zero.",
+   "watch": "monitor for latency or stale memory causing late cues.",
+   "rule": "unclear",
+   "agrees": true,
+   "unsupported": []
+  },
+  {
+   "arm": "I3",
+   "verdict": "keep",
+   "why": "Bearing hold on the panned cue versus I1 lowers cost with paired mean -4.26 and 95% interval [-6.68, -2.1] entirely below zero.",
+   "watch": "verify the hold does not mask rapid obstacle changes.",
+   "rule": "keep",
+   "agrees": true,
+   "unsupported": []
+  },
+  {
+   "arm": "I4",
+   "verdict": "keep",
+   "why": "Requiring strips to hold 2 frames versus I1 reduces cost with paired mean -2.14 and 95% interval [-4.06, -0.28] entirely below zero.",
+   "watch": "ensure the 2-frame hold does not delay urgent avoidance cues.",
+   "rule": "keep",
+   "agrees": true,
+   "unsupported": []
+  },
+  {
+   "arm": "I5",
+   "verdict": "keep",
+   "why": "Routing guide by the app's navigator versus I1 cuts cost with paired mean -5.89 and 95% interval [-8.35, -3.58] entirely below zero.",
+   "watch": "confirm navigator outputs stay aligned with haptic timing and do not introduce route oscillations.",
+   "rule": "keep",
+   "agrees": true,
+   "unsupported": []
+  },
+  {
+   "arm": "I6",
+   "verdict": "keep",
+   "why": "Cueing two nearest objects at least 45 degrees apart versus I5 lowers cost with paired mean -1.23 and 95% interval [-1.5, -0.97] entirely below zero.",
+   "watch": "check for excessive belt activation and user-reported flicker given flicker_per_min rises to 1509.7.",
+   "rule": "keep",
+   "agrees": true,
+   "unsupported": []
+  }
+ ],
+ "next": "Test the combination of I3 bearing hold, I4 2-frame hold, and I5 navigator routing together against I1 on the same held-out seeds to see if gains stack without raising flicker.",
+ "agree": "6/6",
+ "unsupported_numbers": 0,
+ "raw": "{\"arm\": \"I1\", \"verdict\": \"drop\", \"why\": \"Adding map sides and back sectors raises cost versus I0 with paired mean +2.37 and 95% interval [0.19, 4.76] entirely above zero.\", \"watch\": \"check for increased cognitive load from extra sectors.\"}\n{\"arm\": \"I2\", \"verdict\": \"unclear\", \"why\": \"Adding field-of-view memory versus I1 shows paired mean -0.03 with 95% interval [-1.31, 1.23] straddling zero.\", \"watch\": \"monitor for latency or stale memory causing late cues.\"}\n{\"arm\": \"I3\", \"verdict\": \"keep\", \"why\": \"Bearing hold on the panned cue versus I1 lowers cost with paired mean -4.26 and 95% interval [-6.68, -2.1] entirely below zero.\", \"watch\": \"verify the hold does not mask rapid obstacle changes.\"}\n{\"arm\": \"I4\", \"verdict\": \"keep\", \"why\": \"Requiring strips to hold 2 frames versus I1 reduces cost with paired mean -2.14 and 95% interval [-4.06, -0.28] entirely below zero.\", \"watch\": \"ensure the 2-frame hold does not delay urgent avoidance cues.\"}\n{\"arm\": \"I5\", \"verdict\": \"keep\", \"why\": \"Routing guide by the app's navigator versus I1 cuts cost with paired mean -5.89 and 95% interval [-8.35, -3.58] entirely below zero.\", \"watch\": \"confirm navigator outputs stay aligned with haptic timing and do not introduce route oscillations.\"}\n{\"arm\": \"I6\", \"verdict\": \"keep\", \"why\": \"Cueing two nearest objects at least 45 degrees apart versus I5 lowers cost with paired mean -1.23 and 95% interval [-1.5, -0.97] entirely below zero.\", \"watch\": \"check for excessive belt activation and user-reported flicker given flicker_per_min rises to 1509.7.\"}\n{\"next\": \"Test the combination of I3 bearing hold, I4 2-frame hold, and I5 navigator routing together against I1 on the same held-out seeds to see if gains stack without raising flicker.\"}",
+ "at": "2026-11-04 15:39:08 PST",
+ "wonder_refused": "Error code: 402 - Billing verification failed. Billing Issue. To use this API key, your team needs to resolve a billing issue first. To resolve this issue, go h"
+}
