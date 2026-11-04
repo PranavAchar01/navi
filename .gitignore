@@ -30,3 +30,14 @@ showcase/demo/footage/
 *.mov
 /yolo26n.mlpackage
 web/public/_cut/
+
+.env*
+node_modules/
+.pnpm-store/
+*.pt
+*.onnx
+*.safetensors
+*.mlpackage/
+*.ply
+*.splat
+*.mov
