@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import threading
 import time
 
 import numpy as np
@@ -31,14 +32,28 @@ def pcm_mono16k(m: dict) -> np.ndarray:
 
 
 class VoiceAsk:
-    def __init__(self, srv, key: str, keywords: list[str], connect=None):
+    def __init__(self, srv, key: str, keywords: list[str], connect=None, isolate: bool = False):
         self.srv = srv
         self.asr = Transcriber(key, self.on_heard, keywords, connect=connect)
         self.spec: tuple[str, asyncio.Future, float] | None = None  # (label, answer, started)
         self.last: dict = {}  # timings of the newest spoken question, for /api/state and logs
+        self._isolator = None  # metasight.isolate.Isolator once loaded (isolate = "dns48")
+        self._iso_push = None
+        if isolate:  # load off the event loop; raw audio goes to Transcribe until it is ready
+            threading.Thread(target=self._load_isolator, name="isolate-load", daemon=True).start()
+
+    def _load_isolator(self) -> None:
+        from .isolate import Isolator
+
+        self._isolator = Isolator()
 
     def audio(self, m: dict) -> None:
-        self.asr.push(pcm_mono16k(m))
+        x = pcm_mono16k(m)
+        if self._isolator is not None and self._iso_push is None:
+            from .isolate import IsolatedPush
+
+            self._iso_push = IsolatedPush(self.asr.push, asyncio.get_running_loop(), self._isolator)
+        (self._iso_push or self.asr.push)(x)
 
     async def on_heard(self, h: Heard) -> None:
         await self.srv.hub.json(

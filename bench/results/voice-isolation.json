@@ -1,0 +1,444 @@
+{
+ "at": "2026-11-04 15:36:23 PST",
+ "model": "facebookresearch/denoiser dns48 (Meta, open weights), streaming, CPU",
+ "asr": "parakeet-tdt-0.6b-v3 on this Mac (Transcribe refused: billing_not_configured)",
+ "chunk_ms_audio": 64.0,
+ "isolate_ms_per_chunk": {
+  "median": 6.43,
+  "p95": 6.8,
+  "max": 7.73,
+  "n": 724
+ },
+ "lookahead_ms": 41.3,
+ "mean": {
+  "clean": {
+   "wer": 0.0
+  },
+  "fan@0dB": {
+   "wer_raw": 0.05,
+   "wer_isolated": 0.163,
+   "si_sdr_db_raw": -1.922,
+   "si_sdr_db_isolated": 11.4
+  },
+  "fan@5dB": {
+   "wer_raw": 0.0,
+   "wer_isolated": 0.0,
+   "si_sdr_db_raw": 3.084,
+   "si_sdr_db_isolated": 14.546
+  },
+  "tv@0dB": {
+   "wer_raw": 0.975,
+   "wer_isolated": 0.925,
+   "si_sdr_db_raw": -1.894,
+   "si_sdr_db_isolated": -3.396
+  },
+  "tv@5dB": {
+   "wer_raw": 0.8,
+   "wer_isolated": 0.867,
+   "si_sdr_db_raw": 3.1,
+   "si_sdr_db_isolated": 2.75
+  }
+ },
+ "rows": [
+  {
+   "question": "where are my keys",
+   "noise": "none",
+   "snr_db": null,
+   "isolated": false,
+   "heard": "Where are my keys?",
+   "wer": 0.0
+  },
+  {
+   "question": "where are my keys",
+   "noise": "fan",
+   "snr_db": 0.0,
+   "isolated": false,
+   "si_sdr_db": -2.15,
+   "heard": "Where are my feet?",
+   "wer": 0.25
+  },
+  {
+   "question": "where are my keys",
+   "noise": "fan",
+   "snr_db": 0.0,
+   "isolated": true,
+   "si_sdr_db": 11.8,
+   "heard": "Where are my kids?",
+   "wer": 0.25
+  },
+  {
+   "question": "where are my keys",
+   "noise": "fan",
+   "snr_db": 5.0,
+   "isolated": false,
+   "si_sdr_db": 2.84,
+   "heard": "Where are my keys?",
+   "wer": 0.0
+  },
+  {
+   "question": "where are my keys",
+   "noise": "fan",
+   "snr_db": 5.0,
+   "isolated": true,
+   "si_sdr_db": 14.74,
+   "heard": "Where are my keys?",
+   "wer": 0.0
+  },
+  {
+   "question": "where are my keys",
+   "noise": "tv",
+   "snr_db": 0.0,
+   "isolated": false,
+   "si_sdr_db": -2.14,
+   "heard": "Good evening, said on T.",
+   "wer": 1.25
+  },
+  {
+   "question": "where are my keys",
+   "noise": "tv",
+   "snr_db": 0.0,
+   "isolated": true,
+   "si_sdr_db": -3.28,
+   "heard": "Good evening.",
+   "wer": 1.0
+  },
+  {
+   "question": "where are my keys",
+   "noise": "tv",
+   "snr_db": 5.0,
+   "isolated": false,
+   "si_sdr_db": 2.85,
+   "heard": "Good evening.",
+   "wer": 1.0
+  },
+  {
+   "question": "where are my keys",
+   "noise": "tv",
+   "snr_db": 5.0,
+   "isolated": true,
+   "si_sdr_db": 2.48,
+   "heard": "Good evening.",
+   "wer": 1.0
+  },
+  {
+   "question": "where did I leave my wallet",
+   "noise": "none",
+   "snr_db": null,
+   "isolated": false,
+   "heard": "Where did I leave my wallet?",
+   "wer": 0.0
+  },
+  {
+   "question": "where did I leave my wallet",
+   "noise": "fan",
+   "snr_db": 0.0,
+   "isolated": false,
+   "si_sdr_db": -1.84,
+   "heard": "Where did I leave my wallet?",
+   "wer": 0.0
+  },
+  {
+   "question": "where did I leave my wallet",
+   "noise": "fan",
+   "snr_db": 0.0,
+   "isolated": true,
+   "si_sdr_db": 11.72,
+   "heard": "Where did I lead my wallet?",
+   "wer": 0.167
+  },
+  {
+   "question": "where did I leave my wallet",
+   "noise": "fan",
+   "snr_db": 5.0,
+   "isolated": false,
+   "si_sdr_db": 3.2,
+   "heard": "Where did I leave my wallet?",
+   "wer": 0.0
+  },
+  {
+   "question": "where did I leave my wallet",
+   "noise": "fan",
+   "snr_db": 5.0,
+   "isolated": true,
+   "si_sdr_db": 14.93,
+   "heard": "Where did I leave my wallet?",
+   "wer": 0.0
+  },
+  {
+   "question": "where did I leave my wallet",
+   "noise": "tv",
+   "snr_db": 0.0,
+   "isolated": false,
+   "si_sdr_db": -1.67,
+   "heard": "Good evening.",
+   "wer": 1.0
+  },
+  {
+   "question": "where did I leave my wallet",
+   "noise": "tv",
+   "snr_db": 0.0,
+   "isolated": true,
+   "si_sdr_db": -3.52,
+   "heard": "Good evening.",
+   "wer": 1.0
+  },
+  {
+   "question": "where did I leave my wallet",
+   "noise": "tv",
+   "snr_db": 5.0,
+   "isolated": false,
+   "si_sdr_db": 3.29,
+   "heard": "Good evening on Tuesday that.",
+   "wer": 1.0
+  },
+  {
+   "question": "where did I leave my wallet",
+   "noise": "tv",
+   "snr_db": 5.0,
+   "isolated": true,
+   "si_sdr_db": 2.89,
+   "heard": "Good evening. Where did I leave my wallet?",
+   "wer": 0.333
+  },
+  {
+   "question": "is there anything in front of the door",
+   "noise": "none",
+   "snr_db": null,
+   "isolated": false,
+   "heard": "Is there anything in front of the door?",
+   "wer": 0.0
+  },
+  {
+   "question": "is there anything in front of the door",
+   "noise": "fan",
+   "snr_db": 0.0,
+   "isolated": false,
+   "si_sdr_db": -1.55,
+   "heard": "Is there anything in front of the door?",
+   "wer": 0.0
+  },
+  {
+   "question": "is there anything in front of the door",
+   "noise": "fan",
+   "snr_db": 0.0,
+   "isolated": true,
+   "si_sdr_db": 11.01,
+   "heard": "Is there anything in front of the door?",
+   "wer": 0.0
+  },
+  {
+   "question": "is there anything in front of the door",
+   "noise": "fan",
+   "snr_db": 5.0,
+   "isolated": false,
+   "si_sdr_db": 3.46,
+   "heard": "Is there anything in front of the door?",
+   "wer": 0.0
+  },
+  {
+   "question": "is there anything in front of the door",
+   "noise": "fan",
+   "snr_db": 5.0,
+   "isolated": true,
+   "si_sdr_db": 14.37,
+   "heard": "Is there anything in front of the door?",
+   "wer": 0.0
+  },
+  {
+   "question": "is there anything in front of the door",
+   "noise": "tv",
+   "snr_db": 0.0,
+   "isolated": false,
+   "si_sdr_db": -1.68,
+   "heard": "Is there anything else?",
+   "wer": 0.625
+  },
+  {
+   "question": "is there anything in front of the door",
+   "noise": "tv",
+   "snr_db": 0.0,
+   "isolated": true,
+   "si_sdr_db": -3.59,
+   "heard": "Is there anything else?",
+   "wer": 0.625
+  },
+  {
+   "question": "is there anything in front of the door",
+   "noise": "tv",
+   "snr_db": 5.0,
+   "isolated": false,
+   "si_sdr_db": 3.39,
+   "heard": "Is there anything in front of the door?",
+   "wer": 0.0
+  },
+  {
+   "question": "is there anything in front of the door",
+   "noise": "tv",
+   "snr_db": 5.0,
+   "isolated": true,
+   "si_sdr_db": 3.19,
+   "heard": "Good evening.",
+   "wer": 1.0
+  },
+  {
+   "question": "where is my phone",
+   "noise": "none",
+   "snr_db": null,
+   "isolated": false,
+   "heard": "Where is my phone?",
+   "wer": 0.0
+  },
+  {
+   "question": "where is my phone",
+   "noise": "fan",
+   "snr_db": 0.0,
+   "isolated": false,
+   "si_sdr_db": -2.09,
+   "heard": "Where is my phone?",
+   "wer": 0.0
+  },
+  {
+   "question": "where is my phone",
+   "noise": "fan",
+   "snr_db": 0.0,
+   "isolated": true,
+   "si_sdr_db": 11.43,
+   "heard": "Where is my phone?",
+   "wer": 0.0
+  },
+  {
+   "question": "where is my phone",
+   "noise": "fan",
+   "snr_db": 5.0,
+   "isolated": false,
+   "si_sdr_db": 2.84,
+   "heard": "Where is my phone?",
+   "wer": 0.0
+  },
+  {
+   "question": "where is my phone",
+   "noise": "fan",
+   "snr_db": 5.0,
+   "isolated": true,
+   "si_sdr_db": 14.58,
+   "heard": "Where is my phone?",
+   "wer": 0.0
+  },
+  {
+   "question": "where is my phone",
+   "noise": "tv",
+   "snr_db": 0.0,
+   "isolated": false,
+   "si_sdr_db": -2.23,
+   "heard": "Good evening.",
+   "wer": 1.0
+  },
+  {
+   "question": "where is my phone",
+   "noise": "tv",
+   "snr_db": 0.0,
+   "isolated": true,
+   "si_sdr_db": -3.84,
+   "heard": "Good evening.",
+   "wer": 1.0
+  },
+  {
+   "question": "where is my phone",
+   "noise": "tv",
+   "snr_db": 5.0,
+   "isolated": false,
+   "si_sdr_db": 2.76,
+   "heard": "Good evening.",
+   "wer": 1.0
+  },
+  {
+   "question": "where is my phone",
+   "noise": "tv",
+   "snr_db": 5.0,
+   "isolated": true,
+   "si_sdr_db": 2.43,
+   "heard": "Good evening.",
+   "wer": 1.0
+  },
+  {
+   "question": "what changed in the kitchen",
+   "noise": "none",
+   "snr_db": null,
+   "isolated": false,
+   "heard": "What changed in the kitchen?",
+   "wer": 0.0
+  },
+  {
+   "question": "what changed in the kitchen",
+   "noise": "fan",
+   "snr_db": 0.0,
+   "isolated": false,
+   "si_sdr_db": -1.98,
+   "heard": "What changed in the kitchen?",
+   "wer": 0.0
+  },
+  {
+   "question": "what changed in the kitchen",
+   "noise": "fan",
+   "snr_db": 0.0,
+   "isolated": true,
+   "si_sdr_db": 11.04,
+   "heard": "My change in the kitchen.",
+   "wer": 0.4
+  },
+  {
+   "question": "what changed in the kitchen",
+   "noise": "fan",
+   "snr_db": 5.0,
+   "isolated": false,
+   "si_sdr_db": 3.08,
+   "heard": "What changed in the kitchen?",
+   "wer": 0.0
+  },
+  {
+   "question": "what changed in the kitchen",
+   "noise": "fan",
+   "snr_db": 5.0,
+   "isolated": true,
+   "si_sdr_db": 14.11,
+   "heard": "What changed in the kitchen?",
+   "wer": 0.0
+  },
+  {
+   "question": "what changed in the kitchen",
+   "noise": "tv",
+   "snr_db": 0.0,
+   "isolated": false,
+   "si_sdr_db": -1.75,
+   "heard": "Good evening.",
+   "wer": 1.0
+  },
+  {
+   "question": "what changed in the kitchen",
+   "noise": "tv",
+   "snr_db": 0.0,
+   "isolated": true,
+   "si_sdr_db": -2.75,
+   "heard": "Good evening.",
+   "wer": 1.0
+  },
+  {
+   "question": "what changed in the kitchen",
+   "noise": "tv",
+   "snr_db": 5.0,
+   "isolated": false,
+   "si_sdr_db": 3.21,
+   "heard": "Good evening",
+   "wer": 1.0
+  },
+  {
+   "question": "what changed in the kitchen",
+   "noise": "tv",
+   "snr_db": 5.0,
+   "isolated": true,
+   "si_sdr_db": 2.76,
+   "heard": "Good evening.",
+   "wer": 1.0
+  }
+ ]
+}

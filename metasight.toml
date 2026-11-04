@@ -8,6 +8,9 @@ finder = "sam31"
 asr = "meta"
 # offline: "glimmer" (Muse Glimmer on this Mac answers when the API is unreachable) | "" (none)
 offline = "glimmer"
+# isolate: "dns48" (Meta's open-weight denoiser cleans the mic before Transcribe, 6 ms per 64 ms
+#   chunk on a worker thread; bench/results/voice-isolation.json) | "off"
+isolate = "off"
 # review: "wonder" (Muse Wonder reads the map's changes every review_every_min) | "glimmer" | "off"
 review = "wonder"
 

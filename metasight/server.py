@@ -198,7 +198,7 @@ class Server:
         self.voice: VoiceAsk | None = None  # spoken questions through Muse Voice Transcribe
         if settings.asr == "meta" and (key := secret("META_API_KEY", "MODEL_API_KEY")):
             words = list(dict.fromkeys([*settings.watchlist, *settings.meta_items]))
-            self.voice = VoiceAsk(self, key, words)
+            self.voice = VoiceAsk(self, key, words, isolate=settings.isolate == "dns48")
             self.voice.asr.on_heard = self.heard
         self.motion_t = 0.0
         self.phone_clock = math.inf  # server time minus phone time, least delayed sample
