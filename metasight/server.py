@@ -46,7 +46,17 @@ from .modes import implied as implied_activity
 from .motion import FallDetector, Sample, ShakeDetector
 from .notes import Notes, asks_notes, caption, notes_command
 from .onboarding import PATTERNS, Onboarding, pattern_length, wants_setup
-from .pan import GUIDE_ALIGNED_DEG, Median, Params, Persist, plan_pan, scene_targets, with_guide
+from .pan import (
+    GUIDE_ALIGNED_DEG,
+    Median,
+    Params,
+    Persist,
+    felt_bearing,
+    path_targets,
+    plan_pan,
+    scene_targets,
+    with_guide,
+)
 from .pins import PinStore, confirmed, layer_of
 from .providers import make_language, make_reviewer
 from .providers.finder import LOOKALIKES
@@ -535,9 +545,14 @@ class Server:
                     sc.path_m = self.path_filter([sc.path_m])[0]
                 p = self.cue_range
                 targets = scene_targets(strips, self.s.hfov_deg, merged, known, p)
-                cmd, flags = plan_pan(targets, known, sc.path_m, res.ttc_s, sc.drop_m, p)
+                fb = sc.front_bearing_deg
+                cmd, flags = plan_pan(
+                    targets, known, sc.path_m, res.ttc_s, sc.drop_m, p, path_bearing_deg=fb
+                )
+                cue_bearing = felt_bearing(path_targets(targets, sc.path_m, fb, p), p)
             else:
                 cmd, flags = plan(merged, known, sc.path_m, res.ttc_s, sc.drop_m)
+                cue_bearing = sc.front_bearing_deg
             # The map's priors may add or raise cues; a cue live depth made is never weakened.
             self._maybe_floor(now)
             pri = self._priors(now, live)
@@ -569,7 +584,7 @@ class Server:
             if now < self.found_until:
                 flags |= FLAG_FOUND
             if self.s.belt_strength == "strong":
-                cmd = strong(cmd)
+                cmd = strong(cmd, cue_bearing)
             if self.s.cue_hold_s > 0:
                 cmd = self.rhythm(cmd, now)
             if not (self.braille and self.braille.owns_belt):  # a Braille cue on the belt wins
@@ -611,6 +626,8 @@ class Server:
                     "cues": [{"mode": NAMES[m], "intensity": i / 255} for m, i in cmd],
                     "hazards": hazards(sc.grid, sc.corridor),
                     "path": _finite(sc.path_m),
+                    "front_bearing": _finite(sc.front_bearing_deg),
+                    "cue_bearing": _finite(cue_bearing),
                     "trip": _finite(sc.trip_m),
                     "drop": _finite(sc.drop_m),
                     "ttc": _finite(res.ttc_s),

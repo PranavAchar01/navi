@@ -76,6 +76,9 @@ class Scene:
     drop_m: float  # nearest drop below the floor (stairs down, a step) in the path
     floor: bool  # a floor plane was found this frame (or reused from the last 1.5 s)
     cam_h_raw: float  # camera height above the floor in raw (unscaled) depth units
+    # Where the front cue's obstacle is: the bearing (degrees, + right) of the nearest obstacle
+    # pixels in the front wedge or the walking path. NaN when nothing is there.
+    front_bearing_deg: float = math.nan
 
 
 GRID = (192, 108)
@@ -235,6 +238,11 @@ def analyse(
         return float(np.percentile(rng_m[mask], 5)) if mask.sum() >= min_px else math.inf
 
     path_m = nearest(obst & corridor)
+    front = obst & ((np.abs(bearing) < a) | corridor)
+    front_m = nearest(front)
+    front_bearing = math.nan
+    if math.isfinite(front_m):  # the pixels within 25 cm of the nearest: that object's side
+        front_bearing = float(np.median(bearing[front & (rng_m <= front_m + 0.25)]))
     # Trip hazards: things in the path whose whole height is under 40 cm (shoes, a box, a cable
     # run), not the bottom edge of a bed.
     trip_m = math.inf
@@ -254,9 +262,8 @@ def analyse(
     shown = ok if plane is None else obst
     grid = np.full((h, w), 255, np.uint8)
     grid[shown] = np.clip(rng_m[shown] * 50, 0, 254).astype(np.uint8)
-    return Scene(sectors, grid, corridor, path_m, trip_m, drop_m, found, cam_h), (
-        plane if found else None
-    )
+    scene = Scene(sectors, grid, corridor, path_m, trip_m, drop_m, found, cam_h, front_bearing)
+    return scene, (plane if found else None)
 
 
 def hazards(

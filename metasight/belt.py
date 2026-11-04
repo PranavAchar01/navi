@@ -75,20 +75,43 @@ def plan(
 RANK = {"off": 0, "unknown": 0, "slow": 1, "guide": 2, "find": 2, "talk": 2, "fast": 3, "solid": 4}
 
 
-def strong(cmd: list[tuple[int, int]]) -> list[tuple[int, int]]:
+# The front cue plays on both front motors only inside this many degrees of straight ahead;
+# past it, only on the side the obstacle is on. Both at once felt like "ahead" for everything.
+CENTRE_DEG = 6.0
+
+
+def strong(
+    cmd: list[tuple[int, int]], front_bearing_deg: float = math.nan
+) -> list[tuple[int, int]]:
     """The command for the four-motor belt at full strength: every cue at 255, and each front,
-    right, back or left cell moved onto both diagonal motors beside it (the firmware would play
+    right, back or left cell moved onto the diagonal motors beside it (the firmware would play
     it there at 0.7 of its strength). Distance is then told by the rhythm alone (slow 1.5 Hz,
-    fast 4 Hz, solid), for a wearer who cannot tell the cheap motors' soft levels apart."""
+    fast 4 Hz, solid), for a wearer who cannot tell the cheap motors' soft levels apart.
+
+    The front cell goes to both front motors only when its obstacle is within CENTRE_DEG of
+    straight ahead (or its side is unknown); left of that it plays on front-left alone, right of
+    it on front-right alone, so the belt says which side the thing is on. The other front motor
+    is then cleared too, unless it holds a stronger cue of its own: the panned cue can spill a
+    little of a front object onto it, which at full strength felt like "both"."""
     out = [(m, 255 if RANK[NAMES[m]] else i) for m, i in cmd]
-    for c in range(0, len(cmd), 2):
+    n = len(cmd)
+    lateral = abs(front_bearing_deg) > CENTRE_DEG and abs(front_bearing_deg) < 67.5
+    front = RANK[NAMES[cmd[0][0]]] or max(RANK[NAMES[cmd[1][0]]], RANK[NAMES[cmd[n - 1][0]]])
+    for c in range(0, n, 2):
         m = out[c][0]
         if not RANK[NAMES[m]]:
             continue
-        for d in ((c - 1) % len(cmd), c + 1):
+        sides = ((c - 1) % n, c + 1)
+        if c == 0 and lateral:  # NaN compares False: both
+            sides = (1,) if front_bearing_deg > 0 else (n - 1,)
+        for d in sides:
             if RANK[NAMES[m]] > RANK[NAMES[out[d][0]]]:
                 out[d] = (m, 255)
         out[c] = (MODES["off"], 0)
+    if lateral:
+        far = n - 1 if front_bearing_deg > 0 else 1
+        if 0 < RANK[NAMES[out[far][0]]] <= front:
+            out[far] = (MODES["off"], 0)
     return out
 
 

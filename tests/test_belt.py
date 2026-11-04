@@ -239,6 +239,37 @@ def test_strong_puts_every_cue_at_full_strength_on_the_diagonal_motors():
     assert all(out[c][0] in (MODES["off"], MODES["unknown"]) for c in (0, 2, 4, 6))
 
 
+def test_strong_puts_the_front_cue_on_the_side_its_obstacle_is_on():
+    from metasight.belt import CENTRE_DEG, MODES, strong
+
+    off, fast = (MODES["off"], 0), (MODES["fast"], 255)
+    cmd = [off] * 8
+    cmd[0] = (MODES["fast"], 110)
+    left = strong(cmd, -15.0)
+    assert left[7] == fast and left[1] == off  # a chair left of centre: front-left only
+    right = strong(cmd, 12.0)
+    assert right[1] == fast and right[7] == off
+    ahead = strong(cmd, CENTRE_DEG / 2)
+    assert ahead[1] == ahead[7] == fast  # dead ahead: both
+    assert strong(cmd)[1] == strong(cmd)[7] == fast  # side unknown: both, as before
+    cmd[7] = (MODES["slow"], 30)  # the same object spilling onto the far motor: cleared
+    assert strong(cmd, 15.0)[7] == off
+    cmd[7] = (MODES["solid"], 255)  # a nearer cue of its own on the far motor stays
+    assert strong(cmd, 15.0)[7] == (MODES["solid"], 255)
+
+
+def test_scene_front_bearing_points_at_the_near_obstacle():
+    import numpy as np
+
+    from metasight.safety import GRID, analyse
+
+    w, h = GRID[::-1]
+    depth = np.full((h, w), 9.0, np.float32)
+    depth[int(0.35 * h) : int(0.75 * h), int(0.08 * w) : int(0.3 * w)] = 1.2  # a box, left
+    sc = analyse(depth, 1.0, 1.0, 44.8, 1.45, None)[0]  # no floor in view: plain depth
+    assert sc.front_bearing_deg < -6
+
+
 def test_rhythm_hold_escalates_at_once_and_steps_down_only_after_the_hold():
     from metasight.belt import MODES, RhythmHold
 

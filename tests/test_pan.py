@@ -173,3 +173,11 @@ def test_median_drops_a_one_frame_phantom_and_a_one_frame_gap():
     assert f([0.5]) == [0.5]  # two of the last three near: it counts
     assert f([0.5]) == [0.5]
     assert f([3.0]) == [0.5]  # one far frame inside a real obstacle: still near
+
+
+def test_the_path_obstacle_is_felt_at_its_own_bearing():
+    cmd, _ = pan.plan_pan([], [True] * 8, 1.0, math.inf, math.inf, path_bearing_deg=-20.0)
+    assert cmd[7][1] > 0 and cmd[1][1] == 0  # left of centre: the left neighbour, not the right
+    ahead = pan.path_targets([pan.Target(15.0, 2.5)], 1.0, -20.0)
+    assert pan.felt_bearing(ahead) == -20.0  # the nearer one is the one felt
+    assert math.isnan(pan.felt_bearing([]))

@@ -128,17 +128,17 @@ def plan_pan(
     drop_m: float,
     p: Params = DEFAULT,
     hold: Hold | None = None,
+    path_bearing_deg: float = 0.0,
 ) -> tuple[list[tuple[int, int]], int]:
     """Same output as `belt.plan` (8 x (mode, intensity), flags), but panned. With `hold`, the
     objects first go through that bearing hysteresis (one cue that stays put).
 
     Closing fast (time to contact under 1.2 s) on something within 2.5 m ahead raises the pulse
     one step on the front motors, as `belt.plan` does; a sector with no trusted data and no cue is
-    "unknown" (no buzz, the UI says so).
+    "unknown" (no buzz, the UI says so). The path obstacle sits at `path_bearing_deg` (where its
+    nearest pixels are; straight ahead when unknown).
     """
-    ahead = hold(targets, p) if hold else list(targets)
-    if math.isfinite(path_m):
-        ahead.append(Target(0.0, path_m))
+    ahead = path_targets(targets, path_m, path_bearing_deg, p, hold)
     cmd = plan_targets(ahead, p)
     if ttc_s < 1.2:
         for m in (0, 1, N - 1):
@@ -150,6 +150,27 @@ def plan_pan(
             cmd[i] = (MODES["unknown"], 0)
     flags = 1 if drop_m < 1.5 else 0
     return cmd, flags
+
+
+def path_targets(
+    targets: list[Target],
+    path_m: float,
+    path_bearing_deg: float = 0.0,
+    p: Params = DEFAULT,
+    hold: Hold | None = None,
+) -> list[Target]:
+    """The frame's targets plus the obstacle in the walking path, as plan_pan sees them."""
+    ahead = hold(targets, p) if hold else list(targets)
+    if math.isfinite(path_m):
+        b = path_bearing_deg if math.isfinite(path_bearing_deg) else 0.0
+        ahead.append(Target(b, path_m))
+    return ahead
+
+
+def felt_bearing(targets: list[Target], p: Params = DEFAULT) -> float:
+    """The bearing of the object the cue is about (the first one `select` keeps), NaN if none."""
+    chosen = select(targets, p)
+    return chosen[0].bearing_deg if chosen else math.nan
 
 
 def cluster_strips(
