@@ -47,7 +47,7 @@ Tests: `python -m pytest`.
 
 ## Simulation numbers
 
-The belt patterns were tuned in a walking simulation (`docs/haptics-sim.md`, results in `bench/results/`). These come from a simulated user model, not a human study.
+The belt patterns were tuned in a walking simulation (results in `bench/results/`). These come from a simulated user model, not a human study.
 
 ## License
 
